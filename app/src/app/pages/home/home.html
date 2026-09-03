@@ -1,0 +1,39 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>mygym</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <ion-card>
+    <ion-card-header>
+      <ion-card-subtitle>Scaffold</ion-card-subtitle>
+      <ion-card-title>App + API funcionando</ion-card-title>
+    </ion-card-header>
+    <ion-card-content>
+      <p>Angular standalone + Ionic Angular, listo para Capacitor.</p>
+      <ion-button (click)="checkApiHealth()">Probar conexión con la API</ion-button>
+
+      @if (apiState() === 'loading') {
+        <p>Consultando <code>/actuator/health</code>…</p>
+      } @else if (apiState() === 'up') {
+        <ion-badge color="success">API arriba</ion-badge>
+      } @else if (apiState() === 'down') {
+        <ion-badge color="danger">API no responde</ion-badge>
+      }
+    </ion-card-content>
+  </ion-card>
+
+  <ion-card>
+    <ion-card-header>
+      <ion-card-title>Próximos pasos</ion-card-title>
+    </ion-card-header>
+    <ion-list lines="none">
+      @for (step of nextSteps; track step) {
+        <ion-item>
+          <ion-label class="ion-text-wrap">{{ step }}</ion-label>
+        </ion-item>
+      }
+    </ion-list>
+  </ion-card>
+</ion-content>
