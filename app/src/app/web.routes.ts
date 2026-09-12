@@ -15,6 +15,11 @@ export const webRoutes: Routes = [
     loadComponent: () => import('./pages/join/join').then((m) => m.Join),
   },
   {
+    path: 'member',
+    canActivate: [authGuard, roleGuard('MEMBER')],
+    loadComponent: () => import('./pages/member/member').then((m) => m.MemberPage),
+  },
+  {
     path: 'gym-admin',
     canActivate: [authGuard, roleGuard('GYM_ADMIN')],
     loadComponent: () => import('./pages/gym-admin/gym-admin').then((m) => m.GymAdmin),

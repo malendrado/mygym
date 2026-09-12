@@ -5,6 +5,7 @@ import { IonContent, IonHeader, IonSpinner, IonText, IonTitle, IonToolbar } from
 import { GoogleSigninButtonDirective, SocialAuthService } from '@abacritt/angularx-social-login';
 import { AuthService } from '../../core/services/auth.service';
 import { GymService } from '../../core/services/gym.service';
+import { LoginResponse } from '../../core/models/auth.model';
 import { PublicGym } from '../../core/models/gym.model';
 import { deriveSurfaceTint } from '../../core/utils/gym-theme';
 
@@ -53,7 +54,14 @@ export class Join {
       this.status.set('joining');
       this.errorMessage.set(null);
       this.authService.joinGym(user.idToken, this.slug).subscribe({
-        next: () => this.router.navigate(['/member']),
+        // Only a brand-new email actually becomes a MEMBER of this gym; an email that already
+        // existed (any role) just logs in as-is (see AuthService.joinGymWithGoogle), so send
+        // them to their real home instead of forcing them into /member.
+        next: (response: LoginResponse) => {
+          const destination =
+            response.role === 'SUPER_ADMIN' ? '/admin/gyms' : response.role === 'GYM_ADMIN' ? '/gym-admin' : '/member';
+          this.router.navigate([destination]);
+        },
         error: (err: Error) => {
           this.status.set('ready');
           this.errorMessage.set(err.message || 'No pudimos completar tu inscripción. Intenta de nuevo.');
