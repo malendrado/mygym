@@ -1,0 +1,43 @@
+.gym-header {
+  margin-bottom: 1.25rem;
+
+  h1 {
+    font-size: 1.6rem;
+    margin: 0;
+  }
+
+  &__slug {
+    color: var(--brand-text-dim);
+    font-family: var(--brand-font-mono);
+    font-size: 0.85rem;
+    margin: 0.15rem 0 0;
+  }
+}
+
+.branding-preview {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.75rem 0;
+  padding: 0.75rem;
+  border-radius: 12px;
+  background: var(--brand-ink-surface-2);
+
+  &__logo {
+    display: flex;
+
+    // [innerHTML]-injected SVG markup isn't stamped with Angular's emulated
+    // encapsulation attribute, so a plain scoped `svg { }` rule never matches it.
+    ::ng-deep svg {
+      width: 48px;
+      height: 48px;
+    }
+  }
+
+  &__swatch {
+    width: 32px;
+    height: 32px;
+    border-radius: 999px;
+    flex-shrink: 0;
+  }
+}

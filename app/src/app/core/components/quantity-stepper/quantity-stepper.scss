@@ -1,0 +1,71 @@
+:host {
+  display: block;
+  margin: 0.5rem 0;
+}
+
+.stepper__label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--brand-text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.35rem;
+}
+
+.stepper__control {
+  display: inline-flex;
+  align-items: center;
+  background: var(--brand-ink-surface-2);
+  border-radius: 999px;
+  overflow: hidden;
+  width: fit-content;
+}
+
+.stepper__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: none;
+  background: transparent;
+  color: var(--ion-color-primary, var(--brand-accent));
+  cursor: pointer;
+  font-size: 1.15rem;
+  transition: background-color 0.15s ease, transform 0.1s ease;
+
+  &:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  &:active:not(:disabled) {
+    transform: scale(0.92);
+  }
+
+  &:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+}
+
+.stepper__value {
+  width: 60px;
+  text-align: center;
+  background: transparent;
+  border: none;
+  color: var(--brand-text);
+  font-family: var(--brand-font-mono, inherit);
+  font-size: 1rem;
+  font-weight: 600;
+  -moz-appearance: textfield;
+
+  &::-webkit-outer-spin-button,
+  &::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  &:focus {
+    outline: none;
+  }
+}

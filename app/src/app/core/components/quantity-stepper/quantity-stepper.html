@@ -1,0 +1,33 @@
+<div class="stepper">
+  @if (label) {
+    <span class="stepper__label">{{ label }}</span>
+  }
+  <div class="stepper__control">
+    <button
+      type="button"
+      class="stepper__btn"
+      [disabled]="disabled() || value() <= min"
+      (click)="decrement()"
+      aria-label="Restar"
+    >
+      <ion-icon name="remove-outline" aria-hidden="true"></ion-icon>
+    </button>
+    <input
+      class="stepper__value"
+      type="number"
+      inputmode="numeric"
+      [value]="value()"
+      [disabled]="disabled()"
+      (change)="onManualInput($any($event.target).value)"
+    />
+    <button
+      type="button"
+      class="stepper__btn"
+      [disabled]="disabled() || value() >= max"
+      (click)="increment()"
+      aria-label="Sumar"
+    >
+      <ion-icon name="add-outline" aria-hidden="true"></ion-icon>
+    </button>
+  </div>
+</div>

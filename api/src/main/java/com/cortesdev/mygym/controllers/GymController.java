@@ -1,0 +1,108 @@
+package com.cortesdev.mygym.controllers;
+
+import com.cortesdev.mygym.models.dto.AdminCreateRequest;
+import com.cortesdev.mygym.models.dto.AdminResponse;
+import com.cortesdev.mygym.models.dto.AdminStatusUpdateRequest;
+import com.cortesdev.mygym.models.dto.BlockCreateRequest;
+import com.cortesdev.mygym.models.dto.BlockResponse;
+import com.cortesdev.mygym.models.dto.BlockUpdateRequest;
+import com.cortesdev.mygym.models.dto.BrandingSuggestionRequest;
+import com.cortesdev.mygym.models.dto.BrandingSuggestionResponse;
+import com.cortesdev.mygym.models.dto.GymConfigUpdateRequest;
+import com.cortesdev.mygym.models.dto.GymCreateRequest;
+import com.cortesdev.mygym.models.dto.GymResponse;
+import com.cortesdev.mygym.services.BrandingSuggestionService;
+import com.cortesdev.mygym.services.GymService;
+import jakarta.validation.Valid;
+import java.net.URI;
+import java.util.List;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequestMapping("/api/gyms")
+@RequiredArgsConstructor
+public class GymController {
+
+    private final GymService gymService;
+    private final BrandingSuggestionService brandingSuggestionService;
+
+    @PostMapping("/suggest-branding")
+    public BrandingSuggestionResponse suggestBranding(@Valid @RequestBody BrandingSuggestionRequest request) {
+        return brandingSuggestionService.suggest(request.name());
+    }
+
+    @PostMapping
+    public ResponseEntity<GymResponse> createGym(@Valid @RequestBody GymCreateRequest request) {
+        GymResponse gym = gymService.createGym(request);
+        return ResponseEntity.created(URI.create("/api/gyms/" + gym.id())).body(gym);
+    }
+
+    @GetMapping
+    public List<GymResponse> listGyms(@RequestParam(required = false) Boolean active) {
+        return gymService.listGyms(active);
+    }
+
+    @GetMapping("/{id}")
+    public GymResponse getGym(@PathVariable Long id) {
+        return gymService.getGym(id);
+    }
+
+    @PutMapping("/{id}/config")
+    public GymResponse updateGymConfig(@PathVariable Long id, @Valid @RequestBody GymConfigUpdateRequest request) {
+        return gymService.updateGymConfig(id, request);
+    }
+
+    @PostMapping("/{id}/blocks")
+    public ResponseEntity<BlockResponse> addBlock(
+            @PathVariable Long id, @Valid @RequestBody BlockCreateRequest request) {
+        BlockResponse block = gymService.addBlock(id, request);
+        return ResponseEntity.created(URI.create("/api/gyms/" + id + "/blocks/" + block.id()))
+                .body(block);
+    }
+
+    @GetMapping("/{id}/blocks")
+    public List<BlockResponse> listBlocks(@PathVariable Long id) {
+        return gymService.listBlocks(id);
+    }
+
+    @PutMapping("/{id}/blocks/{blockId}")
+    public BlockResponse updateBlock(
+            @PathVariable Long id, @PathVariable Long blockId, @Valid @RequestBody BlockUpdateRequest request) {
+        return gymService.updateBlock(id, blockId, request);
+    }
+
+    @DeleteMapping("/{id}/blocks/{blockId}")
+    public ResponseEntity<Void> removeBlock(@PathVariable Long id, @PathVariable Long blockId) {
+        gymService.removeBlock(id, blockId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{id}/admins")
+    public List<AdminResponse> listAdmins(@PathVariable Long id) {
+        return gymService.listAdmins(id);
+    }
+
+    @PostMapping("/{id}/admins")
+    public ResponseEntity<AdminResponse> addAdmin(
+            @PathVariable Long id, @Valid @RequestBody AdminCreateRequest request) {
+        AdminResponse admin = gymService.addAdmin(id, request);
+        return ResponseEntity.created(URI.create("/api/gyms/" + id + "/admins/" + admin.id()))
+                .body(admin);
+    }
+
+    @PutMapping("/{id}/admins/{userId}")
+    public AdminResponse updateAdminStatus(
+            @PathVariable Long id, @PathVariable Long userId, @Valid @RequestBody AdminStatusUpdateRequest request) {
+        return gymService.updateAdminStatus(id, userId, request);
+    }
+}

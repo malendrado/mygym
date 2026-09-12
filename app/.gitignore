@@ -47,3 +47,7 @@ Thumbs.db
 /android
 /ios
 .capacitor/
+
+# Vercel landing deploy folder: public/ is the built bundle copied in before each deploy, .vercel/ is project linkage
+/vercel-landing/public
+/vercel-landing/.vercel

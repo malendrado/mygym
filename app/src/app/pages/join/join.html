@@ -1,0 +1,59 @@
+<ion-header
+  [style.--ion-color-primary]="gym()?.themeColor ?? '#c6ff3d'"
+  [style.--ion-color-primary-contrast]="gym()?.themeContrast ?? '#1a2b00'"
+  [style.--brand-accent]="gym()?.themeColor ?? '#c6ff3d'"
+  [style.--brand-accent-contrast]="gym()?.themeContrast ?? '#1a2b00'"
+>
+  <ion-toolbar>
+    <ion-title>{{ gym()?.name ?? 'mygym' }}</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content
+  class="ion-padding join-content"
+  [style.--join-bg]="themeSurface().bg"
+  [style.--join-card]="themeSurface().card"
+>
+  @switch (status()) {
+    @case ('loading') {
+      <div class="join-loading">
+        <ion-spinner name="crescent"></ion-spinner>
+      </div>
+    }
+    @case ('not-found') {
+      <div class="join-card">
+        <h1>Gimnasio no encontrado</h1>
+        <p>Revisa el link que te compartieron — puede que el gimnasio ya no esté disponible.</p>
+      </div>
+    }
+    @default {
+      <div class="join-card">
+        @if (isRasterLogo()) {
+          <div class="join-logo"><img [src]="gym()!.logoSvg" alt="Logo de {{ gym()!.name }}" /></div>
+        } @else if (safeLogo()) {
+          <div class="join-logo" [innerHTML]="safeLogo()"></div>
+        }
+
+        <h1>Únete a {{ gym()!.name }}</h1>
+        <p>Reserva tus clases y gestiona tu membresía con tu cuenta de Google.</p>
+
+        @if (gym()!.googleLoginEnabled) {
+          <asl-google-signin-button type="standard" size="large" text="signin_with" shape="rectangular" />
+        } @else {
+          <ion-text color="medium">
+            <p>Este gimnasio todavía no habilitó el ingreso con Google. Consulta con tu gimnasio.</p>
+          </ion-text>
+        }
+
+        @if (status() === 'joining') {
+          <p class="item-hint">Creando tu cuenta...</p>
+        }
+        @if (errorMessage()) {
+          <ion-text color="danger">
+            <p>{{ errorMessage() }}</p>
+          </ion-text>
+        }
+      </div>
+    }
+  }
+</ion-content>

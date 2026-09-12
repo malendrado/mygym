@@ -1,3 +1,13 @@
+/* Brand fonts (self-hosted, see Section 4.1 of the design direction: no Inter, no default serif) */
+@import "@fontsource/barlow-condensed/500.css";
+@import "@fontsource/barlow-condensed/600.css";
+@import "@fontsource/barlow-condensed/700.css";
+@import "@fontsource/barlow/400.css";
+@import "@fontsource/barlow/500.css";
+@import "@fontsource/barlow/600.css";
+@import "@fontsource/space-mono/400.css";
+@import "@fontsource/space-mono/700.css";
+
 /* Core Ionic CSS required for Ionic components to work properly */
 @import "@ionic/angular/css/core.css";
 
@@ -16,3 +26,130 @@
 
 /* Automatic dark mode, following the system setting */
 @import "@ionic/angular/css/palettes/dark.system.css";
+
+/*
+ * Brand tokens: "Teal Charcoal + Kinetic Lime".
+ * Single accent used identically everywhere (nav, CTAs, active states) -
+ * do not introduce a second accent color anywhere in the app.
+ */
+:root {
+  --brand-font-display: 'Barlow', -apple-system, 'Segoe UI', system-ui, sans-serif;
+  --brand-font-heading: 'Barlow Condensed', -apple-system, 'Segoe UI', system-ui, sans-serif;
+  --brand-font-mono: 'Space Mono', ui-monospace, 'SFMono-Regular', monospace;
+
+  --brand-ink: #1e2c30;
+  --brand-ink-surface: #28393e;
+  --brand-ink-surface-2: #33474d;
+  --brand-text: #eaf6f7;
+  --brand-text-dim: #a9c2c6;
+  --brand-accent: #c6ff3d;
+  --brand-accent-contrast: #1a2b00;
+
+  --ion-font-family: var(--brand-font-display);
+  --ion-color-primary: var(--brand-accent);
+  --ion-color-primary-rgb: 198, 255, 61;
+  --ion-color-primary-contrast: var(--brand-accent-contrast);
+  --ion-color-primary-contrast-rgb: 26, 43, 0;
+  --ion-color-primary-shade: #aee036;
+  --ion-color-primary-tint: #ccff50;
+
+  /* Brand background/surface applied app-wide (not just the landing) so every screen shares one identity. */
+  --ion-background-color: var(--brand-ink);
+  --ion-background-color-rgb: 30, 44, 48;
+  --ion-text-color: var(--brand-text);
+  --ion-text-color-rgb: 234, 246, 247;
+  --ion-toolbar-background: var(--brand-ink-surface);
+  --ion-toolbar-color: var(--brand-text);
+  --ion-item-background: var(--brand-ink-surface);
+  --ion-card-background: var(--brand-ink-surface);
+}
+
+/*
+ * Shape rule (see design-taste-frontend Section 4.4, also documented in landing.scss):
+ * buttons and pill-shaped controls use full radius (999px), every other container uses 16px.
+ * Applied here at the token level so it holds for the whole app, not only the landing page.
+ */
+ion-button {
+  --border-radius: 999px;
+}
+
+ion-card {
+  border-radius: 16px;
+  border: 1px solid var(--brand-ink-surface-2);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  margin-bottom: 1rem;
+}
+
+ion-card-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.05rem;
+
+  ion-icon {
+    color: var(--brand-accent);
+    font-size: 1.2rem;
+  }
+}
+
+.card-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+// Ionic's inline <ion-modal> defaults to a fairly narrow panel on desktop —
+// bump it up for modals with denser forms (block create/edit, block series
+// generator) so fields/checkboxes/draft rows have more breathing room.
+.wide-modal {
+  --width: min(600px, 92vw);
+  --max-width: 600px;
+}
+
+.card-header-row__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.item-hint {
+  color: var(--brand-text-dim);
+  font-size: 0.8rem;
+  margin: 0.15rem 0 0;
+}
+
+/*
+ * By default ion-modal takes up nearly the full viewport on wide screens, which
+ * leaves short forms (like the block create/edit modal) floating in a huge empty
+ * void. Size it like a normal centered dialog instead.
+ */
+ion-modal {
+  --width: min(480px, 92vw);
+  --height: min(620px, 90vh);
+  --border-radius: 16px;
+}
+
+ion-title ion-icon {
+  margin-right: 0.4rem;
+  vertical-align: middle;
+  color: var(--brand-accent);
+}
+
+ion-title,
+h1,
+h2,
+h3 {
+  font-family: var(--brand-font-heading);
+  letter-spacing: -0.01em;
+}
+
+.brand-icon {
+  width: 24px;
+  height: 24px;
+  vertical-align: middle;
+  margin-right: 0.5rem;
+}
+

@@ -1,0 +1,39 @@
+.section-label {
+  font-weight: 600;
+  margin: 0.5rem 0 0.25rem;
+  color: var(--brand-text-dim);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.days-grid {
+  display: grid;
+  // auto-fit collapses empty tracks so the last (partial) row stretches to
+  // fill the width instead of leaving dead space — see gym-admin.scss.
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+}
+
+.time-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.5rem;
+}
+
+.draft-summary {
+  margin-top: 1rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--brand-ink-surface-2);
+}
+
+.modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+
+  ion-button[expand='block'] {
+    flex: 1;
+  }
+}

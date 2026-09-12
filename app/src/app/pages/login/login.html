@@ -1,0 +1,18 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>Iniciar sesión</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding login-content">
+  <div class="login-card">
+    <h1>Ingresa a mygym</h1>
+    <p>Usa tu cuenta de Google para reservar clases o administrar tu gimnasio.</p>
+    <asl-google-signin-button type="standard" size="large" text="signin_with" shape="rectangular" />
+    @if (errorMessage()) {
+      <ion-text color="danger">
+        <p>{{ errorMessage() }}</p>
+      </ion-text>
+    }
+  </div>
+</ion-content>

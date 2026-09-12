@@ -1,0 +1,59 @@
+.join-content {
+  --background: var(--join-bg, var(--brand-ink));
+}
+
+.join-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+
+  ion-spinner {
+    width: 48px;
+    height: 48px;
+    color: var(--brand-accent);
+  }
+}
+
+.join-card {
+  max-width: 420px;
+  margin: 3rem auto 0;
+  background: var(--join-card, var(--brand-ink-surface-2));
+  border-radius: 16px;
+  padding: 2rem;
+  text-align: center;
+  transition: background-color 0.25s ease;
+
+  h1 {
+    font-family: var(--brand-font-display);
+    font-size: 1.6rem;
+    margin: 1rem 0 0.5rem;
+  }
+
+  p {
+    color: var(--brand-text-dim);
+    margin: 0 0 1.25rem;
+  }
+
+  asl-google-signin-button {
+    display: flex;
+    justify-content: center;
+  }
+}
+
+.join-logo {
+  display: flex;
+  justify-content: center;
+
+  img {
+    width: 96px;
+    height: 96px;
+    object-fit: contain;
+    border-radius: 16px;
+  }
+
+  ::ng-deep svg {
+    width: 96px;
+    height: 96px;
+  }
+}

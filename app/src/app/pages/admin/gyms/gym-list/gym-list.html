@@ -1,0 +1,50 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title><img src="favicon.svg" class="brand-icon" alt="" /> Gimnasios</ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="logout()">Salir</ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  @if (status() === 'loading') {
+    <p>Cargando gimnasios…</p>
+  } @else if (status() === 'error') {
+    <ion-text color="danger"><p>No se pudieron cargar los gimnasios. Intenta nuevamente.</p></ion-text>
+  } @else {
+    <ion-card>
+      <ion-card-header>
+        <ion-card-title>
+          <ion-icon name="business-outline" aria-hidden="true"></ion-icon>
+          Gimnasios registrados
+          <ion-badge color="dark">{{ gyms().length }}</ion-badge>
+        </ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <ion-list lines="full">
+          @for (gym of gyms(); track gym.id) {
+            <ion-item [routerLink]="['/admin/gyms', gym.id]" button detail="true">
+              <ion-icon name="barbell-outline" slot="start" aria-hidden="true"></ion-icon>
+              <ion-label>
+                {{ gym.name }}
+                <p>{{ gym.slug }} — cupo {{ gym.maxUsers }}</p>
+              </ion-label>
+              <ion-badge slot="end" [color]="gym.active ? 'success' : 'medium'">
+                {{ gym.active ? 'Activo' : 'Inactivo' }}
+              </ion-badge>
+            </ion-item>
+          } @empty {
+            <ion-item lines="none"><ion-label>Todavía no hay gimnasios creados.</ion-label></ion-item>
+          }
+        </ion-list>
+      </ion-card-content>
+    </ion-card>
+  }
+
+  <ion-fab vertical="bottom" horizontal="end" slot="fixed">
+    <ion-fab-button routerLink="/admin/gyms/new">
+      <ion-icon name="add"></ion-icon>
+    </ion-fab-button>
+  </ion-fab>
+</ion-content>

@@ -1,0 +1,403 @@
+<ion-content [fullscreen]="true" class="landing-content">
+  <nav class="nav">
+    <span class="nav__brand">
+      <svg class="nav__brand-icon" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <g id="icon">
+          <path fill="currentColor" fill-rule="evenodd" d="
+            M128,40 H384 A88,88 0 0 1 472,128 V384 A88,88 0 0 1 384,472 H128 A88,88 0 0 1 40,384 V128 A88,88 0 0 1 128,40 Z
+            M128,72 H384 A56,56 0 0 1 440,128 V384 A56,56 0 0 1 384,440 H128 A56,56 0 0 1 72,384 V128 A56,56 0 0 1 128,72 Z
+          "/>
+          <g id="mark" transform="translate(256,256) scale(0.72) translate(-256,-256)">
+            <path d="M120,360 L120,90 L256,260 L392,90 L392,360" fill="none" stroke="currentColor" stroke-width="84" stroke-linecap="round" stroke-linejoin="round"/>
+            <path fill="currentColor" fill-rule="evenodd" d="
+              M224,360 L172,450.07 L68,450.07 L16,360 L68,269.93 L172,269.93 Z
+              M148,360 A28,28 0 1 0 92,360 A28,28 0 1 0 148,360 Z
+            "/>
+            <path fill="currentColor" fill-rule="evenodd" d="
+              M496,360 L444,450.07 L340,450.07 L288,360 L340,269.93 L444,269.93 Z
+              M420,360 A28,28 0 1 0 364,360 A28,28 0 1 0 420,360 Z
+            "/>
+          </g>
+        </g>
+      </svg>
+      mygym
+    </span>
+    <div class="nav__links">
+      <a href="#producto">Producto</a>
+      <a href="#socios">Tus socios</a>
+      <a href="#precios">Precios</a>
+    </div>
+    <button class="nav__cta" type="button" (click)="openContact()">Pedir demo</button>
+  </nav>
+
+  <header class="hero">
+    <div class="hero__copy">
+      <h1 class="hero__headline">Gestiona tu gimnasio sin la planilla de Excel</h1>
+      <p class="hero__subtext">
+        Reservas, membresías y pagos en un solo lugar: arma tu horario, cobra automático y deja de perseguir a tus
+        socios por WhatsApp.
+      </p>
+      <button #heroCta class="button button--primary hero__cta" type="button" (click)="openContact()">
+        Pedir demo
+      </button>
+    </div>
+    <div class="hero__asset">
+      <img
+        src="https://images.unsplash.com/photo-1637666062717-1c6bcfa4a4df?q=80&w=900&h=1100&fit=crop&auto=format"
+        alt="Sala de musculación de un gimnasio tradicional"
+        width="900"
+        height="1100"
+      />
+      <article class="hero__widget">
+        <header class="hero__widget-header">
+          <span class="hero__widget-time">{{ classTime }}</span>
+          <span class="hero__widget-capacity">{{ classCapacity.taken }}/{{ classCapacity.total }} cupos</span>
+        </header>
+        <ul class="hero__widget-avatars">
+          @for (attendee of attendees; track attendee.name) {
+            <li>{{ attendee.initials }}</li>
+          }
+        </ul>
+        <p class="hero__widget-label">
+          <span class="hero__widget-live"></span>
+          Reservas en vivo
+        </p>
+      </article>
+    </div>
+  </header>
+
+  <section class="why" id="producto" #reveal>
+    <div class="why__copy">
+      <h2>El cuaderno y la planilla no escalan</h2>
+      <p>
+        Cada socio nuevo es una fila más, cada cobro atrasado es un recordatorio que alguien tiene que mandar a mano.
+        mygym se encarga de eso para que tu equipo se enfoque en la sala, no en la planilla.
+      </p>
+    </div>
+    <div class="why__asset">
+      <img
+        src="https://images.unsplash.com/photo-1576678927484-cc907957088c?q=80&w=800&h=1000&fit=crop&auto=format"
+        alt="Rack de mancuernas en una sala de musculación"
+        width="800"
+        height="1000"
+        loading="lazy"
+      />
+      <article class="why__widget">
+        <p class="why__widget-label">Cobro atrasado, aviso automático</p>
+        <div class="why__widget-row">
+          <span class="why__widget-name">Javiera Pulgar</span>
+          <span class="why__widget-pill why__widget-pill--unpaid">Impaga</span>
+        </div>
+        <div class="why__widget-row">
+          <span class="why__widget-name">Constanza Pérez</span>
+          <span class="why__widget-pill why__widget-pill--active">Activa</span>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <section class="band" #reveal>
+    <img
+      class="band__image"
+      src="https://images.unsplash.com/photo-1637430308606-86576d8fef3c?q=75&w=1600&h=900&fit=crop&auto=format"
+      alt="Sala de entrenamiento con luces cálidas"
+      width="1600"
+      height="900"
+      loading="lazy"
+    />
+    <p class="band__quote">Menos tiempo administrando, más tiempo entrenando gente.</p>
+    <article class="band__widget">
+      <ion-icon name="pulse-outline" aria-hidden="true"></ion-icon>
+      <span>Check-in automático: Dayana Guerra</span>
+    </article>
+  </section>
+
+  <section class="features">
+    <h2>Todo lo que tu gimnasio necesita, en un solo lugar</h2>
+    <div class="bento">
+      @for (feature of features; track feature.title; let i = $index) {
+        <article
+          class="bento__cell"
+          [class]="'bento__cell--' + feature.span + ' bento__cell--' + feature.tint"
+          [style.transition-delay.ms]="i * 70"
+          #reveal
+        >
+          <h3>{{ feature.title }}</h3>
+          <p>{{ feature.body }}</p>
+        </article>
+      }
+    </div>
+  </section>
+
+  <section class="members" id="socios">
+    <div class="members__intro" #reveal>
+      <span class="members__eyebrow">Para quienes se inscriben en tu gimnasio</span>
+      <h2>Tus socios no ven una planilla. Ven una app que les simplifica todo.</h2>
+      <p>Lo que tú resuelves puertas adentro, tu socio lo nota apenas se inscribe: menos fricción, más constancia.</p>
+    </div>
+    <div class="members__layout">
+      <div class="members__asset">
+        <img
+          src="https://images.unsplash.com/photo-1719239163994-6413670c4e9f?q=80&w=1200&h=800&fit=crop&auto=format"
+          alt="Socio revisando su celular en la sala de musculación de un gimnasio"
+          width="1200"
+          height="800"
+          loading="lazy"
+        />
+        <article class="members__widget">
+          <p class="members__widget-label">Notificación al socio</p>
+          <div class="members__widget-row">
+            <ion-icon name="notifications-outline" aria-hidden="true"></ion-icon>
+            <span>Tu plan vence en 5 días</span>
+          </div>
+          <div class="members__widget-row">
+            <ion-icon name="flash-outline" aria-hidden="true"></ion-icon>
+            <span>Reserva confirmada: 18:30</span>
+          </div>
+        </article>
+      </div>
+      <div class="members__grid">
+        @for (benefit of memberBenefits; track benefit.title; let i = $index) {
+          <article class="members__card" [style.transition-delay.ms]="i * 70" #reveal>
+            <ion-icon [name]="benefit.icon" aria-hidden="true"></ion-icon>
+            <h3>{{ benefit.title }}</h3>
+            <p>{{ benefit.body }}</p>
+          </article>
+        }
+      </div>
+    </div>
+  </section>
+
+  <section class="booking" #reveal>
+    <div class="booking__copy">
+      <h2>Así reservan tus socios</h2>
+      <p>
+        Cada horario muestra los cupos que quedan y quién ya confirmó. Menos mensajes preguntando
+        "¿queda lugar?".
+      </p>
+    </div>
+    <article class="booking__card">
+      <header class="booking__card-header">
+        <span class="booking__time">{{ classTime }}</span>
+        <span class="booking__capacity">{{ classCapacity.taken }}/{{ classCapacity.total }} cupos</span>
+      </header>
+      <ul class="booking__attendees">
+        @for (attendee of attendees; track attendee.name) {
+          <li>
+            <span class="booking__avatar">{{ attendee.initials }}</span>
+            {{ attendee.name }}
+          </li>
+        }
+      </ul>
+      <button class="button button--primary booking__button" type="button" (click)="openContact()">
+        Reservar
+      </button>
+      <p class="booking__note">No se puede reservar con menos de 2 horas de anticipación.</p>
+    </article>
+  </section>
+
+  <section class="states">
+    <h2>Un estado para cada socio, no solo activo o vencido</h2>
+    <div class="states__grid">
+      @for (state of membershipStates; track state.label; let i = $index) {
+        <article
+          class="states__card"
+          [class]="'states__card--' + state.tone"
+          [style.transition-delay.ms]="i * 70"
+          #reveal
+        >
+          <span class="states__pill">{{ state.label }}</span>
+          <p>{{ state.body }}</p>
+        </article>
+      }
+    </div>
+  </section>
+
+  <section class="pricing" id="precios" #reveal>
+    <h2>Un plan según cuántos socios tienes, no según qué funciones quieres</h2>
+    <div class="pricing__grid">
+      @for (tier of pricingTiers; track tier.name) {
+        <article class="pricing__card" [class.pricing__card--highlight]="tier.highlight">
+          @if (tier.highlight) {
+            <span class="pricing__badge">Más elegido</span>
+          }
+          <h3>{{ tier.name }}</h3>
+          <p class="pricing__clients">{{ tier.clients }}</p>
+          <p class="pricing__price">{{ tier.price }}<span> / mes</span></p>
+          <ul>
+            @for (item of tier.items; track item) {
+              <li>{{ item }}</li>
+            }
+          </ul>
+        </article>
+      }
+    </div>
+  </section>
+
+  <section class="steps">
+    <h2>Empezar toma minutos, no semanas</h2>
+    <div class="steps__row">
+      @for (step of steps; track step.title; let i = $index) {
+        <article class="steps__card" [style.transition-delay.ms]="i * 70" #reveal>
+          <ion-icon [name]="step.icon" aria-hidden="true"></ion-icon>
+          <h3>{{ step.title }}</h3>
+          <p>{{ step.body }}</p>
+        </article>
+      }
+    </div>
+  </section>
+
+  <section class="faq">
+    <h2>Preguntas frecuentes</h2>
+    <div class="faq__list">
+      @for (item of faqItems; track item.question; let i = $index) {
+        <article
+          class="faq__item"
+          [class.faq__item--open]="openFaqIndexes().has(i)"
+          [style.transition-delay.ms]="i * 70"
+          #reveal
+        >
+          <button class="faq__question" type="button" (click)="toggleFaq(i)" [attr.aria-expanded]="openFaqIndexes().has(i)">
+            {{ item.question }}
+            <ion-icon name="chevron-down-outline" aria-hidden="true"></ion-icon>
+          </button>
+          @if (openFaqIndexes().has(i)) {
+            <p class="faq__answer">{{ item.answer }}</p>
+          }
+        </article>
+      }
+    </div>
+  </section>
+
+  <div class="brand-divider" #reveal aria-hidden="true">
+    <svg class="brand-divider__icon" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+      <g id="icon">
+        <path fill="currentColor" fill-rule="evenodd" d="
+          M128,40 H384 A88,88 0 0 1 472,128 V384 A88,88 0 0 1 384,472 H128 A88,88 0 0 1 40,384 V128 A88,88 0 0 1 128,40 Z
+          M128,72 H384 A56,56 0 0 1 440,128 V384 A56,56 0 0 1 384,440 H128 A56,56 0 0 1 72,384 V128 A56,56 0 0 1 128,72 Z
+        "/>
+        <g id="mark" transform="translate(256,256) scale(0.72) translate(-256,-256)">
+          <path d="M120,360 L120,90 L256,260 L392,90 L392,360" fill="none" stroke="currentColor" stroke-width="84" stroke-linecap="round" stroke-linejoin="round"/>
+          <path fill="currentColor" fill-rule="evenodd" d="
+            M224,360 L172,450.07 L68,450.07 L16,360 L68,269.93 L172,269.93 Z
+            M148,360 A28,28 0 1 0 92,360 A28,28 0 1 0 148,360 Z
+          "/>
+          <path fill="currentColor" fill-rule="evenodd" d="
+            M496,360 L444,450.07 L340,450.07 L288,360 L340,269.93 L444,269.93 Z
+            M420,360 A28,28 0 1 0 364,360 A28,28 0 1 0 420,360 Z
+          "/>
+        </g>
+      </g>
+    </svg>
+  </div>
+
+  <footer class="footer" id="contacto" #reveal>
+    <svg class="footer__icon" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <g id="icon">
+        <path fill="currentColor" fill-rule="evenodd" d="
+          M128,40 H384 A88,88 0 0 1 472,128 V384 A88,88 0 0 1 384,472 H128 A88,88 0 0 1 40,384 V128 A88,88 0 0 1 128,40 Z
+          M128,72 H384 A56,56 0 0 1 440,128 V384 A56,56 0 0 1 384,440 H128 A56,56 0 0 1 72,384 V128 A56,56 0 0 1 128,72 Z
+        "/>
+        <g id="mark" transform="translate(256,256) scale(0.72) translate(-256,-256)">
+          <path d="M120,360 L120,90 L256,260 L392,90 L392,360" fill="none" stroke="currentColor" stroke-width="84" stroke-linecap="round" stroke-linejoin="round"/>
+          <path fill="currentColor" fill-rule="evenodd" d="
+            M224,360 L172,450.07 L68,450.07 L16,360 L68,269.93 L172,269.93 Z
+            M148,360 A28,28 0 1 0 92,360 A28,28 0 1 0 148,360 Z
+          "/>
+          <path fill="currentColor" fill-rule="evenodd" d="
+            M496,360 L444,450.07 L340,450.07 L288,360 L340,269.93 L444,269.93 Z
+            M420,360 A28,28 0 1 0 364,360 A28,28 0 1 0 420,360 Z
+          "/>
+        </g>
+      </g>
+    </svg>
+    <h2>Comienza a dejar la planilla de lado</h2>
+    <button class="button button--primary" type="button" (click)="openContact()">Pedir demo</button>
+    <p class="footer__meta">www.mygym.cl Powered by cortesdev.cl ft G.</p>
+  </footer>
+
+  @if (isContactOpen()) {
+    <div class="contact-modal" (click)="closeContact()">
+      <div
+        class="contact-modal__card"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Formulario de contacto"
+        (click)="$event.stopPropagation()"
+        (keydown)="onModalKeydown($event)"
+      >
+        <button #modalCloseButton class="contact-modal__close" type="button" (click)="closeContact()" aria-label="Cerrar">
+          &times;
+        </button>
+        @if (isSubmitted()) {
+          <h3>Mensaje enviado</h3>
+          <p class="contact-modal__hint">
+            Ya te llegó tu consulta a contacto&#64;cortesdev.cl. Te contestamos apenas la veamos.
+          </p>
+          <button class="button button--primary contact-modal__submit" type="button" (click)="closeContact()">
+            Cerrar
+          </button>
+        } @else {
+          <h3>Déjanos tus datos</h3>
+          <a
+            class="contact-modal__whatsapp"
+            [href]="whatsappUrl"
+            target="_blank"
+            rel="noopener"
+            (click)="closeContact()"
+          >
+            <ion-icon name="logo-whatsapp" aria-hidden="true"></ion-icon>
+            Escríbenos por WhatsApp
+          </a>
+          <div class="contact-modal__divider"><span>o completa el formulario</span></div>
+          @if (submitError()) {
+            <p class="contact-modal__error contact-modal__error--form" role="alert">{{ submitError() }}</p>
+          }
+          <form (submit)="submitContact($event, nameInput.value, emailInput.value, messageInput.value)" novalidate>
+            <label>
+              Nombre
+              <input
+                #nameInput
+                id="contact-name"
+                name="name"
+                type="text"
+                required
+                autocomplete="name"
+                [attr.aria-invalid]="nameError() ? 'true' : null"
+                [attr.aria-describedby]="nameError() ? 'contact-name-error' : null"
+                (blur)="validateName(nameInput.value)"
+              />
+              @if (nameError()) {
+                <span id="contact-name-error" class="contact-modal__error" role="alert">{{ nameError() }}</span>
+              }
+            </label>
+            <label>
+              Email
+              <input
+                #emailInput
+                id="contact-email"
+                name="email"
+                type="email"
+                required
+                autocomplete="email"
+                [attr.aria-invalid]="emailError() ? 'true' : null"
+                [attr.aria-describedby]="emailError() ? 'contact-email-error' : null"
+                (blur)="validateEmail(emailInput.value)"
+              />
+              @if (emailError()) {
+                <span id="contact-email-error" class="contact-modal__error" role="alert">{{ emailError() }}</span>
+              }
+            </label>
+            <label>
+              Mensaje
+              <textarea #messageInput name="message" rows="3" placeholder="Cuéntanos de tu gimnasio (opcional)"></textarea>
+            </label>
+            <button class="button button--primary contact-modal__submit" type="submit" [disabled]="isSending()">
+              {{ isSending() ? 'Enviando…' : 'Enviar' }}
+            </button>
+          </form>
+        }
+      </div>
+    </div>
+  }
+</ion-content>

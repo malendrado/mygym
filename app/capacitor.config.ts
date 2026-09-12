@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.cocha.mygym',
+  appId: 'com.cortesdev.mygym',
   appName: 'mygym',
   webDir: 'dist/app/browser'
 };

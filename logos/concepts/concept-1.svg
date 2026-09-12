@@ -1,0 +1,7 @@
+<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <g id="icon">
+    <path d="M120,360 L120,90 L256,260 L392,90 L392,360" fill="none" stroke="#c6ff3d" stroke-width="84" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="120" cy="360" r="104" fill="#c6ff3d"/>
+    <circle cx="392" cy="360" r="104" fill="#c6ff3d"/>
+  </g>
+</svg>

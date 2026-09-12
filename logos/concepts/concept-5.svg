@@ -1,0 +1,8 @@
+<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <g id="icon">
+    <path fill-rule="evenodd" fill="#c6ff3d" d="M481,256 L368.5,61.14 L143.5,61.14 L31,256 L143.5,450.86 L368.5,450.86 Z M421,256 L338.5,113.11 L173.5,113.11 L91,256 L173.5,398.89 L338.5,398.89 Z"/>
+    <rect x="198" y="40" width="116" height="140" rx="58" ry="58" fill="none" stroke="#c6ff3d" stroke-width="46"/>
+    <path fill="#c6ff3d" d="M216,190 L296,190 L326,250 L186,250 Z"/>
+    <circle cx="256" cy="333" r="92" fill="#c6ff3d"/>
+  </g>
+</svg>

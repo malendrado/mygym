@@ -1,0 +1,40 @@
+import { Routes } from '@angular/router';
+import { authGuard, roleGuard } from './core/guards/auth.guard';
+
+export const webRoutes: Routes = [
+  {
+    path: '',
+    loadComponent: () => import('./pages/landing/landing').then((m) => m.Landing),
+  },
+  {
+    path: 'login',
+    loadComponent: () => import('./pages/login/login').then((m) => m.Login),
+  },
+  {
+    path: 'j/:slug',
+    loadComponent: () => import('./pages/join/join').then((m) => m.Join),
+  },
+  {
+    path: 'gym-admin',
+    canActivate: [authGuard, roleGuard('GYM_ADMIN')],
+    loadComponent: () => import('./pages/gym-admin/gym-admin').then((m) => m.GymAdmin),
+  },
+  {
+    path: 'admin/gyms',
+    canActivate: [authGuard, roleGuard('SUPER_ADMIN')],
+    children: [
+      {
+        path: '',
+        loadComponent: () => import('./pages/admin/gyms/gym-list/gym-list').then((m) => m.GymList),
+      },
+      {
+        path: 'new',
+        loadComponent: () => import('./pages/admin/gyms/gym-form/gym-form').then((m) => m.GymForm),
+      },
+      {
+        path: ':id',
+        loadComponent: () => import('./pages/admin/gyms/gym-form/gym-form').then((m) => m.GymForm),
+      },
+    ],
+  },
+];

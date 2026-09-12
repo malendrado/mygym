@@ -1,0 +1,48 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>Mis clases</ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="logout()">Salir</ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  @if (status() === 'error') {
+    <ion-text color="danger"><p>Ocurrió un error. Intenta nuevamente.</p></ion-text>
+  }
+
+  <h2>Próximas clases</h2>
+  <ion-list>
+    @for (occurrence of occurrences(); track occurrence.gymBlockId + occurrence.classDate) {
+      <ion-item>
+        <ion-label>
+          {{ occurrence.label }} — {{ occurrence.classDate }} {{ occurrence.startTime }}-{{ occurrence.endTime }}
+          <p>{{ occurrence.taken }}/{{ occurrence.capacity }} cupos</p>
+        </ion-label>
+        @if (occurrence.myReservationId) {
+          <ion-badge color="success" slot="end">Reservado</ion-badge>
+          <ion-button fill="clear" color="danger" (click)="cancel(occurrence.myReservationId!)">Cancelar</ion-button>
+        } @else {
+          <ion-button fill="clear" [disabled]="!occurrence.bookable" (click)="book(occurrence)">Reservar</ion-button>
+        }
+      </ion-item>
+    } @empty {
+      <ion-item lines="none"><ion-label>No hay clases programadas esta semana.</ion-label></ion-item>
+    }
+  </ion-list>
+
+  <h2>Mis reservas</h2>
+  <ion-list>
+    @for (reservation of myReservations(); track reservation.id) {
+      <ion-item>
+        <ion-label>
+          {{ reservation.blockLabel }} — {{ reservation.classDate }} {{ reservation.startTime }}-{{ reservation.endTime }}
+        </ion-label>
+        <ion-button fill="clear" color="danger" (click)="cancel(reservation.id)">Cancelar</ion-button>
+      </ion-item>
+    } @empty {
+      <ion-item lines="none"><ion-label>Todavía no tienes reservas.</ion-label></ion-item>
+    }
+  </ion-list>
+</ion-content>

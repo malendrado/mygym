@@ -1,0 +1,103 @@
+<div class="ion-page">
+<ion-header>
+  <ion-toolbar>
+    <ion-title>
+      <ion-icon name="time-outline" aria-hidden="true"></ion-icon>
+      Generar bloques
+    </ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="cancel()">Cerrar</ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <form [formGroup]="form">
+    <p class="section-label">Días *</p>
+    <div class="days-grid">
+      @for (day of days; track day.value) {
+        <ion-item lines="none">
+          <ion-checkbox
+            slot="start"
+            [checked]="isDaySelected(day.value)"
+            (ionChange)="toggleDay(day.value, $event.detail.checked)"
+          ></ion-checkbox>
+          <ion-label>{{ day.label }}</ion-label>
+        </ion-item>
+      }
+    </div>
+
+    <div class="time-row">
+      <ion-item class="time-row__field">
+        <ion-select label="Hora de apertura *" formControlName="openTime">
+          @for (t of timeOptions; track t) {
+            <ion-select-option [value]="t">{{ t }}</ion-select-option>
+          }
+        </ion-select>
+      </ion-item>
+      <ion-item class="time-row__field">
+        <ion-select label="Hora de cierre *" formControlName="closeTime">
+          @for (t of timeOptions; track t) {
+            <ion-select-option [value]="t">{{ t }}</ion-select-option>
+          }
+        </ion-select>
+      </ion-item>
+    </div>
+    @if (scheduleInvalid()) {
+      <ion-note color="danger">La hora de cierre debe ser posterior a la de apertura.</ion-note>
+    }
+
+    <ion-item>
+      <ion-select label="Duración de cada bloque *" formControlName="durationMin">
+        @for (d of durations; track d) {
+          <ion-select-option [value]="d">{{ d }} min</ion-select-option>
+        }
+      </ion-select>
+    </ion-item>
+
+    <ion-item>
+      <ion-input label="Nombre del bloque *" formControlName="label" placeholder="Ej: Clase funcional" />
+    </ion-item>
+
+    <app-quantity-stepper label="Cupo por bloque *" formControlName="capacity" [min]="1" [max]="500" />
+
+    <ion-button type="button" expand="block" fill="outline" class="ion-margin-top" (click)="generatePreview()">
+      <ion-icon name="sparkles-outline" slot="start" aria-hidden="true"></ion-icon>
+      Generar vista previa
+    </ion-button>
+  </form>
+
+  @if (draft().length > 0) {
+    <div class="draft-summary">
+      <p>Se van a crear <strong>{{ draft().length }}</strong> bloques:</p>
+      <ion-list lines="full">
+        @for (entry of draft(); track entry.dayLabel + entry.startTime) {
+          <ion-item>
+            <ion-label>
+              {{ entry.dayLabel }} — {{ entry.startTime }} a {{ entry.endTime }}
+              <p>{{ entry.label }} · Cupo {{ entry.capacity }}</p>
+            </ion-label>
+            <ion-button
+              fill="clear"
+              color="danger"
+              [attr.aria-label]="'Quitar ' + entry.dayLabel + ' ' + entry.startTime + ' de la vista previa'"
+              (click)="removeDraftEntry(entry)"
+            >
+              <ion-icon name="close-circle-outline" slot="icon-only" aria-hidden="true"></ion-icon>
+            </ion-button>
+          </ion-item>
+        }
+      </ion-list>
+    </div>
+  } @else if (hasGenerated()) {
+    <ion-note color="medium">No se generó ningún bloque. Revisa los días y el horario elegidos.</ion-note>
+  }
+
+  <div class="modal-actions">
+    <ion-button type="button" fill="clear" (click)="cancel()">Cancelar</ion-button>
+    <ion-button type="button" expand="block" [disabled]="draft().length === 0" (click)="confirm()">
+      Confirmar y crear todos
+    </ion-button>
+  </div>
+</ion-content>
+</div>

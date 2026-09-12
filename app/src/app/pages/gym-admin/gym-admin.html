@@ -1,0 +1,241 @@
+@if (!gymLoaded()) {
+  <ion-header>
+    <ion-toolbar>
+      <ion-title>mygym</ion-title>
+    </ion-toolbar>
+  </ion-header>
+  <ion-content class="ion-padding gym-admin-loading">
+    <ion-spinner name="crescent"></ion-spinner>
+  </ion-content>
+} @else {
+<ion-header
+  [style.--ion-color-primary]="themeColor()"
+  [style.--ion-color-primary-contrast]="themeContrast()"
+  [style.--brand-accent]="themeColor()"
+  [style.--brand-accent-contrast]="themeContrast()"
+  [style.--gym-panel-bg]="themeSurface().bg"
+  [style.--gym-panel-card]="themeSurface().card"
+>
+  <ion-toolbar>
+    <ion-title>{{ gymName() }}</ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="logout()">Salir</ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+  <ion-toolbar>
+    <ion-segment [value]="section()" (ionChange)="setSection($any($event.detail.value))">
+      <ion-segment-button value="blocks">
+        <ion-icon name="time-outline" aria-hidden="true"></ion-icon>
+        <ion-label>Horarios</ion-label>
+      </ion-segment-button>
+      <ion-segment-button value="members">
+        <ion-icon name="people-outline" aria-hidden="true"></ion-icon>
+        <ion-label>Socios</ion-label>
+      </ion-segment-button>
+      <ion-segment-button value="branding">
+        <ion-icon name="color-palette-outline" aria-hidden="true"></ion-icon>
+        <ion-label>Personalización</ion-label>
+      </ion-segment-button>
+    </ion-segment>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content
+  class="ion-padding"
+  [style.--ion-color-primary]="themeColor()"
+  [style.--ion-color-primary-contrast]="themeContrast()"
+  [style.--brand-accent]="themeColor()"
+  [style.--brand-accent-contrast]="themeContrast()"
+  [style.--gym-panel-bg]="themeSurface().bg"
+  [style.--gym-panel-card]="themeSurface().card"
+>
+  @if (status() === 'error') {
+    <ion-text color="danger"><p>Ocurrió un error. Intenta nuevamente.</p></ion-text>
+  }
+
+  @if (section() === 'blocks') {
+    <ion-card>
+      <ion-card-header class="card-header-row">
+        <ion-card-title>
+          <ion-icon name="time-outline" aria-hidden="true"></ion-icon>
+          Bloques / horarios
+        </ion-card-title>
+        <div class="card-header-row__actions">
+          <ion-button size="small" fill="outline" (click)="openSeriesModal()">Generar bloques</ion-button>
+          <ion-button size="small" (click)="openAddBlock()">Agregar bloque</ion-button>
+        </div>
+      </ion-card-header>
+      <ion-card-content>
+        <ion-list lines="full">
+          @for (block of blocks(); track block.id) {
+            <ion-item>
+              <ion-icon name="calendar-outline" slot="start" aria-hidden="true"></ion-icon>
+              <ion-label>
+                {{ block.label }} — {{ block.dayOfWeek }} {{ block.startTime }}-{{ block.endTime }}
+                <p>Cupo: {{ block.capacity }}</p>
+              </ion-label>
+              @if (!block.active) {
+                <ion-badge color="medium" slot="end">Inactivo</ion-badge>
+              }
+              <ion-button fill="clear" (click)="openEditBlock(block)">Editar</ion-button>
+              <ion-button fill="clear" color="danger" (click)="removeBlock(block)">Eliminar</ion-button>
+            </ion-item>
+          } @empty {
+            <ion-item lines="none"><ion-label>Todavía no hay bloques configurados.</ion-label></ion-item>
+          }
+        </ion-list>
+      </ion-card-content>
+    </ion-card>
+
+    <ion-modal
+      class="wide-modal"
+      [isOpen]="isModalOpen()"
+      (didDismiss)="closeModal()"
+      [style.--ion-color-primary]="themeColor()"
+      [style.--ion-color-primary-contrast]="themeContrast()"
+      [style.--brand-accent]="themeColor()"
+      [style.--brand-accent-contrast]="themeContrast()"
+      [style.--gym-panel-bg]="themeSurface().bg"
+      [style.--gym-panel-card]="themeSurface().card"
+    >
+      <ng-template>
+        <app-bloque-form-modal
+          [block]="editingBlock()"
+          [saving]="status() === 'saving'"
+          (saved)="saveBlock($event)"
+          (dismiss)="closeModal()"
+        />
+      </ng-template>
+    </ion-modal>
+
+    <ion-modal
+      class="wide-modal"
+      [isOpen]="isSeriesModalOpen()"
+      (didDismiss)="closeSeriesModal()"
+      [style.--ion-color-primary]="themeColor()"
+      [style.--ion-color-primary-contrast]="themeContrast()"
+      [style.--brand-accent]="themeColor()"
+      [style.--brand-accent-contrast]="themeContrast()"
+      [style.--gym-panel-bg]="themeSurface().bg"
+      [style.--gym-panel-card]="themeSurface().card"
+    >
+      <ng-template>
+        <app-bloque-series-modal (confirmed)="confirmSeries($event)" (dismiss)="closeSeriesModal()" />
+      </ng-template>
+    </ion-modal>
+  } @else if (section() === 'members') {
+    <ion-card>
+      <ion-card-header>
+        <ion-card-title>
+          <ion-icon name="person-add-outline" aria-hidden="true"></ion-icon>
+          Agregar socio
+        </ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <form [formGroup]="memberForm" (ngSubmit)="submitMember()">
+          <ion-item>
+            <ion-input label="Nombre *" formControlName="name" placeholder="Ej: Javiera Pulgar" />
+          </ion-item>
+          <ion-item lines="none">
+            <ion-input label="Email *" type="email" autocomplete="email" formControlName="email" placeholder="Ej: javiera@mail.com" />
+          </ion-item>
+          <ion-button type="submit" expand="block" [disabled]="memberForm.invalid || status() === 'saving'" class="ion-margin-top">
+            Agregar socio
+          </ion-button>
+        </form>
+      </ion-card-content>
+    </ion-card>
+
+    <ion-card>
+      <ion-card-header>
+        <ion-card-title>
+          <ion-icon name="people-outline" aria-hidden="true"></ion-icon>
+          Socios
+          <ion-badge color="dark">{{ members().length }}</ion-badge>
+        </ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <ion-list lines="full">
+          @for (member of members(); track member.id) {
+            <ion-item>
+              <ion-icon name="person-circle-outline" slot="start" aria-hidden="true"></ion-icon>
+              <ion-label>
+                {{ member.name }}
+                <p>{{ member.email }}</p>
+              </ion-label>
+            </ion-item>
+          } @empty {
+            <ion-item lines="none"><ion-label>Todavía no hay socios cargados.</ion-label></ion-item>
+          }
+        </ion-list>
+      </ion-card-content>
+    </ion-card>
+  } @else {
+    <ion-card>
+      <ion-card-header class="card-header-row">
+        <ion-card-title>
+          <ion-icon name="business-outline" aria-hidden="true"></ion-icon>
+          Logo
+        </ion-card-title>
+        <ion-button size="small" fill="clear" (click)="logoInput.click()" [disabled]="logoUploading()">
+          <ion-icon name="cloud-upload-outline" slot="start" aria-hidden="true"></ion-icon>
+          {{ logoUploading() ? 'Subiendo...' : 'Subir logo' }}
+        </ion-button>
+      </ion-card-header>
+      <ion-card-content>
+        @if (isRasterLogo()) {
+          <div class="gym-logo">
+            <img [src]="logoSvg()" alt="Logo del gimnasio" />
+          </div>
+        } @else if (safeLogo()) {
+          <div class="gym-logo" [innerHTML]="safeLogo()"></div>
+        } @else {
+          <p class="item-hint">Todavía no tienes un logo cargado. Sube uno o pídeselo al equipo de mygym.</p>
+        }
+        <p class="item-hint">PNG, JPG, WEBP o SVG. Se ajusta automáticamente a un ícono cuadrado.</p>
+        <input
+          #logoInput
+          type="file"
+          accept="image/png,image/jpeg,image/webp,image/svg+xml"
+          hidden
+          (change)="onLogoFileSelected($event)"
+        />
+      </ion-card-content>
+    </ion-card>
+
+    <ion-card>
+      <ion-card-header class="card-header-row">
+        <ion-card-title>
+          <ion-icon name="color-palette-outline" aria-hidden="true"></ion-icon>
+          Color de tu panel
+        </ion-card-title>
+        <ion-button size="small" fill="clear" (click)="reshufflePalettes()">
+          <ion-icon name="refresh-outline" slot="start" aria-hidden="true"></ion-icon>
+          Ver otras opciones
+        </ion-button>
+      </ion-card-header>
+      <ion-card-content>
+        <p class="item-hint">Elige una combinación para diferenciar tu panel del de otros gimnasios.</p>
+        <div class="theme-options">
+          @for (palette of paletteOptions(); track palette.key) {
+            <button
+              type="button"
+              class="theme-card"
+              [class.theme-card--selected]="palette.hex === themeColor()"
+              [style.background]="surfaceFor(palette).bg"
+              [disabled]="themeSaving()"
+              (click)="selectPalette(palette)"
+            >
+              <span class="theme-card__surface" [style.background]="surfaceFor(palette).card">
+                <span class="theme-card__button" [style.background]="palette.hex" [style.color]="palette.contrast">
+                  {{ palette.label }}
+                </span>
+              </span>
+            </button>
+          }
+        </div>
+      </ion-card-content>
+    </ion-card>
+  }
+</ion-content>
+}

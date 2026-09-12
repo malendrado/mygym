@@ -1,0 +1,2 @@
+ALTER TABLE gym ADD COLUMN theme_color VARCHAR(9);
+ALTER TABLE gym ADD COLUMN logo_svg TEXT;

@@ -1,0 +1,13 @@
+<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <g id="icon">
+    <path fill="#c6ff3d" fill-rule="evenodd" d="
+      M128,40 H384 A88,88 0 0 1 472,128 V384 A88,88 0 0 1 384,472 H128 A88,88 0 0 1 40,384 V128 A88,88 0 0 1 128,40 Z
+      M128,72 H384 A56,56 0 0 1 440,128 V384 A56,56 0 0 1 384,440 H128 A56,56 0 0 1 72,384 V128 A56,56 0 0 1 128,72 Z
+    "/>
+    <g id="mark" transform="translate(256,256) scale(0.72) translate(-256,-256)">
+      <path d="M120,360 L120,90 L256,260 L392,90 L392,360" fill="none" stroke="#c6ff3d" stroke-width="84" stroke-linecap="round" stroke-linejoin="round"/>
+      <path fill="#c6ff3d" fill-rule="evenodd" d="M224,360 A104,104 0 1,0 16,360 A104,104 0 1,0 224,360 Z M180,360 A60,60 0 1,0 60,360 A60,60 0 1,0 180,360 Z"/>
+      <path fill="#c6ff3d" fill-rule="evenodd" d="M496,360 A104,104 0 1,0 288,360 A104,104 0 1,0 496,360 Z M452,360 A60,60 0 1,0 332,360 A60,60 0 1,0 452,360 Z"/>
+    </g>
+  </g>
+</svg>

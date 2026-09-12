@@ -1,0 +1,234 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/admin/gyms" text="Gimnasios" />
+    </ion-buttons>
+    <ion-title>{{ isEditing ? gymName() : 'Nuevo gimnasio' }}</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  @if (!isEditing) {
+    <ion-card>
+      <ion-card-header>
+        <ion-card-title>
+          <ion-icon name="business-outline" aria-hidden="true"></ion-icon>
+          Nuevo gimnasio
+        </ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <form [formGroup]="createForm" (ngSubmit)="submitCreate()">
+          <ion-item>
+            <ion-input label="Nombre *" formControlName="name" placeholder="Ej: Gold Gym" />
+          </ion-item>
+          @if (createForm.controls.name.invalid && (createForm.controls.name.dirty || createForm.controls.name.touched)) {
+            <ion-note color="danger">El nombre es obligatorio (mínimo 2 caracteres).</ion-note>
+          }
+
+          <ion-button
+            type="button"
+            fill="outline"
+            size="small"
+            [disabled]="!createForm.controls.name.value.trim() || suggestStatus() === 'loading'"
+            (click)="suggestBranding()"
+          >
+            <ion-icon name="sparkles-outline" slot="start" aria-hidden="true"></ion-icon>
+            {{ suggestStatus() === 'loading' ? 'Generando...' : 'Sugerir color y logo con IA' }}
+          </ion-button>
+          @if (suggestStatus() === 'error') {
+            <ion-note color="danger">No pudimos generar una sugerencia. Intenta de nuevo.</ion-note>
+          }
+          @if (brandingSuggestion(); as suggestion) {
+            <div class="branding-preview">
+              <div class="branding-preview__logo" [innerHTML]="safeSuggestedLogo()"></div>
+              <div class="branding-preview__swatch" [style.background]="suggestion.themeColor"></div>
+              <ion-button type="button" fill="clear" size="small" color="medium" (click)="discardSuggestion()">
+                Descartar
+              </ion-button>
+            </div>
+          }
+
+          <ion-item class="ion-margin-top">
+            <ion-input label="Slug *" formControlName="slug" placeholder="Ej: gold-gym" />
+          </ion-item>
+          @if (createForm.controls.slug.invalid && (createForm.controls.slug.dirty || createForm.controls.slug.touched)) {
+            <ion-note color="danger">Usa minúsculas, números y guiones (ej: mi-gimnasio).</ion-note>
+          }
+
+          <app-quantity-stepper label="Cupo máximo de usuarios *" formControlName="maxUsers" [min]="1" [max]="10000" />
+          @if (createForm.controls.maxUsers.invalid && (createForm.controls.maxUsers.dirty || createForm.controls.maxUsers.touched)) {
+            <ion-note color="danger">El cupo debe ser mayor a 0.</ion-note>
+          }
+
+          <ion-item>
+            <ion-input label="Nombre del dueño *" formControlName="ownerName" placeholder="Ej: Javiera Pulgar" />
+          </ion-item>
+          @if (createForm.controls.ownerName.invalid && (createForm.controls.ownerName.dirty || createForm.controls.ownerName.touched)) {
+            <ion-note color="danger">El nombre del dueño es obligatorio.</ion-note>
+          }
+
+          <ion-item lines="none">
+            <ion-input label="Email del dueño *" type="email" autocomplete="email" formControlName="ownerEmail" placeholder="Ej: javiera@mail.com" />
+          </ion-item>
+          <p class="item-hint">El dueño va a poder administrar este gimnasio iniciando sesión con Google usando este email.</p>
+          @if (createForm.controls.ownerEmail.invalid && (createForm.controls.ownerEmail.dirty || createForm.controls.ownerEmail.touched)) {
+            <ion-note color="danger">Ingresa un email válido.</ion-note>
+          }
+
+          <ion-button type="submit" expand="block" [disabled]="createForm.invalid || status() === 'saving'" class="ion-margin-top">
+            Crear gimnasio
+          </ion-button>
+        </form>
+      </ion-card-content>
+    </ion-card>
+  } @else {
+    <div class="gym-header">
+      <h1>{{ gymName() }}</h1>
+      <p class="gym-header__slug">{{ gymSlug() }}</p>
+    </div>
+
+    <ion-card>
+      <ion-card-header class="card-header-row">
+        <ion-card-title>
+          <ion-icon name="people-outline" aria-hidden="true"></ion-icon>
+          Administradores
+        </ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <ion-list lines="full">
+          @for (admin of admins(); track admin.id) {
+            <ion-item>
+              <ion-label>
+                {{ admin.name }}
+                <p>{{ admin.email }}</p>
+              </ion-label>
+              <ion-badge slot="end" [color]="admin.active ? 'success' : 'medium'">
+                {{ admin.active ? 'Activo' : 'Inactivo' }}
+              </ion-badge>
+              <ion-button
+                fill="clear"
+                [color]="admin.active ? 'danger' : 'success'"
+                [disabled]="togglingAdminId() === admin.id"
+                (click)="toggleAdminStatus(admin)"
+              >
+                {{ togglingAdminId() === admin.id ? (admin.active ? 'Quitando...' : 'Reactivando...') : (admin.active ? 'Quitar acceso' : 'Reactivar') }}
+              </ion-button>
+            </ion-item>
+          } @empty {
+            <ion-item lines="none"><ion-label>Todavía no hay administradores.</ion-label></ion-item>
+          }
+        </ion-list>
+
+        <form [formGroup]="adminForm" (ngSubmit)="submitAdmin()" class="ion-margin-top">
+          <ion-item>
+            <ion-input label="Nombre *" formControlName="name" placeholder="Ej: Javiera Pulgar" />
+          </ion-item>
+          <ion-item lines="none">
+            <ion-input label="Email *" type="email" autocomplete="email" formControlName="email" placeholder="Ej: javiera@mail.com" />
+          </ion-item>
+          <p class="item-hint">Va a poder administrar este gimnasio iniciando sesión con Google usando este email.</p>
+          <ion-button type="submit" expand="block" fill="outline" [disabled]="adminForm.invalid || status() === 'saving'" class="ion-margin-top">
+            Agregar administrador
+          </ion-button>
+          @if (adminError(); as error) {
+            <ion-note color="danger">{{ error }}</ion-note>
+          }
+        </form>
+      </ion-card-content>
+    </ion-card>
+
+    <ion-card>
+      <ion-card-header>
+        <ion-card-title>
+          <ion-icon name="settings-outline" aria-hidden="true"></ion-icon>
+          Configuración
+        </ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <form [formGroup]="configForm" (ngSubmit)="submitConfig()">
+          <ion-item lines="none">
+            <ion-toggle formControlName="active">
+              Gimnasio activo
+              <p class="item-hint">Si está apagado, nadie puede reservar ni administrarlo.</p>
+            </ion-toggle>
+          </ion-item>
+
+          <app-quantity-stepper label="Cupo máximo de usuarios *" formControlName="maxUsers" [min]="1" [max]="10000" />
+          @if (configForm.controls.maxUsers.invalid && (configForm.controls.maxUsers.dirty || configForm.controls.maxUsers.touched)) {
+            <ion-note color="danger">El cupo debe ser mayor a 0.</ion-note>
+          }
+
+          <ion-item lines="none">
+            <ion-toggle formControlName="googleLoginEnabled">
+              Habilitar login con Google
+              <p class="item-hint">Necesario para que los administradores y los socios de este gimnasio puedan entrar.</p>
+            </ion-toggle>
+          </ion-item>
+
+          <ion-item lines="none">
+            <ion-textarea label="Logo (SVG)" labelPlacement="stacked" formControlName="logoSvg" rows="4" placeholder="Pega aquí el markup SVG del logo generado para este gimnasio" />
+          </ion-item>
+          <p class="item-hint">Se genera aparte (skill de logos) según el nombre del gimnasio, y se pega acá una vez listo.</p>
+
+          <ion-button type="submit" expand="block" [disabled]="configForm.invalid || status() === 'saving'" class="ion-margin-top">
+            Guardar configuración
+          </ion-button>
+        </form>
+      </ion-card-content>
+    </ion-card>
+
+    @if (status() === 'error') {
+      <ion-text color="danger"><p>Ocurrió un error. Intenta nuevamente.</p></ion-text>
+    }
+
+    <ion-card>
+      <ion-card-header class="card-header-row">
+        <ion-card-title>
+          <ion-icon name="time-outline" aria-hidden="true"></ion-icon>
+          Bloques / horarios
+        </ion-card-title>
+        <div class="card-header-row__actions">
+          <ion-button size="small" fill="outline" (click)="openSeriesModal()">Generar bloques</ion-button>
+          <ion-button size="small" (click)="openAddBlock()">Agregar bloque</ion-button>
+        </div>
+      </ion-card-header>
+      <ion-card-content>
+        <ion-list lines="full">
+          @for (block of blocks(); track block.id) {
+            <ion-item>
+              <ion-icon name="calendar-outline" slot="start" aria-hidden="true"></ion-icon>
+              <ion-label>
+                {{ block.label }} — {{ block.dayOfWeek }} {{ block.startTime }}-{{ block.endTime }}
+                <p>Cupo: {{ block.capacity }}</p>
+              </ion-label>
+              @if (!block.active) {
+                <ion-badge color="medium" slot="end">Inactivo</ion-badge>
+              }
+              <ion-button fill="clear" (click)="openEditBlock(block)">Editar</ion-button>
+              <ion-button fill="clear" color="danger" (click)="removeBlock(block)">Eliminar</ion-button>
+            </ion-item>
+          } @empty {
+            <ion-item lines="none"><ion-label>Todavía no hay bloques configurados.</ion-label></ion-item>
+          }
+        </ion-list>
+      </ion-card-content>
+    </ion-card>
+
+    <ion-modal class="wide-modal" [isOpen]="isModalOpen()" (didDismiss)="closeModal()">
+      <ng-template>
+        <app-bloque-form-modal
+          [block]="editingBlock()"
+          [saving]="status() === 'saving'"
+          (saved)="saveBlock($event)"
+          (dismiss)="closeModal()"
+        />
+      </ng-template>
+    </ion-modal>
+
+    <ion-modal class="wide-modal" [isOpen]="isSeriesModalOpen()" (didDismiss)="closeSeriesModal()">
+      <ng-template>
+        <app-bloque-series-modal (confirmed)="confirmSeries($event)" (dismiss)="closeSeriesModal()" />
+      </ng-template>
+    </ion-modal>
+  }
+</ion-content>

@@ -1,0 +1,92 @@
+ion-content {
+  --background: var(--gym-panel-bg, var(--brand-ink));
+}
+
+.gym-admin-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+
+  ion-spinner {
+    width: 48px;
+    height: 48px;
+    color: var(--brand-accent);
+  }
+}
+
+ion-card {
+  --background: var(--gym-panel-card, var(--brand-ink-surface-2));
+  transition: background-color 0.25s ease;
+}
+
+.gym-logo {
+  display: flex;
+  justify-content: center;
+  padding: 0.5rem 0;
+
+  img {
+    width: 120px;
+    height: 120px;
+    object-fit: contain;
+    border-radius: 16px;
+  }
+
+  // [innerHTML]-injected SVG markup isn't stamped with Angular's emulated
+  // encapsulation attribute, so a plain scoped `svg { }` rule never matches it.
+  ::ng-deep svg {
+    width: 120px;
+    height: 120px;
+  }
+}
+
+.theme-options {
+  display: grid;
+  // auto-fit (not auto-fill) collapses empty tracks instead of reserving
+  // them, so with only 4 cards they stretch to fill the whole row instead
+  // of leaving dead space to the right.
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.theme-card {
+  border: none;
+  border-radius: 14px;
+  padding: 0.6rem;
+  cursor: pointer;
+  transition: transform 0.15s ease, background-color 0.25s ease;
+
+  &:active {
+    transform: scale(0.97);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  &--selected {
+    outline: 2px solid var(--brand-text);
+    outline-offset: 2px;
+  }
+}
+
+.theme-card__surface {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  padding: 1rem 0.5rem;
+  transition: background-color 0.25s ease;
+}
+
+.theme-card__button {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 0.4rem 0.9rem;
+  font-family: var(--brand-font-display);
+  font-weight: 600;
+  font-size: 0.8rem;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}

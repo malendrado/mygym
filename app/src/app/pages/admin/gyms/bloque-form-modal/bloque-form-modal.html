@@ -1,0 +1,78 @@
+<div class="ion-page">
+<ion-header>
+  <ion-toolbar>
+    <ion-title>
+      <ion-icon name="time-outline" aria-hidden="true"></ion-icon>
+      {{ isEditing() ? 'Editar bloque' : 'Nuevo bloque' }}
+    </ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="cancel()">Cerrar</ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <form [formGroup]="form" (ngSubmit)="submit()">
+    <ion-item>
+      <ion-input label="Nombre del bloque *" formControlName="label" placeholder="Ej: Spinning matutino" />
+    </ion-item>
+    @if (form.controls.label.invalid && (form.controls.label.dirty || form.controls.label.touched)) {
+      <ion-note color="danger">El nombre es obligatorio.</ion-note>
+    }
+
+    <p class="section-label">Día *</p>
+    <div class="day-chips">
+      @for (day of days; track day.value) {
+        <button
+          type="button"
+          class="day-chip"
+          [class.day-chip--selected]="form.controls.dayOfWeek.value === day.value"
+          (click)="selectDay(day.value)"
+        >
+          {{ day.label }}
+        </button>
+      }
+    </div>
+
+    <div class="time-row">
+      <ion-item class="time-row__field">
+        <ion-select label="Hora inicio *" formControlName="startTime">
+          @for (t of timeOptions; track t) {
+            <ion-select-option [value]="t">{{ t }}</ion-select-option>
+          }
+        </ion-select>
+      </ion-item>
+
+      <ion-item class="time-row__field">
+        <ion-select label="Hora fin *" formControlName="endTime">
+          @for (t of timeOptions; track t) {
+            <ion-select-option [value]="t">{{ t }}</ion-select-option>
+          }
+        </ion-select>
+      </ion-item>
+    </div>
+    @if (form.errors?.['endBeforeStart'] && (form.controls.endTime.dirty || form.controls.endTime.touched)) {
+      <ion-note color="danger">La hora de fin debe ser posterior a la de inicio.</ion-note>
+    }
+
+    <app-quantity-stepper
+      label="Cupo *"
+      formControlName="capacity"
+      [min]="1"
+      [max]="500"
+    />
+    @if (form.controls.capacity.invalid && (form.controls.capacity.dirty || form.controls.capacity.touched)) {
+      <ion-note color="danger">El cupo debe ser mayor a 0.</ion-note>
+    }
+
+    <ion-button
+      type="submit"
+      expand="block"
+      [disabled]="form.invalid || isBusy()"
+      class="ion-margin-top"
+    >
+      {{ isBusy() ? 'Guardando...' : 'Guardar' }}
+    </ion-button>
+  </form>
+</ion-content>
+</div>
