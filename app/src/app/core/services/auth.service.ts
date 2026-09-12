@@ -1,5 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
+import { SocialAuthService } from '@abacritt/angularx-social-login';
 import { Observable, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { AuthUser, LoginResponse } from '../models/auth.model';
@@ -14,6 +15,7 @@ interface StoredSession {
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly http = inject(HttpClient);
+  private readonly socialAuthService = inject(SocialAuthService);
   private readonly base = `${environment.apiUrl}/api/auth`;
   private readonly publicGymsBase = `${environment.apiUrl}/api/public/gyms`;
 
@@ -44,6 +46,10 @@ export class AuthService {
     this._currentUser.set(null);
     this._token = null;
     sessionStorage.removeItem(STORAGE_KEY);
+    // Also clears the SDK's own cached Google session — otherwise its authState
+    // observable still holds the last signed-in user and immediately re-fires on
+    // the next page that subscribes to it (e.g. /login), silently logging back in.
+    this.socialAuthService.signOut().catch(() => {});
   }
 
   private setSession(response: LoginResponse): void {
