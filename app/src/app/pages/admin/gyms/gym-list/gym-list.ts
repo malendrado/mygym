@@ -1,27 +1,29 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import {
   IonBadge,
   IonButton,
   IonButtons,
-  IonCard,
-  IonCardContent,
-  IonCardHeader,
-  IonCardTitle,
   IonContent,
   IonFab,
   IonFabButton,
   IonHeader,
   IonIcon,
-  IonItem,
-  IonLabel,
-  IonList,
   IonText,
   IonTitle,
   IonToolbar,
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { addOutline, barbellOutline, businessOutline, logOutOutline } from 'ionicons/icons';
+import {
+  addOutline,
+  barbellOutline,
+  businessOutline,
+  checkmarkCircleOutline,
+  logOutOutline,
+  peopleOutline,
+  sparklesOutline,
+} from 'ionicons/icons';
 import { GymService } from '../../../../core/services/gym.service';
 import { Gym } from '../../../../core/models/gym.model';
 import { AuthService } from '../../../../core/services/auth.service';
@@ -31,6 +33,9 @@ addIcons({
   'barbell-outline': barbellOutline,
   add: addOutline,
   'log-out-outline': logOutOutline,
+  'checkmark-circle-outline': checkmarkCircleOutline,
+  'people-outline': peopleOutline,
+  'sparkles-outline': sparklesOutline,
 });
 
 type Status = 'idle' | 'loading' | 'loaded' | 'error';
@@ -45,14 +50,7 @@ type Status = 'idle' | 'loading' | 'loaded' | 'error';
     IonButtons,
     IonButton,
     IonContent,
-    IonCard,
-    IonCardHeader,
-    IonCardTitle,
-    IonCardContent,
     IonIcon,
-    IonList,
-    IonItem,
-    IonLabel,
     IonBadge,
     IonFab,
     IonFabButton,
@@ -65,9 +63,16 @@ export class GymList {
   private readonly gymService = inject(GymService);
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly sanitizer = inject(DomSanitizer);
 
   protected readonly status = signal<Status>('idle');
   protected readonly gyms = signal<Gym[]>([]);
+
+  protected readonly activeCount = computed(() => this.gyms().filter((g) => g.active).length);
+  protected readonly totalCapacity = computed(() => this.gyms().reduce((sum, g) => sum + g.maxUsers, 0));
+  protected readonly brandedCount = computed(() => this.gyms().filter((g) => !!g.logoSvg).length);
+
+  protected readonly adminFirstName = computed(() => this.authService.currentUser()?.name?.split(' ')[0] ?? 'admin');
 
   constructor() {
     this.load();
@@ -79,6 +84,14 @@ export class GymList {
   protected async logout(): Promise<void> {
     await this.authService.logout();
     this.router.navigate(['/']);
+  }
+
+  protected isRasterLogo(gym: Gym): boolean {
+    return (gym.logoSvg ?? '').startsWith('data:image');
+  }
+
+  protected safeLogo(gym: Gym): SafeHtml | null {
+    return gym.logoSvg && !this.isRasterLogo(gym) ? this.sanitizer.bypassSecurityTrustHtml(gym.logoSvg) : null;
   }
 
   private load(): void {

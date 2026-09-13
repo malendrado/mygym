@@ -4,7 +4,7 @@ import { DomSanitizer } from '@angular/platform-browser';
 import { IonContent, IonHeader, IonIcon, IonSpinner, IonText, IonTitle, IonToolbar } from '@ionic/angular';
 import { GoogleSigninButtonDirective, SocialAuthService } from '@abacritt/angularx-social-login';
 import { addIcons } from 'ionicons';
-import { informationCircleOutline, logoInstagram, logoWhatsapp } from 'ionicons/icons';
+import { informationCircleOutline, logoInstagram, logoWhatsapp, sparklesOutline } from 'ionicons/icons';
 import { AuthService } from '../../core/services/auth.service';
 import { GymService } from '../../core/services/gym.service';
 import { LoginResponse } from '../../core/models/auth.model';
@@ -15,14 +15,21 @@ addIcons({
   'logo-instagram': logoInstagram,
   'logo-whatsapp': logoWhatsapp,
   'information-circle-outline': informationCircleOutline,
+  'sparkles-outline': sparklesOutline,
 });
 
-type Status = 'loading' | 'ready' | 'not-found' | 'joining';
+type Status = 'loading' | 'ready' | 'not-found' | 'joining' | 'welcome';
 
 // Mismo gotcha que login.ts: si el callback de Google nunca llega (navegador
 // embebido de WhatsApp/Instagram, restricciones de cookies de terceros en
 // Safari), la página se queda en 'ready' para siempre sin ninguna señal.
 const SIGN_IN_TIMEOUT_MS = 15000;
+
+// Tras un alta/login exitoso, el usuario ve un mensaje de bienvenida
+// personalizado (nuevo socio vs. reingreso) antes de redirigir — sin esta
+// pausa deliberada, la redirección es tan rápida que el mensaje nunca
+// alcanza a leerse.
+const WELCOME_PAUSE_MS = 1600;
 
 @Component({
   selector: 'app-join',
@@ -48,6 +55,7 @@ export class Join {
   protected readonly plans = signal<MemberPlan[]>([]);
   protected readonly plansLoaded = signal(false);
   protected readonly photos = signal<GymPhoto[]>([]);
+  protected readonly isNewMember = signal<boolean | null>(null);
 
   protected readonly instagramUrl = computed(() => this.gym()?.instagramUrl || null);
   protected readonly whatsappLink = computed(() => {
@@ -103,9 +111,13 @@ export class Join {
         // existed (any role) just logs in as-is (see AuthService.joinGymWithGoogle), so send
         // them to their real home instead of forcing them into /member.
         next: (response: LoginResponse) => {
-          const destination =
-            response.role === 'SUPER_ADMIN' ? '/admin/gyms' : response.role === 'GYM_ADMIN' ? '/gym-admin' : '/member';
-          this.router.navigate([destination]);
+          this.isNewMember.set(response.isNewMember);
+          this.status.set('welcome');
+          setTimeout(() => {
+            const destination =
+              response.role === 'SUPER_ADMIN' ? '/admin/gyms' : response.role === 'GYM_ADMIN' ? '/gym-admin' : '/member';
+            this.router.navigate([destination]);
+          }, WELCOME_PAUSE_MS);
         },
         error: (err: Error) => {
           this.status.set('ready');

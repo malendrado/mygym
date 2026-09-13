@@ -10,6 +10,10 @@ import { AuthService } from '../../core/services/auth.service';
 // silencio para siempre — sin error, sin señal de qué pasó.
 const SIGN_IN_TIMEOUT_MS = 15000;
 
+// Mismo criterio que join.ts: una pausa deliberada para que el mensaje de
+// bienvenida se alcance a leer antes de redirigir.
+const WELCOME_PAUSE_MS = 1600;
+
 @Component({
   selector: 'app-login',
   imports: [IonHeader, IonToolbar, IonTitle, IonContent, IonText, IonSpinner, GoogleSigninButtonDirective],
@@ -24,6 +28,7 @@ export class Login {
 
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly signingIn = signal(false);
+  protected readonly showWelcome = signal(false);
   private loggedIn = false;
   private timeoutHandle: ReturnType<typeof setTimeout> | null = null;
 
@@ -38,9 +43,12 @@ export class Login {
       this.authService.loginWithGoogle(user.idToken).subscribe({
         next: (response) => {
           this.loggedIn = true;
-          const destination =
-            response.role === 'SUPER_ADMIN' ? '/admin/gyms' : response.role === 'GYM_ADMIN' ? '/gym-admin' : '/member';
-          this.router.navigate([destination]);
+          this.showWelcome.set(true);
+          setTimeout(() => {
+            const destination =
+              response.role === 'SUPER_ADMIN' ? '/admin/gyms' : response.role === 'GYM_ADMIN' ? '/gym-admin' : '/member';
+            this.router.navigate([destination]);
+          }, WELCOME_PAUSE_MS);
         },
         error: (err: Error) => {
           this.signingIn.set(false);

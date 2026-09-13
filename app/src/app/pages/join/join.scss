@@ -41,6 +41,51 @@
   }
 }
 
+// Estado intermedio (verificando con Google) — reemplaza al botón por completo
+// en vez de mostrar ambos a la vez (el bug original: el botón real de Google
+// seguía visible arriba de "Creando tu cuenta...", confuso para el usuario).
+.join-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+  color: var(--brand-text-dim);
+
+  ion-spinner {
+    width: 32px;
+    height: 32px;
+    color: var(--brand-accent-text-safe, var(--brand-accent));
+  }
+}
+
+// Mensaje de bienvenida personalizado (cuenta nueva vs. reingreso) que se ve
+// brevemente antes de redirigir — con el acento del propio gimnasio.
+.join-welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.5rem 0;
+
+  ion-icon {
+    font-size: 2rem;
+    color: var(--brand-accent-text-safe, var(--brand-accent));
+    margin-bottom: 0.25rem;
+  }
+
+  h2 {
+    margin: 0;
+    font-family: var(--brand-font-heading);
+    font-size: 1.3rem;
+  }
+
+  p {
+    margin: 0;
+    color: var(--brand-text-dim);
+  }
+}
+
 // Mismo tratamiento que login.scss: la píldora blanca de Google engarzada en
 // un anillo con el acento del propio gimnasio (no el lima fijo de mygym), ya
 // que --brand-accent aquí está sobreescrito por el tema del gym en runtime.

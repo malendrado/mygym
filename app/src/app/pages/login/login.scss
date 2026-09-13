@@ -95,6 +95,17 @@
     height: 32px;
     color: var(--brand-accent);
   }
+
+  p:first-of-type {
+    color: var(--brand-text);
+    font-weight: 600;
+    margin: 0;
+  }
+
+  &__subtitle {
+    margin: 0;
+    font-size: 0.85rem;
+  }
 }
 
 @keyframes login-card-in {

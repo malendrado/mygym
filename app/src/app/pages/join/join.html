@@ -78,21 +78,36 @@
         </div>
       }
 
-      @if (gym()!.googleLoginEnabled) {
-        <div class="google-auth">
-          <div class="google-auth__frame">
-            <asl-google-signin-button type="standard" size="large" text="signup_with" shape="pill" theme="outline" logo_alignment="left" />
+      @if (status() === 'ready') {
+        @if (gym()!.googleLoginEnabled) {
+          <div class="google-auth">
+            <div class="google-auth__frame">
+              <asl-google-signin-button type="standard" size="large" text="signin_with" shape="pill" theme="outline" logo_alignment="left" />
+            </div>
           </div>
+        } @else {
+          <ion-text color="medium">
+            <p>Este gimnasio todavía no habilitó el ingreso con Google. Consulta con tu gimnasio.</p>
+          </ion-text>
+        }
+      } @else if (status() === 'joining') {
+        <div class="join-status">
+          <ion-spinner name="crescent"></ion-spinner>
+          <p>Verificando tu cuenta con Google...</p>
         </div>
-      } @else {
-        <ion-text color="medium">
-          <p>Este gimnasio todavía no habilitó el ingreso con Google. Consulta con tu gimnasio.</p>
-        </ion-text>
+      } @else if (status() === 'welcome') {
+        <div class="join-welcome">
+          <ion-icon name="sparkles-outline" aria-hidden="true"></ion-icon>
+          @if (isNewMember()) {
+            <h2>¡Estamos creando tu cuenta en {{ gym()!.name }}!</h2>
+            <p>Ya casi puedes reservar tu primera clase.</p>
+          } @else {
+            <h2>¡Qué bueno verte de nuevo!</h2>
+            <p>Estamos abriendo tu portal en {{ gym()!.name }}.</p>
+          }
+        </div>
       }
 
-      @if (status() === 'joining') {
-        <p class="item-hint">Creando tu cuenta...</p>
-      }
       @if (errorMessage()) {
         <ion-text color="danger">
           <p>{{ errorMessage() }}</p>

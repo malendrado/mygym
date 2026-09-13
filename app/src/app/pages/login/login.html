@@ -33,11 +33,16 @@
       @if (signingIn()) {
         <div class="login-loading">
           <ion-spinner name="crescent"></ion-spinner>
-          <p>Ingresando...</p>
+          @if (showWelcome()) {
+            <p>¡Qué bueno verte de nuevo!</p>
+            <p class="login-loading__subtitle">Estamos abriendo tu portal...</p>
+          } @else {
+            <p>Ingresando...</p>
+          }
         </div>
       } @else {
         <div class="google-auth__frame">
-          <asl-google-signin-button type="standard" size="large" text="continue_with" shape="pill" theme="outline" logo_alignment="left" />
+          <asl-google-signin-button type="standard" size="large" text="signin_with" shape="pill" theme="outline" logo_alignment="left" />
         </div>
       }
     </div>

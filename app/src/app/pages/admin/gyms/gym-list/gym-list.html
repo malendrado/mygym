@@ -1,6 +1,6 @@
 <ion-header>
   <ion-toolbar>
-    <ion-title><img src="favicon.svg" class="brand-icon" alt="" /> Gimnasios</ion-title>
+    <ion-title><img src="favicon.svg" class="brand-icon" alt="" /> mygym</ion-title>
     <ion-buttons slot="end">
       <ion-button (click)="logout()">
         <ion-icon name="log-out-outline" slot="start" aria-hidden="true"></ion-icon>
@@ -10,39 +10,81 @@
   </ion-toolbar>
 </ion-header>
 
-<ion-content class="ion-padding">
+<ion-content class="gyms-content">
+  <div class="gyms-hero">
+    <p class="gyms-hero__eyebrow">Panel de super-admin</p>
+    <h1>Hola, {{ adminFirstName() }}</h1>
+    <p class="gyms-hero__subtitle">Todos los gimnasios que corren sobre mygym, en un solo lugar.</p>
+    <ion-button routerLink="/admin/gyms/new" class="gyms-hero__cta">
+      <ion-icon name="add" slot="start" aria-hidden="true"></ion-icon>
+      Nuevo gimnasio
+    </ion-button>
+  </div>
+
   @if (status() === 'loading') {
-    <p>Cargando gimnasios…</p>
+    <p class="item-hint">Cargando gimnasios…</p>
   } @else if (status() === 'error') {
     <ion-text color="danger"><p>No se pudieron cargar los gimnasios. Intenta nuevamente.</p></ion-text>
   } @else {
-    <ion-card>
-      <ion-card-header>
-        <ion-card-title>
-          <ion-icon name="business-outline" aria-hidden="true"></ion-icon>
-          Gimnasios registrados
-          <ion-badge color="dark">{{ gyms().length }}</ion-badge>
-        </ion-card-title>
-      </ion-card-header>
-      <ion-card-content>
-        <ion-list lines="full">
-          @for (gym of gyms(); track gym.id) {
-            <ion-item [routerLink]="['/admin/gyms', gym.id]" button detail="true">
-              <ion-icon name="barbell-outline" slot="start" aria-hidden="true"></ion-icon>
-              <ion-label>
-                {{ gym.name }}
-                <p>{{ gym.slug }} — cupo {{ gym.maxUsers }}</p>
-              </ion-label>
-              <ion-badge slot="end" [color]="gym.active ? 'success' : 'medium'">
-                {{ gym.active ? 'Activo' : 'Inactivo' }}
-              </ion-badge>
-            </ion-item>
-          } @empty {
-            <ion-item lines="none"><ion-label>Todavía no hay gimnasios creados.</ion-label></ion-item>
-          }
-        </ion-list>
-      </ion-card-content>
-    </ion-card>
+    <div class="gyms-stats">
+      <div class="gyms-stat">
+        <ion-icon name="business-outline" aria-hidden="true"></ion-icon>
+        <p class="gyms-stat__value">{{ gyms().length }}</p>
+        <p class="gyms-stat__label">Gimnasios totales</p>
+      </div>
+      <div class="gyms-stat">
+        <ion-icon name="checkmark-circle-outline" aria-hidden="true"></ion-icon>
+        <p class="gyms-stat__value">{{ activeCount() }}</p>
+        <p class="gyms-stat__label">Activos</p>
+      </div>
+      <div class="gyms-stat">
+        <ion-icon name="people-outline" aria-hidden="true"></ion-icon>
+        <p class="gyms-stat__value">{{ totalCapacity() }}</p>
+        <p class="gyms-stat__label">Cupo total</p>
+      </div>
+      <div class="gyms-stat">
+        <ion-icon name="sparkles-outline" aria-hidden="true"></ion-icon>
+        <p class="gyms-stat__value">{{ brandedCount() }}</p>
+        <p class="gyms-stat__label">Con marca propia</p>
+      </div>
+    </div>
+
+    <h2 class="gyms-section-title">Gimnasios registrados</h2>
+
+    @if (gyms().length > 0) {
+      <div class="gym-grid">
+        @for (gym of gyms(); track gym.id) {
+          <a class="gym-card" [routerLink]="['/admin/gyms', gym.id]" [style.--gym-accent]="gym.themeColor ?? '#c6ff3d'">
+            <div class="gym-card__badge">
+              @if (isRasterLogo(gym)) {
+                <img [src]="gym.logoSvg" alt="" />
+              } @else if (safeLogo(gym)) {
+                <div [innerHTML]="safeLogo(gym)"></div>
+              } @else {
+                <ion-icon name="barbell-outline" aria-hidden="true"></ion-icon>
+              }
+            </div>
+            <div class="gym-card__body">
+              <p class="gym-card__name">{{ gym.name }}</p>
+              <p class="gym-card__meta">{{ gym.slug }} · cupo {{ gym.maxUsers }}</p>
+            </div>
+            <ion-badge class="gym-card__status" [color]="gym.active ? 'success' : 'medium'">
+              {{ gym.active ? 'Activo' : 'Inactivo' }}
+            </ion-badge>
+          </a>
+        }
+      </div>
+    } @else {
+      <div class="gyms-empty">
+        <ion-icon name="business-outline" aria-hidden="true"></ion-icon>
+        <h3>Todavía no hay gimnasios</h3>
+        <p>Crea el primero para empezar a onboardear dueños de gimnasios a mygym.</p>
+        <ion-button routerLink="/admin/gyms/new">
+          <ion-icon name="add" slot="start" aria-hidden="true"></ion-icon>
+          Crear el primer gimnasio
+        </ion-button>
+      </div>
+    }
   }
 
   <ion-fab vertical="bottom" horizontal="end" slot="fixed">

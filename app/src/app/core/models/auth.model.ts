@@ -15,4 +15,5 @@ export interface LoginResponse {
   name: string;
   role: Role;
   gymId: number | null;
+  isNewMember: boolean;
 }

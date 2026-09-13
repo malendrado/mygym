@@ -40,7 +40,8 @@ public class AuthService {
             appUserRepository.save(user);
         }
         String token = jwtService.issueToken(user.getId(), user.getEmail(), user.getRole(), user.getGymId());
-        return new LoginResponse(token, user.getId(), user.getEmail(), user.getName(), user.getRole(), user.getGymId());
+        return new LoginResponse(
+                token, user.getId(), user.getEmail(), user.getName(), user.getRole(), user.getGymId(), false);
     }
 
     /**
@@ -87,6 +88,7 @@ public class AuthService {
             appUserRepository.save(user);
         }
         String token = jwtService.issueToken(user.getId(), user.getEmail(), user.getRole(), user.getGymId());
-        return new LoginResponse(token, user.getId(), user.getEmail(), user.getName(), user.getRole(), user.getGymId());
+        return new LoginResponse(
+                token, user.getId(), user.getEmail(), user.getName(), user.getRole(), user.getGymId(), isNewMember);
     }
 }
