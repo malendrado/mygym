@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { DomSanitizer } from '@angular/platform-browser';
 import { IonContent, IonHeader, IonSpinner, IonText, IonTitle, IonToolbar } from '@ionic/angular';
@@ -10,6 +10,11 @@ import { PublicGym } from '../../core/models/gym.model';
 import { deriveSurfaceTint } from '../../core/utils/gym-theme';
 
 type Status = 'loading' | 'ready' | 'not-found' | 'joining';
+
+// Mismo gotcha que login.ts: si el callback de Google nunca llega (navegador
+// embebido de WhatsApp/Instagram, restricciones de cookies de terceros en
+// Safari), la página se queda en 'ready' para siempre sin ninguna señal.
+const SIGN_IN_TIMEOUT_MS = 15000;
 
 @Component({
   selector: 'app-join',
@@ -24,8 +29,10 @@ export class Join {
   private readonly authService = inject(AuthService);
   private readonly socialAuthService = inject(SocialAuthService);
   private readonly sanitizer = inject(DomSanitizer);
+  private readonly destroyRef = inject(DestroyRef);
 
   private readonly slug = this.route.snapshot.paramMap.get('slug') ?? '';
+  private timeoutHandle: ReturnType<typeof setTimeout> | null = null;
 
   protected readonly status = signal<Status>('loading');
   protected readonly gym = signal<PublicGym | null>(null);
@@ -51,6 +58,7 @@ export class Join {
       if (!user?.idToken || this.status() !== 'ready') {
         return;
       }
+      this.clearTimeout();
       this.status.set('joining');
       this.errorMessage.set(null);
       this.authService.joinGym(user.idToken, this.slug).subscribe({
@@ -68,5 +76,38 @@ export class Join {
         },
       });
     });
+
+    // El botón de Google es un iframe de origen cruzado, así que no hay un
+    // (click) propio que detectar — "volvió de Google" se infiere de que la
+    // pestaña recupera visibilidad (se cerró el popup/otra pestaña). Si eso
+    // pasa y seguimos en 'ready' sin avanzar, algo se quedó pegado.
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && this.status() === 'ready') {
+        this.armTimeout();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    this.destroyRef.onDestroy(() => {
+      document.removeEventListener('visibilitychange', onVisible);
+      this.clearTimeout();
+    });
+  }
+
+  private armTimeout(): void {
+    this.clearTimeout();
+    this.timeoutHandle = setTimeout(() => {
+      if (this.status() === 'ready') {
+        this.errorMessage.set(
+          'El ingreso con Google está demorando más de lo normal. Si usas Brave o un navegador con bloqueo de cookies/rastreadores activado (o si abriste este link desde WhatsApp/Instagram), desactívalo para este sitio o ábrelo en Chrome/Safari e intenta de nuevo.',
+        );
+      }
+    }, SIGN_IN_TIMEOUT_MS);
+  }
+
+  private clearTimeout(): void {
+    if (this.timeoutHandle) {
+      clearTimeout(this.timeoutHandle);
+      this.timeoutHandle = null;
+    }
   }
 }
