@@ -1,6 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { DomSanitizer } from '@angular/platform-browser';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import {
   IonBackButton,
@@ -20,6 +20,7 @@ import {
   IonList,
   IonModal,
   IonNote,
+  IonSpinner,
   IonText,
   IonTextarea,
   IonTitle,
@@ -29,21 +30,35 @@ import {
   ToastController,
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { businessOutline, calendarOutline, peopleOutline, settingsOutline, sparklesOutline, timeOutline } from 'ionicons/icons';
+import {
+  barbellOutline,
+  businessOutline,
+  calendarOutline,
+  logoGoogle,
+  peopleOutline,
+  personOutline,
+  settingsOutline,
+  sparklesOutline,
+  timeOutline,
+} from 'ionicons/icons';
 import { firstValueFrom } from 'rxjs';
 import { GymService } from '../../../../core/services/gym.service';
 import {
   Admin,
   BrandingSuggestion,
   CreateGymBlockRequest,
+  DayOfWeek,
   Gym,
   GymBlock,
   UpdateGymBlockRequest,
   sortBlocksBySchedule,
 } from '../../../../core/models/gym.model';
-import { BloqueFormModal } from '../bloque-form-modal/bloque-form-modal';
+import { BloqueFormModal, DAYS } from '../bloque-form-modal/bloque-form-modal';
 import { BloqueSeriesModal } from '../bloque-series-modal/bloque-series-modal';
 import { QuantityStepper } from '../../../../core/components/quantity-stepper/quantity-stepper';
+import { registerClassCategoryIcons, resolveClassCategoryIcon } from '../../../../core/utils/class-category';
+
+registerClassCategoryIcons();
 
 addIcons({
   'business-outline': businessOutline,
@@ -52,6 +67,9 @@ addIcons({
   'calendar-outline': calendarOutline,
   'people-outline': peopleOutline,
   'sparkles-outline': sparklesOutline,
+  'person-outline': personOutline,
+  'logo-google': logoGoogle,
+  'barbell-outline': barbellOutline,
 });
 
 type Status = 'idle' | 'loading' | 'saving' | 'error';
@@ -83,6 +101,7 @@ type SuggestStatus = 'idle' | 'loading' | 'error';
     IonList,
     IonBadge,
     IonModal,
+    IonSpinner,
     BloqueFormModal,
     BloqueSeriesModal,
     QuantityStepper,
@@ -101,6 +120,16 @@ export class GymForm {
   protected readonly status = signal<Status>('idle');
   protected readonly gymId = signal<number | null>(null);
   protected readonly blocks = signal<GymBlock[]>([]);
+  // Mismo fix que gym-admin.ts (2026-09-13): sin esto la lista de bloques de
+  // TODOS los días se mostraba de corrido — el super-admin ve esta misma
+  // pantalla (es una implementación paralela a la de gym-admin, no la
+  // comparten), así que necesitaba el mismo filtro.
+  protected readonly selectedDay = signal<DayOfWeek | null>(null);
+  protected readonly days = DAYS;
+  protected readonly filteredBlocks = computed(() => {
+    const day = this.selectedDay();
+    return day ? this.blocks().filter((b) => b.dayOfWeek === day) : this.blocks();
+  });
   protected readonly isModalOpen = signal(false);
   protected readonly editingBlock = signal<GymBlock | null>(null);
   protected readonly isSeriesModalOpen = signal(false);
@@ -138,8 +167,14 @@ export class GymForm {
     email: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.email] }),
   });
 
-  protected readonly gymName = signal('');
-  protected readonly gymSlug = signal('');
+  protected readonly gym = signal<Gym | null>(null);
+  protected readonly gymName = computed(() => this.gym()?.name ?? '');
+  protected readonly gymSlug = computed(() => this.gym()?.slug ?? '');
+  protected readonly isGymLogoRaster = computed(() => (this.gym()?.logoSvg ?? '').startsWith('data:image'));
+  protected readonly safeGymLogo = computed(() => {
+    const logo = this.gym()?.logoSvg;
+    return logo && !this.isGymLogoRaster() ? this.sanitizer.bypassSecurityTrustHtml(logo) : null;
+  });
 
   constructor() {
     const idParam = this.route.snapshot.paramMap.get('id');
@@ -160,8 +195,7 @@ export class GymForm {
     this.status.set('loading');
     this.gymService.get(id).subscribe({
       next: (gym) => {
-        this.gymName.set(gym.name);
-        this.gymSlug.set(gym.slug);
+        this.gym.set(gym);
         this.configForm.setValue({
           active: gym.active,
           maxUsers: gym.maxUsers,
@@ -232,9 +266,28 @@ export class GymForm {
     this.status.set('saving');
     const value = this.configForm.getRawValue();
     this.gymService.updateConfig(id, { ...value, logoSvg: value.logoSvg.trim() || null }).subscribe({
-      next: () => this.status.set('idle'),
+      next: (gym) => {
+        this.gym.set(gym);
+        this.status.set('idle');
+        this.showToast('Configuración guardada.');
+      },
       error: () => this.status.set('error'),
     });
+  }
+
+  protected isConfigLogoRaster(value: string): boolean {
+    return value.startsWith('data:image');
+  }
+
+  protected safeConfigLogo(value: string): SafeHtml | null {
+    return value && !this.isConfigLogoRaster(value) ? this.sanitizer.bypassSecurityTrustHtml(value) : null;
+  }
+
+  protected initials(name: string): string {
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    const first = parts[0]?.[0] ?? '';
+    const last = parts.length > 1 ? parts[parts.length - 1][0] : '';
+    return (first + last).toUpperCase();
   }
 
   protected submitAdmin(): void {
@@ -300,6 +353,22 @@ export class GymForm {
     await alert.present();
     const { role } = await alert.onDidDismiss();
     return role === 'destructive';
+  }
+
+  protected dayLabel(day: DayOfWeek): string {
+    return DAYS.find((d) => d.value === day)?.label ?? day;
+  }
+
+  protected categoryIcon(category: string | null): string {
+    return resolveClassCategoryIcon(category);
+  }
+
+  protected selectDayFilter(day: DayOfWeek | null): void {
+    this.selectedDay.set(day);
+  }
+
+  protected blockCountForDay(day: DayOfWeek | null): number {
+    return day ? this.blocks().filter((b) => b.dayOfWeek === day).length : this.blocks().length;
   }
 
   protected openAddBlock(): void {

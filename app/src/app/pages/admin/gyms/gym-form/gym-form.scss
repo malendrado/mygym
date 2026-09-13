@@ -1,16 +1,170 @@
-.gym-header {
+// Reemplaza el header plano (h1 + slug suelto) por un mini-hero con el logo/
+// color del propio gimnasio, mismo lenguaje visual que la tarjeta de
+// gym-list (badge + nombre + estado), pero en formato "detalle" en vez de
+// "grid de tarjetas".
+.gym-detail-hero {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
   margin-bottom: 1.25rem;
+}
+
+.gym-detail-hero__badge {
+  flex-shrink: 0;
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  background: var(--brand-ink-surface-2);
+  overflow: hidden;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  // [innerHTML]-injected SVG markup isn't stamped with Angular's emulated
+  // encapsulation attribute, so a plain scoped `svg { }` rule never matches it.
+  ::ng-deep svg {
+    width: 32px;
+    height: 32px;
+  }
+
+  ion-icon {
+    font-size: 1.5rem;
+    color: var(--brand-text-dim);
+  }
+}
+
+.gym-detail-hero__info {
+  min-width: 0;
+}
+
+.gym-detail-hero__title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
 
   h1 {
+    font-family: var(--brand-font-heading);
     font-size: 1.6rem;
     margin: 0;
   }
+}
 
-  &__slug {
-    color: var(--brand-text-dim);
+.gym-detail-hero__slug {
+  color: var(--brand-text-dim);
+  font-family: var(--brand-font-mono);
+  font-size: 0.85rem;
+  margin: 0.15rem 0 0;
+}
+
+.gym-detail-stats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+
+  @media (min-width: 640px) {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.gym-detail-stat {
+  border: 1px solid var(--brand-ink-surface-2);
+  border-radius: 14px;
+  padding: 0.9rem 1rem;
+  background: var(--brand-ink-surface);
+
+  ion-icon {
+    font-size: 1.2rem;
+    color: var(--brand-accent);
+  }
+
+  &__value {
+    margin: 0.4rem 0 0.1rem;
     font-family: var(--brand-font-mono);
-    font-size: 0.85rem;
-    margin: 0.15rem 0 0;
+    font-size: 1.4rem;
+    font-weight: 700;
+  }
+
+  &__label {
+    margin: 0;
+    font-size: 0.75rem;
+    color: var(--brand-text-dim);
+  }
+}
+
+.admin-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--brand-accent);
+  color: var(--brand-accent-contrast);
+  font-family: var(--brand-font-mono);
+  font-size: 0.8rem;
+  font-weight: 700;
+  margin-inline-end: 0.85rem;
+
+  &--inactive {
+    background: var(--brand-ink-surface-2);
+    color: var(--brand-text-dim);
+  }
+}
+
+.admins-empty {
+  text-align: center;
+  padding: 1.75rem 1rem;
+
+  ion-icon {
+    font-size: 1.75rem;
+    color: var(--brand-text-dim);
+  }
+
+  p {
+    margin: 0.5rem 0 0;
+    color: var(--brand-text-dim);
+  }
+}
+
+.logo-preview {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.5rem 0 0.75rem;
+
+  &__badge {
+    flex-shrink: 0;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    background: var(--brand-ink-surface-2);
+    overflow: hidden;
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    ::ng-deep svg {
+      width: 28px;
+      height: 28px;
+    }
+  }
+
+  .item-hint {
+    margin: 0;
   }
 }
 
@@ -39,5 +193,96 @@
     height: 32px;
     border-radius: 999px;
     flex-shrink: 0;
+  }
+}
+
+// A partir de acá: mismos estilos que gym-admin.scss para la lista de
+// bloques (esta pantalla del super-admin es una implementación PARALELA a
+// la de gym-admin, no comparten componente ni hoja de estilos — reportado
+// 2026-09-13 porque el filtro por día y el resto de fixes de bloques solo
+// se habían aplicado en gym-admin, no acá).
+.day-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.85rem;
+}
+
+.day-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid var(--brand-ink-surface-2);
+  background: transparent;
+  color: var(--brand-text);
+  border-radius: 999px;
+  padding: 0.45rem 0.8rem;
+  font-family: var(--brand-font-display);
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+
+  ion-badge {
+    font-size: 0.68rem;
+  }
+
+  &:hover {
+    border-color: var(--ion-color-primary, var(--brand-accent));
+  }
+
+  &--selected {
+    background: var(--ion-color-primary, var(--brand-accent));
+    border-color: var(--ion-color-primary, var(--brand-accent));
+    color: var(--ion-color-primary-contrast, var(--brand-accent-contrast));
+    font-weight: 600;
+
+    ion-badge {
+      --background: var(--ion-color-primary-contrast, var(--brand-accent-contrast));
+      --color: var(--ion-color-primary, var(--brand-accent));
+    }
+  }
+}
+
+.series-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.75rem 0.9rem;
+  margin-bottom: 0.75rem;
+  border-radius: 12px;
+  background: var(--brand-ink-surface-2);
+  color: var(--brand-text-dim);
+  font-size: 0.85rem;
+
+  ion-spinner {
+    width: 22px;
+    height: 22px;
+    color: var(--brand-accent-text-safe, var(--brand-accent));
+    flex-shrink: 0;
+  }
+
+  p {
+    margin: 0;
+  }
+}
+
+.block-item__label {
+  min-width: 0;
+  white-space: normal;
+}
+
+.block-item__instructor {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0.15rem 0 0;
+  color: var(--brand-text-dim);
+  font-size: 0.78rem;
+
+  img {
+    width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    object-fit: cover;
   }
 }

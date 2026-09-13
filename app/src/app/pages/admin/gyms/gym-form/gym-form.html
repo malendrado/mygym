@@ -82,9 +82,48 @@
       </ion-card-content>
     </ion-card>
   } @else {
-    <div class="gym-header">
-      <h1>{{ gymName() }}</h1>
-      <p class="gym-header__slug">{{ gymSlug() }}</p>
+    <div class="gym-detail-hero">
+      <div class="gym-detail-hero__badge">
+        @if (isGymLogoRaster()) {
+          <img [src]="gym()?.logoSvg" alt="" />
+        } @else if (safeGymLogo()) {
+          <div [innerHTML]="safeGymLogo()"></div>
+        } @else {
+          <ion-icon name="barbell-outline" aria-hidden="true"></ion-icon>
+        }
+      </div>
+      <div class="gym-detail-hero__info">
+        <div class="gym-detail-hero__title-row">
+          <h1>{{ gymName() }}</h1>
+          <ion-badge [color]="gym()?.active ? 'success' : 'medium'">
+            {{ gym()?.active ? 'Activo' : 'Inactivo' }}
+          </ion-badge>
+        </div>
+        <p class="gym-detail-hero__slug">{{ gymSlug() }}</p>
+      </div>
+    </div>
+
+    <div class="gym-detail-stats">
+      <div class="gym-detail-stat">
+        <ion-icon name="people-outline" aria-hidden="true"></ion-icon>
+        <p class="gym-detail-stat__value">{{ admins().length }}</p>
+        <p class="gym-detail-stat__label">Administradores</p>
+      </div>
+      <div class="gym-detail-stat">
+        <ion-icon name="time-outline" aria-hidden="true"></ion-icon>
+        <p class="gym-detail-stat__value">{{ blocks().length }}</p>
+        <p class="gym-detail-stat__label">Bloques configurados</p>
+      </div>
+      <div class="gym-detail-stat">
+        <ion-icon name="person-outline" aria-hidden="true"></ion-icon>
+        <p class="gym-detail-stat__value">{{ gym()?.maxUsers ?? '—' }}</p>
+        <p class="gym-detail-stat__label">Cupo máximo</p>
+      </div>
+      <div class="gym-detail-stat">
+        <ion-icon name="logo-google" aria-hidden="true"></ion-icon>
+        <p class="gym-detail-stat__value">{{ gym()?.googleLoginEnabled ? 'Sí' : 'No' }}</p>
+        <p class="gym-detail-stat__label">Login con Google</p>
+      </div>
     </div>
 
     <ion-card>
@@ -98,6 +137,9 @@
         <ion-list lines="full">
           @for (admin of admins(); track admin.id) {
             <ion-item>
+              <div class="admin-avatar" slot="start" [class.admin-avatar--inactive]="!admin.active">
+                {{ initials(admin.name) }}
+              </div>
               <ion-label>
                 {{ admin.name }}
                 <p>{{ admin.email }}</p>
@@ -115,7 +157,10 @@
               </ion-button>
             </ion-item>
           } @empty {
-            <ion-item lines="none"><ion-label>Todavía no hay administradores.</ion-label></ion-item>
+            <div class="admins-empty">
+              <ion-icon name="people-outline" aria-hidden="true"></ion-icon>
+              <p>Todavía no hay administradores.</p>
+            </div>
           }
         </ion-list>
 
@@ -166,9 +211,21 @@
           </ion-item>
 
           <ion-item lines="none">
-            <ion-textarea label="Logo (SVG)" labelPlacement="stacked" formControlName="logoSvg" rows="4" placeholder="Pega aquí el markup SVG del logo generado para este gimnasio" />
+            <ion-textarea label="Logo (SVG o imagen)" labelPlacement="stacked" formControlName="logoSvg" rows="4" placeholder="Pega aquí el markup SVG del logo generado para este gimnasio" />
           </ion-item>
           <p class="item-hint">Se genera aparte (skill de logos) según el nombre del gimnasio, y se pega acá una vez listo.</p>
+          @if (configForm.controls.logoSvg.value.trim()) {
+            <div class="logo-preview">
+              <div class="logo-preview__badge">
+                @if (isConfigLogoRaster(configForm.controls.logoSvg.value)) {
+                  <img [src]="configForm.controls.logoSvg.value" alt="" />
+                } @else if (safeConfigLogo(configForm.controls.logoSvg.value)) {
+                  <div [innerHTML]="safeConfigLogo(configForm.controls.logoSvg.value)"></div>
+                }
+              </div>
+              <p class="item-hint">Vista previa del logo pegado.</p>
+            </div>
+          }
 
           <ion-button type="submit" expand="block" [disabled]="configForm.invalid || status() === 'saving'" class="ion-margin-top">
             Guardar configuración
@@ -188,17 +245,55 @@
           Bloques / horarios
         </ion-card-title>
         <div class="card-header-row__actions">
-          <ion-button size="small" fill="outline" (click)="openSeriesModal()">Generar bloques</ion-button>
-          <ion-button size="small" (click)="openAddBlock()">Agregar bloque</ion-button>
+          <ion-button size="small" fill="outline" (click)="openSeriesModal()" [disabled]="seriesCreating()">
+            {{ seriesCreating() ? 'Generando...' : 'Generar bloques' }}
+          </ion-button>
+          <ion-button size="small" (click)="openAddBlock()" [disabled]="seriesCreating()">Agregar bloque</ion-button>
         </div>
       </ion-card-header>
       <ion-card-content>
+        @if (seriesCreating()) {
+          <div class="series-progress">
+            <ion-spinner name="crescent"></ion-spinner>
+            <p>Creando tus bloques en el servidor, esto puede tardar unos segundos...</p>
+          </div>
+        }
+        <div class="day-chips">
+          <button
+            type="button"
+            class="day-chip"
+            [class.day-chip--selected]="selectedDay() === null"
+            (click)="selectDayFilter(null)"
+          >
+            Todos
+            <ion-badge color="medium">{{ blockCountForDay(null) }}</ion-badge>
+          </button>
+          @for (day of days; track day.value) {
+            <button
+              type="button"
+              class="day-chip"
+              [class.day-chip--selected]="selectedDay() === day.value"
+              (click)="selectDayFilter(day.value)"
+            >
+              {{ day.label }}
+              <ion-badge color="medium">{{ blockCountForDay(day.value) }}</ion-badge>
+            </button>
+          }
+        </div>
         <ion-list lines="full">
-          @for (block of blocks(); track block.id) {
+          @for (block of filteredBlocks(); track block.id) {
             <ion-item>
-              <ion-icon name="calendar-outline" slot="start" aria-hidden="true"></ion-icon>
-              <ion-label>
-                {{ block.label }} — {{ block.dayOfWeek }} {{ block.startTime }}-{{ block.endTime }}
+              <ion-icon [name]="categoryIcon(block.category)" slot="start" aria-hidden="true"></ion-icon>
+              <ion-label class="block-item__label">
+                {{ block.label }} — {{ dayLabel(block.dayOfWeek) }} {{ block.startTime }}-{{ block.endTime }}
+                @if (block.instructorName) {
+                  <p class="block-item__instructor">
+                    @if (block.instructorPhoto) {
+                      <img [src]="block.instructorPhoto" alt="" />
+                    }
+                    {{ block.instructorName }}
+                  </p>
+                }
                 <p>Cupo: {{ block.capacity }}</p>
               </ion-label>
               @if (!block.active) {
@@ -208,7 +303,15 @@
               <ion-button fill="clear" color="danger" (click)="removeBlock(block)">Eliminar</ion-button>
             </ion-item>
           } @empty {
-            <ion-item lines="none"><ion-label>Todavía no hay bloques configurados.</ion-label></ion-item>
+            <ion-item lines="none">
+              <ion-label>
+                {{
+                  selectedDay() === null
+                    ? 'Todavía no hay bloques configurados.'
+                    : 'No hay bloques para ' + dayLabel(selectedDay()!) + '.'
+                }}
+              </ion-label>
+            </ion-item>
           }
         </ion-list>
       </ion-card-content>
