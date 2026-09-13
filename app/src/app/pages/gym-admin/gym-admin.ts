@@ -33,19 +33,21 @@ import {
   calendarOutline,
   cloudUploadOutline,
   colorPaletteOutline,
+  createOutline,
   peopleOutline,
   personAddOutline,
   personCircleOutline,
   refreshOutline,
   timeOutline,
+  trashOutline,
 } from 'ionicons/icons';
 import { firstValueFrom } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
 import { GymService } from '../../core/services/gym.service';
 import { MemberService } from '../../core/services/member.service';
-import { CreateGymBlockRequest, GymBlock, UpdateGymBlockRequest, sortBlocksBySchedule } from '../../core/models/gym.model';
+import { CreateGymBlockRequest, DayOfWeek, GymBlock, UpdateGymBlockRequest, sortBlocksBySchedule } from '../../core/models/gym.model';
 import { Member } from '../../core/models/member.model';
-import { BloqueFormModal } from '../admin/gyms/bloque-form-modal/bloque-form-modal';
+import { BloqueFormModal, DAYS } from '../admin/gyms/bloque-form-modal/bloque-form-modal';
 import { BloqueSeriesModal } from '../admin/gyms/bloque-series-modal/bloque-series-modal';
 import { deriveSurfaceTint } from '../../core/utils/gym-theme';
 
@@ -59,6 +61,8 @@ addIcons({
   'refresh-outline': refreshOutline,
   'business-outline': businessOutline,
   'cloud-upload-outline': cloudUploadOutline,
+  'create-outline': createOutline,
+  'trash-outline': trashOutline,
 });
 
 type Status = 'idle' | 'loading' | 'saving' | 'error';
@@ -214,6 +218,10 @@ export class GymAdmin implements OnDestroy {
 
   protected setSection(section: Section): void {
     this.section.set(section);
+  }
+
+  protected dayLabel(day: DayOfWeek): string {
+    return DAYS.find((d) => d.value === day)?.label ?? day;
   }
 
   protected reshufflePalettes(): void {

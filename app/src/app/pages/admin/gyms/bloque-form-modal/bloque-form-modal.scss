@@ -38,7 +38,12 @@
 }
 
 .time-row {
+  // Mobile-first: stacked by default, same reasoning as bloque-series-modal.scss.
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  grid-template-columns: 1fr;
   gap: 0.5rem;
+
+  @media (min-width: 480px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }

@@ -24,15 +24,21 @@
 @import "@ionic/angular/css/text-transformation.css";
 @import "@ionic/angular/css/flex-utils.css";
 
-/* Automatic dark mode, following the system setting */
-@import "@ionic/angular/css/palettes/dark.system.css";
-
 /*
  * Brand tokens: "Teal Charcoal + Kinetic Lime".
  * Single accent used identically everywhere (nav, CTAs, active states) -
  * do not introduce a second accent color anywhere in the app.
+ *
+ * mygym has exactly one theme — always dark, brand-fixed — there is no light
+ * mode to switch to. Ionic's automatic `dark.system.css` palette (previously
+ * imported here) targets `:root.md`, which has higher CSS specificity than a
+ * plain `:root` rule and silently wins over these brand tokens on any device
+ * with a system dark-mode preference (most phones) — found 2026-09-13 during
+ * a mobile audit: background/text/scrollbar all fell back to Ionic's generic
+ * dark palette instead of the brand colors. Do not re-add that import.
  */
 :root {
+  color-scheme: dark; // native UI (scrollbars, form controls) renders dark-appropriate instead of guessing light
   --brand-font-display: 'Barlow', -apple-system, 'Segoe UI', system-ui, sans-serif;
   --brand-font-heading: 'Barlow Condensed', -apple-system, 'Segoe UI', system-ui, sans-serif;
   --brand-font-mono: 'Space Mono', ui-monospace, 'SFMono-Regular', monospace;

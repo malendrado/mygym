@@ -89,6 +89,16 @@ public class GymService {
         if (!gym.isActive()) {
             throw new GymNotFoundException(slug);
         }
+        return toPublicResponse(gym);
+    }
+
+    /** Branding for the logged-in member's own gym (mygym.cl "member" portal) — gymId comes from the caller's JWT. */
+    @Transactional(readOnly = true)
+    public PublicGymResponse getPublicById(Long gymId) {
+        return toPublicResponse(findGymOrThrow(gymId));
+    }
+
+    private PublicGymResponse toPublicResponse(Gym gym) {
         String themeColor = gym.getThemeColor() != null ? gym.getThemeColor() : GymPalette.defaultHex();
         return new PublicGymResponse(
                 gym.getName(), gym.getSlug(), themeColor, GymPalette.contrastFor(themeColor), gym.getLogoSvg(), gym.isGoogleLoginEnabled());

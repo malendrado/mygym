@@ -20,6 +20,14 @@ ion-card {
   transition: background-color 0.25s ease;
 }
 
+.block-item__label {
+  // ion-item's default flex layout gives ion-label no min-width, so long
+  // block names/schedules got squeezed unreadable next to the action
+  // buttons on narrow screens instead of wrapping — found 2026-09-13.
+  min-width: 0;
+  white-space: normal;
+}
+
 .gym-logo {
   display: flex;
   justify-content: center;

@@ -1,9 +1,11 @@
 package com.cortesdev.mygym.controllers;
 
 import com.cortesdev.mygym.models.dto.GymBlockOccurrenceResponse;
+import com.cortesdev.mygym.models.dto.PublicGymResponse;
 import com.cortesdev.mygym.models.dto.ReservationCreateRequest;
 import com.cortesdev.mygym.models.dto.ReservationResponse;
 import com.cortesdev.mygym.security.AuthenticatedUser;
+import com.cortesdev.mygym.services.GymService;
 import com.cortesdev.mygym.services.ReservationService;
 import jakarta.validation.Valid;
 import java.net.URI;
@@ -29,6 +31,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class ReservationController {
 
     private final ReservationService reservationService;
+    private final GymService gymService;
+
+    @GetMapping("/gym")
+    public PublicGymResponse myGym(@AuthenticationPrincipal Jwt jwt) {
+        return gymService.getPublicById(AuthenticatedUser.from(jwt).gymId());
+    }
 
     @GetMapping("/gym-blocks")
     public List<GymBlockOccurrenceResponse> listOccurrences(

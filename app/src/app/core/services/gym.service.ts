@@ -21,10 +21,16 @@ export class GymService {
   private readonly base = `${environment.apiUrl}/api/gyms`;
   private readonly myGymBase = `${environment.apiUrl}/api/gym-admin/gym`;
   private readonly publicGymsBase = `${environment.apiUrl}/api/public/gyms`;
+  private readonly meBase = `${environment.apiUrl}/api/me`;
 
   /** No auth required — powers the public join page for a specific gym. */
   getPublicBySlug(slug: string): Observable<PublicGym> {
     return this.http.get<PublicGym>(`${this.publicGymsBase}/${slug}`);
+  }
+
+  /** Branding for the logged-in member's own gym — gymId comes from their JWT, not a param. */
+  getMyMemberGym(): Observable<PublicGym> {
+    return this.http.get<PublicGym>(`${this.meBase}/gym`);
   }
 
   list(): Observable<Gym[]> {

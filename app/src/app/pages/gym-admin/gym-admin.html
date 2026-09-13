@@ -70,15 +70,23 @@
           @for (block of blocks(); track block.id) {
             <ion-item>
               <ion-icon name="calendar-outline" slot="start" aria-hidden="true"></ion-icon>
-              <ion-label>
-                {{ block.label }} — {{ block.dayOfWeek }} {{ block.startTime }}-{{ block.endTime }}
-                <p>Cupo: {{ block.capacity }}</p>
+              <ion-label class="block-item__label">
+                {{ block.label }} — {{ dayLabel(block.dayOfWeek) }} {{ block.startTime }}-{{ block.endTime }}
+                <p>
+                  Cupo: {{ block.capacity }}
+                  @if (!block.active) {
+                    · <ion-text color="medium">Inactivo</ion-text>
+                  }
+                </p>
               </ion-label>
-              @if (!block.active) {
-                <ion-badge color="medium" slot="end">Inactivo</ion-badge>
-              }
-              <ion-button fill="clear" (click)="openEditBlock(block)">Editar</ion-button>
-              <ion-button fill="clear" color="danger" (click)="removeBlock(block)">Eliminar</ion-button>
+              <ion-buttons slot="end">
+                <ion-button fill="clear" [attr.aria-label]="'Editar ' + block.label" (click)="openEditBlock(block)">
+                  <ion-icon name="create-outline" slot="icon-only" aria-hidden="true"></ion-icon>
+                </ion-button>
+                <ion-button fill="clear" color="danger" [attr.aria-label]="'Eliminar ' + block.label" (click)="removeBlock(block)">
+                  <ion-icon name="trash-outline" slot="icon-only" aria-hidden="true"></ion-icon>
+                </ion-button>
+              </ion-buttons>
             </ion-item>
           } @empty {
             <ion-item lines="none"><ion-label>Todavía no hay bloques configurados.</ion-label></ion-item>

@@ -1,48 +1,183 @@
-<ion-header>
-  <ion-toolbar>
-    <ion-title>Mis clases</ion-title>
-    <ion-buttons slot="end">
-      <ion-button (click)="logout()">Salir</ion-button>
-    </ion-buttons>
-  </ion-toolbar>
-</ion-header>
+@if (!gymLoaded()) {
+  <ion-header>
+    <ion-toolbar><ion-title>mygym</ion-title></ion-toolbar>
+  </ion-header>
+  <ion-content class="ion-padding member-loading">
+    <ion-spinner name="crescent"></ion-spinner>
+  </ion-content>
+} @else {
+  <ion-header
+    [style.--ion-color-primary]="gym()?.themeColor ?? '#c6ff3d'"
+    [style.--ion-color-primary-contrast]="gym()?.themeContrast ?? '#1a2b00'"
+    [style.--brand-accent]="gym()?.themeColor ?? '#c6ff3d'"
+    [style.--brand-accent-contrast]="gym()?.themeContrast ?? '#1a2b00'"
+  >
+    <ion-toolbar>
+      <ion-title>{{ gym()?.name ?? 'mygym' }}</ion-title>
+      <ion-buttons slot="end">
+        <ion-button (click)="logout()">Salir</ion-button>
+      </ion-buttons>
+    </ion-toolbar>
+  </ion-header>
 
-<ion-content class="ion-padding">
-  @if (status() === 'error') {
-    <ion-text color="danger"><p>Ocurrió un error. Intenta nuevamente.</p></ion-text>
-  }
-
-  <h2>Próximas clases</h2>
-  <ion-list>
-    @for (occurrence of occurrences(); track occurrence.gymBlockId + occurrence.classDate) {
-      <ion-item>
-        <ion-label>
-          {{ occurrence.label }} — {{ occurrence.classDate }} {{ occurrence.startTime }}-{{ occurrence.endTime }}
-          <p>{{ occurrence.taken }}/{{ occurrence.capacity }} cupos</p>
-        </ion-label>
-        @if (occurrence.myReservationId) {
-          <ion-badge color="success" slot="end">Reservado</ion-badge>
-          <ion-button fill="clear" color="danger" (click)="cancel(occurrence.myReservationId!)">Cancelar</ion-button>
-        } @else {
-          <ion-button fill="clear" [disabled]="!occurrence.bookable" (click)="book(occurrence)">Reservar</ion-button>
+  <ion-content
+    class="ion-padding member-content"
+    [style.--brand-accent]="gym()?.themeColor ?? '#c6ff3d'"
+    [style.--brand-accent-contrast]="gym()?.themeContrast ?? '#1a2b00'"
+    [style.--member-bg]="themeSurface()?.bg ?? null"
+    [style.--member-card]="themeSurface()?.card ?? null"
+  >
+    <section class="member-hero">
+      <img
+        src="https://images.unsplash.com/photo-1637430308606-86576d8fef3c?q=75&w=1600&h=900&fit=crop&auto=format"
+        alt="Sala de entrenamiento con luces cálidas"
+        width="1600"
+        height="900"
+      />
+      <div class="member-hero__scrim"></div>
+      <div class="member-hero__content">
+        @if (gym()?.name) {
+          <p class="member-hero__eyebrow">{{ gym()!.name }}</p>
         }
-      </ion-item>
-    } @empty {
-      <ion-item lines="none"><ion-label>No hay clases programadas esta semana.</ion-label></ion-item>
-    }
-  </ion-list>
+        <h1>Hola, {{ firstName() }}</h1>
+        <p class="member-hero__quote">"{{ quote }}"</p>
+      </div>
+    </section>
 
-  <h2>Mis reservas</h2>
-  <ion-list>
-    @for (reservation of myReservations(); track reservation.id) {
-      <ion-item>
-        <ion-label>
-          {{ reservation.blockLabel }} — {{ reservation.classDate }} {{ reservation.startTime }}-{{ reservation.endTime }}
-        </ion-label>
-        <ion-button fill="clear" color="danger" (click)="cancel(reservation.id)">Cancelar</ion-button>
-      </ion-item>
-    } @empty {
-      <ion-item lines="none"><ion-label>Todavía no tienes reservas.</ion-label></ion-item>
+    <section class="membership">
+      @if (membership().status === 'none') {
+        <h2>Elige tu plan</h2>
+        <p class="item-hint">Cada plan incluye un cupo de clases al mes — reserva todas las que quieras dentro de tu cupo.</p>
+        <div class="plan-grid">
+          @for (plan of plans; track plan.id) {
+            <article class="plan-card" [class.plan-card--highlight]="plan.highlight">
+              @if (plan.highlight) {
+                <span class="plan-card__badge">
+                  <ion-icon name="sparkles-outline" aria-hidden="true"></ion-icon>
+                  Recomendado
+                </span>
+              }
+              <h3>{{ plan.name }}</h3>
+              <p class="plan-card__price">${{ formatClp(plan.priceClp) }}<span> / mes</span></p>
+              <p class="plan-card__quota">
+                {{ plan.monthlyClasses === null ? 'Clases ilimitadas' : plan.monthlyClasses + ' clases al mes' }}
+              </p>
+              <ion-button expand="block" [fill]="plan.highlight ? 'solid' : 'outline'" (click)="selectPlan(plan)">
+                Elegir plan
+              </ion-button>
+            </article>
+          }
+        </div>
+      } @else if (membership().status === 'pending') {
+        <div class="membership-status membership-status--pending">
+          <ion-spinner name="crescent"></ion-spinner>
+          <p>Confirmando tu pago con Flow.cl...</p>
+        </div>
+      } @else {
+        <div class="membership-status" [class.membership-status--warn]="membership().status === 'past_due'">
+          <div class="membership-status__info">
+            <p class="membership-status__eyebrow">Tu membresía</p>
+            <h2>{{ membership().plan?.name }}</h2>
+            @if (membership().status === 'past_due') {
+              <p class="membership-status__warn-text">Tu pago está atrasado — regulariza para seguir reservando.</p>
+            } @else {
+              <p class="membership-status__renew">Se renueva el {{ membership().renewsOn }}</p>
+            }
+          </div>
+          @if (quotaTotal() !== null) {
+            <div class="quota-ring" [class.quota-ring--exhausted]="quotaExhausted()">
+              <svg viewBox="0 0 120 120">
+                <circle class="quota-ring__track" cx="60" cy="60" r="54" />
+                <circle
+                  class="quota-ring__fill"
+                  cx="60"
+                  cy="60"
+                  r="54"
+                  [style.stroke-dashoffset.px]="quotaRingOffset()"
+                />
+              </svg>
+              <div class="quota-ring__label">
+                <strong>{{ classesRemaining() }}</strong>
+                <span>de {{ quotaTotal() }} clases</span>
+              </div>
+            </div>
+          } @else {
+            <div class="quota-ring quota-ring--unlimited">
+              <ion-icon name="sparkles-outline" aria-hidden="true"></ion-icon>
+              <span>Ilimitado</span>
+            </div>
+          }
+        </div>
+      }
+    </section>
+
+    <div class="member-benefits">
+      @for (benefit of benefits; track benefit.title) {
+        <article class="member-benefits__card">
+          <ion-icon [name]="benefit.icon" aria-hidden="true"></ion-icon>
+          <div>
+            <h3>{{ benefit.title }}</h3>
+            <p>{{ benefit.body }}</p>
+          </div>
+        </article>
+      }
+    </div>
+
+    @if (status() === 'error') {
+      <ion-text color="danger"><p>Ocurrió un error. Intenta nuevamente.</p></ion-text>
     }
-  </ion-list>
-</ion-content>
+
+    <section class="member-section">
+      <h2>Próximas clases</h2>
+      <div class="class-list">
+        @for (occurrence of occurrences(); track occurrence.gymBlockId + occurrence.classDate) {
+          <article class="class-card" [class.class-card--reserved]="!!occurrence.myReservationId">
+            <div class="class-card__info">
+              <p class="class-card__title">{{ occurrence.label }}</p>
+              <p class="class-card__meta">{{ occurrence.classDate }} · {{ occurrence.startTime }}-{{ occurrence.endTime }}</p>
+              <p class="class-card__capacity">{{ occurrence.taken }}/{{ occurrence.capacity }} cupos</p>
+            </div>
+            @if (occurrence.myReservationId) {
+              <div class="class-card__action">
+                <ion-badge color="success">Reservado</ion-badge>
+                <ion-button fill="clear" size="small" color="danger" (click)="cancel(occurrence.myReservationId!)">
+                  Cancelar
+                </ion-button>
+              </div>
+            } @else if (quotaExhausted()) {
+              <ion-text color="medium" class="class-card__quota-note">Alcanzaste tus clases de este mes</ion-text>
+            } @else {
+              <ion-button
+                fill="solid"
+                size="small"
+                [disabled]="!occurrence.bookable || bookingId() === occurrence.gymBlockId"
+                (click)="book(occurrence)"
+              >
+                {{ bookingId() === occurrence.gymBlockId ? 'Reservando...' : 'Reservar' }}
+              </ion-button>
+            }
+          </article>
+        } @empty {
+          <p class="item-hint">No hay clases programadas esta semana.</p>
+        }
+      </div>
+    </section>
+
+    <section class="member-section">
+      <h2>Mis reservas</h2>
+      <div class="class-list">
+        @for (reservation of myReservations(); track reservation.id) {
+          <article class="class-card">
+            <div class="class-card__info">
+              <p class="class-card__title">{{ reservation.blockLabel }}</p>
+              <p class="class-card__meta">{{ reservation.classDate }} · {{ reservation.startTime }}-{{ reservation.endTime }}</p>
+            </div>
+            <ion-button fill="clear" size="small" color="danger" (click)="cancel(reservation.id)">Cancelar</ion-button>
+          </article>
+        } @empty {
+          <p class="item-hint">Todavía no tienes reservas.</p>
+        }
+      </div>
+    </section>
+  </ion-content>
+}

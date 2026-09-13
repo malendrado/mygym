@@ -3,7 +3,6 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import {
   IonButton,
   IonButtons,
-  IonCheckbox,
   IonContent,
   IonHeader,
   IonIcon,
@@ -61,7 +60,6 @@ function toTimeString(totalMinutes: number): string {
     IonInput,
     IonSelect,
     IonSelectOption,
-    IonCheckbox,
     IonList,
     IonNote,
     QuantityStepper,

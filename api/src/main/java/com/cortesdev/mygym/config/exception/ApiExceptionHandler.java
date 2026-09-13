@@ -18,6 +18,7 @@ import com.cortesdev.mygym.services.exception.ReservationNotFoundException;
 import com.cortesdev.mygym.services.exception.UnauthorizedGoogleLoginException;
 import java.net.URI;
 import java.time.Instant;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -173,6 +174,17 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
         problem.setTitle("Acceso denegado");
         problem.setProperty("timestamp", Instant.now());
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(problem);
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ProblemDetail> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
+        // Catches the race where two requests for the same member+slot both pass the
+        // service-layer duplicate check and hit the DB unique index at the same time.
+        ProblemDetail problem =
+                ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, "Ya tienes una reserva para esta clase");
+        problem.setTitle("Reserva duplicada");
+        problem.setProperty("timestamp", Instant.now());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(problem);
     }
 
     @ExceptionHandler(Exception.class)

@@ -14,18 +14,21 @@
 <ion-content class="ion-padding">
   <form [formGroup]="form">
     <p class="section-label">Días *</p>
-    <div class="days-grid">
+    <div class="day-chips">
       @for (day of days; track day.value) {
-        <ion-item lines="none">
-          <ion-checkbox
-            slot="start"
-            [checked]="isDaySelected(day.value)"
-            (ionChange)="toggleDay(day.value, $event.detail.checked)"
-          ></ion-checkbox>
-          <ion-label>{{ day.label }}</ion-label>
-        </ion-item>
+        <button
+          type="button"
+          class="day-chip"
+          [class.day-chip--selected]="isDaySelected(day.value)"
+          (click)="toggleDay(day.value, !isDaySelected(day.value))"
+        >
+          {{ day.label }}
+        </button>
       }
     </div>
+    @if (form.controls.days.value.length === 0) {
+      <ion-note color="danger">Elige al menos un día.</ion-note>
+    }
 
     <div class="time-row">
       <ion-item class="time-row__field">
