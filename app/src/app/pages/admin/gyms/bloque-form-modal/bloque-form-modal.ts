@@ -11,6 +11,7 @@ import {
   IonButton,
   IonButtons,
   IonContent,
+  IonFooter,
   IonHeader,
   IonIcon,
   IonInput,
@@ -58,6 +59,7 @@ function endAfterStartValidator(control: AbstractControl): ValidationErrors | nu
   imports: [
     ReactiveFormsModule,
     IonHeader,
+    IonFooter,
     IonToolbar,
     IonTitle,
     IonButtons,
@@ -90,8 +92,16 @@ export class BloqueFormModal {
       this.form.patchValue({
         label: value.label,
         dayOfWeek: value.dayOfWeek,
-        startTime: value.startTime,
-        endTime: value.endTime,
+        // El backend siempre devuelve la hora con segundos ("09:00:00", el
+        // formato de serialización por defecto de LocalTime en Jackson),
+        // pero las opciones del select son "HH:mm" (sin segundos) — sin este
+        // recorte, el valor patcheado no coincide con ninguna opción, el
+        // select se ve vacío al editar, y si el usuario llega a tocarlo el
+        // control queda en '' (inválido), bloqueando "Guardar" en silencio
+        // (sin ningún mensaje de error visible). Bug real reportado por el
+        // usuario 2026-09-13.
+        startTime: value.startTime.slice(0, 5),
+        endTime: value.endTime.slice(0, 5),
         capacity: value.capacity,
         category: value.category ?? '',
         instructorName: value.instructorName ?? '',

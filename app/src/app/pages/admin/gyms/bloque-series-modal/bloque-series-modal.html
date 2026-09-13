@@ -95,12 +95,22 @@
   } @else if (hasGenerated()) {
     <ion-note color="medium">No se generó ningún bloque. Revisa los días y el horario elegidos.</ion-note>
   }
-
-  <div class="modal-actions">
-    <ion-button type="button" fill="clear" (click)="cancel()">Cancelar</ion-button>
-    <ion-button type="button" expand="block" [disabled]="draft().length === 0" (click)="confirm()">
-      Confirmar y crear todos
-    </ion-button>
-  </div>
 </ion-content>
+
+<!--
+  La vista previa puede tener decenas de filas (una semana completa genera
+  muchos bloques) — con "Confirmar y crear todos" dentro de ion-content,
+  quedaba escondido bajo un scroll larguísimo (reportado 2026-09-13). Mismo
+  fix que bloque-form-modal: acciones finales en un ion-footer fijo.
+-->
+<ion-footer>
+  <ion-toolbar>
+    <div class="modal-actions">
+      <ion-button type="button" fill="clear" (click)="cancel()">Cancelar</ion-button>
+      <ion-button type="button" expand="block" [disabled]="draft().length === 0" (click)="confirm()">
+        Confirmar y crear todos
+      </ion-button>
+    </div>
+  </ion-toolbar>
+</ion-footer>
 </div>

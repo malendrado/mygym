@@ -68,6 +68,9 @@ import { Member } from '../../core/models/member.model';
 import { BloqueFormModal, DAYS } from '../admin/gyms/bloque-form-modal/bloque-form-modal';
 import { BloqueSeriesModal } from '../admin/gyms/bloque-series-modal/bloque-series-modal';
 import { PlanFormModal } from '../admin/gyms/plan-form-modal/plan-form-modal';
+import { registerClassCategoryIcons, resolveClassCategoryIcon } from '../../core/utils/class-category';
+
+registerClassCategoryIcons();
 import { deriveSurfaceTint, ensureMinContrastColor } from '../../core/utils/gym-theme';
 
 addIcons({
@@ -321,6 +324,15 @@ export class GymAdmin implements OnDestroy {
 
   protected dayLabel(day: DayOfWeek): string {
     return DAYS.find((d) => d.value === day)?.label ?? day;
+  }
+
+  // La fila de bloque nunca mostraba la categoría (siempre el mismo ícono
+  // genérico) ni el nombre del instructor — el admin no tenía forma de
+  // confirmar visualmente que esos campos se habían guardado. Reportado por
+  // el usuario 2026-09-13 al no ver reflejado un cambio de categoría/
+  // instructor en la grilla (el dato SÍ se guardaba, solo no se mostraba).
+  protected categoryIcon(category: string | null): string {
+    return resolveClassCategoryIcon(category);
   }
 
   protected selectDayFilter(day: DayOfWeek | null): void {

@@ -112,9 +112,17 @@
         <ion-list lines="full">
           @for (block of filteredBlocks(); track block.id) {
             <ion-item>
-              <ion-icon name="calendar-outline" slot="start" aria-hidden="true"></ion-icon>
+              <ion-icon [name]="categoryIcon(block.category)" slot="start" aria-hidden="true"></ion-icon>
               <ion-label class="block-item__label">
                 {{ block.label }} — {{ dayLabel(block.dayOfWeek) }} {{ block.startTime }}-{{ block.endTime }}
+                @if (block.instructorName) {
+                  <p class="block-item__instructor">
+                    @if (block.instructorPhoto) {
+                      <img [src]="block.instructorPhoto" alt="" />
+                    }
+                    {{ block.instructorName }}
+                  </p>
+                }
                 <p>
                   Cupo: {{ block.capacity }}
                   @if (!block.active) {

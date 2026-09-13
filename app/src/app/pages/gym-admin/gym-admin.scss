@@ -157,6 +157,25 @@ ion-segment-button.segment-button-checked {
   white-space: normal;
 }
 
+// Mismo patrón que .class-card__instructor en member.scss — antes el
+// instructor no se mostraba en ningún lado de esta lista, el admin no podía
+// confirmar visualmente que se había guardado.
+.block-item__instructor {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0.15rem 0 0;
+  color: var(--brand-text-dim);
+  font-size: 0.78rem;
+
+  img {
+    width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    object-fit: cover;
+  }
+}
+
 .plan-grid {
   display: grid;
   grid-template-columns: 1fr;

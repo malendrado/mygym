@@ -221,6 +221,14 @@ ion-card-content {
 .wide-modal {
   --width: min(600px, 92vw);
   --max-width: 600px;
+  // El ion-modal global de abajo fija --height a min(620px, 90vh) — pensado
+  // para formularios cortos. Los formularios largos (crear/editar bloque,
+  // generador de series) heredaban ese mismo tope aunque tienen muchos más
+  // campos, forzando scroll que un modal más alto evitaría en la mayoría de
+  // los celulares reales (en un iPhone 14 de ~844px de alto, 90vh son ~760px
+  // — el tope de 620px desperdiciaba ~140px de espacio útil). Encontrado
+  // 2026-09-13 al revisar por qué "Guardar"/"Confirmar" quedaban tan lejos.
+  --height: min(760px, 92vh);
 }
 
 .card-header-row__actions {

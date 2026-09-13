@@ -4,6 +4,7 @@ import {
   IonButton,
   IonButtons,
   IonContent,
+  IonFooter,
   IonHeader,
   IonIcon,
   IonInput,
@@ -49,6 +50,7 @@ function toTimeString(totalMinutes: number): string {
   imports: [
     ReactiveFormsModule,
     IonHeader,
+    IonFooter,
     IonToolbar,
     IonTitle,
     IonButtons,

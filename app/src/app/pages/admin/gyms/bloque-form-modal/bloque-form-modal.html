@@ -99,15 +99,28 @@
       }
       <input #instructorPhotoInput type="file" accept="image/png,image/jpeg,image/webp" hidden (change)="onInstructorPhotoSelected($event)" />
     </div>
+  </form>
+</ion-content>
 
+<!--
+  El botón vivía DENTRO del <form>/ion-content que scrollea — con un
+  formulario largo (nombre, 7 chips de día, 2 selects de hora, cupo, 9 chips
+  de categoría + texto libre, instructor + foto) quedaba debajo del pliegue,
+  escondido tras un scroll que el usuario no esperaba (reportado 2026-09-13).
+  Mismo patrón que ion-header: un ion-footer fijo siempre visible, solo el
+  contenido del medio scrollea. type="button" + (click) en vez de
+  type="submit" porque el botón ya no es descendiente del <form>.
+-->
+<ion-footer>
+  <ion-toolbar>
     <ion-button
-      type="submit"
+      type="button"
       expand="block"
       [disabled]="form.invalid || isBusy()"
-      class="ion-margin-top"
+      (click)="submit()"
     >
       {{ isBusy() ? 'Guardando...' : 'Guardar' }}
     </ion-button>
-  </form>
-</ion-content>
+  </ion-toolbar>
+</ion-footer>
 </div>
