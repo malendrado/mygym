@@ -19,6 +19,10 @@
               M224,360 L172,450.07 L68,450.07 L16,360 L68,269.93 L172,269.93 Z
               M148,360 A28,28 0 1 0 92,360 A28,28 0 1 0 148,360 Z
             "/>
+            <path fill="currentColor" fill-rule="evenodd" d="
+              M496,360 L444,450.07 L340,450.07 L288,360 L340,269.93 L444,269.93 Z
+              M420,360 A28,28 0 1 0 364,360 A28,28 0 1 0 420,360 Z
+            "/>
           </g>
         </g>
       </svg>
@@ -32,7 +36,9 @@
           <p>Ingresando...</p>
         </div>
       } @else {
-        <asl-google-signin-button type="standard" size="large" text="continue_with" shape="pill" theme="outline" logo_alignment="left" />
+        <div class="google-auth__frame">
+          <asl-google-signin-button type="standard" size="large" text="continue_with" shape="pill" theme="outline" logo_alignment="left" />
+        </div>
       }
     </div>
     @if (errorMessage()) {

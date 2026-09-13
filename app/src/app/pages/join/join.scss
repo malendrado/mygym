@@ -37,8 +37,19 @@
   .google-auth {
     display: flex;
     justify-content: center;
-    padding-top: 0.25rem;
+    padding-top: 0.5rem;
   }
+}
+
+// Mismo tratamiento que login.scss: la píldora blanca de Google engarzada en
+// un anillo con el acento del propio gimnasio (no el lima fijo de mygym), ya
+// que --brand-accent aquí está sobreescrito por el tema del gym en runtime.
+.google-auth__frame {
+  display: inline-flex;
+  padding: 0.4rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--brand-accent), rgba(255, 255, 255, 0.15));
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.15), 0 8px 24px rgba(0, 0, 0, 0.2);
 }
 
 .join-description {

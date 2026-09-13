@@ -53,13 +53,24 @@
 // El botón real de Google (renderizado por Google Identity Services en un
 // iframe de origen cruzado) no admite recolorear sus píxeles internos por
 // diseño anti-phishing de Google — lo único personalizable son los presets
-// oficiales (shape/theme/text/size). Lo que sí controlamos es el marco: una
-// tarjeta con la identidad de mygym alrededor del botón real.
+// oficiales (shape/theme/text/size). Lo que sí controlamos es el marco: en
+// vez de dejar la píldora blanca de Google suelta sobre el fondo oscuro (se
+// lee como "objeto sin diseñar"), la engarzamos en una cápsula con anillo de
+// acento lima — el mismo lenguaje visual que el resto de la marca — para que
+// el conjunto se sienta elegido a propósito, no un widget de terceros pegado.
 .google-auth {
   width: 100%;
   display: flex;
   justify-content: center;
-  padding-top: 0.25rem;
+  padding-top: 0.5rem;
+}
+
+.google-auth__frame {
+  display: inline-flex;
+  padding: 0.4rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--brand-accent), rgba(198, 255, 61, 0.25));
+  box-shadow: 0 0 0 1px rgba(198, 255, 61, 0.35), 0 8px 24px rgba(198, 255, 61, 0.12);
 }
 
 .login-loading {

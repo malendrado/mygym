@@ -77,7 +77,9 @@
 
       @if (gym()!.googleLoginEnabled) {
         <div class="google-auth">
-          <asl-google-signin-button type="standard" size="large" text="signup_with" shape="pill" theme="outline" logo_alignment="left" />
+          <div class="google-auth__frame">
+            <asl-google-signin-button type="standard" size="large" text="signup_with" shape="pill" theme="outline" logo_alignment="left" />
+          </div>
         </div>
       } @else {
         <ion-text color="medium">
