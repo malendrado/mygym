@@ -23,6 +23,12 @@
   color: var(--brand-text);
   border-radius: 999px;
   padding: 0.5rem 0.9rem;
+  // Es un <button> plano, no ion-button — la regla global de 44px
+  // (ion-button::part(native) en styles.scss) no lo alcanza. Encontrado
+  // 2026-09-13 al auditar dónde más faltaba propagar fixes de esta sesión:
+  // los ~32px reales de este chip nunca habían pasado por el audit de
+  // touch-target de 2026-09-13 porque ese audit solo cubrió ion-button.
+  min-height: 44px;
   font-family: var(--brand-font-display);
   font-size: 0.85rem;
   cursor: pointer;

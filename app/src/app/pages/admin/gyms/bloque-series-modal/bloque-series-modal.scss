@@ -15,11 +15,16 @@
 }
 
 .day-chip {
+  display: inline-flex;
+  align-items: center;
   border: 1px solid var(--brand-ink-surface-2);
   background: transparent;
   color: var(--brand-text);
   border-radius: 999px;
   padding: 0.5rem 0.9rem;
+  // Ver el mismo comentario en bloque-form-modal.scss — <button> plano,
+  // nunca cubierto por la regla global de 44px de ion-button.
+  min-height: 44px;
   font-family: var(--brand-font-display);
   font-size: 0.85rem;
   cursor: pointer;

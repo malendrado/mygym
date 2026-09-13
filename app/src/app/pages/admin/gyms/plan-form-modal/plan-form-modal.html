@@ -87,10 +87,17 @@
         <ion-note color="danger">Debe ser mayor a 0.</ion-note>
       }
     }
-
-    <ion-button type="submit" expand="block" [disabled]="form.invalid || isBusy()" class="ion-margin-top">
-      {{ isBusy() ? 'Guardando...' : 'Guardar' }}
-    </ion-button>
   </form>
 </ion-content>
+
+<!-- Mismo fix que bloque-form-modal/bloque-series-modal (2026-09-13): el botón
+     final vivía dentro del contenido que scrollea. type="button" + (click) en
+     vez de type="submit" porque ya no es descendiente del <form>. -->
+<ion-footer>
+  <ion-toolbar>
+    <ion-button type="button" expand="block" [disabled]="form.invalid || isBusy()" (click)="submit()">
+      {{ isBusy() ? 'Guardando...' : 'Guardar' }}
+    </ion-button>
+  </ion-toolbar>
+</ion-footer>
 </div>

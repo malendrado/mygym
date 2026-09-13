@@ -4,6 +4,7 @@ import {
   IonButton,
   IonButtons,
   IonContent,
+  IonFooter,
   IonHeader,
   IonIcon,
   IonInput,
@@ -87,6 +88,7 @@ export const PLAN_TEMPLATES: PlanTemplate[] = [
   imports: [
     ReactiveFormsModule,
     IonHeader,
+    IonFooter,
     IonToolbar,
     IonTitle,
     IonButtons,

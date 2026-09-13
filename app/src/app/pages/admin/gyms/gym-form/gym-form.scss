@@ -217,6 +217,9 @@
   color: var(--brand-text);
   border-radius: 999px;
   padding: 0.45rem 0.8rem;
+  // <button> plano, no ion-button — nunca cubierto por la regla global de
+  // 44px. Encontrado 2026-09-13 auditando dónde más faltaba propagar fixes.
+  min-height: 44px;
   font-family: var(--brand-font-display);
   font-size: 0.82rem;
   cursor: pointer;
