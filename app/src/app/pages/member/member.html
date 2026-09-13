@@ -171,6 +171,10 @@
                   Cancelar
                 </ion-button>
               </div>
+            } @else if (!canBook()) {
+              <button type="button" class="class-card__quota-note class-card__quota-note--action" (click)="scrollToPlans()">
+                Elige un plan para reservar
+              </button>
             } @else if (quotaExhausted()) {
               <ion-text color="medium" class="class-card__quota-note">Alcanzaste tus clases de este mes</ion-text>
             } @else {

@@ -175,6 +175,11 @@ export class MemberPage {
     return total === null ? null : Math.max(total - this.membership().classesUsed, 0);
   });
   protected readonly quotaExhausted = computed(() => this.classesRemaining() === 0);
+  // Sin esto, un socio sin plan (o con el pago atrasado) veía el mismo botón
+  // "Reservar" que alguien con plan activo — tocarlo solo llevaba a un error
+  // del backend sin explicación. `quotaExhausted()` no cubre este caso: sin
+  // plan, `quotaTotal()` es null, así que da `false` (no "agotado").
+  protected readonly canBook = computed(() => this.membership().status === 'active');
   protected readonly quotaPercent = computed(() => {
     const total = this.quotaTotal();
     if (total === null || total === 0) {
@@ -266,6 +271,10 @@ export class MemberPage {
         },
       });
     }, 1500);
+  }
+
+  protected scrollToPlans(): void {
+    document.querySelector('.membership')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   protected formatClp(amount: number): string {

@@ -142,6 +142,28 @@
   }
 }
 
+// Antes un <p class="item-hint"> genérico (gris, discreto) — el mensaje es
+// tranquilizador ("no tienes que decidir ahora") y se pierde si se ve como
+// letra chica. Se destaca como un callout con el acento del propio gimnasio.
+.join-plans__note {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--brand-accent) 14%, transparent);
+  color: var(--brand-text);
+  font-size: 0.8rem;
+  line-height: 1.35;
+
+  ion-icon {
+    flex-shrink: 0;
+    font-size: 1.1rem;
+    color: var(--brand-accent-text-safe, var(--brand-accent));
+  }
+}
+
 .join-plan-card {
   flex: 0 0 auto;
   scroll-snap-align: start;

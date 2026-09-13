@@ -4,14 +4,18 @@ import { DomSanitizer } from '@angular/platform-browser';
 import { IonContent, IonHeader, IonIcon, IonSpinner, IonText, IonTitle, IonToolbar } from '@ionic/angular';
 import { GoogleSigninButtonDirective, SocialAuthService } from '@abacritt/angularx-social-login';
 import { addIcons } from 'ionicons';
-import { logoInstagram, logoWhatsapp } from 'ionicons/icons';
+import { informationCircleOutline, logoInstagram, logoWhatsapp } from 'ionicons/icons';
 import { AuthService } from '../../core/services/auth.service';
 import { GymService } from '../../core/services/gym.service';
 import { LoginResponse } from '../../core/models/auth.model';
 import { GymPhoto, MemberPlan, PublicGym } from '../../core/models/gym.model';
 import { deriveSurfaceTint, ensureMinContrastColor } from '../../core/utils/gym-theme';
 
-addIcons({ 'logo-instagram': logoInstagram, 'logo-whatsapp': logoWhatsapp });
+addIcons({
+  'logo-instagram': logoInstagram,
+  'logo-whatsapp': logoWhatsapp,
+  'information-circle-outline': informationCircleOutline,
+});
 
 type Status = 'loading' | 'ready' | 'not-found' | 'joining';
 
