@@ -46,10 +46,15 @@
 // que --brand-accent aquí está sobreescrito por el tema del gym en runtime.
 .google-auth__frame {
   display: inline-flex;
-  padding: 0.4rem;
+  padding: 3px;
   border-radius: 999px;
-  background: linear-gradient(135deg, var(--brand-accent), rgba(255, 255, 255, 0.15));
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.15), 0 8px 24px rgba(0, 0, 0, 0.2);
+  // Ver el mismo comentario en login.scss: el iframe real de Google se
+  // desborda ~3.6px por lado más allá del marco — sin overflow:hidden esa
+  // franja invisible asoma como un rectángulo blanco en las esquinas.
+  overflow: hidden;
+  border: 2px solid var(--brand-accent);
+  background: var(--join-card, var(--brand-ink-surface-2));
+  box-shadow: 0 0 18px rgba(0, 0, 0, 0.25);
 }
 
 .join-description {

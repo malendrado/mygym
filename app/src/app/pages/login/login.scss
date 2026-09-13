@@ -67,10 +67,18 @@
 
 .google-auth__frame {
   display: inline-flex;
-  padding: 0.4rem;
+  padding: 3px;
   border-radius: 999px;
-  background: linear-gradient(135deg, var(--brand-accent), rgba(198, 255, 61, 0.25));
-  box-shadow: 0 0 0 1px rgba(198, 255, 61, 0.35), 0 8px 24px rgba(198, 255, 61, 0.12);
+  // El botón real de Google vive dentro de un iframe deliberadamente más
+  // grande que su área visible (margen invisible de click, confirmado
+  // midiendo el DOM: iframe ~221px vs marco ~214px, ~3.6px de más por lado)
+  // — sin overflow:hidden acá, esa franja invisible asoma en las esquinas
+  // redondeadas como un rectángulo blanco (visible en producción, donde el
+  // iframe llega a pintarse antes/distinto que en `ng serve` local).
+  overflow: hidden;
+  border: 2px solid var(--brand-accent);
+  background: var(--brand-ink-surface);
+  box-shadow: 0 0 18px rgba(198, 255, 61, 0.3);
 }
 
 .login-loading {
