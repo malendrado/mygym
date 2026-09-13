@@ -36,6 +36,7 @@
     [style.--brand-accent-contrast]="gym()!.themeContrast"
     [style.--join-bg]="themeSurface().bg"
     [style.--join-card]="themeSurface().card"
+    [style.--brand-accent-text-safe]="accentTextSafe()"
   >
     <div class="join-card">
       @if (isRasterLogo()) {
@@ -76,7 +77,7 @@
 
       @if (gym()!.googleLoginEnabled) {
         <div class="google-auth">
-          <asl-google-signin-button type="standard" size="large" text="signup_with" shape="pill" theme="filled_black" logo_alignment="left" />
+          <asl-google-signin-button type="standard" size="large" text="signup_with" shape="pill" theme="outline" logo_alignment="left" />
         </div>
       } @else {
         <ion-text color="medium">

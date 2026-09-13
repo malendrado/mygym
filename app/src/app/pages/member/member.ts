@@ -27,7 +27,7 @@ import { GymService } from '../../core/services/gym.service';
 import { ReservationService } from '../../core/services/reservation.service';
 import { GymBlockOccurrence, Reservation } from '../../core/models/reservation.model';
 import { GymPhoto, MemberPlan, PublicGym } from '../../core/models/gym.model';
-import { deriveSurfaceTint } from '../../core/utils/gym-theme';
+import { deriveSurfaceTint, ensureMinContrastColor } from '../../core/utils/gym-theme';
 import { registerClassCategoryIcons, resolveClassCategoryIcon } from '../../core/utils/class-category';
 
 registerClassCategoryIcons();
@@ -195,6 +195,14 @@ export class MemberPage {
   protected readonly themeSurface = computed(() => {
     const color = this.gym()?.themeColor;
     return color ? deriveSurfaceTint(color) : null;
+  });
+  // El acento libre a veces no llega a 4.5:1 como texto plano (ej. el índigo
+  // real de Fortis, ~4.07:1) — solo se usa donde el acento pinta TEXTO
+  // (eyebrow del hero, "Tu membresía", "Ilimitado"), nunca fondos sólidos.
+  protected readonly accentTextSafe = computed(() => {
+    const color = this.gym()?.themeColor;
+    const surface = this.themeSurface();
+    return color && surface ? ensureMinContrastColor(color, surface.card) : null;
   });
 
   constructor() {

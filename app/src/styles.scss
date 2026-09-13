@@ -59,6 +59,18 @@
   --ion-color-primary-shade: #aee036;
   --ion-color-primary-tint: #ccff50;
 
+  // Ionic's default danger red (~#c5000f) mide ~2.3:1 contra nuestros fondos
+  // oscuros — falla WCAG AA (4.5:1) — encontrado en la auditoría de contraste
+  // 2026-09-13, afecta cualquier "color=danger" (mensajes de error, botones
+  // Cancelar/Eliminar) en toda la app. Mismo coral ya usado en PALETTES/
+  // .membership-status--warn, no un color nuevo — mide ~4.85:1.
+  --ion-color-danger: #ff5d73;
+  --ion-color-danger-rgb: 255, 93, 115;
+  --ion-color-danger-contrast: #330008;
+  --ion-color-danger-contrast-rgb: 51, 0, 8;
+  --ion-color-danger-shade: #e0536a;
+  --ion-color-danger-tint: #ff7086;
+
   /* Brand background/surface applied app-wide (not just the landing) so every screen shares one identity. */
   --ion-background-color: var(--brand-ink);
   --ion-background-color-rgb: 30, 44, 48;

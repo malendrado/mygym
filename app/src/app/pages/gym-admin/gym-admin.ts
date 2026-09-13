@@ -67,7 +67,7 @@ import { Member } from '../../core/models/member.model';
 import { BloqueFormModal, DAYS } from '../admin/gyms/bloque-form-modal/bloque-form-modal';
 import { BloqueSeriesModal } from '../admin/gyms/bloque-series-modal/bloque-series-modal';
 import { PlanFormModal } from '../admin/gyms/plan-form-modal/plan-form-modal';
-import { deriveSurfaceTint } from '../../core/utils/gym-theme';
+import { deriveSurfaceTint, ensureMinContrastColor } from '../../core/utils/gym-theme';
 
 addIcons({
   'time-outline': timeOutline,
@@ -161,6 +161,7 @@ const THEMED_ROOT_PROPERTIES = [
   '--brand-accent-contrast',
   '--gym-panel-bg',
   '--gym-panel-card',
+  '--brand-accent-text-safe',
 ] as const;
 
 @Component({
@@ -238,6 +239,12 @@ export class GymAdmin implements OnDestroy {
     return match?.contrast ?? computeContrast(hex);
   });
   protected readonly themeSurface = computed(() => deriveSurfaceTint(this.themeColor()));
+  // El acento libre a veces no alcanza 4.5:1 como texto plano sobre la tarjeta
+  // (ej. el índigo real de Fortis mide ~4.07:1) — esta variante SOLO se usa
+  // donde el acento pinta texto, nunca donde pinta un fondo sólido.
+  protected readonly themeAccentTextSafe = computed(() =>
+    ensureMinContrastColor(this.themeColor(), this.themeSurface().card),
+  );
   protected readonly paletteOptions = signal<Palette[]>(randomSample(PALETTES, 4));
 
   protected readonly memberForm = new FormGroup({
@@ -285,6 +292,7 @@ export class GymAdmin implements OnDestroy {
       root.setProperty('--brand-accent-contrast', contrast);
       root.setProperty('--gym-panel-bg', surface.bg);
       root.setProperty('--gym-panel-card', surface.card);
+      root.setProperty('--brand-accent-text-safe', this.themeAccentTextSafe());
     });
   }
 

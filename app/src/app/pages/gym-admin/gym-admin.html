@@ -263,7 +263,7 @@
           <ion-icon name="business-outline" aria-hidden="true"></ion-icon>
           Logo
         </ion-card-title>
-        <ion-button size="small" fill="clear" (click)="logoInput.click()" [disabled]="logoUploading()">
+        <ion-button class="accent-action-button" size="small" fill="clear" (click)="logoInput.click()" [disabled]="logoUploading()">
           <ion-icon name="cloud-upload-outline" slot="start" aria-hidden="true"></ion-icon>
           {{ logoUploading() ? 'Subiendo...' : 'Subir logo' }}
         </ion-button>
@@ -295,7 +295,7 @@
           <ion-icon name="color-palette-outline" aria-hidden="true"></ion-icon>
           Color de tu panel
         </ion-card-title>
-        <ion-button size="small" fill="clear" (click)="reshufflePalettes()">
+        <ion-button class="accent-action-button" size="small" fill="clear" (click)="reshufflePalettes()">
           <ion-icon name="refresh-outline" slot="start" aria-hidden="true"></ion-icon>
           Ver otras opciones
         </ion-button>
@@ -384,6 +384,7 @@
           <ion-badge color="medium">{{ photos().length }}/{{ maxPhotos }}</ion-badge>
         </ion-card-title>
         <ion-button
+          class="accent-action-button"
           size="small"
           fill="clear"
           (click)="photoInput.click()"

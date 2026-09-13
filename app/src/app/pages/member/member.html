@@ -28,6 +28,7 @@
     [style.--brand-accent-contrast]="gym()?.themeContrast ?? '#1a2b00'"
     [style.--member-bg]="themeSurface()?.bg ?? null"
     [style.--member-card]="themeSurface()?.card ?? null"
+    [style.--brand-accent-text-safe]="accentTextSafe()"
   >
     <section class="member-hero">
       <img [src]="heroPhotoUrl()" alt="Instalaciones de {{ gym()?.name ?? 'tu gimnasio' }}" width="1600" height="900" />

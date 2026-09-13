@@ -40,7 +40,7 @@
 .price-preview {
   margin: -0.25rem 0 0.5rem;
   padding: 0 1rem;
-  color: var(--brand-accent);
+  color: var(--brand-accent-text-safe, var(--brand-accent));
   font-family: var(--brand-font-mono);
   font-weight: 600;
   font-size: 0.95rem;

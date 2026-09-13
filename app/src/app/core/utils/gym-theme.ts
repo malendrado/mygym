@@ -30,6 +30,53 @@ function hslToHex(h: number, s: number, l: number): string {
   return `#${toHex(f(0))}${toHex(f(8))}${toHex(f(4))}`;
 }
 
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  return {
+    r: parseInt(hex.slice(1, 3), 16),
+    g: parseInt(hex.slice(3, 5), 16),
+    b: parseInt(hex.slice(5, 7), 16),
+  };
+}
+
+function relativeLuminance({ r, g, b }: { r: number; g: number; b: number }): number {
+  const linear = (c: number) => {
+    const v = c / 255;
+    return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+  };
+  return 0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b);
+}
+
+function contrastRatio(hexA: string, hexB: string): number {
+  const lA = relativeLuminance(hexToRgb(hexA));
+  const lB = relativeLuminance(hexToRgb(hexB));
+  const [lighter, darker] = lA > lB ? [lA, lB] : [lB, lA];
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+/**
+ * Un gym puede elegir cualquier color como acento (color libre) — algunos,
+ * usados directamente como texto sobre las superficies oscuras de la app,
+ * no alcanzan 4.5:1 (ej. el índigo real de Fortis mide ~4.07:1 contra su
+ * propia tarjeta). Se usa SOLO donde el acento pinta texto plano, nunca
+ * donde pinta un fondo sólido — ahí sigue el color exacto que eligió el
+ * admin, para no diluir "tu color exacto" en toda la superficie de marca.
+ */
+export function ensureMinContrastColor(accentHex: string, backgroundHex: string, minRatio = 4.5): string {
+  if (contrastRatio(accentHex, backgroundHex) >= minRatio) {
+    return accentHex;
+  }
+  const hue = hexToHue(accentHex);
+  const bgIsDark = relativeLuminance(hexToRgb(backgroundHex)) < 0.5;
+  // Sobre fondo oscuro hay que ACLARAR el acento (subir L); sobre fondo claro, oscurecerlo.
+  for (let l = bgIsDark ? 55 : 45; bgIsDark ? l <= 95 : l >= 5; l += bgIsDark ? 5 : -5) {
+    const candidate = hslToHex(hue, 85, l);
+    if (contrastRatio(candidate, backgroundHex) >= minRatio) {
+      return candidate;
+    }
+  }
+  return bgIsDark ? '#ffffff' : '#000000';
+}
+
 /**
  * Derives a subtle panel background + card tone from a gym's accent color,
  * matching the same darkness/saturation as the app's own brand ink (#1e2c30

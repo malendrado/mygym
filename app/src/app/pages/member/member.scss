@@ -52,7 +52,7 @@
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    color: var(--brand-accent);
+    color: var(--brand-accent-text-safe, var(--brand-accent));
   }
 
   h1 {
@@ -246,7 +246,7 @@
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    color: var(--brand-accent);
+    color: var(--brand-accent-text-safe, var(--brand-accent));
   }
 
   &__renew {
@@ -322,7 +322,7 @@
     align-items: center;
     justify-content: center;
     gap: 0.1rem;
-    color: var(--brand-accent);
+    color: var(--brand-accent-text-safe, var(--brand-accent));
 
     ion-icon {
       font-size: 1.3rem;

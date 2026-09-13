@@ -146,7 +146,7 @@
     font-family: var(--brand-font-mono);
     font-weight: 700;
     font-size: 1rem;
-    color: var(--brand-accent);
+    color: var(--brand-accent-text-safe, var(--brand-accent));
 
     span {
       font-family: var(--brand-font-display);

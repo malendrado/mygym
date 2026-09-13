@@ -9,7 +9,7 @@ import { AuthService } from '../../core/services/auth.service';
 import { GymService } from '../../core/services/gym.service';
 import { LoginResponse } from '../../core/models/auth.model';
 import { GymPhoto, MemberPlan, PublicGym } from '../../core/models/gym.model';
-import { deriveSurfaceTint } from '../../core/utils/gym-theme';
+import { deriveSurfaceTint, ensureMinContrastColor } from '../../core/utils/gym-theme';
 
 addIcons({ 'logo-instagram': logoInstagram, 'logo-whatsapp': logoWhatsapp });
 
@@ -52,6 +52,11 @@ export class Join {
   });
 
   protected readonly themeSurface = computed(() => deriveSurfaceTint(this.gym()?.themeColor ?? '#c6ff3d'));
+  // Ver el mismo comentario en member.ts — el acento libre a veces no llega
+  // a 4.5:1 usado como texto plano (ej. el precio de un plan).
+  protected readonly accentTextSafe = computed(() =>
+    ensureMinContrastColor(this.gym()?.themeColor ?? '#c6ff3d', this.themeSurface().card),
+  );
   protected readonly isRasterLogo = computed(() => (this.gym()?.logoSvg ?? '').startsWith('data:image'));
   protected readonly safeLogo = computed(() => {
     const svg = this.gym()?.logoSvg;

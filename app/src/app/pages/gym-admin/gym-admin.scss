@@ -20,6 +20,20 @@ ion-card {
   transition: background-color 0.25s ease;
 }
 
+// El acento libre a veces no llega a 4.5:1 como texto plano (confirmado con
+// el índigo real de Fortis, ~4.07:1 contra su propia tarjeta) — estos dos
+// puntos son los únicos donde el acento pinta TEXTO (no un fondo sólido),
+// así que son los únicos que necesitan la variante segura. Encontrado en la
+// auditoría de contraste 2026-09-13, después de haber recibido "se ve mal"
+// del usuario sobre el login (no relacionado, pero disparó el barrido).
+ion-segment-button.segment-button-checked {
+  --color-checked: var(--brand-accent-text-safe, var(--ion-color-primary));
+}
+
+.accent-action-button {
+  --color: var(--brand-accent-text-safe, var(--ion-color-primary));
+}
+
 // Franja angosta bajo el título: quién está logueado y en qué sección está
 // parado, para que quede claro de un vistazo (pedido explícito de UX).
 // ion-title vive en shadow DOM (su contenido cae en un <div class="toolbar-title">
@@ -128,7 +142,7 @@ ion-card {
 .plan-card__price {
   font-family: var(--brand-font-mono);
   font-weight: 600;
-  color: var(--brand-accent);
+  color: var(--brand-accent-text-safe, var(--brand-accent));
 }
 
 .gym-logo {
