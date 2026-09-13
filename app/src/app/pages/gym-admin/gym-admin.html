@@ -19,7 +19,10 @@
   <ion-toolbar>
     <ion-title>{{ gymName() }}</ion-title>
     <ion-buttons slot="end">
-      <ion-button (click)="logout()">Salir</ion-button>
+      <ion-button (click)="logout()">
+        <ion-icon name="log-out-outline" slot="start" aria-hidden="true"></ion-icon>
+        Salir
+      </ion-button>
     </ion-buttons>
   </ion-toolbar>
   <div class="admin-identity-bar">{{ adminFirstName() }} · {{ sectionLabel() }}</div>

@@ -17,6 +17,7 @@ import {
   cardOutline,
   chevronDownOutline,
   flashOutline,
+  logInOutline,
   logoWhatsapp,
   mailOutline,
   notificationsOutline,
@@ -34,6 +35,7 @@ addIcons({
   'notifications-outline': notificationsOutline,
   'logo-whatsapp': logoWhatsapp,
   'mail-outline': mailOutline,
+  'log-in-outline': logInOutline,
 });
 
 const WHATSAPP_NUMBER = '56964641042';

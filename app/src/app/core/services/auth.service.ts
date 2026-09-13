@@ -42,14 +42,20 @@ export class AuthService {
       .pipe(tap((response) => this.setSession(response)));
   }
 
-  logout(): void {
+  /**
+   * Awaited on purpose: logout() used to fire signOut() without waiting for it,
+   * and callers navigated to the next page immediately after. That left a race
+   * where the destination page's authState subscription (login.ts/join.ts) could
+   * still see the STALE previous Google user (its idToken still cached in the
+   * SDK's BehaviorSubject) and silently re-trigger a sign-in right after the user
+   * clicked "Salir" — reported as the page "getting stuck" right after logout.
+   * Awaiting here means every caller must `await`/`.then()` before navigating.
+   */
+  async logout(): Promise<void> {
     this._currentUser.set(null);
     this._token = null;
     sessionStorage.removeItem(STORAGE_KEY);
-    // Also clears the SDK's own cached Google session — otherwise its authState
-    // observable still holds the last signed-in user and immediately re-fires on
-    // the next page that subscribes to it (e.g. /login), silently logging back in.
-    this.socialAuthService.signOut().catch(() => {});
+    await this.socialAuthService.signOut().catch(() => {});
   }
 
   private setSession(response: LoginResponse): void {

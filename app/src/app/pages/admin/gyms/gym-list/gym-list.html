@@ -2,7 +2,10 @@
   <ion-toolbar>
     <ion-title><img src="favicon.svg" class="brand-icon" alt="" /> Gimnasios</ion-title>
     <ion-buttons slot="end">
-      <ion-button (click)="logout()">Salir</ion-button>
+      <ion-button (click)="logout()">
+        <ion-icon name="log-out-outline" slot="start" aria-hidden="true"></ion-icon>
+        Salir
+      </ion-button>
     </ion-buttons>
   </ion-toolbar>
 </ion-header>

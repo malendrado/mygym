@@ -17,6 +17,7 @@ import { addIcons } from 'ionicons';
 import {
   calendarOutline,
   flashOutline,
+  logOutOutline,
   logoInstagram,
   logoWhatsapp,
   sparklesOutline,
@@ -39,6 +40,7 @@ addIcons({
   'calendar-outline': calendarOutline,
   'trending-up-outline': trendingUpOutline,
   'sparkles-outline': sparklesOutline,
+  'log-out-outline': logOutOutline,
   'logo-instagram': logoInstagram,
   'logo-whatsapp': logoWhatsapp,
 });
@@ -270,9 +272,12 @@ export class MemberPage {
     return amount.toLocaleString('es-CL');
   }
 
-  protected logout(): void {
-    this.authService.logout();
-    this.router.navigate(['/login']);
+  // Mismo criterio que gym-admin.ts: un socio que sale vuelve a la página
+  // propia de SU gimnasio, no al /login genérico.
+  protected async logout(): Promise<void> {
+    await this.authService.logout();
+    const slug = this.gym()?.slug;
+    this.router.navigate([slug ? `/j/${slug}` : '/login']);
   }
 
   private async showToast(message: string, color: 'success' | 'danger' = 'success'): Promise<void> {

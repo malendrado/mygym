@@ -116,9 +116,9 @@ button:focus-visible {
     text-decoration: none;
     font-size: 0.9rem;
 
-    &:hover {
-      color: var(--brand-text);
-    }
+    ion-icon { font-size: 1rem; vertical-align: -2px; }
+
+    &:hover { color: var(--brand-text); }
   }
 
   &__cta {

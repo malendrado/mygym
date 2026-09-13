@@ -21,7 +21,7 @@ import {
   IonToolbar,
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { addOutline, barbellOutline, businessOutline } from 'ionicons/icons';
+import { addOutline, barbellOutline, businessOutline, logOutOutline } from 'ionicons/icons';
 import { GymService } from '../../../../core/services/gym.service';
 import { Gym } from '../../../../core/models/gym.model';
 import { AuthService } from '../../../../core/services/auth.service';
@@ -30,6 +30,7 @@ addIcons({
   'business-outline': businessOutline,
   'barbell-outline': barbellOutline,
   add: addOutline,
+  'log-out-outline': logOutOutline,
 });
 
 type Status = 'idle' | 'loading' | 'loaded' | 'error';
@@ -72,9 +73,12 @@ export class GymList {
     this.load();
   }
 
-  protected logout(): void {
-    this.authService.logout();
-    this.router.navigate(['/login']);
+  // Un super-admin no pertenece a ningún gimnasio puntual — al salir vuelve a
+  // la landing principal de mygym, no a un /login genérico ni a un /j/:slug
+  // que no le corresponde.
+  protected async logout(): Promise<void> {
+    await this.authService.logout();
+    this.router.navigate(['/']);
   }
 
   private load(): void {

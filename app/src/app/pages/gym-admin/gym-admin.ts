@@ -37,6 +37,7 @@ import {
   colorPaletteOutline,
   createOutline,
   imagesOutline,
+  logOutOutline,
   megaphoneOutline,
   peopleOutline,
   personAddOutline,
@@ -85,6 +86,7 @@ addIcons({
   'bulb-outline': bulbOutline,
   'megaphone-outline': megaphoneOutline,
   'images-outline': imagesOutline,
+  'log-out-outline': logOutOutline,
 });
 
 type Status = 'idle' | 'loading' | 'saving' | 'error';
@@ -213,6 +215,7 @@ export class GymAdmin implements OnDestroy {
   protected readonly adminFirstName = computed(() => this.authService.currentUser()?.name?.split(' ')[0] ?? 'admin');
   protected readonly tip = ADMIN_TIPS[Math.floor(Math.random() * ADMIN_TIPS.length)];
   protected readonly gymName = signal('');
+  protected readonly gymSlug = signal<string | null>(null);
   protected readonly gymLoaded = signal(false);
   protected readonly blocks = signal<GymBlock[]>([]);
   protected readonly plans = signal<GymPlan[]>([]);
@@ -667,15 +670,21 @@ export class GymAdmin implements OnDestroy {
     await toast.present();
   }
 
-  protected logout(): void {
-    this.authService.logout();
-    this.router.navigate(['/login']);
+  // Al salir, un admin de gimnasio vuelve a la página propia de SU gimnasio
+  // (no al /login genérico de mygym) — más contextual, y esa página ya sabe
+  // re-loguearlo si vuelve a tocar "Continuar con Google" (el backend de
+  // /join detecta que el email ya existe y solo lo loguea, sin re-provisionar).
+  protected async logout(): Promise<void> {
+    await this.authService.logout();
+    const slug = this.gymSlug();
+    this.router.navigate([slug ? `/j/${slug}` : '/login']);
   }
 
   private loadGym(): void {
     this.gymService.getMine().subscribe({
       next: (gym) => {
         this.gymName.set(gym.name);
+        this.gymSlug.set(gym.slug);
         this.logoSvg.set(gym.logoSvg);
         if (gym.themeColor) {
           this.themeColor.set(gym.themeColor);
