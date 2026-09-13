@@ -74,13 +74,43 @@
           Bloques / horarios
         </ion-card-title>
         <div class="card-header-row__actions">
-          <ion-button size="small" fill="outline" (click)="openSeriesModal()">Generar bloques</ion-button>
-          <ion-button size="small" (click)="openAddBlock()">Agregar bloque</ion-button>
+          <ion-button size="small" fill="outline" (click)="openSeriesModal()" [disabled]="seriesCreating()">
+            {{ seriesCreating() ? 'Generando...' : 'Generar bloques' }}
+          </ion-button>
+          <ion-button size="small" (click)="openAddBlock()" [disabled]="seriesCreating()">Agregar bloque</ion-button>
         </div>
       </ion-card-header>
       <ion-card-content>
+        @if (seriesCreating()) {
+          <div class="series-progress">
+            <ion-spinner name="crescent"></ion-spinner>
+            <p>Creando tus bloques en el servidor, esto puede tardar unos segundos...</p>
+          </div>
+        }
+        <div class="day-chips">
+          <button
+            type="button"
+            class="day-chip"
+            [class.day-chip--selected]="selectedDay() === null"
+            (click)="selectDayFilter(null)"
+          >
+            Todos
+            <ion-badge color="medium">{{ blockCountForDay(null) }}</ion-badge>
+          </button>
+          @for (day of days; track day.value) {
+            <button
+              type="button"
+              class="day-chip"
+              [class.day-chip--selected]="selectedDay() === day.value"
+              (click)="selectDayFilter(day.value)"
+            >
+              {{ day.label }}
+              <ion-badge color="medium">{{ blockCountForDay(day.value) }}</ion-badge>
+            </button>
+          }
+        </div>
         <ion-list lines="full">
-          @for (block of blocks(); track block.id) {
+          @for (block of filteredBlocks(); track block.id) {
             <ion-item>
               <ion-icon name="calendar-outline" slot="start" aria-hidden="true"></ion-icon>
               <ion-label class="block-item__label">
@@ -102,7 +132,15 @@
               </ion-buttons>
             </ion-item>
           } @empty {
-            <ion-item lines="none"><ion-label>Todavía no hay bloques configurados.</ion-label></ion-item>
+            <ion-item lines="none">
+              <ion-label>
+                {{
+                  selectedDay() === null
+                    ? 'Todavía no hay bloques configurados.'
+                    : 'No hay bloques para ' + dayLabel(selectedDay()!) + '.'
+                }}
+              </ion-label>
+            </ion-item>
           }
         </ion-list>
       </ion-card-content>

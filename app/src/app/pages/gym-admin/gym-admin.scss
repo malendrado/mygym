@@ -15,6 +15,79 @@ ion-content {
   }
 }
 
+// Antes "Generar bloques" cerraba el modal y creaba N bloques uno por uno
+// (varios POST secuenciales) SIN ninguna señal visual — la señal
+// seriesCreating ya existía en el componente pero no estaba conectada al
+// HTML. Mismo lenguaje visual que .gym-admin-loading pero en línea, no a
+// pantalla completa.
+// Mismo lenguaje visual que .day-chip en bloque-form-modal.scss — filtra la
+// lista de bloques por día para no tener que scrollear una lista larga con
+// todos los días mezclados.
+.day-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.85rem;
+}
+
+.day-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid var(--brand-ink-surface-2);
+  background: transparent;
+  color: var(--brand-text);
+  border-radius: 999px;
+  padding: 0.45rem 0.8rem;
+  font-family: var(--brand-font-display);
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+
+  ion-badge {
+    font-size: 0.68rem;
+  }
+
+  &:hover {
+    border-color: var(--ion-color-primary, var(--brand-accent));
+  }
+
+  &--selected {
+    background: var(--ion-color-primary, var(--brand-accent));
+    border-color: var(--ion-color-primary, var(--brand-accent));
+    color: var(--ion-color-primary-contrast, var(--brand-accent-contrast));
+    font-weight: 600;
+
+    ion-badge {
+      --background: var(--ion-color-primary-contrast, var(--brand-accent-contrast));
+      --color: var(--ion-color-primary, var(--brand-accent));
+    }
+  }
+}
+
+.series-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.75rem 0.9rem;
+  margin-bottom: 0.75rem;
+  border-radius: 12px;
+  background: var(--brand-ink-surface-2);
+  color: var(--brand-text-dim);
+  font-size: 0.85rem;
+
+  ion-spinner {
+    width: 22px;
+    height: 22px;
+    color: var(--brand-accent-text-safe, var(--brand-accent));
+    flex-shrink: 0;
+  }
+
+  p {
+    margin: 0;
+  }
+}
+
 ion-card {
   --background: var(--gym-panel-card, var(--brand-ink-surface-2));
   transition: background-color 0.25s ease;

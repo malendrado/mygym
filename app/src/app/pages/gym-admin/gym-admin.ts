@@ -218,6 +218,15 @@ export class GymAdmin implements OnDestroy {
   protected readonly gymSlug = signal<string | null>(null);
   protected readonly gymLoaded = signal(false);
   protected readonly blocks = signal<GymBlock[]>([]);
+  // Antes se mostraban TODOS los bloques en una sola lista larga — con varios
+  // días configurados, el scroll se volvía interminable (reportado por el
+  // usuario). `null` = "Todos los días".
+  protected readonly selectedDay = signal<DayOfWeek | null>(null);
+  protected readonly days = DAYS;
+  protected readonly filteredBlocks = computed(() => {
+    const day = this.selectedDay();
+    return day ? this.blocks().filter((b) => b.dayOfWeek === day) : this.blocks();
+  });
   protected readonly plans = signal<GymPlan[]>([]);
   protected readonly members = signal<Member[]>([]);
   protected readonly isModalOpen = signal(false);
@@ -312,6 +321,14 @@ export class GymAdmin implements OnDestroy {
 
   protected dayLabel(day: DayOfWeek): string {
     return DAYS.find((d) => d.value === day)?.label ?? day;
+  }
+
+  protected selectDayFilter(day: DayOfWeek | null): void {
+    this.selectedDay.set(day);
+  }
+
+  protected blockCountForDay(day: DayOfWeek | null): number {
+    return day ? this.blocks().filter((b) => b.dayOfWeek === day).length : this.blocks().length;
   }
 
   protected formatClp(value: number): string {
