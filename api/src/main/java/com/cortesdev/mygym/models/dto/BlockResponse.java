@@ -11,4 +11,7 @@ public record BlockResponse(
         LocalTime startTime,
         LocalTime endTime,
         Integer capacity,
+        String category,
+        String instructorName,
+        String instructorPhoto,
         boolean active) {}

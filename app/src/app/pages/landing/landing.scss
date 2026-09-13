@@ -105,6 +105,22 @@ button:focus-visible {
     }
   }
 
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  &__login {
+    color: var(--brand-text-dim);
+    text-decoration: none;
+    font-size: 0.9rem;
+
+    &:hover {
+      color: var(--brand-text);
+    }
+  }
+
   &__cta {
     padding: 0.55rem 1.25rem;
     border: none;

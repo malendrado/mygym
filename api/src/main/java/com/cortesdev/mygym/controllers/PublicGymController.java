@@ -1,11 +1,14 @@
 package com.cortesdev.mygym.controllers;
 
 import com.cortesdev.mygym.models.dto.GoogleLoginRequest;
+import com.cortesdev.mygym.models.dto.GymPhotoResponse;
 import com.cortesdev.mygym.models.dto.LoginResponse;
+import com.cortesdev.mygym.models.dto.MemberPlanResponse;
 import com.cortesdev.mygym.models.dto.PublicGymResponse;
 import com.cortesdev.mygym.services.AuthService;
 import com.cortesdev.mygym.services.GymService;
 import jakarta.validation.Valid;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -31,6 +34,16 @@ public class PublicGymController {
     @GetMapping("/{slug}")
     public PublicGymResponse getPublicGym(@PathVariable String slug) {
         return gymService.getPublicBySlug(slug);
+    }
+
+    @GetMapping("/{slug}/plans")
+    public List<MemberPlanResponse> getPublicPlans(@PathVariable String slug) {
+        return gymService.listPublicPlansBySlug(slug);
+    }
+
+    @GetMapping("/{slug}/photos")
+    public List<GymPhotoResponse> getPublicPhotos(@PathVariable String slug) {
+        return gymService.listPublicPhotosBySlug(slug);
     }
 
     @PostMapping("/{slug}/join")

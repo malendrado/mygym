@@ -320,6 +320,96 @@
             </button>
           }
         </div>
+        <div class="custom-color">
+          <label for="customColorInput">O elige tu color exacto</label>
+          <input
+            id="customColorInput"
+            type="color"
+            [value]="themeColor()"
+            [disabled]="themeSaving()"
+            (input)="onCustomColorInput($event)"
+          />
+        </div>
+      </ion-card-content>
+    </ion-card>
+
+    <ion-card>
+      <ion-card-header>
+        <ion-card-title>
+          <ion-icon name="megaphone-outline" aria-hidden="true"></ion-icon>
+          Identidad de tu gimnasio
+        </ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <p class="item-hint">
+          Este texto y estos contactos se muestran en tu página de alta pública y en el perfil de tus socios.
+        </p>
+        <form [formGroup]="identityForm" (ngSubmit)="saveIdentity()">
+          <ion-item>
+            <ion-input label="Frase corta" formControlName="tagline" placeholder="Ej: Entrena distinto, entrena en serio" />
+          </ion-item>
+          <ion-item lines="none">
+            <ion-textarea
+              label="Descripción"
+              formControlName="description"
+              placeholder="Cuéntale a tus futuros socios qué hace especial a tu gimnasio"
+              autoGrow="true"
+              rows="3"
+            />
+          </ion-item>
+          <ion-item>
+            <ion-input label="Instagram (link)" formControlName="instagramUrl" placeholder="https://instagram.com/tugym" />
+          </ion-item>
+          <ion-item>
+            <ion-input label="WhatsApp (número)" formControlName="whatsappNumber" placeholder="+56912345678" />
+          </ion-item>
+          <app-quantity-stepper
+            label="Horas mínimas para reservar o cancelar *"
+            formControlName="cancellationWindowHours"
+            [min]="1"
+            [max]="72"
+          />
+          <ion-button type="submit" expand="block" [disabled]="identityForm.invalid || identitySaving()" class="ion-margin-top">
+            {{ identitySaving() ? 'Guardando...' : 'Guardar identidad' }}
+          </ion-button>
+        </form>
+      </ion-card-content>
+    </ion-card>
+
+    <ion-card>
+      <ion-card-header class="card-header-row">
+        <ion-card-title>
+          <ion-icon name="images-outline" aria-hidden="true"></ion-icon>
+          Fotos de tus instalaciones
+          <ion-badge color="medium">{{ photos().length }}/{{ maxPhotos }}</ion-badge>
+        </ion-card-title>
+        <ion-button
+          size="small"
+          fill="clear"
+          (click)="photoInput.click()"
+          [disabled]="photoUploading() || photos().length >= maxPhotos"
+        >
+          <ion-icon name="cloud-upload-outline" slot="start" aria-hidden="true"></ion-icon>
+          {{ photoUploading() ? 'Subiendo...' : 'Subir foto' }}
+        </ion-button>
+      </ion-card-header>
+      <ion-card-content>
+        <p class="item-hint">
+          Se muestran en tu página de alta pública y en el perfil de tus socios — hasta {{ maxPhotos }} fotos.
+        </p>
+        <div class="photo-grid">
+          @for (photo of photos(); track photo.id) {
+            <div class="photo-grid__item">
+              <img [src]="photo.data" [alt]="photo.caption ?? 'Foto del gimnasio'" />
+              <button type="button" class="photo-grid__remove" [attr.aria-label]="'Eliminar foto'" (click)="removePhoto(photo)">
+                <ion-icon name="trash-outline" aria-hidden="true"></ion-icon>
+              </button>
+            </div>
+          } @empty {
+            <p class="item-hint">Todavía no subiste fotos.</p>
+          }
+        </div>
+        <input #photoInput type="file" accept="image/png,image/jpeg,image/webp" hidden (change)="onPhotoFileSelected($event)" />
       </ion-card-content>
     </ion-card>
   }

@@ -22,6 +22,7 @@ import {
   IonSegmentButton,
   IonSpinner,
   IonText,
+  IonTextarea,
   IonTitle,
   IonToolbar,
   AlertController,
@@ -35,6 +36,8 @@ import {
   cloudUploadOutline,
   colorPaletteOutline,
   createOutline,
+  imagesOutline,
+  megaphoneOutline,
   peopleOutline,
   personAddOutline,
   personCircleOutline,
@@ -43,15 +46,18 @@ import {
   timeOutline,
   trashOutline,
 } from 'ionicons/icons';
+import { QuantityStepper } from '../../core/components/quantity-stepper/quantity-stepper';
 import { firstValueFrom } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
 import { GymService } from '../../core/services/gym.service';
 import { MemberService } from '../../core/services/member.service';
 import {
   CreateGymBlockRequest,
+  CreateGymPhotoRequest,
   CreateGymPlanRequest,
   DayOfWeek,
   GymBlock,
+  GymPhoto,
   GymPlan,
   UpdateGymBlockRequest,
   UpdateGymPlanRequest,
@@ -77,6 +83,8 @@ addIcons({
   'create-outline': createOutline,
   'trash-outline': trashOutline,
   'bulb-outline': bulbOutline,
+  'megaphone-outline': megaphoneOutline,
+  'images-outline': imagesOutline,
 });
 
 type Status = 'idle' | 'loading' | 'saving' | 'error';
@@ -132,6 +140,19 @@ function randomSample<T>(items: T[], count: number): T[] {
 
 const MAX_LOGO_DIMENSION = 256;
 const ACCEPTED_LOGO_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'];
+const MAX_PHOTO_DIMENSION = 1600;
+const ACCEPTED_PHOTO_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
+const MAX_PHOTOS = 8;
+
+/** Contraste WCAG simple para colores fuera de las 12 paletas curadas (color libre). */
+function computeContrast(hex: string): string {
+  const r = parseInt(hex.slice(1, 3), 16) / 255;
+  const g = parseInt(hex.slice(3, 5), 16) / 255;
+  const b = parseInt(hex.slice(5, 7), 16) / 255;
+  const linear = (c: number) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+  const luminance = 0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b);
+  return luminance > 0.35 ? '#111111' : '#ffffff';
+}
 
 const THEMED_ROOT_PROPERTIES = [
   '--ion-color-primary',
@@ -166,9 +187,11 @@ const THEMED_ROOT_PROPERTIES = [
     IonSegment,
     IonSegmentButton,
     IonText,
+    IonTextarea,
     BloqueFormModal,
     BloqueSeriesModal,
     PlanFormModal,
+    QuantityStepper,
     IonSpinner,
   ],
   templateUrl: './gym-admin.html',
@@ -210,8 +233,9 @@ export class GymAdmin implements OnDestroy {
 
   protected readonly themeColor = signal<string>(PALETTES[0].hex);
   protected readonly themeContrast = computed(() => {
-    const match = PALETTES.find((p) => p.hex.toLowerCase() === this.themeColor().toLowerCase());
-    return match?.contrast ?? PALETTES[0].contrast;
+    const hex = this.themeColor();
+    const match = PALETTES.find((p) => p.hex.toLowerCase() === hex.toLowerCase());
+    return match?.contrast ?? computeContrast(hex);
   });
   protected readonly themeSurface = computed(() => deriveSurfaceTint(this.themeColor()));
   protected readonly paletteOptions = signal<Palette[]>(randomSample(PALETTES, 4));
@@ -221,11 +245,28 @@ export class GymAdmin implements OnDestroy {
     email: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.email] }),
   });
 
+  protected readonly identityForm = new FormGroup({
+    tagline: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(160)] }),
+    description: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(600)] }),
+    instagramUrl: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(200)] }),
+    whatsappNumber: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(30)] }),
+    cancellationWindowHours: new FormControl(2, {
+      nonNullable: true,
+      validators: [Validators.required, Validators.min(1), Validators.max(72)],
+    }),
+  });
+  protected readonly identitySaving = signal(false);
+
+  protected readonly photos = signal<GymPhoto[]>([]);
+  protected readonly photoUploading = signal(false);
+  protected readonly maxPhotos = MAX_PHOTOS;
+
   constructor() {
     this.loadGym();
     this.loadBlocks();
     this.loadPlans();
     this.loadMembers();
+    this.loadPhotos();
 
     // Ionic overlays (the ion-select popup, ion-alert, ion-toast) are
     // portaled to the top of the DOM, outside <ion-content>/<ion-modal> —
@@ -281,13 +322,22 @@ export class GymAdmin implements OnDestroy {
   protected readonly themeSaving = signal(false);
 
   protected selectPalette(palette: Palette): void {
+    this.selectColor(palette.hex);
+  }
+
+  protected onCustomColorInput(event: Event): void {
+    const hex = (event.target as HTMLInputElement).value;
+    this.selectColor(hex);
+  }
+
+  private selectColor(hex: string): void {
     if (this.themeSaving()) {
       return;
     }
     const previous = this.themeColor();
-    this.themeColor.set(palette.hex);
+    this.themeColor.set(hex);
     this.themeSaving.set(true);
-    this.gymService.updateMyTheme(palette.hex).subscribe({
+    this.gymService.updateMyTheme(hex).subscribe({
       next: () => this.themeSaving.set(false),
       error: () => {
         this.themeColor.set(previous);
@@ -295,6 +345,32 @@ export class GymAdmin implements OnDestroy {
         this.showToast('No pudimos guardar el color. Intenta nuevamente.', 'danger');
       },
     });
+  }
+
+  protected saveIdentity(): void {
+    if (this.identityForm.invalid) {
+      return;
+    }
+    const raw = this.identityForm.getRawValue();
+    this.identitySaving.set(true);
+    this.gymService
+      .updateMyIdentity({
+        tagline: raw.tagline || null,
+        description: raw.description || null,
+        instagramUrl: raw.instagramUrl || null,
+        whatsappNumber: raw.whatsappNumber || null,
+        cancellationWindowHours: raw.cancellationWindowHours,
+      })
+      .subscribe({
+        next: () => {
+          this.identitySaving.set(false);
+          this.showToast('Identidad actualizada.');
+        },
+        error: () => {
+          this.identitySaving.set(false);
+          this.showToast('No pudimos guardar los cambios. Intenta nuevamente.', 'danger');
+        },
+      });
   }
 
   protected async onLogoFileSelected(event: Event): Promise<void> {
@@ -357,6 +433,73 @@ export class GymAdmin implements OnDestroy {
         this.logoSvg.set(previous);
         this.showToast('No pudimos guardar el logo. Intenta con otra imagen.', 'danger');
       },
+    });
+  }
+
+  protected async onPhotoFileSelected(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0] ?? null;
+    input.value = '';
+    if (!file) {
+      return;
+    }
+    if (this.photos().length >= this.maxPhotos) {
+      this.showToast(`Ya tienes el máximo de ${this.maxPhotos} fotos.`, 'danger');
+      return;
+    }
+    if (!ACCEPTED_PHOTO_TYPES.includes(file.type)) {
+      this.showToast('Formato no soportado. Usa PNG, JPG o WEBP.', 'danger');
+      return;
+    }
+    this.photoUploading.set(true);
+    try {
+      const data = await this.resizePhotoFile(file);
+      const payload: CreateGymPhotoRequest = { data, caption: null };
+      const photo = await firstValueFrom(this.gymService.createMyPhoto(payload));
+      this.photos.update((list) => [...list, photo]);
+    } catch {
+      this.showToast('No pudimos subir esa foto. Intenta con otra.', 'danger');
+    } finally {
+      this.photoUploading.set(false);
+    }
+  }
+
+  protected async removePhoto(photo: GymPhoto): Promise<void> {
+    const confirmed = await this.confirmAction('Eliminar foto', '¿Eliminar esta foto de tus instalaciones?');
+    if (!confirmed) {
+      return;
+    }
+    this.gymService.deleteMyPhoto(photo.id).subscribe({
+      next: () => this.photos.update((list) => list.filter((p) => p.id !== photo.id)),
+      error: () => this.showToast('No pudimos eliminar esa foto.', 'danger'),
+    });
+  }
+
+  private resizePhotoFile(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('file read error'));
+      reader.onload = () => {
+        const img = new Image();
+        img.onerror = () => reject(new Error('image decode error'));
+        img.onload = () => {
+          const scale = Math.min(MAX_PHOTO_DIMENSION / img.width, MAX_PHOTO_DIMENSION / img.height, 1);
+          const width = Math.max(1, Math.round(img.width * scale));
+          const height = Math.max(1, Math.round(img.height * scale));
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error('canvas not supported'));
+            return;
+          }
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.82));
+        };
+        img.src = reader.result as string;
+      };
+      reader.readAsDataURL(file);
     });
   }
 
@@ -529,12 +672,26 @@ export class GymAdmin implements OnDestroy {
         if (gym.themeColor) {
           this.themeColor.set(gym.themeColor);
         }
+        this.identityForm.patchValue({
+          tagline: gym.tagline ?? '',
+          description: gym.description ?? '',
+          instagramUrl: gym.instagramUrl ?? '',
+          whatsappNumber: gym.whatsappNumber ?? '',
+          cancellationWindowHours: gym.cancellationWindowHours,
+        });
         this.gymLoaded.set(true);
       },
       error: () => {
         this.status.set('error');
         this.gymLoaded.set(true);
       },
+    });
+  }
+
+  private loadPhotos(): void {
+    this.gymService.listMyPhotos().subscribe({
+      next: (photos) => this.photos.set(photos),
+      error: () => this.status.set('error'),
     });
   }
 

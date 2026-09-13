@@ -3,6 +3,7 @@ package com.cortesdev.mygym.services;
 import com.cortesdev.mygym.models.AppUser;
 import com.cortesdev.mygym.models.Gym;
 import com.cortesdev.mygym.models.GymBlock;
+import com.cortesdev.mygym.models.GymPhoto;
 import com.cortesdev.mygym.models.GymPlan;
 import com.cortesdev.mygym.models.Role;
 import com.cortesdev.mygym.models.dto.AdminCreateRequest;
@@ -13,6 +14,9 @@ import com.cortesdev.mygym.models.dto.BlockResponse;
 import com.cortesdev.mygym.models.dto.BlockUpdateRequest;
 import com.cortesdev.mygym.models.dto.GymConfigUpdateRequest;
 import com.cortesdev.mygym.models.dto.GymCreateRequest;
+import com.cortesdev.mygym.models.dto.GymIdentityUpdateRequest;
+import com.cortesdev.mygym.models.dto.GymPhotoCreateRequest;
+import com.cortesdev.mygym.models.dto.GymPhotoResponse;
 import com.cortesdev.mygym.models.dto.GymResponse;
 import com.cortesdev.mygym.models.dto.MemberPlanResponse;
 import com.cortesdev.mygym.models.dto.PlanCreateRequest;
@@ -21,6 +25,7 @@ import com.cortesdev.mygym.models.dto.PlanUpdateRequest;
 import com.cortesdev.mygym.models.dto.PublicGymResponse;
 import com.cortesdev.mygym.repositories.AppUserRepository;
 import com.cortesdev.mygym.repositories.GymBlockRepository;
+import com.cortesdev.mygym.repositories.GymPhotoRepository;
 import com.cortesdev.mygym.repositories.GymPlanRepository;
 import com.cortesdev.mygym.repositories.GymRepository;
 import com.cortesdev.mygym.services.exception.AdminNotFoundException;
@@ -28,10 +33,12 @@ import com.cortesdev.mygym.services.exception.DuplicateOwnerEmailException;
 import com.cortesdev.mygym.services.exception.DuplicateSlugException;
 import com.cortesdev.mygym.services.exception.GymBlockNotFoundException;
 import com.cortesdev.mygym.services.exception.GymNotFoundException;
+import com.cortesdev.mygym.services.exception.GymPhotoNotFoundException;
 import com.cortesdev.mygym.services.exception.GymPlanNotFoundException;
 import com.cortesdev.mygym.services.exception.InvalidBlockScheduleException;
 import com.cortesdev.mygym.services.exception.InvalidLogoException;
 import com.cortesdev.mygym.services.exception.MemberNotFoundException;
+import com.cortesdev.mygym.services.exception.TooManyGymPhotosException;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Locale;
@@ -47,6 +54,7 @@ public class GymService {
     private final GymRepository gymRepository;
     private final GymBlockRepository gymBlockRepository;
     private final GymPlanRepository gymPlanRepository;
+    private final GymPhotoRepository gymPhotoRepository;
     private final AppUserRepository appUserRepository;
     private final AdminInviteEmailService adminInviteEmailService;
     private final MemberLifecycleEmailService memberLifecycleEmailService;
@@ -66,6 +74,7 @@ public class GymService {
                 .googleLoginEnabled(true)
                 .themeColor(request.themeColor())
                 .logoSvg(request.logoSvg())
+                .cancellationWindowHours(2)
                 .build();
         gym = gymRepository.save(gym);
 
@@ -111,7 +120,16 @@ public class GymService {
     private PublicGymResponse toPublicResponse(Gym gym) {
         String themeColor = gym.getThemeColor() != null ? gym.getThemeColor() : GymPalette.defaultHex();
         return new PublicGymResponse(
-                gym.getName(), gym.getSlug(), themeColor, GymPalette.contrastFor(themeColor), gym.getLogoSvg(), gym.isGoogleLoginEnabled());
+                gym.getName(),
+                gym.getSlug(),
+                themeColor,
+                GymPalette.contrastFor(themeColor),
+                gym.getLogoSvg(),
+                gym.isGoogleLoginEnabled(),
+                gym.getTagline(),
+                gym.getDescription(),
+                gym.getInstagramUrl(),
+                gym.getWhatsappNumber());
     }
 
     public GymResponse updateGymConfig(Long id, GymConfigUpdateRequest request) {
@@ -126,6 +144,16 @@ public class GymService {
     public void updateTheme(Long gymId, String themeColor) {
         Gym gym = findGymOrThrow(gymId);
         gym.setThemeColor(themeColor);
+        gymRepository.save(gym);
+    }
+
+    public void updateIdentity(Long gymId, GymIdentityUpdateRequest request) {
+        Gym gym = findGymOrThrow(gymId);
+        gym.setTagline(request.tagline());
+        gym.setDescription(request.description());
+        gym.setInstagramUrl(request.instagramUrl());
+        gym.setWhatsappNumber(request.whatsappNumber());
+        gym.setCancellationWindowHours(request.cancellationWindowHours());
         gymRepository.save(gym);
     }
 
@@ -151,6 +179,61 @@ public class GymService {
         }
         gym.setLogoSvg(trimmed);
         gymRepository.save(gym);
+    }
+
+    private static final int MAX_GYM_PHOTOS = 8;
+
+    @Transactional(readOnly = true)
+    public List<GymPhotoResponse> listPhotos(Long gymId) {
+        findGymOrThrow(gymId);
+        return gymPhotoRepository.findByGymIdOrderBySortOrderAsc(gymId).stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    /** Vista pública (mygym.cl/j/{slug}) — mismas fotos, sin auth. */
+    @Transactional(readOnly = true)
+    public List<GymPhotoResponse> listPublicPhotosBySlug(String slug) {
+        Gym gym = gymRepository.findBySlug(slug).orElseThrow(() -> new GymNotFoundException(slug));
+        if (!gym.isActive()) {
+            throw new GymNotFoundException(slug);
+        }
+        return gymPhotoRepository.findByGymIdOrderBySortOrderAsc(gym.getId()).stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    public GymPhotoResponse addPhoto(Long gymId, GymPhotoCreateRequest request) {
+        findGymOrThrow(gymId);
+        long existing = gymPhotoRepository.countByGymId(gymId);
+        if (existing >= MAX_GYM_PHOTOS) {
+            throw new TooManyGymPhotosException(MAX_GYM_PHOTOS);
+        }
+        String trimmed = request.data().strip();
+        boolean allowedMime = ALLOWED_LOGO_IMAGE_MIME_TYPES.stream()
+                .anyMatch(prefix -> trimmed.toLowerCase(Locale.ROOT).startsWith(prefix));
+        if (!allowedMime) {
+            throw new InvalidLogoException("La foto debe ser una imagen (PNG, JPG o WEBP).");
+        }
+        GymPhoto photo = GymPhoto.builder()
+                .gymId(gymId)
+                .data(trimmed)
+                .caption(request.caption())
+                .sortOrder((int) existing)
+                .build();
+        return toResponse(gymPhotoRepository.save(photo));
+    }
+
+    public void removePhoto(Long gymId, Long photoId) {
+        findGymOrThrow(gymId);
+        GymPhoto photo = gymPhotoRepository
+                .findByIdAndGymId(photoId, gymId)
+                .orElseThrow(() -> new GymPhotoNotFoundException(gymId, photoId));
+        gymPhotoRepository.delete(photo);
+    }
+
+    private GymPhotoResponse toResponse(GymPhoto photo) {
+        return new GymPhotoResponse(photo.getId(), photo.getData(), photo.getCaption());
     }
 
     @Transactional(readOnly = true)
@@ -194,6 +277,9 @@ public class GymService {
                 .startTime(request.startTime())
                 .endTime(request.endTime())
                 .capacity(request.capacity())
+                .category(request.category())
+                .instructorName(request.instructorName())
+                .instructorPhoto(request.instructorPhoto())
                 .active(true)
                 .build();
         return toResponse(gymBlockRepository.save(block));
@@ -214,6 +300,9 @@ public class GymService {
         block.setStartTime(request.startTime());
         block.setEndTime(request.endTime());
         block.setCapacity(request.capacity());
+        block.setCategory(request.category());
+        block.setInstructorName(request.instructorName());
+        block.setInstructorPhoto(request.instructorPhoto());
         block.setActive(request.active());
         return toResponse(gymBlockRepository.save(block));
     }
@@ -267,6 +356,19 @@ public class GymService {
     public List<MemberPlanResponse> listActivePlans(Long gymId) {
         findGymOrThrow(gymId);
         return gymPlanRepository.findByGymId(gymId).stream()
+                .filter(GymPlan::isActive)
+                .map(this::toMemberResponse)
+                .toList();
+    }
+
+    /** Misma vista pero para la página pública de alta (mygym.cl/j/{slug}) — sin auth, resuelta por slug. */
+    @Transactional(readOnly = true)
+    public List<MemberPlanResponse> listPublicPlansBySlug(String slug) {
+        Gym gym = gymRepository.findBySlug(slug).orElseThrow(() -> new GymNotFoundException(slug));
+        if (!gym.isActive()) {
+            throw new GymNotFoundException(slug);
+        }
+        return gymPlanRepository.findByGymId(gym.getId()).stream()
                 .filter(GymPlan::isActive)
                 .map(this::toMemberResponse)
                 .toList();
@@ -333,6 +435,11 @@ public class GymService {
                 gym.isGoogleLoginEnabled(),
                 gym.getThemeColor(),
                 gym.getLogoSvg(),
+                gym.getTagline(),
+                gym.getDescription(),
+                gym.getInstagramUrl(),
+                gym.getWhatsappNumber(),
+                gym.getCancellationWindowHours(),
                 gym.getCreatedAt(),
                 gym.getUpdatedAt());
     }
@@ -350,6 +457,9 @@ public class GymService {
                 block.getStartTime(),
                 block.getEndTime(),
                 block.getCapacity(),
+                block.getCategory(),
+                block.getInstructorName(),
+                block.getInstructorPhoto(),
                 block.isActive());
     }
 

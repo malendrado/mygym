@@ -8,6 +8,9 @@ export interface GymBlockOccurrence {
   startTime: string;
   endTime: string;
   capacity: number;
+  category: string | null;
+  instructorName: string | null;
+  instructorPhoto: string | null;
   taken: number;
   bookable: boolean;
   myReservationId: number | null;

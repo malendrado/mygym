@@ -7,11 +7,14 @@ import {
   BrandingSuggestion,
   CreateAdminRequest,
   CreateGymBlockRequest,
+  CreateGymPhotoRequest,
   CreateGymPlanRequest,
   CreateGymRequest,
   Gym,
   GymBlock,
   GymConfigUpdateRequest,
+  GymIdentityUpdateRequest,
+  GymPhoto,
   GymPlan,
   MemberPlan,
   PublicGym,
@@ -32,6 +35,16 @@ export class GymService {
     return this.http.get<PublicGym>(`${this.publicGymsBase}/${slug}`);
   }
 
+  /** No auth required — planes activos de un gym para mostrar antes del alta en /j/{slug}. */
+  getPublicPlansBySlug(slug: string): Observable<MemberPlan[]> {
+    return this.http.get<MemberPlan[]>(`${this.publicGymsBase}/${slug}/plans`);
+  }
+
+  /** No auth required — fotos de las instalaciones para mostrar antes del alta en /j/{slug}. */
+  getPublicPhotosBySlug(slug: string): Observable<GymPhoto[]> {
+    return this.http.get<GymPhoto[]>(`${this.publicGymsBase}/${slug}/photos`);
+  }
+
   /** Branding for the logged-in member's own gym — gymId comes from their JWT, not a param. */
   getMyMemberGym(): Observable<PublicGym> {
     return this.http.get<PublicGym>(`${this.meBase}/gym`);
@@ -40,6 +53,11 @@ export class GymService {
   /** Planes activos configurados por el admin del gym del socio logueado. */
   getMyMemberPlans(): Observable<MemberPlan[]> {
     return this.http.get<MemberPlan[]>(`${this.meBase}/plans`);
+  }
+
+  /** Fotos de las instalaciones del gym del socio logueado. */
+  getMyMemberPhotos(): Observable<GymPhoto[]> {
+    return this.http.get<GymPhoto[]>(`${this.meBase}/gym/photos`);
   }
 
   /**
@@ -143,5 +161,21 @@ export class GymService {
 
   updateMyLogo(logo: string): Observable<Gym> {
     return this.http.put<Gym>(`${this.myGymBase}/logo`, { logo });
+  }
+
+  updateMyIdentity(payload: GymIdentityUpdateRequest): Observable<Gym> {
+    return this.http.put<Gym>(`${this.myGymBase}/identity`, payload);
+  }
+
+  listMyPhotos(): Observable<GymPhoto[]> {
+    return this.http.get<GymPhoto[]>(`${this.myGymBase}/photos`);
+  }
+
+  createMyPhoto(payload: CreateGymPhotoRequest): Observable<GymPhoto> {
+    return this.http.post<GymPhoto>(`${this.myGymBase}/photos`, payload);
+  }
+
+  deleteMyPhoto(photoId: number): Observable<void> {
+    return this.http.delete<void>(`${this.myGymBase}/photos/${photoId}`);
   }
 }

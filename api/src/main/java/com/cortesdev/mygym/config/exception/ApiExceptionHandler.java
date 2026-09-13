@@ -10,12 +10,14 @@ import com.cortesdev.mygym.services.exception.DuplicateSlugException;
 import com.cortesdev.mygym.services.exception.ForbiddenGymAccessException;
 import com.cortesdev.mygym.services.exception.GymBlockNotFoundException;
 import com.cortesdev.mygym.services.exception.GymNotFoundException;
+import com.cortesdev.mygym.services.exception.GymPhotoNotFoundException;
 import com.cortesdev.mygym.services.exception.GymPlanNotFoundException;
 import com.cortesdev.mygym.services.exception.InvalidBlockScheduleException;
 import com.cortesdev.mygym.services.exception.InvalidGoogleTokenException;
 import com.cortesdev.mygym.services.exception.InvalidLogoException;
 import com.cortesdev.mygym.services.exception.MemberNotFoundException;
 import com.cortesdev.mygym.services.exception.ReservationNotFoundException;
+import com.cortesdev.mygym.services.exception.TooManyGymPhotosException;
 import com.cortesdev.mygym.services.exception.UnauthorizedGoogleLoginException;
 import java.net.URI;
 import java.time.Instant;
@@ -61,6 +63,14 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     public ResponseEntity<ProblemDetail> handleGymBlockNotFound(GymBlockNotFoundException ex) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
         problem.setTitle("Bloque no encontrado");
+        problem.setProperty("timestamp", Instant.now());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problem);
+    }
+
+    @ExceptionHandler(GymPhotoNotFoundException.class)
+    public ResponseEntity<ProblemDetail> handleGymPhotoNotFound(GymPhotoNotFoundException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+        problem.setTitle("Foto no encontrada");
         problem.setProperty("timestamp", Instant.now());
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problem);
     }
@@ -183,6 +193,14 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
         problem.setTitle("Acceso denegado");
         problem.setProperty("timestamp", Instant.now());
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(problem);
+    }
+
+    @ExceptionHandler(TooManyGymPhotosException.class)
+    public ResponseEntity<ProblemDetail> handleTooManyGymPhotos(TooManyGymPhotosException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+        problem.setTitle("Demasiadas fotos");
+        problem.setProperty("timestamp", Instant.now());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(problem);
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)

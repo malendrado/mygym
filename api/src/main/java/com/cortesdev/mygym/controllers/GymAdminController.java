@@ -3,7 +3,10 @@ package com.cortesdev.mygym.controllers;
 import com.cortesdev.mygym.models.dto.BlockCreateRequest;
 import com.cortesdev.mygym.models.dto.BlockResponse;
 import com.cortesdev.mygym.models.dto.BlockUpdateRequest;
+import com.cortesdev.mygym.models.dto.GymIdentityUpdateRequest;
 import com.cortesdev.mygym.models.dto.GymLogoUpdateRequest;
+import com.cortesdev.mygym.models.dto.GymPhotoCreateRequest;
+import com.cortesdev.mygym.models.dto.GymPhotoResponse;
 import com.cortesdev.mygym.models.dto.GymResponse;
 import com.cortesdev.mygym.models.dto.PlanCreateRequest;
 import com.cortesdev.mygym.models.dto.PlanResponse;
@@ -107,5 +110,32 @@ public class GymAdminController {
         Long gymId = AuthenticatedUser.from(jwt).gymId();
         gymService.updateMyLogo(gymId, request.logo());
         return gymService.getGym(gymId);
+    }
+
+    @PutMapping("/identity")
+    public GymResponse updateMyIdentity(
+            @AuthenticationPrincipal Jwt jwt, @Valid @RequestBody GymIdentityUpdateRequest request) {
+        Long gymId = AuthenticatedUser.from(jwt).gymId();
+        gymService.updateIdentity(gymId, request);
+        return gymService.getGym(gymId);
+    }
+
+    @GetMapping("/photos")
+    public List<GymPhotoResponse> listMyPhotos(@AuthenticationPrincipal Jwt jwt) {
+        return gymService.listPhotos(AuthenticatedUser.from(jwt).gymId());
+    }
+
+    @PostMapping("/photos")
+    public ResponseEntity<GymPhotoResponse> addMyPhoto(
+            @AuthenticationPrincipal Jwt jwt, @Valid @RequestBody GymPhotoCreateRequest request) {
+        Long gymId = AuthenticatedUser.from(jwt).gymId();
+        GymPhotoResponse photo = gymService.addPhoto(gymId, request);
+        return ResponseEntity.created(URI.create("/api/gym-admin/gym/photos/" + photo.id())).body(photo);
+    }
+
+    @DeleteMapping("/photos/{photoId}")
+    public ResponseEntity<Void> removeMyPhoto(@AuthenticationPrincipal Jwt jwt, @PathVariable Long photoId) {
+        gymService.removePhoto(AuthenticatedUser.from(jwt).gymId(), photoId);
+        return ResponseEntity.noContent().build();
     }
 }

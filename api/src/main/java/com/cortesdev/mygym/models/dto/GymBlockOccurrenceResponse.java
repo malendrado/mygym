@@ -12,6 +12,9 @@ public record GymBlockOccurrenceResponse(
         LocalTime startTime,
         LocalTime endTime,
         Integer capacity,
+        String category,
+        String instructorName,
+        String instructorPhoto,
         Integer taken,
         boolean bookable,
         Long myReservationId) {}

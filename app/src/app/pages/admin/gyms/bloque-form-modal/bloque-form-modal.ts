@@ -26,8 +26,13 @@ import { timeOutline } from 'ionicons/icons';
 import { CreateGymBlockRequest, DayOfWeek, GymBlock, UpdateGymBlockRequest } from '../../../../core/models/gym.model';
 import { QuantityStepper } from '../../../../core/components/quantity-stepper/quantity-stepper';
 import { TIME_OPTIONS_15MIN } from '../../../../core/utils/time-options';
+import { CLASS_CATEGORY_OPTIONS, registerClassCategoryIcons } from '../../../../core/utils/class-category';
 
 addIcons({ 'time-outline': timeOutline });
+registerClassCategoryIcons();
+
+const MAX_INSTRUCTOR_PHOTO_DIMENSION = 200;
+const ACCEPTED_INSTRUCTOR_PHOTO_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 
 export const DAYS: { value: DayOfWeek; label: string }[] = [
   { value: 'MONDAY', label: 'Lunes' },
@@ -72,9 +77,15 @@ function endAfterStartValidator(control: AbstractControl): ValidationErrors | nu
 export class BloqueFormModal {
   protected readonly days = DAYS;
   protected readonly timeOptions = TIME_OPTIONS_15MIN;
+  protected readonly categoryOptions = CLASS_CATEGORY_OPTIONS;
+
+  private readonly _instructorPhoto = signal<string | null>(null);
+  protected readonly instructorPhoto = this._instructorPhoto.asReadonly();
+  protected readonly instructorPhotoUploading = signal(false);
 
   @Input() set block(value: GymBlock | null) {
     this._block.set(value);
+    this._instructorPhoto.set(value?.instructorPhoto ?? null);
     if (value) {
       this.form.patchValue({
         label: value.label,
@@ -82,6 +93,8 @@ export class BloqueFormModal {
         startTime: value.startTime,
         endTime: value.endTime,
         capacity: value.capacity,
+        category: value.category ?? '',
+        instructorName: value.instructorName ?? '',
       });
     } else {
       this.form.reset({
@@ -90,6 +103,8 @@ export class BloqueFormModal {
         startTime: '',
         endTime: '',
         capacity: 1,
+        category: '',
+        instructorName: '',
       });
     }
   }
@@ -118,6 +133,8 @@ export class BloqueFormModal {
       startTime: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
       endTime: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
       capacity: new FormControl(1, { nonNullable: true, validators: [Validators.required, Validators.min(1), Validators.max(500)] }),
+      category: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(40)] }),
+      instructorName: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(80)] }),
     },
     { validators: endAfterStartValidator },
   );
@@ -127,12 +144,81 @@ export class BloqueFormModal {
     this.form.controls.dayOfWeek.markAsTouched();
   }
 
+  protected selectCategory(label: string): void {
+    const current = this.form.controls.category.value;
+    this.form.controls.category.setValue(current === label ? '' : label);
+    this.form.controls.category.markAsTouched();
+  }
+
+  protected async onInstructorPhotoSelected(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0] ?? null;
+    input.value = '';
+    if (!file) {
+      return;
+    }
+    if (!ACCEPTED_INSTRUCTOR_PHOTO_TYPES.includes(file.type)) {
+      return;
+    }
+    this.instructorPhotoUploading.set(true);
+    try {
+      const data = await this.resizeInstructorPhoto(file);
+      this._instructorPhoto.set(data);
+    } catch {
+      // Silencioso: es un campo opcional, no bloquea guardar el bloque.
+    } finally {
+      this.instructorPhotoUploading.set(false);
+    }
+  }
+
+  protected removeInstructorPhoto(): void {
+    this._instructorPhoto.set(null);
+  }
+
+  private resizeInstructorPhoto(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('file read error'));
+      reader.onload = () => {
+        const img = new Image();
+        img.onerror = () => reject(new Error('image decode error'));
+        img.onload = () => {
+          const scale = Math.min(
+            MAX_INSTRUCTOR_PHOTO_DIMENSION / img.width,
+            MAX_INSTRUCTOR_PHOTO_DIMENSION / img.height,
+            1,
+          );
+          const width = Math.max(1, Math.round(img.width * scale));
+          const height = Math.max(1, Math.round(img.height * scale));
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error('canvas not supported'));
+            return;
+          }
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.85));
+        };
+        img.src = reader.result as string;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
   protected submit(): void {
     if (this.form.invalid) {
       return;
     }
     this._submitting.set(true);
-    const value = this.form.getRawValue();
+    const raw = this.form.getRawValue();
+    const value = {
+      ...raw,
+      category: raw.category || null,
+      instructorName: raw.instructorName || null,
+      instructorPhoto: this._instructorPhoto(),
+    };
     const current = this._block();
     if (current) {
       this.saved.emit({ ...value, active: current.active });

@@ -65,6 +65,41 @@
       <ion-note color="danger">El cupo debe ser mayor a 0.</ion-note>
     }
 
+    <p class="section-label">Categoría (opcional)</p>
+    <div class="day-chips">
+      @for (option of categoryOptions; track option.label) {
+        <button
+          type="button"
+          class="day-chip"
+          [class.day-chip--selected]="form.controls.category.value === option.label"
+          (click)="selectCategory(option.label)"
+        >
+          <ion-icon [name]="option.icon" aria-hidden="true"></ion-icon>
+          {{ option.label }}
+        </button>
+      }
+    </div>
+    <ion-item lines="none">
+      <ion-input formControlName="category" placeholder="O escribe la tuya (ej: Crossfit Kids)" />
+    </ion-item>
+
+    <p class="section-label">Instructor (opcional)</p>
+    <ion-item>
+      <ion-input formControlName="instructorName" placeholder="Nombre del instructor" />
+    </ion-item>
+    <div class="instructor-photo">
+      @if (instructorPhoto()) {
+        <img [src]="instructorPhoto()" alt="Foto del instructor" />
+      }
+      <ion-button size="small" fill="outline" (click)="instructorPhotoInput.click()" [disabled]="instructorPhotoUploading()">
+        {{ instructorPhotoUploading() ? 'Subiendo...' : instructorPhoto() ? 'Cambiar foto' : 'Subir foto' }}
+      </ion-button>
+      @if (instructorPhoto()) {
+        <ion-button size="small" fill="clear" color="danger" (click)="removeInstructorPhoto()">Quitar</ion-button>
+      }
+      <input #instructorPhotoInput type="file" accept="image/png,image/jpeg,image/webp" hidden (change)="onInstructorPhotoSelected($event)" />
+    </div>
+
     <ion-button
       type="submit"
       expand="block"

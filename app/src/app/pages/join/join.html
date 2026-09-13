@@ -45,10 +45,39 @@
       }
 
       <h1>Únete a {{ gym()!.name }}</h1>
-      <p>Reserva tus clases y gestiona tu membresía con tu cuenta de Google.</p>
+      <p>{{ gym()!.tagline || 'Reserva tus clases y gestiona tu membresía con tu cuenta de Google.' }}</p>
+      @if (gym()!.description) {
+        <p class="join-description">{{ gym()!.description }}</p>
+      }
+
+      @if (photos().length > 0) {
+        <div class="join-gallery">
+          @for (photo of photos(); track photo.id) {
+            <img [src]="photo.data" [alt]="photo.caption ?? 'Foto de las instalaciones'" />
+          }
+        </div>
+      }
+
+      @if (plansLoaded() && plans().length > 0) {
+        <div class="join-plans">
+          <p class="join-plans__label">Planes disponibles</p>
+          <div class="join-plans__grid">
+            @for (plan of plans(); track plan.id) {
+              <div class="join-plan-card">
+                <h3>{{ plan.name }}</h3>
+                <p class="join-plan-card__price">{{ formatClp(plan.priceClp) }}<span> / mes</span></p>
+                <p class="join-plan-card__quota">{{ quotaLabel(plan) }}</p>
+              </div>
+            }
+          </div>
+          <p class="item-hint">Elige tu plan apenas te unas — no necesitas decidir ahora.</p>
+        </div>
+      }
 
       @if (gym()!.googleLoginEnabled) {
-        <asl-google-signin-button type="standard" size="large" text="signin_with" shape="rectangular" />
+        <div class="google-auth">
+          <asl-google-signin-button type="standard" size="large" text="signup_with" shape="pill" theme="filled_black" logo_alignment="left" />
+        </div>
       } @else {
         <ion-text color="medium">
           <p>Este gimnasio todavía no habilitó el ingreso con Google. Consulta con tu gimnasio.</p>
@@ -62,6 +91,23 @@
         <ion-text color="danger">
           <p>{{ errorMessage() }}</p>
         </ion-text>
+      }
+
+      @if (instagramUrl() || whatsappLink()) {
+        <div class="join-contact">
+          @if (instagramUrl()) {
+            <a [href]="instagramUrl()" target="_blank" rel="noopener">
+              <ion-icon name="logo-instagram" aria-hidden="true"></ion-icon>
+              Instagram
+            </a>
+          }
+          @if (whatsappLink()) {
+            <a [href]="whatsappLink()" target="_blank" rel="noopener">
+              <ion-icon name="logo-whatsapp" aria-hidden="true"></ion-icon>
+              WhatsApp
+            </a>
+          }
+        </div>
       }
     </div>
   </ion-content>

@@ -1,5 +1,6 @@
 package com.cortesdev.mygym.models;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -43,6 +44,13 @@ public class GymBlock {
     private LocalTime endTime;
 
     private Integer capacity;
+
+    private String category;
+
+    private String instructorName;
+
+    @Column(columnDefinition = "text")
+    private String instructorPhoto;
 
     private boolean active;
 

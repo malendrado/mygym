@@ -1,13 +1,17 @@
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { DomSanitizer } from '@angular/platform-browser';
-import { IonContent, IonHeader, IonSpinner, IonText, IonTitle, IonToolbar } from '@ionic/angular';
+import { IonContent, IonHeader, IonIcon, IonSpinner, IonText, IonTitle, IonToolbar } from '@ionic/angular';
 import { GoogleSigninButtonDirective, SocialAuthService } from '@abacritt/angularx-social-login';
+import { addIcons } from 'ionicons';
+import { logoInstagram, logoWhatsapp } from 'ionicons/icons';
 import { AuthService } from '../../core/services/auth.service';
 import { GymService } from '../../core/services/gym.service';
 import { LoginResponse } from '../../core/models/auth.model';
-import { PublicGym } from '../../core/models/gym.model';
+import { GymPhoto, MemberPlan, PublicGym } from '../../core/models/gym.model';
 import { deriveSurfaceTint } from '../../core/utils/gym-theme';
+
+addIcons({ 'logo-instagram': logoInstagram, 'logo-whatsapp': logoWhatsapp });
 
 type Status = 'loading' | 'ready' | 'not-found' | 'joining';
 
@@ -18,7 +22,7 @@ const SIGN_IN_TIMEOUT_MS = 15000;
 
 @Component({
   selector: 'app-join',
-  imports: [IonHeader, IonToolbar, IonTitle, IonContent, IonText, IonSpinner, GoogleSigninButtonDirective],
+  imports: [IonHeader, IonToolbar, IonTitle, IonContent, IonText, IonIcon, IonSpinner, GoogleSigninButtonDirective],
   templateUrl: './join.html',
   styleUrl: './join.scss',
 })
@@ -37,6 +41,15 @@ export class Join {
   protected readonly status = signal<Status>('loading');
   protected readonly gym = signal<PublicGym | null>(null);
   protected readonly errorMessage = signal<string | null>(null);
+  protected readonly plans = signal<MemberPlan[]>([]);
+  protected readonly plansLoaded = signal(false);
+  protected readonly photos = signal<GymPhoto[]>([]);
+
+  protected readonly instagramUrl = computed(() => this.gym()?.instagramUrl || null);
+  protected readonly whatsappLink = computed(() => {
+    const number = this.gym()?.whatsappNumber;
+    return number ? `https://wa.me/${number.replace(/[^\d]/g, '')}` : null;
+  });
 
   protected readonly themeSurface = computed(() => deriveSurfaceTint(this.gym()?.themeColor ?? '#c6ff3d'));
   protected readonly isRasterLogo = computed(() => (this.gym()?.logoSvg ?? '').startsWith('data:image'));
@@ -52,6 +65,21 @@ export class Join {
         this.status.set('ready');
       },
       error: () => this.status.set('not-found'),
+    });
+
+    this.gymService.getPublicPlansBySlug(this.slug).subscribe({
+      next: (plans) => {
+        this.plans.set(plans);
+        this.plansLoaded.set(true);
+      },
+      error: () => this.plansLoaded.set(true),
+    });
+
+    this.gymService.getPublicPhotosBySlug(this.slug).subscribe({
+      next: (photos) => this.photos.set(photos),
+      error: () => {
+        // Best-effort: sin fotos, la página sigue funcionando igual.
+      },
     });
 
     this.socialAuthService.authState.subscribe((user) => {
@@ -109,5 +137,13 @@ export class Join {
       clearTimeout(this.timeoutHandle);
       this.timeoutHandle = null;
     }
+  }
+
+  protected formatClp(value: number): string {
+    return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(value);
+  }
+
+  protected quotaLabel(plan: MemberPlan): string {
+    return plan.monthlyClasses === null ? 'Clases ilimitadas' : `${plan.monthlyClasses} clases al mes`;
   }
 }

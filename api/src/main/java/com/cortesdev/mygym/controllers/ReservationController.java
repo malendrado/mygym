@@ -1,6 +1,7 @@
 package com.cortesdev.mygym.controllers;
 
 import com.cortesdev.mygym.models.dto.GymBlockOccurrenceResponse;
+import com.cortesdev.mygym.models.dto.GymPhotoResponse;
 import com.cortesdev.mygym.models.dto.MemberPlanResponse;
 import com.cortesdev.mygym.models.dto.PublicGymResponse;
 import com.cortesdev.mygym.models.dto.ReservationCreateRequest;
@@ -52,6 +53,11 @@ public class ReservationController {
         AuthenticatedUser user = AuthenticatedUser.from(jwt);
         gymService.simulatePlanPayment(user.gymId(), user.userId(), planId);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/gym/photos")
+    public List<GymPhotoResponse> myGymPhotos(@AuthenticationPrincipal Jwt jwt) {
+        return gymService.listPhotos(AuthenticatedUser.from(jwt).gymId());
     }
 
     @GetMapping("/gym-blocks")

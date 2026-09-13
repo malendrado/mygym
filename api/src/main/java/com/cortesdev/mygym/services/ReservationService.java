@@ -1,5 +1,6 @@
 package com.cortesdev.mygym.services;
 
+import com.cortesdev.mygym.models.Gym;
 import com.cortesdev.mygym.models.GymBlock;
 import com.cortesdev.mygym.models.Reservation;
 import com.cortesdev.mygym.models.ReservationStatus;
@@ -7,12 +8,13 @@ import com.cortesdev.mygym.models.dto.GymBlockOccurrenceResponse;
 import com.cortesdev.mygym.models.dto.ReservationCreateRequest;
 import com.cortesdev.mygym.models.dto.ReservationResponse;
 import com.cortesdev.mygym.repositories.GymBlockRepository;
+import com.cortesdev.mygym.repositories.GymRepository;
 import com.cortesdev.mygym.repositories.ReservationRepository;
 import com.cortesdev.mygym.services.exception.BookingWindowClosedException;
 import com.cortesdev.mygym.services.exception.CapacityExceededException;
 import com.cortesdev.mygym.services.exception.GymBlockNotFoundException;
+import com.cortesdev.mygym.services.exception.GymNotFoundException;
 import com.cortesdev.mygym.services.exception.ReservationNotFoundException;
-import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
@@ -30,13 +32,14 @@ import org.springframework.transaction.annotation.Transactional;
 public class ReservationService {
 
     private static final ZoneId GYM_ZONE = ZoneId.of("America/Santiago");
-    private static final Duration BOOKING_CUTOFF = Duration.ofHours(2);
 
     private final GymBlockRepository gymBlockRepository;
     private final ReservationRepository reservationRepository;
+    private final GymRepository gymRepository;
 
     @Transactional(readOnly = true)
     public List<GymBlockOccurrenceResponse> listOccurrences(Long gymId, Long memberId, LocalDate from, LocalDate to) {
+        int cancellationWindowHours = findGymOrThrow(gymId).getCancellationWindowHours();
         List<GymBlock> blocks =
                 gymBlockRepository.findByGymId(gymId).stream().filter(GymBlock::isActive).toList();
         List<Long> blockIds = blocks.stream().map(GymBlock::getId).toList();
@@ -57,8 +60,8 @@ public class ReservationService {
                 LocalDate occurrenceDate = date;
                 int taken = reservationRepository.countByGymBlockIdAndClassDateAndStatus(
                         block.getId(), occurrenceDate, ReservationStatus.BOOKED);
-                boolean bookable =
-                        taken < block.getCapacity() && isWithinBookingWindow(occurrenceDate, block.getStartTime());
+                boolean bookable = taken < block.getCapacity()
+                        && isWithinBookingWindow(cancellationWindowHours, occurrenceDate, block.getStartTime());
                 Long myReservationId = myReservations.stream()
                         .filter(r -> r.getGymBlockId().equals(block.getId())
                                 && r.getClassDate().equals(occurrenceDate))
@@ -73,6 +76,9 @@ public class ReservationService {
                         block.getStartTime(),
                         block.getEndTime(),
                         block.getCapacity(),
+                        block.getCategory(),
+                        block.getInstructorName(),
+                        block.getInstructorPhoto(),
                         taken,
                         bookable,
                         myReservationId));
@@ -84,6 +90,7 @@ public class ReservationService {
     }
 
     public ReservationResponse book(Long gymId, Long memberId, ReservationCreateRequest request) {
+        int cancellationWindowHours = findGymOrThrow(gymId).getCancellationWindowHours();
         GymBlock block = gymBlockRepository
                 .findByIdAndGymId(request.gymBlockId(), gymId)
                 .filter(GymBlock::isActive)
@@ -92,7 +99,7 @@ public class ReservationService {
         if (request.classDate().getDayOfWeek() != block.getDayOfWeek()) {
             throw new BookingWindowClosedException("La fecha elegida no coincide con el día de la semana de este bloque");
         }
-        requireWithinBookingWindow(request.classDate(), block.getStartTime());
+        requireWithinBookingWindow(cancellationWindowHours, request.classDate(), block.getStartTime());
 
         reservationRepository
                 .findByGymBlockIdAndClassDateAndMemberIdAndStatus(
@@ -123,7 +130,8 @@ public class ReservationService {
         GymBlock block = gymBlockRepository
                 .findById(reservation.getGymBlockId())
                 .orElseThrow(() -> new ReservationNotFoundException(reservationId));
-        requireWithinBookingWindow(reservation.getClassDate(), block.getStartTime());
+        int cancellationWindowHours = findGymOrThrow(block.getGymId()).getCancellationWindowHours();
+        requireWithinBookingWindow(cancellationWindowHours, reservation.getClassDate(), block.getStartTime());
         reservation.setStatus(ReservationStatus.CANCELLED);
         reservationRepository.save(reservation);
     }
@@ -137,15 +145,19 @@ public class ReservationService {
                 .toList();
     }
 
-    private boolean isWithinBookingWindow(LocalDate classDate, LocalTime startTime) {
-        ZonedDateTime classStart = ZonedDateTime.of(classDate, startTime, GYM_ZONE);
-        return ZonedDateTime.now(GYM_ZONE).plus(BOOKING_CUTOFF).isBefore(classStart);
+    private Gym findGymOrThrow(Long gymId) {
+        return gymRepository.findById(gymId).orElseThrow(() -> new GymNotFoundException(gymId));
     }
 
-    private void requireWithinBookingWindow(LocalDate classDate, LocalTime startTime) {
-        if (!isWithinBookingWindow(classDate, startTime)) {
+    private boolean isWithinBookingWindow(int cancellationWindowHours, LocalDate classDate, LocalTime startTime) {
+        ZonedDateTime classStart = ZonedDateTime.of(classDate, startTime, GYM_ZONE);
+        return ZonedDateTime.now(GYM_ZONE).plusHours(cancellationWindowHours).isBefore(classStart);
+    }
+
+    private void requireWithinBookingWindow(int cancellationWindowHours, LocalDate classDate, LocalTime startTime) {
+        if (!isWithinBookingWindow(cancellationWindowHours, classDate, startTime)) {
             throw new BookingWindowClosedException(
-                    "Debes reservar o cancelar con al menos 2 horas de anticipación a la clase");
+                    "Debes reservar o cancelar con al menos " + cancellationWindowHours + " horas de anticipación a la clase");
         }
     }
 

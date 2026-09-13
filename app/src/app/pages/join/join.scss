@@ -34,9 +34,132 @@
     margin: 0 0 1.25rem;
   }
 
-  asl-google-signin-button {
+  .google-auth {
     display: flex;
     justify-content: center;
+    padding-top: 0.25rem;
+  }
+}
+
+.join-description {
+  color: var(--brand-text-dim);
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.join-gallery {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  margin: 0.5rem 0 1rem;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  img {
+    flex: 0 0 auto;
+    scroll-snap-align: start;
+    width: 130px;
+    height: 90px;
+    object-fit: cover;
+    border-radius: 10px;
+  }
+}
+
+.join-contact {
+  display: flex;
+  justify-content: center;
+  gap: 1.25rem;
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--brand-ink-surface-2);
+
+  a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: var(--brand-text-dim);
+    text-decoration: none;
+    font-size: 0.85rem;
+
+    ion-icon {
+      font-size: 1.1rem;
+    }
+
+    &:hover {
+      color: var(--brand-text);
+    }
+  }
+}
+
+// Vista previa de planes antes del alta — fila con scroll horizontal (mismo
+// patrón de densidad mobile-first que el resto de la app) en vez de tarjetas
+// apiladas, para no empujar el botón de Google fuera de la pantalla.
+.join-plans {
+  margin: 0 0 1.5rem;
+  text-align: left;
+}
+
+.join-plans__label {
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--brand-text-dim);
+}
+
+.join-plans__grid {
+  display: flex;
+  gap: 0.6rem;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  padding-bottom: 0.25rem;
+  margin-bottom: 0.5rem;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.join-plan-card {
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+  width: 148px;
+  border: 1px solid var(--brand-ink-surface-2);
+  border-radius: 14px;
+  padding: 0.75rem;
+  background: var(--brand-ink);
+
+  h3 {
+    margin: 0 0 0.25rem;
+    font-size: 0.9rem;
+    font-family: var(--brand-font-heading);
+  }
+
+  &__price {
+    margin: 0;
+    font-family: var(--brand-font-mono);
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--brand-accent);
+
+    span {
+      font-family: var(--brand-font-display);
+      font-size: 0.65rem;
+      font-weight: 400;
+      color: var(--brand-text-dim);
+    }
+  }
+
+  &__quota {
+    margin: 0.2rem 0 0;
+    font-size: 0.72rem;
+    color: var(--brand-text-dim);
   }
 }
 

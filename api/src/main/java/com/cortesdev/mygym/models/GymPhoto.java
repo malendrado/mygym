@@ -16,42 +16,27 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "gym")
+@Table(name = "gym_photo")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Gym {
+public class GymPhoto {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String name;
+    private Long gymId;
 
-    private String slug;
-
-    private boolean active;
-
-    private Integer maxUsers;
-
-    private boolean googleLoginEnabled;
-
-    private String themeColor;
-
+    /** Data URI base64 (mismo patrón que Gym.logoSvg) — sin storage externo. */
     @Column(columnDefinition = "text")
-    private String logoSvg;
+    private String data;
 
-    private String tagline;
+    private String caption;
 
-    private String description;
-
-    private String instagramUrl;
-
-    private String whatsappNumber;
-
-    private int cancellationWindowHours;
+    private Integer sortOrder;
 
     private Instant createdAt;
 

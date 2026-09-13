@@ -11,5 +11,10 @@ public record GymResponse(
         boolean googleLoginEnabled,
         String themeColor,
         String logoSvg,
+        String tagline,
+        String description,
+        String instagramUrl,
+        String whatsappNumber,
+        int cancellationWindowHours,
         Instant createdAt,
         Instant updatedAt) {}

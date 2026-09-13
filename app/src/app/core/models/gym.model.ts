@@ -16,6 +16,11 @@ export interface Gym {
   googleLoginEnabled: boolean;
   themeColor: string | null;
   logoSvg: string | null;
+  tagline: string | null;
+  description: string | null;
+  instagramUrl: string | null;
+  whatsappNumber: string | null;
+  cancellationWindowHours: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -28,6 +33,29 @@ export interface PublicGym {
   themeContrast: string;
   logoSvg: string | null;
   googleLoginEnabled: boolean;
+  tagline: string | null;
+  description: string | null;
+  instagramUrl: string | null;
+  whatsappNumber: string | null;
+}
+
+export interface GymIdentityUpdateRequest {
+  tagline: string | null;
+  description: string | null;
+  instagramUrl: string | null;
+  whatsappNumber: string | null;
+  cancellationWindowHours: number;
+}
+
+export interface GymPhoto {
+  id: number;
+  data: string;
+  caption: string | null;
+}
+
+export interface CreateGymPhotoRequest {
+  data: string;
+  caption: string | null;
 }
 
 export interface GymBlock {
@@ -38,6 +66,10 @@ export interface GymBlock {
   startTime: string;
   endTime: string;
   capacity: number;
+  /** Etiqueta libre (ej. "spinning", "yoga") — el frontend le asigna un ícono por palabra clave. */
+  category: string | null;
+  instructorName: string | null;
+  instructorPhoto: string | null;
   active: boolean;
 }
 
@@ -99,6 +131,9 @@ export interface CreateGymBlockRequest {
   startTime: string;
   endTime: string;
   capacity: number;
+  category: string | null;
+  instructorName: string | null;
+  instructorPhoto: string | null;
 }
 
 export interface UpdateGymBlockRequest extends CreateGymBlockRequest {

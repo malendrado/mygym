@@ -127,6 +127,9 @@ export class BloqueSeriesModal {
           startTime: toTimeString(cursor),
           endTime: toTimeString(cursor + durationMin),
           capacity,
+          category: null,
+          instructorName: null,
+          instructorPhoto: null,
           dayLabel,
         });
         cursor += durationMin;

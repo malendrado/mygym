@@ -14,19 +14,33 @@ import {
   ToastController,
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { calendarOutline, flashOutline, sparklesOutline, trendingUpOutline } from 'ionicons/icons';
+import {
+  calendarOutline,
+  flashOutline,
+  logoInstagram,
+  logoWhatsapp,
+  sparklesOutline,
+  trendingUpOutline,
+} from 'ionicons/icons';
 import { AuthService } from '../../core/services/auth.service';
 import { GymService } from '../../core/services/gym.service';
 import { ReservationService } from '../../core/services/reservation.service';
 import { GymBlockOccurrence, Reservation } from '../../core/models/reservation.model';
-import { MemberPlan, PublicGym } from '../../core/models/gym.model';
+import { GymPhoto, MemberPlan, PublicGym } from '../../core/models/gym.model';
 import { deriveSurfaceTint } from '../../core/utils/gym-theme';
+import { registerClassCategoryIcons, resolveClassCategoryIcon } from '../../core/utils/class-category';
+
+registerClassCategoryIcons();
+
+const FALLBACK_HERO_PHOTO = 'https://images.unsplash.com/photo-1637430308606-86576d8fef3c?q=75&w=1600&h=900&fit=crop&auto=format';
 
 addIcons({
   'flash-outline': flashOutline,
   'calendar-outline': calendarOutline,
   'trending-up-outline': trendingUpOutline,
   'sparkles-outline': sparklesOutline,
+  'logo-instagram': logoInstagram,
+  'logo-whatsapp': logoWhatsapp,
 });
 
 type Status = 'idle' | 'loading' | 'error';
@@ -131,7 +145,19 @@ export class MemberPage {
   protected readonly bookingId = signal<number | null>(null);
 
   protected readonly benefits = BENEFITS;
-  protected readonly quote = MOTIVATIONAL_QUOTES[Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length)];
+  private readonly fallbackQuote = MOTIVATIONAL_QUOTES[Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length)];
+  // El gym puede escribir su propia frase (Gym.tagline) — si no lo hizo, cae a una genérica motivacional.
+  protected readonly quote = computed(() => this.gym()?.tagline || this.fallbackQuote);
+
+  protected readonly photos = signal<GymPhoto[]>([]);
+  protected readonly heroPhotoUrl = computed(() => this.photos()[0]?.data ?? FALLBACK_HERO_PHOTO);
+  protected readonly galleryPhotos = computed(() => this.photos().slice(1));
+
+  protected readonly instagramUrl = computed(() => this.gym()?.instagramUrl || null);
+  protected readonly whatsappLink = computed(() => {
+    const number = this.gym()?.whatsappNumber;
+    return number ? `https://wa.me/${number.replace(/[^\d]/g, '')}` : null;
+  });
 
   protected readonly plans = signal<MembershipPlan[]>([]);
   protected readonly plansLoaded = signal(false);
@@ -174,8 +200,13 @@ export class MemberPage {
   constructor() {
     this.loadGym();
     this.loadPlans();
+    this.loadPhotos();
     this.loadOccurrences();
     this.loadMyReservations();
+  }
+
+  protected categoryIcon(category: string | null): string {
+    return resolveClassCategoryIcon(category);
   }
 
   protected book(occurrence: GymBlockOccurrence): void {
@@ -248,6 +279,15 @@ export class MemberPage {
         this.plansLoaded.set(true);
       },
       error: () => this.plansLoaded.set(true),
+    });
+  }
+
+  private loadPhotos(): void {
+    this.gymService.getMyMemberPhotos().subscribe({
+      next: (photos) => this.photos.set(photos),
+      error: () => {
+        // Best-effort: sin fotos, el hero cae al fondo genérico.
+      },
     });
   }
 

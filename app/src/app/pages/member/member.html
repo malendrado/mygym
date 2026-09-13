@@ -30,21 +30,28 @@
     [style.--member-card]="themeSurface()?.card ?? null"
   >
     <section class="member-hero">
-      <img
-        src="https://images.unsplash.com/photo-1637430308606-86576d8fef3c?q=75&w=1600&h=900&fit=crop&auto=format"
-        alt="Sala de entrenamiento con luces cálidas"
-        width="1600"
-        height="900"
-      />
+      <img [src]="heroPhotoUrl()" alt="Instalaciones de {{ gym()?.name ?? 'tu gimnasio' }}" width="1600" height="900" />
       <div class="member-hero__scrim"></div>
       <div class="member-hero__content">
         @if (gym()?.name) {
           <p class="member-hero__eyebrow">{{ gym()!.name }}</p>
         }
         <h1>Hola, {{ firstName() }}</h1>
-        <p class="member-hero__quote">"{{ quote }}"</p>
+        <p class="member-hero__quote">"{{ quote() }}"</p>
       </div>
     </section>
+
+    @if (galleryPhotos().length > 0) {
+      <div class="member-gallery">
+        @for (photo of galleryPhotos(); track photo.id) {
+          <img [src]="photo.data" [alt]="photo.caption ?? 'Foto de las instalaciones'" />
+        }
+      </div>
+    }
+
+    @if (gym()?.description) {
+      <p class="member-description">{{ gym()!.description }}</p>
+    }
 
     <section class="membership">
       @if (membership().status === 'none') {
@@ -138,8 +145,19 @@
         @for (occurrence of occurrences(); track occurrence.gymBlockId + occurrence.classDate) {
           <article class="class-card" [class.class-card--reserved]="!!occurrence.myReservationId">
             <div class="class-card__info">
-              <p class="class-card__title">{{ occurrence.label }}</p>
+              <p class="class-card__title">
+                <ion-icon [name]="categoryIcon(occurrence.category)" aria-hidden="true"></ion-icon>
+                {{ occurrence.label }}
+              </p>
               <p class="class-card__meta">{{ occurrence.classDate }} · {{ occurrence.startTime }}-{{ occurrence.endTime }}</p>
+              @if (occurrence.instructorName) {
+                <p class="class-card__instructor">
+                  @if (occurrence.instructorPhoto) {
+                    <img [src]="occurrence.instructorPhoto" alt="" />
+                  }
+                  {{ occurrence.instructorName }}
+                </p>
+              }
               <p class="class-card__capacity">{{ occurrence.taken }}/{{ occurrence.capacity }} cupos</p>
             </div>
             @if (occurrence.myReservationId) {
@@ -184,5 +202,22 @@
         }
       </div>
     </section>
+
+    @if (instagramUrl() || whatsappLink()) {
+      <div class="member-contact">
+        @if (instagramUrl()) {
+          <a [href]="instagramUrl()" target="_blank" rel="noopener">
+            <ion-icon name="logo-instagram" aria-hidden="true"></ion-icon>
+            Instagram
+          </a>
+        }
+        @if (whatsappLink()) {
+          <a [href]="whatsappLink()" target="_blank" rel="noopener">
+            <ion-icon name="logo-whatsapp" aria-hidden="true"></ion-icon>
+            WhatsApp
+          </a>
+        }
+      </div>
+    }
   </ion-content>
 }

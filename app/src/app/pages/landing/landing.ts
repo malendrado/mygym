@@ -9,6 +9,7 @@ import {
   ViewChildren,
   signal,
 } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { IonContent, IonIcon } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import {
@@ -85,7 +86,7 @@ interface MemberBenefit {
 @Component({
   selector: 'app-landing',
   standalone: true,
-  imports: [IonContent, IonIcon],
+  imports: [IonContent, IonIcon, RouterLink],
   templateUrl: './landing.html',
   styleUrl: './landing.scss',
 })
