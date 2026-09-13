@@ -167,8 +167,14 @@
             @if (occurrence.myReservationId) {
               <div class="class-card__action">
                 <ion-badge color="success">Reservado</ion-badge>
-                <ion-button fill="clear" size="small" color="danger" (click)="cancel(occurrence.myReservationId!)">
-                  Cancelar
+                <ion-button
+                  fill="clear"
+                  size="small"
+                  color="danger"
+                  [disabled]="cancelingId() === occurrence.myReservationId"
+                  (click)="cancel(occurrence.myReservationId!)"
+                >
+                  {{ cancelingId() === occurrence.myReservationId ? 'Cancelando...' : 'Cancelar' }}
                 </ion-button>
               </div>
             } @else if (!canBook()) {
@@ -203,7 +209,15 @@
               <p class="class-card__title">{{ reservation.blockLabel }}</p>
               <p class="class-card__meta">{{ reservation.classDate }} · {{ reservation.startTime }}-{{ reservation.endTime }}</p>
             </div>
-            <ion-button fill="clear" size="small" color="danger" (click)="cancel(reservation.id)">Cancelar</ion-button>
+            <ion-button
+              fill="clear"
+              size="small"
+              color="danger"
+              [disabled]="cancelingId() === reservation.id"
+              (click)="cancel(reservation.id)"
+            >
+              {{ cancelingId() === reservation.id ? 'Cancelando...' : 'Cancelar' }}
+            </ion-button>
           </article>
         } @empty {
           <p class="item-hint">Todavía no tienes reservas.</p>

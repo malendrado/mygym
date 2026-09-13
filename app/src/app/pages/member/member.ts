@@ -145,6 +145,7 @@ export class MemberPage {
   protected readonly occurrences = signal<GymBlockOccurrence[]>([]);
   protected readonly myReservations = signal<Reservation[]>([]);
   protected readonly bookingId = signal<number | null>(null);
+  protected readonly cancelingId = signal<number | null>(null);
 
   protected readonly benefits = BENEFITS;
   private readonly fallbackQuote = MOTIVATIONAL_QUOTES[Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length)];
@@ -231,6 +232,7 @@ export class MemberPage {
       .subscribe({
         next: () => {
           this.bookingId.set(null);
+          this.membership.update((m) => ({ ...m, classesUsed: m.classesUsed + 1 }));
           this.loadOccurrences();
           this.loadMyReservations();
           this.showToast('¡Reserva confirmada! Te esperamos en la clase.');
@@ -243,13 +245,19 @@ export class MemberPage {
   }
 
   protected cancel(reservationId: number): void {
+    this.cancelingId.set(reservationId);
     this.reservationService.cancel(reservationId).subscribe({
       next: () => {
+        this.cancelingId.set(null);
+        this.membership.update((m) => ({ ...m, classesUsed: Math.max(m.classesUsed - 1, 0) }));
         this.loadOccurrences();
         this.loadMyReservations();
         this.showToast('Reserva cancelada.');
       },
-      error: (err: Error) => this.showToast(err.message || 'No pudimos cancelar esa reserva.', 'danger'),
+      error: (err: Error) => {
+        this.cancelingId.set(null);
+        this.showToast(err.message || 'No pudimos cancelar esa reserva.', 'danger');
+      },
     });
   }
 
