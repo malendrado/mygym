@@ -1,0 +1,96 @@
+<div class="ion-page">
+<ion-header>
+  <ion-toolbar>
+    <ion-title>
+      <ion-icon name="pricetag-outline" aria-hidden="true"></ion-icon>
+      {{ isEditing() ? 'Editar plan' : 'Nuevo plan' }}
+    </ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="cancel()">Cerrar</ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  @if (!isEditing()) {
+    <p class="section-label">Sugerencias</p>
+    <div class="template-chips">
+      <button
+        type="button"
+        class="template-chip"
+        [class.template-chip--selected]="selectedCategory() === null"
+        (click)="clearTemplate()"
+      >
+        Personalizado
+      </button>
+      @for (template of templates; track template.key) {
+        <button
+          type="button"
+          class="template-chip"
+          [class.template-chip--selected]="selectedCategory() === template.category"
+          (click)="applyTemplate(template)"
+        >
+          {{ template.label }}
+        </button>
+      }
+    </div>
+    <p class="item-hint">Elige una sugerencia para partir rápido — después puedes editar cualquier campo.</p>
+  }
+
+  <form [formGroup]="form" (ngSubmit)="submit()">
+    <ion-item>
+      <ion-input label="Nombre del plan *" formControlName="name" placeholder="Ej: Plan Plus" />
+    </ion-item>
+    @if (form.controls.name.invalid && (form.controls.name.dirty || form.controls.name.touched)) {
+      <ion-note color="danger">El nombre es obligatorio.</ion-note>
+    }
+
+    <ion-item lines="none">
+      <ion-textarea
+        label="Descripción"
+        formControlName="description"
+        placeholder="Qué incluye este plan"
+        autoGrow="true"
+        rows="2"
+      />
+    </ion-item>
+
+    <ion-item>
+      <ion-input
+        label="Precio mensual (CLP) *"
+        type="number"
+        inputmode="numeric"
+        formControlName="priceClp"
+        placeholder="Ej: 29990"
+      />
+    </ion-item>
+    @if (form.controls.priceClp.value) {
+      <p class="price-preview">{{ formatClp(form.controls.priceClp.value) }} / mes</p>
+    }
+    @if (form.controls.priceClp.invalid && (form.controls.priceClp.dirty || form.controls.priceClp.touched)) {
+      <ion-note color="danger">Ingresa un precio mayor a 0.</ion-note>
+    }
+
+    <p class="section-label">Clases incluidas por mes</p>
+    <button
+      type="button"
+      class="unlimited-toggle"
+      [class.unlimited-toggle--active]="unlimited()"
+      (click)="toggleUnlimited()"
+    >
+      {{ unlimited() ? '✓ Plan libre — reserva ilimitada en cupos disponibles' : 'Plan libre — reserva ilimitada en cupos disponibles' }}
+    </button>
+
+    @if (!unlimited()) {
+      <app-quantity-stepper label="Clases por mes *" formControlName="monthlyClasses" [min]="1" [max]="500" />
+      @if (form.controls.monthlyClasses.invalid && (form.controls.monthlyClasses.dirty || form.controls.monthlyClasses.touched)) {
+        <ion-note color="danger">Debe ser mayor a 0.</ion-note>
+      }
+    }
+
+    <ion-button type="submit" expand="block" [disabled]="form.invalid || isBusy()" class="ion-margin-top">
+      {{ isBusy() ? 'Guardando...' : 'Guardar' }}
+    </ion-button>
+  </form>
+</ion-content>
+</div>

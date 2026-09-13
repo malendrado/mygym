@@ -1,6 +1,7 @@
 package com.cortesdev.mygym.controllers;
 
 import com.cortesdev.mygym.models.dto.GymBlockOccurrenceResponse;
+import com.cortesdev.mygym.models.dto.MemberPlanResponse;
 import com.cortesdev.mygym.models.dto.PublicGymResponse;
 import com.cortesdev.mygym.models.dto.ReservationCreateRequest;
 import com.cortesdev.mygym.models.dto.ReservationResponse;
@@ -36,6 +37,21 @@ public class ReservationController {
     @GetMapping("/gym")
     public PublicGymResponse myGym(@AuthenticationPrincipal Jwt jwt) {
         return gymService.getPublicById(AuthenticatedUser.from(jwt).gymId());
+    }
+
+    @GetMapping("/plans")
+    public List<MemberPlanResponse> myPlans(@AuthenticationPrincipal Jwt jwt) {
+        return gymService.listActivePlans(AuthenticatedUser.from(jwt).gymId());
+    }
+
+    // Simula la confirmación de pago de Flow.cl (Parte B, todavía sin construir)
+    // — solo dispara los emails de "pago confirmado" a socio y admin. No crea
+    // ninguna suscripción real todavía.
+    @PostMapping("/plans/{planId}/simulate-payment")
+    public ResponseEntity<Void> simulatePlanPayment(@AuthenticationPrincipal Jwt jwt, @PathVariable Long planId) {
+        AuthenticatedUser user = AuthenticatedUser.from(jwt);
+        gymService.simulatePlanPayment(user.gymId(), user.userId(), planId);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/gym-blocks")

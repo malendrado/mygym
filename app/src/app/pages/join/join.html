@@ -30,6 +30,10 @@
 
   <ion-content
     class="ion-padding join-content"
+    [style.--ion-color-primary]="gym()!.themeColor"
+    [style.--ion-color-primary-contrast]="gym()!.themeContrast"
+    [style.--brand-accent]="gym()!.themeColor"
+    [style.--brand-accent-contrast]="gym()!.themeContrast"
     [style.--join-bg]="themeSurface().bg"
     [style.--join-card]="themeSurface().card"
   >

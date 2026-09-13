@@ -19,7 +19,7 @@ import { AuthService } from '../../core/services/auth.service';
 import { GymService } from '../../core/services/gym.service';
 import { ReservationService } from '../../core/services/reservation.service';
 import { GymBlockOccurrence, Reservation } from '../../core/models/reservation.model';
-import { PublicGym } from '../../core/models/gym.model';
+import { MemberPlan, PublicGym } from '../../core/models/gym.model';
 import { deriveSurfaceTint } from '../../core/utils/gym-theme';
 
 addIcons({
@@ -32,17 +32,17 @@ addIcons({
 type Status = 'idle' | 'loading' | 'error';
 
 // ---------------------------------------------------------------------------
-// MOCK — sección Membresía. Todavía no existe el backend de planes/pagos
-// (Parte B del plan, Flow.cl, pendiente). Esto es una maqueta funcional para
-// validar la experiencia antes de construir ese backend: cuando exista,
-// reemplazar MOCK_PLANS/mockMembership por llamadas reales a la API y
-// selectPlan() por el checkout real de Flow.cl. El resto de la página
-// (clases, reservas) ya usa datos reales.
+// Sección Membresía. Los planes ya son reales (GET /api/me/plans, configurados
+// por el admin del gym en gym-admin → Planes). Lo que sigue siendo MOCK es
+// el estado de la membresía en sí (pending/active/past_due) y selectPlan(),
+// que simula el checkout — todavía no existe el backend de pagos (Parte B
+// del plan, Flow.cl). Cuando exista, reemplazar el signal `membership` por
+// datos reales y selectPlan() por el checkout real de Flow.cl.
 // ---------------------------------------------------------------------------
 type MembershipStatus = 'none' | 'pending' | 'active' | 'past_due';
 
 interface MembershipPlan {
-  id: string;
+  id: number;
   name: string;
   priceClp: number;
   monthlyClasses: number | null; // null = ilimitado
@@ -56,11 +56,18 @@ interface Membership {
   renewsOn: string;
 }
 
-const MOCK_PLANS: MembershipPlan[] = [
-  { id: 'basico', name: 'Básico', priceClp: 19990, monthlyClasses: 8 },
-  { id: 'plus', name: 'Plus', priceClp: 29990, monthlyClasses: 16, highlight: true },
-  { id: 'ilimitado', name: 'Ilimitado', priceClp: 39990, monthlyClasses: null },
-];
+/** El plan de precio intermedio se marca "Recomendado" — heurística visual, no una señal del admin. */
+function withHighlight(plans: MemberPlan[]): MembershipPlan[] {
+  const sorted = [...plans].sort((a, b) => a.priceClp - b.priceClp);
+  const highlightIndex = sorted.length >= 3 ? Math.floor(sorted.length / 2) : -1;
+  return sorted.map((plan, index) => ({
+    id: plan.id,
+    name: plan.name,
+    priceClp: plan.priceClp,
+    monthlyClasses: plan.monthlyClasses,
+    highlight: index === highlightIndex,
+  }));
+}
 
 interface Benefit {
   icon: string;
@@ -126,13 +133,13 @@ export class MemberPage {
   protected readonly benefits = BENEFITS;
   protected readonly quote = MOTIVATIONAL_QUOTES[Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length)];
 
-  // MOCK — ver bloque de comentario arriba de MOCK_PLANS.
-  protected readonly plans = MOCK_PLANS;
+  protected readonly plans = signal<MembershipPlan[]>([]);
+  protected readonly plansLoaded = signal(false);
   protected readonly membership = signal<Membership>({
-    status: 'active',
-    plan: MOCK_PLANS[1],
-    classesUsed: 5,
-    renewsOn: '3 de octubre',
+    status: 'none',
+    plan: null,
+    classesUsed: 0,
+    renewsOn: '',
   });
   protected readonly quotaTotal = computed(() => this.membership().plan?.monthlyClasses ?? null);
   protected readonly classesRemaining = computed(() => {
@@ -166,6 +173,7 @@ export class MemberPage {
 
   constructor() {
     this.loadGym();
+    this.loadPlans();
     this.loadOccurrences();
     this.loadMyReservations();
   }
@@ -199,14 +207,23 @@ export class MemberPage {
     });
   }
 
-  // MOCK — simula el checkout de Flow.cl (Parte B, pendiente) mientras no existe
-  // el backend real: pasa a "pending" y luego a "active" con el plan elegido.
+  // El checkout en sí sigue siendo MOCK (Flow.cl, Parte B, pendiente) — pasa a
+  // "pending" y luego a "active" en el cliente sin crear ninguna suscripción
+  // real. Lo que SÍ es real: el POST a simulate-payment dispara los emails de
+  // "pago confirmado" a socio y admin (mismo patrón que el alta de socio).
   protected selectPlan(plan: MembershipPlan): void {
     this.membership.update((m) => ({ ...m, status: 'pending' }));
     this.showToast('Redirigiendo a Flow.cl para completar el pago...');
     setTimeout(() => {
       this.membership.set({ status: 'active', plan, classesUsed: 0, renewsOn: '3 de octubre' });
       this.showToast(`¡Listo! Ya tienes el plan ${plan.name}.`);
+      this.gymService.simulateMyPlanPayment(plan.id).subscribe({
+        error: () => {
+          // Best-effort: el "pago" del cliente ya se dio por exitoso arriba —
+          // si el email de confirmación falla, no tiene sentido revertir la
+          // experiencia del socio por eso.
+        },
+      });
     }, 1500);
   }
 
@@ -222,6 +239,16 @@ export class MemberPage {
   private async showToast(message: string, color: 'success' | 'danger' = 'success'): Promise<void> {
     const toast = await this.toastController.create({ message, duration: 4000, position: 'bottom', color });
     await toast.present();
+  }
+
+  private loadPlans(): void {
+    this.gymService.getMyMemberPlans().subscribe({
+      next: (plans) => {
+        this.plans.set(withHighlight(plans));
+        this.plansLoaded.set(true);
+      },
+      error: () => this.plansLoaded.set(true),
+    });
   }
 
   private loadGym(): void {

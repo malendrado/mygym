@@ -104,3 +104,38 @@ export interface CreateGymBlockRequest {
 export interface UpdateGymBlockRequest extends CreateGymBlockRequest {
   active: boolean;
 }
+
+export interface GymPlan {
+  id: number;
+  gymId: number;
+  name: string;
+  description: string | null;
+  /** Etiqueta libre (ej. "personal", "libre", "estudiante") — solo para mostrar, no una categoría cerrada. */
+  category: string | null;
+  priceClp: number;
+  /** Null = plan libre (reserva ilimitada en los cupos disponibles). */
+  monthlyClasses: number | null;
+  active: boolean;
+}
+
+export interface CreateGymPlanRequest {
+  name: string;
+  description: string | null;
+  category: string | null;
+  priceClp: number;
+  monthlyClasses: number | null;
+}
+
+export interface UpdateGymPlanRequest extends CreateGymPlanRequest {
+  active: boolean;
+}
+
+/** Vista del socio de un plan activo de su gym — sin gymId ni active (GET /api/me/plans). */
+export interface MemberPlan {
+  id: number;
+  name: string;
+  description: string | null;
+  category: string | null;
+  priceClp: number;
+  monthlyClasses: number | null;
+}

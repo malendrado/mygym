@@ -22,6 +22,8 @@
 
   <ion-content
     class="ion-padding member-content"
+    [style.--ion-color-primary]="gym()?.themeColor ?? '#c6ff3d'"
+    [style.--ion-color-primary-contrast]="gym()?.themeContrast ?? '#1a2b00'"
     [style.--brand-accent]="gym()?.themeColor ?? '#c6ff3d'"
     [style.--brand-accent-contrast]="gym()?.themeContrast ?? '#1a2b00'"
     [style.--member-bg]="themeSurface()?.bg ?? null"
@@ -48,8 +50,11 @@
       @if (membership().status === 'none') {
         <h2>Elige tu plan</h2>
         <p class="item-hint">Cada plan incluye un cupo de clases al mes — reserva todas las que quieras dentro de tu cupo.</p>
+        @if (plansLoaded() && plans().length === 0) {
+          <p class="item-hint">Tu gimnasio todavía no tiene planes configurados. Pregúntale al equipo cuándo estarán disponibles.</p>
+        }
         <div class="plan-grid">
-          @for (plan of plans; track plan.id) {
+          @for (plan of plans(); track plan.id) {
             <article class="plan-card" [class.plan-card--highlight]="plan.highlight">
               @if (plan.highlight) {
                 <span class="plan-card__badge">
@@ -153,7 +158,7 @@
                 [disabled]="!occurrence.bookable || bookingId() === occurrence.gymBlockId"
                 (click)="book(occurrence)"
               >
-                {{ bookingId() === occurrence.gymBlockId ? 'Reservando...' : 'Reservar' }}
+                {{ bookingId() === occurrence.gymBlockId ? 'Reservando...' : !occurrence.bookable ? 'Sin cupo' : 'Reservar' }}
               </ion-button>
             }
           </article>

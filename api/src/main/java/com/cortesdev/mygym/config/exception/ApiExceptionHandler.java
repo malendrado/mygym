@@ -10,6 +10,7 @@ import com.cortesdev.mygym.services.exception.DuplicateSlugException;
 import com.cortesdev.mygym.services.exception.ForbiddenGymAccessException;
 import com.cortesdev.mygym.services.exception.GymBlockNotFoundException;
 import com.cortesdev.mygym.services.exception.GymNotFoundException;
+import com.cortesdev.mygym.services.exception.GymPlanNotFoundException;
 import com.cortesdev.mygym.services.exception.InvalidBlockScheduleException;
 import com.cortesdev.mygym.services.exception.InvalidGoogleTokenException;
 import com.cortesdev.mygym.services.exception.InvalidLogoException;
@@ -60,6 +61,14 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     public ResponseEntity<ProblemDetail> handleGymBlockNotFound(GymBlockNotFoundException ex) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
         problem.setTitle("Bloque no encontrado");
+        problem.setProperty("timestamp", Instant.now());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problem);
+    }
+
+    @ExceptionHandler(GymPlanNotFoundException.class)
+    public ResponseEntity<ProblemDetail> handleGymPlanNotFound(GymPlanNotFoundException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+        problem.setTitle("Plan no encontrado");
         problem.setProperty("timestamp", Instant.now());
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problem);
     }

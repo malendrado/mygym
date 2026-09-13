@@ -7,12 +7,16 @@ import {
   BrandingSuggestion,
   CreateAdminRequest,
   CreateGymBlockRequest,
+  CreateGymPlanRequest,
   CreateGymRequest,
   Gym,
   GymBlock,
   GymConfigUpdateRequest,
+  GymPlan,
+  MemberPlan,
   PublicGym,
   UpdateGymBlockRequest,
+  UpdateGymPlanRequest,
 } from '../models/gym.model';
 
 @Injectable({ providedIn: 'root' })
@@ -31,6 +35,21 @@ export class GymService {
   /** Branding for the logged-in member's own gym — gymId comes from their JWT, not a param. */
   getMyMemberGym(): Observable<PublicGym> {
     return this.http.get<PublicGym>(`${this.meBase}/gym`);
+  }
+
+  /** Planes activos configurados por el admin del gym del socio logueado. */
+  getMyMemberPlans(): Observable<MemberPlan[]> {
+    return this.http.get<MemberPlan[]>(`${this.meBase}/plans`);
+  }
+
+  /**
+   * Todavía no existe el pago real (Flow.cl, pendiente) — este endpoint solo
+   * dispara los emails de "pago confirmado" a socio y admin, sin crear
+   * ninguna suscripción real. El resto del "pago" sigue simulado en el
+   * frontend (member.ts selectPlan()).
+   */
+  simulateMyPlanPayment(planId: number): Observable<void> {
+    return this.http.post<void>(`${this.meBase}/plans/${planId}/simulate-payment`, {});
   }
 
   list(): Observable<Gym[]> {
@@ -100,6 +119,22 @@ export class GymService {
 
   deleteMyBlock(blockId: number): Observable<void> {
     return this.http.delete<void>(`${this.myGymBase}/blocks/${blockId}`);
+  }
+
+  listMyPlans(): Observable<GymPlan[]> {
+    return this.http.get<GymPlan[]>(`${this.myGymBase}/plans`);
+  }
+
+  createMyPlan(payload: CreateGymPlanRequest): Observable<GymPlan> {
+    return this.http.post<GymPlan>(`${this.myGymBase}/plans`, payload);
+  }
+
+  updateMyPlan(planId: number, payload: UpdateGymPlanRequest): Observable<GymPlan> {
+    return this.http.put<GymPlan>(`${this.myGymBase}/plans/${planId}`, payload);
+  }
+
+  deleteMyPlan(planId: number): Observable<void> {
+    return this.http.delete<void>(`${this.myGymBase}/plans/${planId}`);
   }
 
   updateMyTheme(themeColor: string): Observable<Gym> {

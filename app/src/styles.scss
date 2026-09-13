@@ -79,11 +79,30 @@ ion-button {
   --border-radius: 999px;
 }
 
+// Ionic's own default button height in this theme measured 36px — and
+// size="small" measured ~27px — both under the 44px WCAG/platform touch
+// target minimum. Overriding --min-height alone does nothing (Ionic's
+// min-height rules here have normal specificity, not gated behind that
+// custom property, confirmed empirically); ::part(native) is the only
+// external hook that works. Found 2026-09-13 in a UX touch-target audit
+// covering every screen: "Elegir plan"/"Agregar plan"/"Agregar bloque"/
+// "Generar bloques"/"Subir logo"/"Cancelar reserva" were all affected —
+// this is a base-component issue, not specific to any one button or page.
+ion-button::part(native) {
+  min-height: 44px;
+}
+
 ion-card {
   border-radius: 16px;
   border: 1px solid var(--brand-ink-surface-2);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
   margin-bottom: 1rem;
+  // Ionic's card component doesn't inherit --ion-text-color the way ion-item/
+  // ion-label do — without this, card titles/body text fall back to Ionic's
+  // own hardcoded md-mode default (a near-black gray), invisible against our
+  // dark card surfaces. Found 2026-09-13: "Bloques / horarios" and every plan
+  // card title were unreadable in gym-admin because of exactly this.
+  --color: var(--brand-text);
 }
 
 ion-card-title {
@@ -91,11 +110,34 @@ ion-card-title {
   align-items: center;
   gap: 0.5rem;
   font-size: 1.05rem;
+  // ion-card-title has its own baked-in default color that doesn't pick up
+  // --color from the parent ion-card — needs its own explicit declaration.
+  color: var(--brand-text);
 
   ion-icon {
     color: var(--brand-accent);
     font-size: 1.2rem;
   }
+}
+
+ion-card-subtitle {
+  color: var(--brand-text-dim);
+}
+
+// Ionic renders the secondary <p> line inside ion-label (e.g. "Cupo: 15",
+// a member's email under their name) in a hardcoded medium-gray that isn't
+// theme-aware — measured contrast ratio ~2.1:1 against our dark item
+// background, well under the WCAG AA minimum of 4.5:1. --brand-text-dim was
+// designed for exactly this "secondary but legible" role (~6.4:1 here).
+ion-label p {
+  color: var(--brand-text-dim) !important;
+}
+
+// Plain headings/paragraphs placed directly inside ion-card-content (not
+// wrapped in a component with its own color default) also need this — same
+// root cause as ion-card-title above.
+ion-card-content {
+  color: var(--brand-text);
 }
 
 .card-header-row {

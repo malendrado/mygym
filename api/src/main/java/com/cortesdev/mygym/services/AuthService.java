@@ -11,6 +11,7 @@ import com.cortesdev.mygym.security.GoogleTokenVerifier;
 import com.cortesdev.mygym.security.JwtService;
 import com.cortesdev.mygym.services.exception.GymNotFoundException;
 import com.cortesdev.mygym.services.exception.UnauthorizedGoogleLoginException;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +25,7 @@ public class AuthService {
     private final GymRepository gymRepository;
     private final GoogleTokenVerifier googleTokenVerifier;
     private final JwtService jwtService;
+    private final MemberLifecycleEmailService memberLifecycleEmailService;
 
     public LoginResponse loginWithGoogle(GoogleLoginRequest request) {
         GoogleTokenVerifier.GoogleIdentity identity = googleTokenVerifier.verify(request.idToken());
@@ -57,7 +59,9 @@ public class AuthService {
             throw new GymNotFoundException(gymSlug);
         }
 
-        AppUser user = appUserRepository.findByEmail(identity.email()).orElseGet(() -> appUserRepository.save(
+        var existingUser = appUserRepository.findByEmail(identity.email());
+        boolean isNewMember = existingUser.isEmpty();
+        AppUser user = existingUser.orElseGet(() -> appUserRepository.save(
                 AppUser.builder()
                         .email(identity.email())
                         .name(identity.name())
@@ -66,6 +70,14 @@ public class AuthService {
                         .active(true)
                         .googleSub(identity.googleSub())
                         .build()));
+
+        if (isNewMember) {
+            memberLifecycleEmailService.sendMemberWelcome(gym, user);
+            List<String> adminEmails = appUserRepository.findByGymIdAndRole(gym.getId(), Role.GYM_ADMIN).stream()
+                    .map(AppUser::getEmail)
+                    .toList();
+            memberLifecycleEmailService.sendNewMemberNotice(gym, user, adminEmails);
+        }
 
         if (!user.isActive()) {
             throw new UnauthorizedGoogleLoginException(identity.email());

@@ -5,6 +5,9 @@ import com.cortesdev.mygym.models.dto.BlockResponse;
 import com.cortesdev.mygym.models.dto.BlockUpdateRequest;
 import com.cortesdev.mygym.models.dto.GymLogoUpdateRequest;
 import com.cortesdev.mygym.models.dto.GymResponse;
+import com.cortesdev.mygym.models.dto.PlanCreateRequest;
+import com.cortesdev.mygym.models.dto.PlanResponse;
+import com.cortesdev.mygym.models.dto.PlanUpdateRequest;
 import com.cortesdev.mygym.models.dto.ThemeUpdateRequest;
 import com.cortesdev.mygym.security.AuthenticatedUser;
 import com.cortesdev.mygym.services.GymService;
@@ -64,6 +67,31 @@ public class GymAdminController {
     @DeleteMapping("/blocks/{blockId}")
     public ResponseEntity<Void> removeMyBlock(@AuthenticationPrincipal Jwt jwt, @PathVariable Long blockId) {
         gymService.removeBlock(AuthenticatedUser.from(jwt).gymId(), blockId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/plans")
+    public List<PlanResponse> listMyPlans(@AuthenticationPrincipal Jwt jwt) {
+        return gymService.listPlans(AuthenticatedUser.from(jwt).gymId());
+    }
+
+    @PostMapping("/plans")
+    public ResponseEntity<PlanResponse> addMyPlan(
+            @AuthenticationPrincipal Jwt jwt, @Valid @RequestBody PlanCreateRequest request) {
+        Long gymId = AuthenticatedUser.from(jwt).gymId();
+        PlanResponse plan = gymService.addPlan(gymId, request);
+        return ResponseEntity.created(URI.create("/api/gym-admin/gym/plans/" + plan.id())).body(plan);
+    }
+
+    @PutMapping("/plans/{planId}")
+    public PlanResponse updateMyPlan(
+            @AuthenticationPrincipal Jwt jwt, @PathVariable Long planId, @Valid @RequestBody PlanUpdateRequest request) {
+        return gymService.updatePlan(AuthenticatedUser.from(jwt).gymId(), planId, request);
+    }
+
+    @DeleteMapping("/plans/{planId}")
+    public ResponseEntity<Void> removeMyPlan(@AuthenticationPrincipal Jwt jwt, @PathVariable Long planId) {
+        gymService.removePlan(AuthenticatedUser.from(jwt).gymId(), planId);
         return ResponseEntity.noContent().build();
     }
 

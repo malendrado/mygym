@@ -3,6 +3,7 @@ package com.cortesdev.mygym.services;
 import com.cortesdev.mygym.models.AppUser;
 import com.cortesdev.mygym.models.Gym;
 import com.cortesdev.mygym.models.GymBlock;
+import com.cortesdev.mygym.models.GymPlan;
 import com.cortesdev.mygym.models.Role;
 import com.cortesdev.mygym.models.dto.AdminCreateRequest;
 import com.cortesdev.mygym.models.dto.AdminResponse;
@@ -13,17 +14,24 @@ import com.cortesdev.mygym.models.dto.BlockUpdateRequest;
 import com.cortesdev.mygym.models.dto.GymConfigUpdateRequest;
 import com.cortesdev.mygym.models.dto.GymCreateRequest;
 import com.cortesdev.mygym.models.dto.GymResponse;
+import com.cortesdev.mygym.models.dto.MemberPlanResponse;
+import com.cortesdev.mygym.models.dto.PlanCreateRequest;
+import com.cortesdev.mygym.models.dto.PlanResponse;
+import com.cortesdev.mygym.models.dto.PlanUpdateRequest;
 import com.cortesdev.mygym.models.dto.PublicGymResponse;
 import com.cortesdev.mygym.repositories.AppUserRepository;
 import com.cortesdev.mygym.repositories.GymBlockRepository;
+import com.cortesdev.mygym.repositories.GymPlanRepository;
 import com.cortesdev.mygym.repositories.GymRepository;
 import com.cortesdev.mygym.services.exception.AdminNotFoundException;
 import com.cortesdev.mygym.services.exception.DuplicateOwnerEmailException;
 import com.cortesdev.mygym.services.exception.DuplicateSlugException;
 import com.cortesdev.mygym.services.exception.GymBlockNotFoundException;
 import com.cortesdev.mygym.services.exception.GymNotFoundException;
+import com.cortesdev.mygym.services.exception.GymPlanNotFoundException;
 import com.cortesdev.mygym.services.exception.InvalidBlockScheduleException;
 import com.cortesdev.mygym.services.exception.InvalidLogoException;
+import com.cortesdev.mygym.services.exception.MemberNotFoundException;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Locale;
@@ -38,8 +46,10 @@ public class GymService {
 
     private final GymRepository gymRepository;
     private final GymBlockRepository gymBlockRepository;
+    private final GymPlanRepository gymPlanRepository;
     private final AppUserRepository appUserRepository;
     private final AdminInviteEmailService adminInviteEmailService;
+    private final MemberLifecycleEmailService memberLifecycleEmailService;
 
     public GymResponse createGym(GymCreateRequest request) {
         if (gymRepository.existsBySlug(request.slug())) {
@@ -214,6 +224,73 @@ public class GymService {
         gymBlockRepository.delete(block);
     }
 
+    public PlanResponse addPlan(Long gymId, PlanCreateRequest request) {
+        findGymOrThrow(gymId);
+        GymPlan plan = GymPlan.builder()
+                .gymId(gymId)
+                .name(request.name())
+                .description(request.description())
+                .category(request.category())
+                .priceClp(request.priceClp())
+                .monthlyClasses(request.monthlyClasses())
+                .active(true)
+                .build();
+        return toResponse(gymPlanRepository.save(plan));
+    }
+
+    @Transactional(readOnly = true)
+    public List<PlanResponse> listPlans(Long gymId) {
+        findGymOrThrow(gymId);
+        return gymPlanRepository.findByGymId(gymId).stream().map(this::toResponse).toList();
+    }
+
+    public PlanResponse updatePlan(Long gymId, Long planId, PlanUpdateRequest request) {
+        findGymOrThrow(gymId);
+        GymPlan plan = findPlanOrThrow(gymId, planId);
+        plan.setName(request.name());
+        plan.setDescription(request.description());
+        plan.setCategory(request.category());
+        plan.setPriceClp(request.priceClp());
+        plan.setMonthlyClasses(request.monthlyClasses());
+        plan.setActive(request.active());
+        return toResponse(gymPlanRepository.save(plan));
+    }
+
+    public void removePlan(Long gymId, Long planId) {
+        findGymOrThrow(gymId);
+        GymPlan plan = findPlanOrThrow(gymId, planId);
+        gymPlanRepository.delete(plan);
+    }
+
+    /** Vista del socio: solo planes activos, sin campos internos (gymId, active). */
+    @Transactional(readOnly = true)
+    public List<MemberPlanResponse> listActivePlans(Long gymId) {
+        findGymOrThrow(gymId);
+        return gymPlanRepository.findByGymId(gymId).stream()
+                .filter(GymPlan::isActive)
+                .map(this::toMemberResponse)
+                .toList();
+    }
+
+    /**
+     * Todavía no existe el pago real (Flow.cl, Parte B pendiente) — esto solo
+     * dispara los emails de confirmación como si el pago ya hubiera sido
+     * aprobado. No crea ninguna fila de suscripción/pago (ese esquema no
+     * existe todavía); reemplazar por el webhook real de Flow.cl más adelante.
+     */
+    public void simulatePlanPayment(Long gymId, Long memberId, Long planId) {
+        Gym gym = findGymOrThrow(gymId);
+        GymPlan plan = findPlanOrThrow(gymId, planId);
+        AppUser member = appUserRepository
+                .findByIdAndGymId(memberId, gymId)
+                .orElseThrow(() -> new MemberNotFoundException(memberId));
+        List<String> adminEmails = appUserRepository.findByGymIdAndRole(gymId, Role.GYM_ADMIN).stream()
+                .map(AppUser::getEmail)
+                .toList();
+        memberLifecycleEmailService.sendPaymentConfirmedMember(gym, member, plan);
+        memberLifecycleEmailService.sendPaymentConfirmedAdmin(gym, member, plan, adminEmails);
+    }
+
     private void validateSchedule(LocalTime startTime, LocalTime endTime) {
         if (!startTime.isBefore(endTime)) {
             throw new InvalidBlockScheduleException("La hora de inicio debe ser anterior a la hora de término");
@@ -228,6 +305,12 @@ public class GymService {
         return gymBlockRepository
                 .findByIdAndGymId(blockId, gymId)
                 .orElseThrow(() -> new GymBlockNotFoundException(gymId, blockId));
+    }
+
+    private GymPlan findPlanOrThrow(Long gymId, Long planId) {
+        return gymPlanRepository
+                .findByIdAndGymId(planId, gymId)
+                .orElseThrow(() -> new GymPlanNotFoundException(gymId, planId));
     }
 
     private AppUser findAdminOrThrow(Long gymId, Long userId) {
@@ -268,5 +351,22 @@ public class GymService {
                 block.getEndTime(),
                 block.getCapacity(),
                 block.isActive());
+    }
+
+    private PlanResponse toResponse(GymPlan plan) {
+        return new PlanResponse(
+                plan.getId(),
+                plan.getGymId(),
+                plan.getName(),
+                plan.getDescription(),
+                plan.getCategory(),
+                plan.getPriceClp(),
+                plan.getMonthlyClasses(),
+                plan.isActive());
+    }
+
+    private MemberPlanResponse toMemberResponse(GymPlan plan) {
+        return new MemberPlanResponse(
+                plan.getId(), plan.getName(), plan.getDescription(), plan.getCategory(), plan.getPriceClp(), plan.getMonthlyClasses());
     }
 }

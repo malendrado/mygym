@@ -1,0 +1,231 @@
+package com.cortesdev.mygym.services;
+
+import com.cortesdev.mygym.models.AppUser;
+import com.cortesdev.mygym.models.Gym;
+import com.cortesdev.mygym.models.GymPlan;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.http.MediaType;
+import org.springframework.stereotype.Service;
+import org.springframework.util.StreamUtils;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
+
+/**
+ * Emails transaccionales del ciclo de vida de un socio: bienvenida al
+ * unirse, aviso al admin de un socio nuevo, y confirmación de pago (todavía
+ * simulada — sin Flow.cl real, ver GymService.simulatePlanPayment) a socio y
+ * admin. Mismo patrón que AdminInviteEmailService (Resend, best-effort: una
+ * falla acá nunca rompe el flujo que dispara el envío) y misma plantilla
+ * visual (templates/email/notification.html) — lo único que cambia entre
+ * envíos es el contenido.
+ */
+@Service
+public class MemberLifecycleEmailService {
+
+    private static final Logger log = LoggerFactory.getLogger(MemberLifecycleEmailService.class);
+    private static final String LOGIN_URL = "https://www.mygym.cl/login";
+
+    private final RestClient restClient;
+    private final String apiKey;
+    private final String from;
+    private final String template;
+
+    public MemberLifecycleEmailService(
+            RestClient.Builder restClientBuilder,
+            @Value("${app.resend.api-key}") String apiKey,
+            @Value("${app.resend.from}") String from) {
+        this.restClient = restClientBuilder.baseUrl("https://api.resend.com").build();
+        this.apiKey = apiKey;
+        this.from = from;
+        this.template = loadTemplate();
+    }
+
+    public void sendMemberWelcome(Gym gym, AppUser member) {
+        String headline = "¡Bienvenido a " + gym.getName() + ", " + firstName(member) + "!";
+        String body = "<p style=\"margin:0 0 12px;\">Tu cuenta ya está lista — desde ahora puedes reservar tus clases en "
+                + "<strong style=\"color:#eaf6f7;\">" + escapeHtml(gym.getName())
+                + "</strong> directo desde el celular, sin escribir por WhatsApp ni esperar respuesta.</p>"
+                + "<p style=\"margin:0;\">Elige un plan y agenda tu primera clase — te está esperando.</p>";
+        send(
+                gym,
+                member.getEmail(),
+                "¡Ya eres parte de " + gym.getName() + "!",
+                "Nuevo socio",
+                headline,
+                body,
+                "Entrar con Google",
+                LOGIN_URL,
+                "Recibiste este correo porque te uniste a " + escapeHtml(gym.getName()) + " a través de mygym.");
+    }
+
+    public void sendNewMemberNotice(Gym gym, AppUser member, List<String> adminEmails) {
+        String headline = "Tienes un socio nuevo en " + gym.getName();
+        String body = "<p style=\"margin:0 0 12px;\"><strong style=\"color:#eaf6f7;\">" + escapeHtml(member.getName())
+                + "</strong> (" + escapeHtml(member.getEmail())
+                + ") se acaba de unir a tu gimnasio. Un socio más, un problema menos por resolver a mano.</p>"
+                + "<p style=\"margin:0;\">Revisa su ficha desde tu panel cuando quieras.</p>";
+        for (String adminEmail : adminEmails) {
+            send(
+                    gym,
+                    adminEmail,
+                    "Nuevo socio en " + gym.getName(),
+                    "Aviso de socios",
+                    headline,
+                    body,
+                    "Ver mi panel",
+                    LOGIN_URL,
+                    "Recibiste este correo porque administras " + escapeHtml(gym.getName()) + " en mygym.");
+        }
+    }
+
+    public void sendPaymentConfirmedMember(Gym gym, AppUser member, GymPlan plan) {
+        String quota = plan.getMonthlyClasses() == null
+                ? "clases ilimitadas dentro de los cupos disponibles"
+                : plan.getMonthlyClasses() + " clases al mes";
+        String headline = "¡Pago confirmado! Ya tienes " + plan.getName();
+        String body = "<p style=\"margin:0 0 12px;\">Tu plan <strong style=\"color:#eaf6f7;\">" + escapeHtml(plan.getName())
+                + "</strong> ya está activo, con " + quota
+                + ". Nada de excusas ahora — el próximo paso es reservar tu clase.</p>"
+                + "<p style=\"margin:0;\">Nos vemos en " + escapeHtml(gym.getName()) + ".</p>";
+        send(
+                gym,
+                member.getEmail(),
+                "Pago confirmado — " + plan.getName(),
+                "Pago confirmado",
+                headline,
+                body,
+                "Reservar mi clase",
+                LOGIN_URL,
+                "Recibiste este correo porque activaste el plan " + escapeHtml(plan.getName()) + " en "
+                        + escapeHtml(gym.getName()) + ".");
+    }
+
+    public void sendPaymentConfirmedAdmin(Gym gym, AppUser member, GymPlan plan, List<String> adminEmails) {
+        String headline = "Nuevo pago confirmado en " + gym.getName();
+        String body = "<p style=\"margin:0 0 12px;\"><strong style=\"color:#eaf6f7;\">" + escapeHtml(member.getName())
+                + "</strong> activó el plan <strong style=\"color:#eaf6f7;\">" + escapeHtml(plan.getName()) + "</strong> ($"
+                + formatClp(plan.getPriceClp())
+                + " / mes). Un ingreso más para el gimnasio, sin que muevas un dedo.</p>"
+                + "<p style=\"margin:0;\">Puedes ver el detalle desde tu panel.</p>";
+        for (String adminEmail : adminEmails) {
+            send(
+                    gym,
+                    adminEmail,
+                    "Nuevo pago en " + gym.getName(),
+                    "Pago confirmado",
+                    headline,
+                    body,
+                    "Ver mi panel",
+                    LOGIN_URL,
+                    "Recibiste este correo porque administras " + escapeHtml(gym.getName()) + " en mygym.");
+        }
+    }
+
+    private void send(
+            Gym gym,
+            String to,
+            String subject,
+            String badgeLabel,
+            String headline,
+            String bodyHtml,
+            String ctaText,
+            String ctaUrl,
+            String footerText) {
+        if (apiKey == null || apiKey.isBlank()) {
+            log.warn("RESEND_API_KEY no configurada — se omite el email '{}' para {}", subject, to);
+            return;
+        }
+        try {
+            String html = renderHtml(gym, badgeLabel, headline, bodyHtml, ctaText, ctaUrl, footerText);
+            Map<String, Object> requestBody = Map.of(
+                    "from", from,
+                    "to", List.of(to),
+                    "subject", subject,
+                    "html", html);
+            restClient
+                    .post()
+                    .uri("/emails")
+                    .header("Authorization", "Bearer " + apiKey)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(requestBody)
+                    .retrieve()
+                    .toBodilessEntity();
+            log.info("Email '{}' enviado a {}", subject, to);
+        } catch (RestClientException e) {
+            log.error("Falló el envío del email '{}' a {}: {}", subject, to, e.getMessage());
+        }
+    }
+
+    private String renderHtml(
+            Gym gym, String badgeLabel, String headline, String bodyHtml, String ctaText, String ctaUrl, String footerText) {
+        String themeColor = gym.getThemeColor() != null ? gym.getThemeColor() : GymPalette.defaultHex();
+        String contrast = GymPalette.contrastFor(themeColor);
+        String preheader = headline.length() > 90 ? headline.substring(0, 90) : headline;
+
+        return template
+                .replace("{{PREHEADER}}", escapeHtml(preheader))
+                .replace("{{GYM_NAME}}", escapeHtml(gym.getName()))
+                .replace("{{THEME_COLOR}}", themeColor)
+                .replace("{{THEME_CONTRAST}}", contrast)
+                .replace("{{LOGO_BADGE_INNER}}", logoBadgeInner(gym, contrast))
+                .replace("{{BADGE_LABEL}}", escapeHtml(badgeLabel))
+                .replace("{{HEADLINE}}", escapeHtml(headline))
+                .replace("{{BODY_HTML}}", bodyHtml)
+                .replace("{{CTA_TEXT}}", escapeHtml(ctaText))
+                .replace("{{CTA_URL}}", ctaUrl)
+                .replace("{{FOOTER_TEXT}}", footerText);
+    }
+
+    private String logoBadgeInner(Gym gym, String contrast) {
+        String logoSvg = gym.getLogoSvg();
+        if (logoSvg == null || logoSvg.isBlank()) {
+            return escapeHtml(GymPalette.initialOf(gym.getName()));
+        }
+        String sized = logoSvg.replaceFirst("<svg ", "<svg width=\"34\" height=\"34\" ");
+        return "<div style=\"width:34px;height:34px;color:" + contrast + ";\">" + sized + "</div>";
+    }
+
+    private String firstName(AppUser user) {
+        String name = user.getName();
+        if (name == null || name.isBlank()) {
+            return "socio";
+        }
+        return name.split(" ")[0];
+    }
+
+    private String formatClp(Integer amount) {
+        if (amount == null) {
+            return "0";
+        }
+        return String.format("%,d", amount).replace(",", ".");
+    }
+
+    private String escapeHtml(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\"", "&quot;")
+                .replace("'", "&#39;");
+    }
+
+    private String loadTemplate() {
+        try {
+            byte[] bytes = StreamUtils.copyToByteArray(
+                    new ClassPathResource("templates/email/notification.html").getInputStream());
+            return new String(bytes, StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            throw new UncheckedIOException("No se pudo cargar la plantilla de email notification.html", e);
+        }
+    }
+}

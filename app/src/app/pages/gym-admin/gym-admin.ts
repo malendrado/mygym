@@ -30,6 +30,7 @@ import {
 import { addIcons } from 'ionicons';
 import {
   businessOutline,
+  bulbOutline,
   calendarOutline,
   cloudUploadOutline,
   colorPaletteOutline,
@@ -37,6 +38,7 @@ import {
   peopleOutline,
   personAddOutline,
   personCircleOutline,
+  pricetagOutline,
   refreshOutline,
   timeOutline,
   trashOutline,
@@ -45,10 +47,20 @@ import { firstValueFrom } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
 import { GymService } from '../../core/services/gym.service';
 import { MemberService } from '../../core/services/member.service';
-import { CreateGymBlockRequest, DayOfWeek, GymBlock, UpdateGymBlockRequest, sortBlocksBySchedule } from '../../core/models/gym.model';
+import {
+  CreateGymBlockRequest,
+  CreateGymPlanRequest,
+  DayOfWeek,
+  GymBlock,
+  GymPlan,
+  UpdateGymBlockRequest,
+  UpdateGymPlanRequest,
+  sortBlocksBySchedule,
+} from '../../core/models/gym.model';
 import { Member } from '../../core/models/member.model';
 import { BloqueFormModal, DAYS } from '../admin/gyms/bloque-form-modal/bloque-form-modal';
 import { BloqueSeriesModal } from '../admin/gyms/bloque-series-modal/bloque-series-modal';
+import { PlanFormModal } from '../admin/gyms/plan-form-modal/plan-form-modal';
 import { deriveSurfaceTint } from '../../core/utils/gym-theme';
 
 addIcons({
@@ -58,15 +70,33 @@ addIcons({
   'person-add-outline': personAddOutline,
   'person-circle-outline': personCircleOutline,
   'color-palette-outline': colorPaletteOutline,
+  'pricetag-outline': pricetagOutline,
   'refresh-outline': refreshOutline,
   'business-outline': businessOutline,
   'cloud-upload-outline': cloudUploadOutline,
   'create-outline': createOutline,
   'trash-outline': trashOutline,
+  'bulb-outline': bulbOutline,
 });
 
 type Status = 'idle' | 'loading' | 'saving' | 'error';
-type Section = 'blocks' | 'members' | 'branding';
+type Section = 'blocks' | 'plans' | 'members' | 'branding';
+
+const SECTION_LABELS: Record<Section, string> = {
+  blocks: 'Horarios',
+  plans: 'Planes',
+  members: 'Socios',
+  branding: 'Marca',
+};
+
+// Rotan igual que las citas motivacionales de /member, pero con un tono de
+// negocio en vez de motivacional — un guiño sutil, no un hero completo.
+const ADMIN_TIPS = [
+  'Los planes con precio y cupo claros retienen más socios que los acordados "de palabra".',
+  'Un bloque casi lleno es una señal: quizás conviene abrir otro horario similar.',
+  'Los socios que reservan seguido son, en general, los que menos se dan de baja.',
+  'Revisa tus planes cada cierto tiempo — lo que funcionó al abrir no siempre es lo óptimo un año después.',
+];
 
 interface Palette {
   key: string;
@@ -138,6 +168,7 @@ const THEMED_ROOT_PROPERTIES = [
     IonText,
     BloqueFormModal,
     BloqueSeriesModal,
+    PlanFormModal,
     IonSpinner,
   ],
   templateUrl: './gym-admin.html',
@@ -154,14 +185,20 @@ export class GymAdmin implements OnDestroy {
 
   protected readonly status = signal<Status>('idle');
   protected readonly section = signal<Section>('blocks');
+  protected readonly sectionLabel = computed(() => SECTION_LABELS[this.section()]);
+  protected readonly adminFirstName = computed(() => this.authService.currentUser()?.name?.split(' ')[0] ?? 'admin');
+  protected readonly tip = ADMIN_TIPS[Math.floor(Math.random() * ADMIN_TIPS.length)];
   protected readonly gymName = signal('');
   protected readonly gymLoaded = signal(false);
   protected readonly blocks = signal<GymBlock[]>([]);
+  protected readonly plans = signal<GymPlan[]>([]);
   protected readonly members = signal<Member[]>([]);
   protected readonly isModalOpen = signal(false);
   protected readonly editingBlock = signal<GymBlock | null>(null);
   protected readonly isSeriesModalOpen = signal(false);
   protected readonly seriesCreating = signal(false);
+  protected readonly isPlanModalOpen = signal(false);
+  protected readonly editingPlan = signal<GymPlan | null>(null);
 
   protected readonly logoSvg = signal<string | null>(null);
   protected readonly isRasterLogo = computed(() => (this.logoSvg() ?? '').startsWith('data:image'));
@@ -187,6 +224,7 @@ export class GymAdmin implements OnDestroy {
   constructor() {
     this.loadGym();
     this.loadBlocks();
+    this.loadPlans();
     this.loadMembers();
 
     // Ionic overlays (the ion-select popup, ion-alert, ion-toast) are
@@ -222,6 +260,14 @@ export class GymAdmin implements OnDestroy {
 
   protected dayLabel(day: DayOfWeek): string {
     return DAYS.find((d) => d.value === day)?.label ?? day;
+  }
+
+  protected formatClp(value: number): string {
+    return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(value);
+  }
+
+  protected quotaLabel(plan: GymPlan): string {
+    return plan.monthlyClasses === null ? 'Libre (ilimitado)' : `${plan.monthlyClasses} clases/mes`;
   }
 
   protected reshufflePalettes(): void {
@@ -388,6 +434,48 @@ export class GymAdmin implements OnDestroy {
     });
   }
 
+  protected openAddPlan(): void {
+    this.editingPlan.set(null);
+    this.isPlanModalOpen.set(true);
+  }
+
+  protected openEditPlan(plan: GymPlan): void {
+    this.editingPlan.set(plan);
+    this.isPlanModalOpen.set(true);
+  }
+
+  protected closePlanModal(): void {
+    this.isPlanModalOpen.set(false);
+  }
+
+  protected savePlan(payload: CreateGymPlanRequest | UpdateGymPlanRequest): void {
+    const editing = this.editingPlan();
+    const request = editing
+      ? this.gymService.updateMyPlan(editing.id, payload as UpdateGymPlanRequest)
+      : this.gymService.createMyPlan(payload as CreateGymPlanRequest);
+
+    this.status.set('saving');
+    request.subscribe({
+      next: () => {
+        this.status.set('idle');
+        this.isPlanModalOpen.set(false);
+        this.loadPlans();
+      },
+      error: () => this.status.set('error'),
+    });
+  }
+
+  protected async removePlan(plan: GymPlan): Promise<void> {
+    const confirmed = await this.confirmAction('Eliminar plan', `¿Eliminar "${plan.name}"? Esta acción no se puede deshacer.`);
+    if (!confirmed) {
+      return;
+    }
+    this.gymService.deleteMyPlan(plan.id).subscribe({
+      next: () => this.loadPlans(),
+      error: () => this.status.set('error'),
+    });
+  }
+
   private async confirmAction(header: string, message: string): Promise<boolean> {
     const alert = await this.alertController.create({
       header,
@@ -453,6 +541,13 @@ export class GymAdmin implements OnDestroy {
   private loadBlocks(): void {
     this.gymService.listMyBlocks().subscribe({
       next: (blocks) => this.blocks.set(sortBlocksBySchedule(blocks)),
+      error: () => this.status.set('error'),
+    });
+  }
+
+  private loadPlans(): void {
+    this.gymService.listMyPlans().subscribe({
+      next: (plans) => this.plans.set(plans),
       error: () => this.status.set('error'),
     });
   }

@@ -22,11 +22,16 @@
       <ion-button (click)="logout()">Salir</ion-button>
     </ion-buttons>
   </ion-toolbar>
+  <div class="admin-identity-bar">{{ adminFirstName() }} · {{ sectionLabel() }}</div>
   <ion-toolbar>
     <ion-segment [value]="section()" (ionChange)="setSection($any($event.detail.value))">
       <ion-segment-button value="blocks">
         <ion-icon name="time-outline" aria-hidden="true"></ion-icon>
         <ion-label>Horarios</ion-label>
+      </ion-segment-button>
+      <ion-segment-button value="plans">
+        <ion-icon name="pricetag-outline" aria-hidden="true"></ion-icon>
+        <ion-label>Planes</ion-label>
       </ion-segment-button>
       <ion-segment-button value="members">
         <ion-icon name="people-outline" aria-hidden="true"></ion-icon>
@@ -34,7 +39,7 @@
       </ion-segment-button>
       <ion-segment-button value="branding">
         <ion-icon name="color-palette-outline" aria-hidden="true"></ion-icon>
-        <ion-label>Personalización</ion-label>
+        <ion-label>Marca</ion-label>
       </ion-segment-button>
     </ion-segment>
   </ion-toolbar>
@@ -49,6 +54,11 @@
   [style.--gym-panel-bg]="themeSurface().bg"
   [style.--gym-panel-card]="themeSurface().card"
 >
+  <div class="admin-welcome">
+    <ion-icon name="bulb-outline" aria-hidden="true"></ion-icon>
+    <p><strong>Hola, {{ adminFirstName() }}.</strong> {{ tip }}</p>
+  </div>
+
   @if (status() === 'error') {
     <ion-text color="danger"><p>Ocurrió un error. Intenta nuevamente.</p></ion-text>
   }
@@ -129,6 +139,74 @@
     >
       <ng-template>
         <app-bloque-series-modal (confirmed)="confirmSeries($event)" (dismiss)="closeSeriesModal()" />
+      </ng-template>
+    </ion-modal>
+  } @else if (section() === 'plans') {
+    <ion-card>
+      <ion-card-header class="card-header-row">
+        <ion-card-title>
+          <ion-icon name="pricetag-outline" aria-hidden="true"></ion-icon>
+          Planes de membresía
+        </ion-card-title>
+        <div class="card-header-row__actions">
+          <ion-button size="small" (click)="openAddPlan()">Agregar plan</ion-button>
+        </div>
+      </ion-card-header>
+      <ion-card-content>
+        <p class="item-hint">
+          Define los planes que tus socios pueden contratar: entrenamiento personal, clases guiadas, cupos mensuales,
+          tarifas para adultos mayores o estudiantes, o un plan libre para reservar en cualquier cupo disponible.
+        </p>
+        <div class="plan-grid">
+          @for (plan of plans(); track plan.id) {
+            <div class="plan-card" [class.plan-card--inactive]="!plan.active">
+              <div class="plan-card__header">
+                <h3>{{ plan.name }}</h3>
+                <ion-buttons>
+                  <ion-button fill="clear" [attr.aria-label]="'Editar ' + plan.name" (click)="openEditPlan(plan)">
+                    <ion-icon name="create-outline" slot="icon-only" aria-hidden="true"></ion-icon>
+                  </ion-button>
+                  <ion-button fill="clear" color="danger" [attr.aria-label]="'Eliminar ' + plan.name" (click)="removePlan(plan)">
+                    <ion-icon name="trash-outline" slot="icon-only" aria-hidden="true"></ion-icon>
+                  </ion-button>
+                </ion-buttons>
+              </div>
+              @if (plan.description) {
+                <p class="plan-card__description">{{ plan.description }}</p>
+              }
+              <div class="plan-card__meta">
+                <span class="plan-card__price">{{ formatClp(plan.priceClp) }} / mes</span>
+                <ion-badge color="medium">{{ quotaLabel(plan) }}</ion-badge>
+                @if (!plan.active) {
+                  <ion-badge color="dark">Inactivo</ion-badge>
+                }
+              </div>
+            </div>
+          } @empty {
+            <p class="item-hint">Todavía no tienes planes configurados.</p>
+          }
+        </div>
+      </ion-card-content>
+    </ion-card>
+
+    <ion-modal
+      class="wide-modal"
+      [isOpen]="isPlanModalOpen()"
+      (didDismiss)="closePlanModal()"
+      [style.--ion-color-primary]="themeColor()"
+      [style.--ion-color-primary-contrast]="themeContrast()"
+      [style.--brand-accent]="themeColor()"
+      [style.--brand-accent-contrast]="themeContrast()"
+      [style.--gym-panel-bg]="themeSurface().bg"
+      [style.--gym-panel-card]="themeSurface().card"
+    >
+      <ng-template>
+        <app-plan-form-modal
+          [plan]="editingPlan()"
+          [saving]="status() === 'saving'"
+          (saved)="savePlan($event)"
+          (dismiss)="closePlanModal()"
+        />
       </ng-template>
     </ion-modal>
   } @else if (section() === 'members') {
