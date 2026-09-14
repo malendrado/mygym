@@ -33,34 +33,16 @@
     [style.--member-card]="themeSurface()?.card ?? null"
     [style.--brand-accent-text-safe]="accentTextSafe()"
   >
-    <section class="member-hero">
-      <img [src]="heroPhotoUrl()" alt="Instalaciones de {{ gym()?.name ?? 'tu gimnasio' }}" width="1600" height="900" />
-      <div class="member-hero__scrim"></div>
-      <div class="member-hero__content">
-        @if (gym()?.name) {
-          <p class="member-hero__eyebrow">{{ gym()!.name }}</p>
-        }
-        <h1>Hola, {{ firstName() }}</h1>
-        <p class="member-hero__quote">"{{ quote() }}"</p>
-      </div>
-    </section>
-
-    @if (galleryPhotos().length > 0) {
-      <div class="member-gallery">
-        @for (photo of galleryPhotos(); track photo.id) {
-          <img [src]="photo.data" [alt]="photo.caption ?? 'Foto de las instalaciones'" />
-        }
-      </div>
-    }
-
-    @if (gym()?.description) {
-      <p class="member-description">{{ gym()!.description }}</p>
-    }
+    <div class="member-topbar">
+      @if (gym()?.name) {
+        <p class="member-topbar__eyebrow">{{ gym()!.name }}</p>
+      }
+      <h1>Hola, {{ firstName() }}</h1>
+    </div>
 
     <section class="membership">
       @if (membership().status === 'none') {
         <h2>Elige tu plan</h2>
-        <p class="item-hint">Cada plan incluye un cupo de clases al mes — reserva todas las que quieras dentro de tu cupo.</p>
         @if (plansLoaded() && plans().length === 0) {
           <p class="item-hint">Tu gimnasio todavía no tiene planes configurados. Pregúntale al equipo cuándo estarán disponibles.</p>
         }
@@ -126,18 +108,6 @@
         </div>
       }
     </section>
-
-    <div class="member-benefits">
-      @for (benefit of benefits; track benefit.title) {
-        <article class="member-benefits__card">
-          <ion-icon [name]="benefit.icon" aria-hidden="true"></ion-icon>
-          <div>
-            <h3>{{ benefit.title }}</h3>
-            <p>{{ benefit.body }}</p>
-          </div>
-        </article>
-      }
-    </div>
 
     @if (status() === 'error') {
       <ion-text color="danger"><p>Ocurrió un error. Intenta nuevamente.</p></ion-text>
@@ -261,6 +231,38 @@
           </article>
         } @empty {
           <p class="item-hint">Todavía no tienes reservas.</p>
+        }
+      </div>
+    </section>
+
+    <section class="member-about">
+      <img
+        class="member-about__photo"
+        [src]="heroPhotoUrl()"
+        [alt]="'Instalaciones de ' + (gym()?.name ?? 'tu gimnasio')"
+        width="1600"
+        height="900"
+      />
+      @if (galleryPhotos().length > 0) {
+        <div class="member-gallery">
+          @for (photo of galleryPhotos(); track photo.id) {
+            <img [src]="photo.data" [alt]="photo.caption ?? 'Foto de las instalaciones'" />
+          }
+        </div>
+      }
+      <p class="member-about__quote">"{{ quote() }}"</p>
+      @if (gym()?.description) {
+        <p class="member-description">{{ gym()!.description }}</p>
+      }
+      <div class="member-benefits">
+        @for (benefit of benefits; track benefit.title) {
+          <article class="member-benefits__card">
+            <ion-icon [name]="benefit.icon" aria-hidden="true"></ion-icon>
+            <div>
+              <h3>{{ benefit.title }}</h3>
+              <p>{{ benefit.body }}</p>
+            </div>
+          </article>
         }
       </div>
     </section>

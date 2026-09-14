@@ -14,37 +14,16 @@
   --background: var(--member-bg, var(--brand-ink));
 }
 
-// --- Hero: motivational photo band + greeting -------------------------------
-// Mobile-first density: this page is an app screen the member returns to
-// daily, not a one-time marketing hero — it must not eat the whole first
-// viewport, or scrolling reads as "one card per screen" instead of a normal
-// dense app dashboard (found 2026-09-13, user feedback on a mobile-first product).
-.member-hero {
-  position: relative;
-  border-radius: 16px;
-  overflow: hidden;
-  margin-bottom: 0.85rem;
-
-  img {
-    display: block;
-    width: 100%;
-    height: clamp(120px, 28vw, 160px);
-    object-fit: cover;
-  }
-
-  &__scrim {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(0deg, rgba(8, 14, 16, 0.92) 0%, rgba(8, 14, 16, 0.55) 55%, rgba(8, 14, 16, 0.1) 100%);
-  }
-
-  &__content {
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    padding: 0.6rem 0.9rem 0.7rem;
-  }
+// --- Topbar: saludo compacto, sin foto ---------------------------------------
+// Antes había una foto hero grande con el saludo superpuesto — el usuario
+// reportó que esto (más el calendario del mes) obligaba a scrollear mucho
+// antes de ver qué clases quedan/se pueden reservar hoy, el trabajo real
+// que alguien abre esta página a hacer todos los días. La foto/galería/
+// descripción/beneficios se movieron a `.member-about`, al final de la
+// página — siguen ahí, pero ya no compiten por el primer viewport con la
+// tarea principal (ver [[feedback_ux_skill_first]]).
+.member-topbar {
+  margin-bottom: 0.6rem;
 
   &__eyebrow {
     margin: 0 0 0.1rem;
@@ -56,24 +35,36 @@
   }
 
   h1 {
-    margin: 0 0 0.15rem;
+    margin: 0;
     font-family: var(--brand-font-heading);
     font-size: clamp(1.2rem, 5vw, 1.5rem);
     letter-spacing: -0.01em;
   }
+}
+
+// --- About: foto/galería/descripción/beneficios, contenido secundario -------
+// Deliberadamente al final: es material de marca/onboarding, no la tarea que
+// el socio repite a diario (ver nota en .member-topbar).
+.member-about {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--brand-ink-surface);
+
+  &__photo {
+    display: block;
+    width: 100%;
+    height: clamp(100px, 24vw, 140px);
+    object-fit: cover;
+    border-radius: 14px;
+    margin-bottom: 0.6rem;
+  }
 
   &__quote {
-    margin: 0;
-    max-width: 34ch;
+    margin: 0 0 0.6rem;
     color: var(--brand-text-dim);
-    font-size: 0.78rem;
-    line-height: 1.3;
-    // The quote is a nice-to-have flourish, not essential info — the first
-    // priority is fitting the greeting without pushing the whole page down.
-    display: -webkit-box;
-    -webkit-line-clamp: 1;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
+    font-size: 0.82rem;
+    font-style: italic;
+    line-height: 1.35;
   }
 }
 
