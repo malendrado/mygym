@@ -14,6 +14,17 @@
   --background: var(--member-bg, var(--brand-ink));
 }
 
+// Sin este tope, en un navegador de escritorio real (no un celular) todo el
+// contenido se estira al ancho completo de la ventana — la grilla del
+// calendario queda con celdas gigantes (aspect-ratio:1 sobre una columna de
+// cientos de px) y las tarjetas de plan/clase se ven vacías por dentro.
+// Mismo criterio que .login-card/.join-card (tarjeta centrada, no full-bleed
+// en pantallas anchas), reportado por el usuario probando en su Chrome real.
+.member-page {
+  max-width: 480px;
+  margin: 0 auto;
+}
+
 // --- Topbar: saludo compacto, sin foto ---------------------------------------
 // Antes había una foto hero grande con el saludo superpuesto — el usuario
 // reportó que esto (más el calendario del mes) obligaba a scrollear mucho

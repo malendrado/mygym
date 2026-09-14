@@ -33,6 +33,7 @@
     [style.--member-card]="themeSurface()?.card ?? null"
     [style.--brand-accent-text-safe]="accentTextSafe()"
   >
+    <div class="member-page">
     <div class="member-topbar">
       @if (gym()?.name) {
         <p class="member-topbar__eyebrow">{{ gym()!.name }}</p>
@@ -283,5 +284,6 @@
         }
       </div>
     }
+    </div>
   </ion-content>
 }
