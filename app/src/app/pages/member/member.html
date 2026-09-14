@@ -144,16 +144,49 @@
     }
 
     <section class="member-section">
-      <h2>Próximas clases</h2>
+      <h2>{{ monthLabel }}</h2>
+      <div class="calendar-grid">
+        @for (wd of weekdayLabels; track wd) {
+          <span class="calendar-grid__weekday">{{ wd }}</span>
+        }
+        @for (cell of monthGrid(); track $index) {
+          @if (cell) {
+            <button
+              type="button"
+              class="calendar-day"
+              [class.calendar-day--today]="cell.isToday"
+              [class.calendar-day--past]="cell.isPast"
+              [class.calendar-day--selected]="cell.iso === selectedDate()"
+              [class.calendar-day--has-classes]="cell.hasClasses"
+              (click)="selectDay(cell.iso)"
+            >
+              <span class="calendar-day__number">{{ cell.dayNumber }}</span>
+              @if (cell.hasClasses) {
+                <span class="calendar-day__dot" aria-hidden="true"></span>
+              }
+            </button>
+          } @else {
+            <span class="calendar-day calendar-day--empty" aria-hidden="true"></span>
+          }
+        }
+      </div>
+    </section>
+
+    <section class="member-section">
+      <h2>{{ selectedDateLabel() }}</h2>
       <div class="class-list">
-        @for (occurrence of occurrences(); track occurrence.gymBlockId + occurrence.classDate) {
-          <article class="class-card" [class.class-card--reserved]="!!occurrence.myReservationId">
+        @for (occurrence of dayOccurrences(); track occurrence.gymBlockId + occurrence.classDate) {
+          <article
+            class="class-card"
+            [class.class-card--reserved]="!!occurrence.myReservationId"
+            [class.class-card--past]="occurrence.past"
+          >
             <div class="class-card__info">
               <p class="class-card__title">
                 <ion-icon [name]="categoryIcon(occurrence.category)" aria-hidden="true"></ion-icon>
                 {{ occurrence.label }}
               </p>
-              <p class="class-card__meta">{{ occurrence.classDate }} · {{ occurrence.startTime }}-{{ occurrence.endTime }}</p>
+              <p class="class-card__meta">{{ occurrence.startTime }}-{{ occurrence.endTime }}</p>
               @if (occurrence.instructorName) {
                 <p class="class-card__instructor">
                   @if (occurrence.instructorPhoto) {
@@ -167,16 +200,20 @@
             @if (occurrence.myReservationId) {
               <div class="class-card__action">
                 <ion-badge color="success">Reservado</ion-badge>
-                <ion-button
-                  fill="clear"
-                  size="small"
-                  color="danger"
-                  [disabled]="cancelingId() === occurrence.myReservationId"
-                  (click)="cancel(occurrence.myReservationId!)"
-                >
-                  {{ cancelingId() === occurrence.myReservationId ? 'Cancelando...' : 'Cancelar' }}
-                </ion-button>
+                @if (!occurrence.past) {
+                  <ion-button
+                    fill="clear"
+                    size="small"
+                    color="danger"
+                    [disabled]="cancelingId() === occurrence.myReservationId"
+                    (click)="cancel(occurrence.myReservationId!)"
+                  >
+                    {{ cancelingId() === occurrence.myReservationId ? 'Cancelando...' : 'Cancelar' }}
+                  </ion-button>
+                }
               </div>
+            } @else if (occurrence.past) {
+              <ion-text color="medium" class="class-card__quota-note">Esta clase ya pasó</ion-text>
             } @else if (!canBook()) {
               <button type="button" class="class-card__quota-note class-card__quota-note--action" (click)="scrollToPlans()">
                 Elige un plan para reservar
@@ -195,7 +232,7 @@
             }
           </article>
         } @empty {
-          <p class="item-hint">No hay clases programadas esta semana.</p>
+          <p class="item-hint">No hay clases programadas este día.</p>
         }
       </div>
     </section>

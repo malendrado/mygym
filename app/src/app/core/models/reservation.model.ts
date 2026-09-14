@@ -13,6 +13,7 @@ export interface GymBlockOccurrence {
   instructorPhoto: string | null;
   taken: number;
   bookable: boolean;
+  past: boolean;
   myReservationId: number | null;
 }
 

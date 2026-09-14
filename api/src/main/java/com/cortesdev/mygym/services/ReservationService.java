@@ -62,6 +62,7 @@ public class ReservationService {
                         block.getId(), occurrenceDate, ReservationStatus.BOOKED);
                 boolean bookable = taken < block.getCapacity()
                         && isWithinBookingWindow(cancellationWindowHours, occurrenceDate, block.getStartTime());
+                boolean past = isPastOccurrence(occurrenceDate, block.getEndTime());
                 Long myReservationId = myReservations.stream()
                         .filter(r -> r.getGymBlockId().equals(block.getId())
                                 && r.getClassDate().equals(occurrenceDate))
@@ -81,6 +82,7 @@ public class ReservationService {
                         block.getInstructorPhoto(),
                         taken,
                         bookable,
+                        past,
                         myReservationId));
             }
         }
@@ -152,6 +154,12 @@ public class ReservationService {
     private boolean isWithinBookingWindow(int cancellationWindowHours, LocalDate classDate, LocalTime startTime) {
         ZonedDateTime classStart = ZonedDateTime.of(classDate, startTime, GYM_ZONE);
         return ZonedDateTime.now(GYM_ZONE).plusHours(cancellationWindowHours).isBefore(classStart);
+    }
+
+    /** Una ocurrencia queda "pasada" recién cuando termina, no cuando empieza — mientras la clase está en curso no es "pasada". */
+    private boolean isPastOccurrence(LocalDate classDate, LocalTime endTime) {
+        ZonedDateTime classEnd = ZonedDateTime.of(classDate, endTime, GYM_ZONE);
+        return classEnd.isBefore(ZonedDateTime.now(GYM_ZONE));
     }
 
     private void requireWithinBookingWindow(int cancellationWindowHours, LocalDate classDate, LocalTime startTime) {

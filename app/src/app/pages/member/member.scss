@@ -402,6 +402,88 @@
   }
 }
 
+// --- Calendario del mes ----------------------------------------------------
+// El socio elige un día concreto del mes en curso, no solo "el bloque de los
+// lunes" en abstracto — ver más abajo la lista de clases de ese día puntual.
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.35rem;
+}
+
+.calendar-grid__weekday {
+  text-align: center;
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--brand-text-dim);
+  padding-bottom: 0.2rem;
+}
+
+.calendar-day {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  // 44px de piso táctil (ver auditoría UX 2026-09-13) aunque la celda de la
+  // grilla termine siendo más angosta en pantallas chicas.
+  min-height: 44px;
+  aspect-ratio: 1;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: var(--member-card, var(--brand-ink-surface-2));
+  color: var(--brand-text);
+  font-family: inherit;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+
+  &--empty {
+    background: transparent;
+    cursor: default;
+  }
+
+  &--past:not(&--selected) {
+    opacity: 0.45;
+  }
+
+  &--today {
+    border-color: var(--brand-accent);
+  }
+
+  &--selected {
+    background: var(--brand-accent);
+    border-color: var(--brand-accent);
+
+    .calendar-day__number {
+      color: var(--brand-accent-contrast);
+      font-weight: 700;
+    }
+
+    .calendar-day__dot {
+      background: var(--brand-accent-contrast);
+    }
+  }
+}
+
+.calendar-day__number {
+  font-family: var(--brand-font-mono);
+  font-size: 0.85rem;
+}
+
+.calendar-day__dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--brand-accent-text-safe, var(--brand-accent));
+}
+
+.class-card--past {
+  opacity: 0.6;
+}
+
 .class-list {
   display: flex;
   flex-direction: column;

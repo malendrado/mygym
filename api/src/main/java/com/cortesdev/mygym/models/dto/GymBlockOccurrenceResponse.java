@@ -17,4 +17,5 @@ public record GymBlockOccurrenceResponse(
         String instructorPhoto,
         Integer taken,
         boolean bookable,
+        boolean past,
         Long myReservationId) {}

@@ -115,6 +115,24 @@ const MOTIVATIONAL_QUOTES = [
   'El mejor momento para entrenar fue ayer. El segundo mejor es hoy.',
 ];
 
+const WEEKDAY_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+
+interface MonthDayCell {
+  iso: string;
+  dayNumber: number;
+  isToday: boolean;
+  isPast: boolean;
+  hasClasses: boolean;
+}
+
+function pad2(n: number): string {
+  return n.toString().padStart(2, '0');
+}
+
+function capitalize(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
 @Component({
   selector: 'app-member',
   imports: [
@@ -146,6 +164,21 @@ export class MemberPage {
   protected readonly myReservations = signal<Reservation[]>([]);
   protected readonly bookingId = signal<number | null>(null);
   protected readonly cancelingId = signal<number | null>(null);
+
+  // "Hoy" se calcula en la zona horaria del gym (America/Santiago), no en la
+  // del navegador del socio — un `new Date().toISOString()` corta a UTC y
+  // puede quedar un día desalineado cerca de medianoche en Chile. Se computa
+  // una sola vez al abrir la página: no hace falta que la grilla se
+  // actualice sola si el socio la deja abierta pasando la medianoche.
+  private readonly todayIso = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Santiago' }).format(new Date());
+  private readonly monthRange = this.currentMonthRange();
+  protected readonly weekdayLabels = WEEKDAY_LABELS;
+  protected readonly monthLabel = capitalize(
+    new Intl.DateTimeFormat('es-CL', { month: 'long', year: 'numeric' }).format(
+      new Date(this.monthRange.year, this.monthRange.month - 1, 1),
+    ),
+  );
+  protected readonly selectedDate = signal(this.todayIso);
 
   protected readonly benefits = BENEFITS;
   private readonly fallbackQuote = MOTIVATIONAL_QUOTES[Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length)];
@@ -213,6 +246,42 @@ export class MemberPage {
     return color && surface ? ensureMinContrastColor(color, surface.card) : null;
   });
 
+  // Grilla del mes en curso (el socio solo puede navegar el mes calendario
+  // actual, no meses futuros/pasados) — celdas nulas al inicio/fin completan
+  // la fila para que la grilla quede rectangular (7 columnas, Lun a Dom).
+  protected readonly monthGrid = computed<(MonthDayCell | null)[]>(() => {
+    const { year, month, daysInMonth } = this.monthRange;
+    const occurrenceDates = new Set(this.occurrences().map((o) => o.classDate));
+    const leadingBlanks = this.dayOfWeekMonFirst(year, month, 1);
+    const cells: (MonthDayCell | null)[] = Array(leadingBlanks).fill(null);
+    for (let day = 1; day <= daysInMonth; day++) {
+      const iso = `${year}-${pad2(month)}-${pad2(day)}`;
+      cells.push({
+        iso,
+        dayNumber: day,
+        isToday: iso === this.todayIso,
+        isPast: iso < this.todayIso,
+        hasClasses: occurrenceDates.has(iso),
+      });
+    }
+    while (cells.length % 7 !== 0) {
+      cells.push(null);
+    }
+    return cells;
+  });
+
+  protected readonly dayOccurrences = computed(() =>
+    this.occurrences().filter((o) => o.classDate === this.selectedDate()),
+  );
+
+  protected readonly selectedDateLabel = computed(() => {
+    const [y, m, d] = this.selectedDate().split('-').map(Number);
+    const formatted = new Intl.DateTimeFormat('es-CL', { weekday: 'long', day: 'numeric', month: 'long' }).format(
+      new Date(y, m - 1, d),
+    );
+    return capitalize(formatted);
+  });
+
   constructor() {
     this.loadGym();
     this.loadPlans();
@@ -223,6 +292,10 @@ export class MemberPage {
 
   protected categoryIcon(category: string | null): string {
     return resolveClassCategoryIcon(category);
+  }
+
+  protected selectDay(iso: string): void {
+    this.selectedDate.set(iso);
   }
 
   protected book(occurrence: GymBlockOccurrence): void {
@@ -333,10 +406,7 @@ export class MemberPage {
 
   private loadOccurrences(): void {
     this.status.set('loading');
-    const from = new Date();
-    const to = new Date();
-    to.setDate(to.getDate() + 7);
-    this.reservationService.listOccurrences(this.toIsoDate(from), this.toIsoDate(to)).subscribe({
+    this.reservationService.listOccurrences(this.monthRange.from, this.monthRange.to).subscribe({
       next: (occurrences) => {
         this.occurrences.set(occurrences);
         this.status.set('idle');
@@ -352,7 +422,24 @@ export class MemberPage {
     });
   }
 
-  private toIsoDate(date: Date): string {
-    return date.toISOString().slice(0, 10);
+  private currentMonthRange(): { year: number; month: number; from: string; to: string; daysInMonth: number } {
+    const [y, m] = this.todayIso.split('-').map(Number);
+    // new Date(year, month, 0) da el último día del mes `month` (1-indexado) —
+    // es puro cálculo de calendario, no de instante, así que da lo mismo la
+    // zona horaria del navegador.
+    const daysInMonth = new Date(y, m, 0).getDate();
+    return {
+      year: y,
+      month: m,
+      from: `${y}-${pad2(m)}-01`,
+      to: `${y}-${pad2(m)}-${pad2(daysInMonth)}`,
+      daysInMonth,
+    };
+  }
+
+  /** 0=lunes .. 6=domingo, para alinear la grilla con encabezados Lun..Dom. */
+  private dayOfWeekMonFirst(year: number, month: number, day: number): number {
+    const jsDay = new Date(year, month - 1, day).getDay(); // 0=domingo..6=sábado
+    return (jsDay + 6) % 7;
   }
 }
