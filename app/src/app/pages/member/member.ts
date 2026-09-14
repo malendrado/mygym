@@ -270,6 +270,20 @@ export class MemberPage {
     return cells;
   });
 
+  // La grilla del mes completo (5-6 semanas) empuja demasiado abajo la lista
+  // de clases del día — por defecto se ve solo la semana de la fecha
+  // seleccionada; "Ver mes completo" expande a las semanas restantes.
+  protected readonly monthExpanded = signal(false);
+  protected readonly visibleGrid = computed(() => {
+    const grid = this.monthGrid();
+    if (this.monthExpanded()) {
+      return grid;
+    }
+    const index = grid.findIndex((cell) => cell?.iso === this.selectedDate());
+    const rowStart = index === -1 ? 0 : Math.floor(index / 7) * 7;
+    return grid.slice(rowStart, rowStart + 7);
+  });
+
   protected readonly dayOccurrences = computed(() =>
     this.occurrences().filter((o) => o.classDate === this.selectedDate()),
   );
@@ -296,6 +310,10 @@ export class MemberPage {
 
   protected selectDay(iso: string): void {
     this.selectedDate.set(iso);
+  }
+
+  protected toggleMonthExpanded(): void {
+    this.monthExpanded.update((expanded) => !expanded);
   }
 
   protected book(occurrence: GymBlockOccurrence): void {

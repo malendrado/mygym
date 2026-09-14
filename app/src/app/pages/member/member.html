@@ -149,7 +149,7 @@
         @for (wd of weekdayLabels; track wd) {
           <span class="calendar-grid__weekday">{{ wd }}</span>
         }
-        @for (cell of monthGrid(); track $index) {
+        @for (cell of visibleGrid(); track $index) {
           @if (cell) {
             <button
               type="button"
@@ -170,6 +170,9 @@
           }
         }
       </div>
+      <button type="button" class="calendar-toggle" (click)="toggleMonthExpanded()">
+        {{ monthExpanded() ? 'Ver solo esta semana' : 'Ver mes completo' }}
+      </button>
     </section>
 
     <section class="member-section">
