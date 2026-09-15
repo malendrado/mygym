@@ -27,7 +27,7 @@
   </ion-toolbar>
   <div class="admin-identity-bar">{{ adminFirstName() }} · {{ sectionLabel() }}</div>
   <ion-toolbar>
-    <ion-segment [value]="section()" (ionChange)="setSection($any($event.detail.value))">
+    <ion-segment scrollable [value]="section()" (ionChange)="setSection($any($event.detail.value))">
       <ion-segment-button value="blocks">
         <ion-icon name="time-outline" aria-hidden="true"></ion-icon>
         <ion-label>Horarios</ion-label>

@@ -12,7 +12,7 @@
   </ion-toolbar>
   @if (isEditing) {
     <ion-toolbar>
-      <ion-segment [value]="section()" (ionChange)="setSection($any($event.detail.value))">
+      <ion-segment scrollable [value]="section()" (ionChange)="setSection($any($event.detail.value))">
         <ion-segment-button value="general">
           <ion-icon name="settings-outline" aria-hidden="true"></ion-icon>
           <ion-label>General</ion-label>
