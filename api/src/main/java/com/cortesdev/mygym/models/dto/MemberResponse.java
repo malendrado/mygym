@@ -13,5 +13,5 @@ public record MemberResponse(
         Instant createdAt,
         Long planId,
         Instant paidAt,
-        /** "ACTIVE" | "EXPIRED" | "UNPAID" — calculado en el servidor, ver MemberService.membershipStatus. */
+        /** "ACTIVE" | "EXPIRING_SOON" | "EXPIRED" | "UNPAID" — calculado en el servidor, ver MemberService.membershipStatus. */
         String membershipStatus) {}

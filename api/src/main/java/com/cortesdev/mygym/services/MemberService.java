@@ -6,6 +6,7 @@ import com.cortesdev.mygym.models.dto.MemberCreateRequest;
 import com.cortesdev.mygym.models.dto.MemberResponse;
 import com.cortesdev.mygym.repositories.AppUserRepository;
 import com.cortesdev.mygym.services.exception.DuplicateMemberEmailException;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -47,13 +48,21 @@ public class MemberService {
                 .toList();
     }
 
+    // Mismo umbral que expirySoon en member.ts (0 < díasRestantes <= 3).
+    private static final int EXPIRING_SOON_DAYS = 3;
+
     private String membershipStatus(AppUser user) {
         Instant paidAt = user.getPaidAt();
         if (paidAt == null) {
             return "UNPAID";
         }
+        ZonedDateTime now = ZonedDateTime.now(GYM_ZONE);
         ZonedDateTime periodEnd = paidAt.atZone(GYM_ZONE).plusMonths(1);
-        return Instant.now().isBefore(periodEnd.toInstant()) ? "ACTIVE" : "EXPIRED";
+        if (!now.isBefore(periodEnd)) {
+            return "EXPIRED";
+        }
+        long daysRemaining = Duration.between(now, periodEnd).toDays();
+        return daysRemaining <= EXPIRING_SOON_DAYS ? "EXPIRING_SOON" : "ACTIVE";
     }
 
     private MemberResponse toResponse(AppUser user) {

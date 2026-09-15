@@ -28,6 +28,10 @@
   <div class="admin-identity-bar">{{ adminFirstName() }} · {{ sectionLabel() }}</div>
   <ion-toolbar>
     <ion-segment scrollable [value]="section()" (ionChange)="setSection($any($event.detail.value))">
+      <ion-segment-button value="general">
+        <ion-icon name="settings-outline" aria-hidden="true"></ion-icon>
+        <ion-label>General</ion-label>
+      </ion-segment-button>
       <ion-segment-button value="blocks">
         <ion-icon name="time-outline" aria-hidden="true"></ion-icon>
         <ion-label>Horarios</ion-label>
@@ -66,7 +70,30 @@
     <ion-text color="danger"><p>Ocurrió un error. Intenta nuevamente.</p></ion-text>
   }
 
-  @if (section() === 'blocks') {
+  @if (section() === 'general') {
+    <div class="member-stats">
+      <div class="member-stat member-stat--active">
+        <ion-icon name="checkmark-circle-outline" aria-hidden="true"></ion-icon>
+        <p class="member-stat__value">{{ activeMembers() }}</p>
+        <p class="member-stat__label">Activos</p>
+      </div>
+      <div class="member-stat member-stat--soon">
+        <ion-icon name="hourglass-outline" aria-hidden="true"></ion-icon>
+        <p class="member-stat__value">{{ expiringSoonMembers() }}</p>
+        <p class="member-stat__label">Por vencer</p>
+      </div>
+      <div class="member-stat member-stat--warn">
+        <ion-icon name="close-circle-outline" aria-hidden="true"></ion-icon>
+        <p class="member-stat__value">{{ expiredMembers() }}</p>
+        <p class="member-stat__label">Vencidos</p>
+      </div>
+      <div class="member-stat member-stat--dim">
+        <ion-icon name="help-circle-outline" aria-hidden="true"></ion-icon>
+        <p class="member-stat__value">{{ unpaidMembers() }}</p>
+        <p class="member-stat__label">Sin pago</p>
+      </div>
+    </div>
+  } @else if (section() === 'blocks') {
     <ion-card>
       <ion-card-header class="card-header-row">
         <ion-card-title>
@@ -260,21 +287,6 @@
       </ng-template>
     </ion-modal>
   } @else if (section() === 'members') {
-    <div class="member-stats">
-      <div class="member-stat">
-        <p class="member-stat__value">{{ activeMembers() }}</p>
-        <p class="member-stat__label">Activos</p>
-      </div>
-      <div class="member-stat member-stat--warn">
-        <p class="member-stat__value">{{ expiredMembers() }}</p>
-        <p class="member-stat__label">Vencidos</p>
-      </div>
-      <div class="member-stat member-stat--dim">
-        <p class="member-stat__value">{{ unpaidMembers() }}</p>
-        <p class="member-stat__label">Sin pago</p>
-      </div>
-    </div>
-
     <ion-card>
       <ion-card-header>
         <ion-card-title>

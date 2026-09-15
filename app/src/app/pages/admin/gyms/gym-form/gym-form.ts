@@ -36,9 +36,13 @@ import {
   barbellOutline,
   businessOutline,
   calendarOutline,
+  checkmarkCircleOutline,
+  closeCircleOutline,
   cloudUploadOutline,
   colorPaletteOutline,
   createOutline,
+  helpCircleOutline,
+  hourglassOutline,
   imagesOutline,
   logoGoogle,
   megaphoneOutline,
@@ -88,6 +92,10 @@ addIcons({
   'people-outline': peopleOutline,
   'sparkles-outline': sparklesOutline,
   'person-outline': personOutline,
+  'checkmark-circle-outline': checkmarkCircleOutline,
+  'hourglass-outline': hourglassOutline,
+  'close-circle-outline': closeCircleOutline,
+  'help-circle-outline': helpCircleOutline,
   'logo-google': logoGoogle,
   'barbell-outline': barbellOutline,
   'create-outline': createOutline,
@@ -249,6 +257,7 @@ export class GymForm implements OnDestroy {
   // Socios (pestaña Socios)
   protected readonly members = signal<Member[]>([]);
   protected readonly activeMembers = computed(() => this.members().filter((m) => m.membershipStatus === 'ACTIVE').length);
+  protected readonly expiringSoonMembers = computed(() => this.members().filter((m) => m.membershipStatus === 'EXPIRING_SOON').length);
   protected readonly expiredMembers = computed(() => this.members().filter((m) => m.membershipStatus === 'EXPIRED').length);
   protected readonly unpaidMembers = computed(() => this.members().filter((m) => m.membershipStatus === 'UNPAID').length);
   protected readonly memberForm = new FormGroup({
@@ -766,11 +775,29 @@ export class GymForm implements OnDestroy {
   }
 
   protected statusLabel(status: MembershipStatus): string {
-    return status === 'ACTIVE' ? 'Activo' : status === 'EXPIRED' ? 'Vencido' : 'Sin pago';
+    switch (status) {
+      case 'ACTIVE':
+        return 'Activo';
+      case 'EXPIRING_SOON':
+        return 'Por vencer';
+      case 'EXPIRED':
+        return 'Vencido';
+      default:
+        return 'Sin pago';
+    }
   }
 
   protected statusColor(status: MembershipStatus): string {
-    return status === 'ACTIVE' ? 'success' : status === 'EXPIRED' ? 'danger' : 'medium';
+    switch (status) {
+      case 'ACTIVE':
+        return 'success';
+      case 'EXPIRING_SOON':
+        return 'warning';
+      case 'EXPIRED':
+        return 'danger';
+      default:
+        return 'medium';
+    }
   }
 
   // Registro manual mientras no existe el pago real (Flow.cl, Parte B

@@ -1,7 +1,7 @@
 import { Role } from './auth.model';
 
 /** Calculado en el servidor a partir de paidAt (ver MemberService.membershipStatus en el backend). */
-export type MembershipStatus = 'ACTIVE' | 'EXPIRED' | 'UNPAID';
+export type MembershipStatus = 'ACTIVE' | 'EXPIRING_SOON' | 'EXPIRED' | 'UNPAID';
 
 export interface Member {
   id: number;

@@ -33,9 +33,13 @@ import {
   businessOutline,
   bulbOutline,
   calendarOutline,
+  checkmarkCircleOutline,
+  closeCircleOutline,
   cloudUploadOutline,
   colorPaletteOutline,
   createOutline,
+  helpCircleOutline,
+  hourglassOutline,
   imagesOutline,
   logOutOutline,
   megaphoneOutline,
@@ -44,6 +48,7 @@ import {
   personCircleOutline,
   pricetagOutline,
   refreshOutline,
+  settingsOutline,
   timeOutline,
   trashOutline,
 } from 'ionicons/icons';
@@ -90,12 +95,18 @@ addIcons({
   'megaphone-outline': megaphoneOutline,
   'images-outline': imagesOutline,
   'log-out-outline': logOutOutline,
+  'settings-outline': settingsOutline,
+  'checkmark-circle-outline': checkmarkCircleOutline,
+  'hourglass-outline': hourglassOutline,
+  'close-circle-outline': closeCircleOutline,
+  'help-circle-outline': helpCircleOutline,
 });
 
 type Status = 'idle' | 'loading' | 'saving' | 'error';
-type Section = 'blocks' | 'plans' | 'members' | 'branding';
+type Section = 'general' | 'blocks' | 'plans' | 'members' | 'branding';
 
 const SECTION_LABELS: Record<Section, string> = {
+  general: 'General',
   blocks: 'Horarios',
   plans: 'Planes',
   members: 'Socios',
@@ -213,7 +224,7 @@ export class GymAdmin implements OnDestroy {
   private readonly alertController = inject(AlertController);
 
   protected readonly status = signal<Status>('idle');
-  protected readonly section = signal<Section>('blocks');
+  protected readonly section = signal<Section>('general');
   protected readonly sectionLabel = computed(() => SECTION_LABELS[this.section()]);
   protected readonly adminFirstName = computed(() => this.authService.currentUser()?.name?.split(' ')[0] ?? 'admin');
   protected readonly tip = ADMIN_TIPS[Math.floor(Math.random() * ADMIN_TIPS.length)];
@@ -233,6 +244,7 @@ export class GymAdmin implements OnDestroy {
   protected readonly plans = signal<GymPlan[]>([]);
   protected readonly members = signal<Member[]>([]);
   protected readonly activeMembers = computed(() => this.members().filter((m) => m.membershipStatus === 'ACTIVE').length);
+  protected readonly expiringSoonMembers = computed(() => this.members().filter((m) => m.membershipStatus === 'EXPIRING_SOON').length);
   protected readonly expiredMembers = computed(() => this.members().filter((m) => m.membershipStatus === 'EXPIRED').length);
   protected readonly unpaidMembers = computed(() => this.members().filter((m) => m.membershipStatus === 'UNPAID').length);
   protected readonly isModalOpen = signal(false);
@@ -693,11 +705,29 @@ export class GymAdmin implements OnDestroy {
   }
 
   protected statusLabel(status: MembershipStatus): string {
-    return status === 'ACTIVE' ? 'Activo' : status === 'EXPIRED' ? 'Vencido' : 'Sin pago';
+    switch (status) {
+      case 'ACTIVE':
+        return 'Activo';
+      case 'EXPIRING_SOON':
+        return 'Por vencer';
+      case 'EXPIRED':
+        return 'Vencido';
+      default:
+        return 'Sin pago';
+    }
   }
 
   protected statusColor(status: MembershipStatus): string {
-    return status === 'ACTIVE' ? 'success' : status === 'EXPIRED' ? 'danger' : 'medium';
+    switch (status) {
+      case 'ACTIVE':
+        return 'success';
+      case 'EXPIRING_SOON':
+        return 'warning';
+      case 'EXPIRED':
+        return 'danger';
+      default:
+        return 'medium';
+    }
   }
 
   // Registro manual mientras no existe el pago real (Flow.cl, Parte B
