@@ -21,7 +21,10 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,13 +46,28 @@ public class ReservationService {
         List<GymBlock> blocks =
                 gymBlockRepository.findByGymId(gymId).stream().filter(GymBlock::isActive).toList();
         List<Long> blockIds = blocks.stream().map(GymBlock::getId).toList();
-        List<Reservation> myReservations = blockIds.isEmpty()
+
+        // Antes esto era 1 query por cada combinación bloque×día del rango pedido
+        // (countByGymBlockIdAndClassDateAndStatus dentro del loop) — con un mes
+        // completo y un gym con muchos bloques (ej. Fortis, ~30 bloques activos)
+        // eran cientos de round-trips secuenciales a Supabase, suficiente para
+        // que la carga nunca terminara en la práctica. Se trae una sola vez
+        // todo lo reservado en el rango y se cuenta/busca en memoria — mismo
+        // patrón que ya se usaba para "mis reservas", pero reutilizado también
+        // para el conteo de cupo.
+        List<Reservation> bookedInRange = blockIds.isEmpty()
                 ? List.of()
-                : reservationRepository
-                        .findByGymBlockIdInAndClassDateBetweenAndStatus(blockIds, from, to, ReservationStatus.BOOKED)
-                        .stream()
-                        .filter(r -> r.getMemberId().equals(memberId))
-                        .toList();
+                : reservationRepository.findByGymBlockIdInAndClassDateBetweenAndStatus(
+                        blockIds, from, to, ReservationStatus.BOOKED);
+        Map<String, Integer> takenByOccurrence = new HashMap<>();
+        Map<String, Long> myReservationIdByOccurrence = new HashMap<>();
+        for (Reservation reservation : bookedInRange) {
+            String key = occurrenceKey(reservation.getGymBlockId(), reservation.getClassDate());
+            takenByOccurrence.merge(key, 1, Integer::sum);
+            if (reservation.getMemberId().equals(memberId)) {
+                myReservationIdByOccurrence.put(key, reservation.getId());
+            }
+        }
 
         List<GymBlockOccurrenceResponse> result = new ArrayList<>();
         for (GymBlock block : blocks) {
@@ -58,17 +76,12 @@ public class ReservationService {
                     continue;
                 }
                 LocalDate occurrenceDate = date;
-                int taken = reservationRepository.countByGymBlockIdAndClassDateAndStatus(
-                        block.getId(), occurrenceDate, ReservationStatus.BOOKED);
+                String key = occurrenceKey(block.getId(), occurrenceDate);
+                int taken = takenByOccurrence.getOrDefault(key, 0);
                 boolean bookable = taken < block.getCapacity()
                         && isWithinBookingWindow(cancellationWindowHours, occurrenceDate, block.getStartTime());
                 boolean past = isPastOccurrence(occurrenceDate, block.getEndTime());
-                Long myReservationId = myReservations.stream()
-                        .filter(r -> r.getGymBlockId().equals(block.getId())
-                                && r.getClassDate().equals(occurrenceDate))
-                        .map(Reservation::getId)
-                        .findFirst()
-                        .orElse(null);
+                Long myReservationId = myReservationIdByOccurrence.get(key);
                 result.add(new GymBlockOccurrenceResponse(
                         block.getId(),
                         block.getLabel(),
@@ -140,11 +153,25 @@ public class ReservationService {
 
     @Transactional(readOnly = true)
     public List<ReservationResponse> myReservations(Long memberId) {
-        return reservationRepository.findByMemberIdAndStatusOrderByClassDateAsc(memberId, ReservationStatus.BOOKED)
-                .stream()
-                .map(r -> toResponse(
-                        r, gymBlockRepository.findById(r.getGymBlockId()).orElse(null)))
+        List<Reservation> reservations =
+                reservationRepository.findByMemberIdAndStatusOrderByClassDateAsc(memberId, ReservationStatus.BOOKED);
+        // Mismo N+1 que tenía listOccurrences: antes se buscaba el GymBlock de
+        // cada reserva con una query aparte. Sin fecha de corte en la query de
+        // arriba, este historial crece sin límite mientras el socio use la
+        // app (no hay archivado de reservas pasadas) — una sola consulta con
+        // los ids únicos evita que eso se vuelva un problema de escala.
+        List<Long> blockIds = reservations.stream().map(Reservation::getGymBlockId).distinct().toList();
+        Map<Long, GymBlock> blocksById = blockIds.isEmpty()
+                ? Map.of()
+                : gymBlockRepository.findAllById(blockIds).stream()
+                        .collect(Collectors.toMap(GymBlock::getId, b -> b));
+        return reservations.stream()
+                .map(r -> toResponse(r, blocksById.get(r.getGymBlockId())))
                 .toList();
+    }
+
+    private String occurrenceKey(Long gymBlockId, LocalDate classDate) {
+        return gymBlockId + "|" + classDate;
     }
 
     private Gym findGymOrThrow(Long gymId) {
