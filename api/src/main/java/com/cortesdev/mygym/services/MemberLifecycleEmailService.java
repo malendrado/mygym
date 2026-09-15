@@ -129,6 +129,47 @@ public class MemberLifecycleEmailService {
         }
     }
 
+    public void sendMembershipExpiredMember(Gym gym, AppUser member, GymPlan plan) {
+        String headline = "Tu membresía venció";
+        String body = "<p style=\"margin:0 0 12px;\">Tu plan <strong style=\"color:#eaf6f7;\">" + escapeHtml(plan.getName())
+                + "</strong> se cumplió un mes después de tu último pago — mientras no renueves, no vas a poder "
+                + "reservar clases nuevas.</p>"
+                + "<p style=\"margin:0;\">Renueva cuando quieras para seguir entrenando en " + escapeHtml(gym.getName())
+                + ".</p>";
+        send(
+                gym,
+                member.getEmail(),
+                "Tu membresía en " + gym.getName() + " venció",
+                "Membresía vencida",
+                headline,
+                body,
+                "Renovar plan",
+                LOGIN_URL,
+                "Recibiste este correo porque tu plan " + escapeHtml(plan.getName()) + " en " + escapeHtml(gym.getName())
+                        + " venció.");
+    }
+
+    public void sendMembershipExpiredAdmin(Gym gym, AppUser member, GymPlan plan, List<String> adminEmails) {
+        String headline = "Un socio de " + gym.getName() + " no renovó su plan";
+        String body = "<p style=\"margin:0 0 12px;\"><strong style=\"color:#eaf6f7;\">" + escapeHtml(member.getName())
+                + "</strong> (" + escapeHtml(member.getEmail()) + ") tenía el plan <strong style=\"color:#eaf6f7;\">"
+                + escapeHtml(plan.getName())
+                + "</strong>, que venció hoy sin renovación. No puede reservar clases nuevas mientras no pague de nuevo.</p>"
+                + "<p style=\"margin:0;\">Si quieres contactarlo, tienes su ficha en tu panel.</p>";
+        for (String adminEmail : adminEmails) {
+            send(
+                    gym,
+                    adminEmail,
+                    "Membresía vencida en " + gym.getName(),
+                    "Membresía vencida",
+                    headline,
+                    body,
+                    "Ver mi panel",
+                    LOGIN_URL,
+                    "Recibiste este correo porque administras " + escapeHtml(gym.getName()) + " en mygym.");
+        }
+    }
+
     private void send(
             Gym gym,
             String to,

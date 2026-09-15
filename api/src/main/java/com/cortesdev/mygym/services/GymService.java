@@ -393,6 +393,25 @@ public class GymService {
         memberLifecycleEmailService.sendPaymentConfirmedAdmin(gym, member, plan, adminEmails);
     }
 
+    /**
+     * Mismo caso que simulatePlanPayment: todavía no existe el ciclo de
+     * suscripción real (Flow.cl, Parte B pendiente), así que el cliente
+     * calcula cuándo se cumplió el mes desde el pago y dispara esto — solo
+     * manda los emails de aviso a socio y admin, no cambia ningún estado acá.
+     */
+    public void simulatePlanExpiry(Long gymId, Long memberId, Long planId) {
+        Gym gym = findGymOrThrow(gymId);
+        GymPlan plan = findPlanOrThrow(gymId, planId);
+        AppUser member = appUserRepository
+                .findByIdAndGymId(memberId, gymId)
+                .orElseThrow(() -> new MemberNotFoundException(memberId));
+        List<String> adminEmails = appUserRepository.findByGymIdAndRole(gymId, Role.GYM_ADMIN).stream()
+                .map(AppUser::getEmail)
+                .toList();
+        memberLifecycleEmailService.sendMembershipExpiredMember(gym, member, plan);
+        memberLifecycleEmailService.sendMembershipExpiredAdmin(gym, member, plan, adminEmails);
+    }
+
     private void validateSchedule(LocalTime startTime, LocalTime endTime) {
         if (!startTime.isBefore(endTime)) {
             throw new InvalidBlockScheduleException("La hora de inicio debe ser anterior a la hora de término");

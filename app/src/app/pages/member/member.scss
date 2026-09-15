@@ -23,6 +23,41 @@
 .member-page {
   max-width: 480px;
   margin: 0 auto;
+
+  @media (min-width: 860px) {
+    max-width: 920px;
+  }
+}
+
+// El primer intento en desktop fue "achicar" el calendario a un ancho de
+// mobile — funciona pero no aprovecha la pantalla (reportado por el
+// usuario: "no es la mejor opción para la versión web"). Patrón real de
+// calendario+agenda usado por Google Calendar/Calendly/Cal.com: en
+// pantallas anchas, calendario y clases del día van lado a lado en vez de
+// apilados, así el calendario nunca "empuja" la agenda hacia abajo — deja
+// de hacer falta elegir entre mes completo y poco scroll.
+// `display: contents` en mobile hace que el wrapper "desaparezca" del
+// layout — sus hijos quedan exactamente como si no existiera, mismo
+// comportamiento apilado de siempre, cero cambio de riesgo para mobile.
+.member-columns {
+  display: contents;
+
+  @media (min-width: 860px) {
+    display: grid;
+    grid-template-columns: minmax(300px, 360px) 1fr;
+    align-items: start;
+    gap: 1.5rem;
+  }
+}
+
+.member-columns__agenda {
+  display: contents;
+
+  @media (min-width: 860px) {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
 }
 
 // --- Topbar: saludo compacto, sin foto ---------------------------------------
@@ -135,6 +170,111 @@
   }
 }
 
+// Mismo fix de contraste que gym-admin.scss: el acento libre puede no llegar
+// a 4.5:1 como texto plano (confirmado con el índigo real de Fortis) — el
+// segment recién agregado pinta el tab activo con el acento como texto.
+ion-segment-button.segment-button-checked {
+  --color-checked: var(--brand-accent-text-safe, var(--ion-color-primary));
+}
+
+// Bajada corta bajo el segment de tabs — el pedido explícito era un mensaje
+// "atractivo y directo", no un párrafo más de marketing.
+.section-hook {
+  margin: 0 0 0.85rem;
+  color: var(--brand-text-dim);
+  font-size: 0.85rem;
+}
+
+.empty-reservations {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+}
+
+// --- Teaser de calendario para socios sin plan activo -----------------------
+// En vez de ocultar el calendario, se ve borroso/apagado con un overlay
+// encima — la idea es que se note lo que se pierde si no paga, no solo un
+// mensaje de "elige un plan" suelto. `inert` en el contenido de abajo lo
+// saca del tab order y del árbol de accesibilidad, y bloquea los clicks —
+// una sola propiedad nativa en vez de pointer-events + aria-hidden a mano.
+.booking-teaser {
+  position: relative;
+}
+
+.booking-teaser__content {
+  transition: filter 0.25s ease, opacity 0.25s ease;
+}
+
+.booking-teaser--locked .booking-teaser__content {
+  filter: blur(4px);
+  opacity: 0.5;
+  user-select: none;
+  // Sin este tope, un gym con muchas clases (ej. Fortis) hace crecer el
+  // bloque borroso tanto que la tarjeta del candado (centrada respecto a
+  // TODO el bloque) queda fuera de la pantalla al cambiar de día en la
+  // demo automática — encontrado probando la animación con datos reales.
+  max-height: 420px;
+  overflow: hidden;
+  position: relative;
+
+  // Se corta el contenido de golpe abajo sin este degradé — con esto se lee
+  // como "hay más, esto es solo una vista previa" en vez de un recorte roto.
+  &::after {
+    content: '';
+    position: absolute;
+    inset: auto 0 0 0;
+    height: 90px;
+    background: linear-gradient(0deg, var(--member-bg, var(--brand-ink)) 0%, transparent 100%);
+  }
+}
+
+.booking-teaser__cta {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.12);
+  border: none;
+  border-radius: 16px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.booking-teaser__cta-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  max-width: 26ch;
+  padding: 1.1rem 1.3rem;
+  border-radius: 16px;
+  background: var(--member-card, var(--brand-ink-surface-2));
+  border: 1px solid var(--brand-ink-surface);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+  text-align: center;
+
+  ion-icon {
+    font-size: 1.6rem;
+    color: var(--brand-accent-text-safe, var(--brand-accent));
+  }
+}
+
+.booking-teaser__cta-title {
+  font-family: var(--brand-font-heading);
+  font-size: 1rem;
+  color: var(--brand-text);
+}
+
+.booking-teaser__cta-body {
+  font-size: 0.78rem;
+  color: var(--brand-text-dim);
+  line-height: 1.3;
+}
+
 // --- Membresía (plan + cupo de clases) ------------------------------------------
 .membership {
   margin-bottom: 1rem;
@@ -151,6 +291,13 @@
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 0.6rem;
   margin-top: 0.6rem;
+
+  // En desktop, minmax(150px, 1fr) estira cada tarjeta a cientos de px de
+  // ancho (mismo problema que tuvo el calendario) — se tapa el crecimiento
+  // en un tamaño de tarjeta legible en vez de dejarlas "vacías" por dentro.
+  @media (min-width: 860px) {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 230px));
+  }
 }
 
 .plan-card {
@@ -219,16 +366,16 @@
 
 .membership-status {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 0.75rem;
   background: var(--member-card, var(--brand-ink-surface-2));
   border: 1px solid var(--brand-ink-surface);
   border-radius: 16px;
   padding: 0.85rem 1rem;
 
   &--pending {
+    flex-direction: row;
+    align-items: center;
     justify-content: center;
     gap: 0.75rem;
     color: var(--brand-text-dim);
@@ -252,9 +399,25 @@
   }
 
   &__renew {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
     margin: 0.15rem 0 0;
     color: var(--brand-text-dim);
     font-size: 0.85rem;
+
+    // Vencimiento próximo: no alcanza con pintarlo de otro color (regla de
+    // la skill UX, "no transmitir información solo con color") — el ícono +
+    // texto explícito ("Vence en N días") ya lo dicen sin depender del tono.
+    &--soon {
+      color: #ff5d73;
+      font-weight: 600;
+
+      ion-icon {
+        font-size: 1rem;
+        flex-shrink: 0;
+      }
+    }
   }
 
   &__warn-text {
@@ -265,74 +428,65 @@
   }
 }
 
-.quota-ring {
-  position: relative;
-  width: 72px;
-  height: 72px;
-  flex-shrink: 0;
-
-  svg {
-    width: 100%;
-    height: 100%;
-    transform: rotate(-90deg);
-  }
-
-  circle {
-    fill: none;
-    stroke-width: 10;
-  }
-
-  &__track {
-    stroke: var(--brand-ink-surface);
-  }
-
-  &__fill {
-    stroke: var(--brand-accent);
-    stroke-linecap: round;
-    stroke-dasharray: 339.29px;
-    transition: stroke-dashoffset 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-
-  &--exhausted &__fill {
-    stroke: #ff5d73;
-  }
-
-  &__label {
-    position: absolute;
-    inset: 0;
+// Segundo intento (el primero fue un anillo chico de 72px, después una
+// barra horizontal) — el usuario prefirió una tarjeta de sellos: un punto
+// por clase del plan, se van marcando a medida que se usan. Con 8-12 clases
+// al mes (lo típico) se lee de un vistazo sin necesitar leer un número.
+.quota-dots {
+  &__row {
     display: flex;
-    flex-direction: column;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.3rem;
+  }
+
+  &__dot {
+    width: 24px;
+    height: 24px;
+    border-radius: 999px;
+    // var(--brand-ink-surface) contra var(--member-card) casi no contrasta
+    // en temas oscuros como el de Fortis — los puntos vacíos quedaban
+    // invisibles en vez de leerse como "pendiente". color-mix con el texto
+    // dim asegura un borde visible sin importar la paleta del gym.
+    border: 2px solid color-mix(in srgb, var(--brand-text-dim) 45%, transparent);
+    display: flex;
     align-items: center;
     justify-content: center;
-    line-height: 1.1;
+    flex-shrink: 0;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+
+    ion-icon {
+      font-size: 0.75rem;
+      color: var(--brand-accent-contrast);
+    }
+
+    &--filled {
+      background: var(--brand-accent);
+      border-color: var(--brand-accent);
+    }
+  }
+
+  &__caption {
+    margin: 0.5rem 0 0;
+    font-size: 0.8rem;
+    color: var(--brand-text-dim);
 
     strong {
       font-family: var(--brand-font-mono);
-      font-size: 1.05rem;
-    }
-
-    span {
-      font-size: 0.6rem;
-      color: var(--brand-text-dim);
-      text-align: center;
+      color: var(--brand-text);
     }
   }
 
   &--unlimited {
     display: flex;
-    flex-direction: column;
     align-items: center;
-    justify-content: center;
-    gap: 0.1rem;
+    gap: 0.4rem;
     color: var(--brand-accent-text-safe, var(--brand-accent));
+    font-size: 0.85rem;
+    font-weight: 600;
 
     ion-icon {
-      font-size: 1.3rem;
-    }
-
-    span {
-      font-size: 0.7rem;
-      font-weight: 600;
+      font-size: 1.1rem;
     }
   }
 }
@@ -482,10 +636,6 @@
   background: var(--brand-accent-text-safe, var(--brand-accent));
 }
 
-.class-card--past {
-  opacity: 0.6;
-}
-
 .calendar-toggle {
   display: block;
   margin: 0.4rem 0 0;
@@ -501,104 +651,150 @@
   cursor: pointer;
 }
 
-.class-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
+.item-hint {
+  color: var(--brand-text-dim);
+  font-size: 0.85rem;
 }
 
-.class-card {
+// Reemplaza la grilla vacía mientras carga el mes — en un gym con muchos
+// bloques puede tardar unos segundos, mejor un mensaje con onda que un
+// calendario quieto sin ninguna clase todavía.
+.occurrences-loading {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.65rem;
-  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.6rem;
+  padding: 2.5rem 1rem;
+  text-align: center;
+  color: var(--brand-text-dim);
+  font-size: 0.85rem;
+
+  ion-spinner {
+    width: 32px;
+    height: 32px;
+    color: var(--brand-accent);
+  }
+}
+
+// --- Clases del día: grilla de tarjetas chicas, no una fila por bloque -----
+// Un gym real puede tener muchos bloques el mismo día (ej. Fortis: bloques
+// cada 30 min) — una fila completa por bloque se vuelve una lista
+// interminable. auto-fill con minmax da 2-3 por línea según el ancho
+// disponible sin necesitar breakpoints propios (reportado por el usuario
+// probando con datos reales).
+.class-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
+.class-tile {
+  display: flex;
+  flex-direction: column;
   background: var(--member-card, var(--brand-ink-surface-2));
   border: 1px solid var(--brand-ink-surface);
-  border-radius: 14px;
-  padding: 0.6rem 0.8rem;
-  transition: border-color 0.2s ease;
+  border-radius: 12px;
+  padding: 0.55rem 0.6rem;
+  transition: border-color 0.2s ease, opacity 0.2s ease;
 
   &--reserved {
     border-color: color-mix(in srgb, var(--brand-accent) 45%, var(--brand-ink-surface));
   }
 
-  &__info {
-    min-width: 0;
-    flex: 1 1 200px;
+  &--past {
+    opacity: 0.55;
   }
 
   &__title {
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-    margin: 0 0 0.1rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    margin: 0 0 0.2rem;
+    font-size: 0.8rem;
     font-weight: 600;
-    font-size: 0.92rem;
+    line-height: 1.25;
 
     ion-icon {
-      flex-shrink: 0;
+      margin-right: 0.3rem;
       color: var(--brand-accent);
-      font-size: 0.95rem;
+      font-size: 0.85rem;
+      // Alinea con la primera línea del título en vez de flotar centrado
+      // respecto a las dos líneas cuando el título hace wrap.
+      vertical-align: -0.1em;
     }
   }
 
-  &__meta {
+  &__time {
     margin: 0;
     color: var(--brand-text-dim);
-    font-size: 0.78rem;
+    font-family: var(--brand-font-mono);
+    font-size: 0.68rem;
   }
 
   &__instructor {
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
     margin: 0.15rem 0 0;
     color: var(--brand-text-dim);
-    font-size: 0.75rem;
-
-    img {
-      width: 18px;
-      height: 18px;
-      border-radius: 999px;
-      object-fit: cover;
-    }
+    font-size: 0.66rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   &__capacity {
-    margin: 0.1rem 0 0;
+    margin: 0.15rem 0 0;
     color: var(--brand-text-dim);
-    font-size: 0.72rem;
+    font-size: 0.66rem;
   }
 
   &__action {
     display: flex;
     flex-direction: column;
-    align-items: flex-end;
-    gap: 0.25rem;
+    align-items: stretch;
+    gap: 0.2rem;
+    // Empuja la acción al piso del tile — tiles vecinos con menos texto
+    // (sin instructor, por ejemplo) igual alinean su botón/badge al mismo
+    // nivel en la fila, en vez de quedar "flotando" más arriba.
+    margin-top: auto;
+    padding-top: 0.45rem;
+
+    ion-badge {
+      align-self: flex-start;
+    }
+
+    ion-button {
+      margin: 0;
+      font-size: 0.72rem;
+    }
   }
-}
 
-.class-card__quota-note {
-  font-size: 0.8rem;
-  text-align: right;
-}
+  &__link {
+    background: none;
+    border: none;
+    padding: 0;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    font-family: inherit;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-align: left;
+    color: var(--brand-accent-text-safe, var(--brand-accent));
+    text-decoration: underline;
+    cursor: pointer;
 
-.class-card__quota-note--action {
-  background: none;
-  border: none;
-  padding: 0.5rem 0;
-  margin: 0;
-  min-height: 44px;
-  font-family: inherit;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--brand-accent-text-safe, var(--brand-accent));
-  text-decoration: underline;
-  cursor: pointer;
-}
+    &--danger {
+      color: #ff8a9b;
+    }
+  }
 
-.item-hint {
-  color: var(--brand-text-dim);
-  font-size: 0.85rem;
+  &__note {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+    color: var(--brand-text-dim);
+    font-size: 0.7rem;
+  }
 }

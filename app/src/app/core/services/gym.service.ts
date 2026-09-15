@@ -70,6 +70,15 @@ export class GymService {
     return this.http.post<void>(`${this.meBase}/plans/${planId}/simulate-payment`, {});
   }
 
+  /**
+   * Mismo caso que simulateMyPlanPayment: el frontend calcula cuándo se
+   * cumplió el mes desde el pago (member.ts, membershipExpired) y dispara
+   * esto una vez — solo manda los emails de aviso a socio y admin.
+   */
+  simulateMyPlanExpiry(planId: number): Observable<void> {
+    return this.http.post<void>(`${this.meBase}/plans/${planId}/simulate-expiry`, {});
+  }
+
   list(): Observable<Gym[]> {
     return this.http.get<Gym[]>(this.base);
   }

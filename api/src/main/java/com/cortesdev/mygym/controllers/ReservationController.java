@@ -55,6 +55,16 @@ public class ReservationController {
         return ResponseEntity.noContent().build();
     }
 
+    // Simula que se cumplió el mes desde el último pago (Parte B, Flow.cl,
+    // todavía sin construir) — el cliente calcula la fecha de vencimiento y
+    // dispara esto una vez; solo manda los emails de aviso a socio y admin.
+    @PostMapping("/plans/{planId}/simulate-expiry")
+    public ResponseEntity<Void> simulatePlanExpiry(@AuthenticationPrincipal Jwt jwt, @PathVariable Long planId) {
+        AuthenticatedUser user = AuthenticatedUser.from(jwt);
+        gymService.simulatePlanExpiry(user.gymId(), user.userId(), planId);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/gym/photos")
     public List<GymPhotoResponse> myGymPhotos(@AuthenticationPrincipal Jwt jwt) {
         return gymService.listPhotos(AuthenticatedUser.from(jwt).gymId());

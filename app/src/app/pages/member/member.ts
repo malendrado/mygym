@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import {
   IonBadge,
@@ -7,6 +7,9 @@ import {
   IonContent,
   IonHeader,
   IonIcon,
+  IonLabel,
+  IonSegment,
+  IonSegmentButton,
   IonSpinner,
   IonText,
   IonTitle,
@@ -15,8 +18,12 @@ import {
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import {
+  alertCircleOutline,
   calendarOutline,
+  checkmarkDoneOutline,
+  checkmarkOutline,
   flashOutline,
+  lockClosedOutline,
   logOutOutline,
   logoInstagram,
   logoWhatsapp,
@@ -43,6 +50,10 @@ addIcons({
   'log-out-outline': logOutOutline,
   'logo-instagram': logoInstagram,
   'logo-whatsapp': logoWhatsapp,
+  'checkmark-done-outline': checkmarkDoneOutline,
+  'lock-closed-outline': lockClosedOutline,
+  'alert-circle-outline': alertCircleOutline,
+  'checkmark-outline': checkmarkOutline,
 });
 
 type Status = 'idle' | 'loading' | 'error';
@@ -69,7 +80,10 @@ interface Membership {
   status: MembershipStatus;
   plan: MembershipPlan | null;
   classesUsed: number;
-  renewsOn: string;
+  // Fecha (YYYY-MM-DD, hora de Chile) del último "pago" — la membresía dura
+  // exactamente 1 mes desde acá (pagó el 3 de enero → vence el 3 de
+  // febrero, haya usado o no todas sus clases). null = nunca pagó.
+  paidAt: string | null;
 }
 
 /** El plan de precio intermedio se marca "Recomendado" — heurística visual, no una señal del admin. */
@@ -133,6 +147,28 @@ function capitalize(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
+/** "YYYY-MM-DDTHH:mm:ss" en hora de Chile — comparable lexicográficamente contra `classDate + 'T' + endTime`. */
+function nowInGymZoneIso(): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Santiago',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(new Date());
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '00';
+  return `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get('minute')}:${get('second')}`;
+}
+
+const OCCURRENCES_LOADING_MESSAGES = [
+  'Buscando la clase perfecta para ti...',
+  'Revisando los cupos libres del mes...',
+  'Armando tu calendario de entrenamiento...',
+];
+
 @Component({
   selector: 'app-member',
   imports: [
@@ -146,6 +182,9 @@ function capitalize(text: string): string {
     IonBadge,
     IonText,
     IonSpinner,
+    IonSegment,
+    IonSegmentButton,
+    IonLabel,
   ],
   templateUrl: './member.html',
   styleUrl: './member.scss',
@@ -156,6 +195,9 @@ export class MemberPage {
   private readonly reservationService = inject(ReservationService);
   private readonly router = inject(Router);
   private readonly toastController = inject(ToastController);
+  private readonly destroyRef = inject(DestroyRef);
+
+  protected readonly section = signal<'reservar' | 'reservas'>('reservar');
 
   protected readonly status = signal<Status>('idle');
   protected readonly gym = signal<PublicGym | null>(null);
@@ -171,6 +213,9 @@ export class MemberPage {
   // una sola vez al abrir la página: no hace falta que la grilla se
   // actualice sola si el socio la deja abierta pasando la medianoche.
   private readonly todayIso = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Santiago' }).format(new Date());
+  // "Ahora" con hora incluida, misma zona — para separar reservas pasadas de
+  // próximas en "Mis reservas" comparando contra `classDate` + `endTime`.
+  private readonly nowChileIso = nowInGymZoneIso();
   private readonly monthRange = this.currentMonthRange();
   protected readonly weekdayLabels = WEEKDAY_LABELS;
   protected readonly monthLabel = capitalize(
@@ -181,6 +226,10 @@ export class MemberPage {
   protected readonly selectedDate = signal(this.todayIso);
 
   protected readonly benefits = BENEFITS;
+  // Cargar el mes completo puede tardar unos segundos en gyms con muchos
+  // bloques — mejor un mensaje con onda que una grilla vacía y quieta.
+  protected readonly occurrencesLoadingMessage =
+    OCCURRENCES_LOADING_MESSAGES[Math.floor(Math.random() * OCCURRENCES_LOADING_MESSAGES.length)];
   private readonly fallbackQuote = MOTIVATIONAL_QUOTES[Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length)];
   // El gym puede escribir su propia frase (Gym.tagline) — si no lo hizo, cae a una genérica motivacional.
   protected readonly quote = computed(() => this.gym()?.tagline || this.fallbackQuote);
@@ -201,7 +250,7 @@ export class MemberPage {
     status: 'none',
     plan: null,
     classesUsed: 0,
-    renewsOn: '',
+    paidAt: null,
   });
   protected readonly quotaTotal = computed(() => this.membership().plan?.monthlyClasses ?? null);
   protected readonly classesRemaining = computed(() => {
@@ -214,18 +263,79 @@ export class MemberPage {
   // del backend sin explicación. `quotaExhausted()` no cubre este caso: sin
   // plan, `quotaTotal()` es null, así que da `false` (no "agotado").
   protected readonly canBook = computed(() => this.membership().status === 'active');
-  protected readonly quotaPercent = computed(() => {
+  // Un punto por clase del plan — los primeros `classesUsed` salen marcados.
+  // Reemplaza la barra horizontal (probada antes): con pocas clases al mes
+  // (8-12, lo típico) se lee más directo como tarjeta de sellos que como
+  // porcentaje de una barra.
+  protected readonly quotaDots = computed<boolean[]>(() => {
     const total = this.quotaTotal();
-    if (total === null || total === 0) {
-      return 0;
+    if (total === null) {
+      return [];
     }
-    return Math.min((this.membership().classesUsed / total) * 100, 100);
+    const used = this.membership().classesUsed;
+    return Array.from({ length: total }, (_, i) => i < used);
   });
-  // r=54 → circunferencia = 2πr ≈ 339.29; el offset "vacía" el anillo en proporción al cupo usado.
-  private static readonly QUOTA_RING_CIRCUMFERENCE = 339.29;
-  protected readonly quotaRingOffset = computed(
-    () => MemberPage.QUOTA_RING_CIRCUMFERENCE * (1 - this.quotaPercent() / 100),
-  );
+
+  // Vencimiento del período pagado: exactamente 1 mes desde `paidAt`, sin
+  // importar cuántas clases haya usado — las que no reservó dentro de ese
+  // mes se pierden, no se acumulan al período siguiente.
+  protected readonly membershipPeriodEnd = computed(() => {
+    const paidAt = this.membership().paidAt;
+    if (!paidAt) {
+      return null;
+    }
+    const [y, m, d] = paidAt.split('-').map(Number);
+    const end = new Date(y, m - 1, d);
+    end.setMonth(end.getMonth() + 1);
+    return `${end.getFullYear()}-${pad2(end.getMonth() + 1)}-${pad2(end.getDate())}`;
+  });
+  protected readonly daysRemaining = computed(() => {
+    const end = this.membershipPeriodEnd();
+    if (!end) {
+      return null;
+    }
+    const [ey, em, ed] = end.split('-').map(Number);
+    const [ty, tm, td] = this.todayIso.split('-').map(Number);
+    const msPerDay = 24 * 60 * 60 * 1000;
+    return Math.round((Date.UTC(ey, em - 1, ed) - Date.UTC(ty, tm - 1, td)) / msPerDay);
+  });
+  protected readonly membershipExpired = computed(() => {
+    const days = this.daysRemaining();
+    return days !== null && days <= 0;
+  });
+  // Debajo de este umbral se avisa con texto explícito además del color —
+  // "no transmitir información solo con color" (auditoría UX de la skill).
+  protected readonly expirySoon = computed(() => {
+    const days = this.daysRemaining();
+    return days !== null && days > 0 && days <= 3;
+  });
+  protected readonly expiryLabel = computed(() => {
+    const days = this.daysRemaining();
+    if (days === null) {
+      return '';
+    }
+    if (days <= 0) {
+      return 'Venció hoy';
+    }
+    if (days === 1) {
+      return 'Vence mañana';
+    }
+    return `Vence en ${days} días`;
+  });
+  protected readonly renewsOnLabel = computed(() => {
+    const end = this.membershipPeriodEnd();
+    if (!end) {
+      return '';
+    }
+    const [y, m, d] = end.split('-').map(Number);
+    return new Intl.DateTimeFormat('es-CL', { day: 'numeric', month: 'long' }).format(new Date(y, m - 1, d));
+  });
+  // 'none' (nunca eligió plan) y 'past_due' (venció, sin renovar) bloquean
+  // por igual el calendario — mismo candado borroso para los dos casos.
+  protected readonly bookingLocked = computed(() => {
+    const status = this.membership().status;
+    return status === 'none' || status === 'past_due';
+  });
 
   protected readonly firstName = computed(() => this.authService.currentUser()?.name?.split(' ')[0] ?? 'socio');
   // Only derive a surface tint from a real gym color — falling back to the lime
@@ -288,6 +398,19 @@ export class MemberPage {
     this.occurrences().filter((o) => o.classDate === this.selectedDate()),
   );
 
+  // "Mis reservas" agrupado en Próximas/Pasadas — antes era una sola lista
+  // larga sin distinción, poco útil apenas se acumula historial (reportado
+  // por el usuario). Pasadas se muestran de más reciente a más antigua.
+  protected readonly upcomingReservations = computed(() =>
+    this.myReservations().filter((r) => !this.isReservationPast(r)),
+  );
+  protected readonly pastReservations = computed(() =>
+    this.myReservations()
+      .filter((r) => this.isReservationPast(r))
+      .slice()
+      .reverse(),
+  );
+
   protected readonly selectedDateLabel = computed(() => {
     const [y, m, d] = this.selectedDate().split('-').map(Number);
     const formatted = new Intl.DateTimeFormat('es-CL', { weekday: 'long', day: 'numeric', month: 'long' }).format(
@@ -296,12 +419,40 @@ export class MemberPage {
     return capitalize(formatted);
   });
 
+  // Apenas se cumple el mes desde el pago, bloquea (mismo candado que "sin
+  // plan") y dispara los emails reales de aviso a socio y admin — una sola
+  // vez por sesión, guardado en `expiryNotified` para no repetir el envío
+  // en cada re-render mientras el effect sigue vivo.
+  private expiryNotified = false;
+  private readonly notifyExpiry = effect(() => {
+    if (!this.membershipExpired() || this.expiryNotified) {
+      return;
+    }
+    const current = this.membership();
+    if (current.status !== 'active') {
+      return;
+    }
+    this.expiryNotified = true;
+    const plan = current.plan;
+    this.membership.update((m) => ({ ...m, status: 'past_due' }));
+    this.startBookingDemo();
+    if (plan) {
+      this.gymService.simulateMyPlanExpiry(plan.id).subscribe({
+        error: () => {
+          // Best-effort, igual que simulateMyPlanPayment — el bloqueo en la
+          // UI ya se aplicó arriba independientemente de si el email sale.
+        },
+      });
+    }
+  });
+
   constructor() {
     this.loadGym();
     this.loadPlans();
     this.loadPhotos();
     this.loadOccurrences();
     this.loadMyReservations();
+    this.startBookingDemo();
   }
 
   protected categoryIcon(category: string | null): string {
@@ -314,6 +465,10 @@ export class MemberPage {
 
   protected toggleMonthExpanded(): void {
     this.monthExpanded.update((expanded) => !expanded);
+  }
+
+  protected setSection(section: 'reservar' | 'reservas'): void {
+    this.section.set(section);
   }
 
   protected book(occurrence: GymBlockOccurrence): void {
@@ -360,7 +515,9 @@ export class MemberPage {
     this.membership.update((m) => ({ ...m, status: 'pending' }));
     this.showToast('Redirigiendo a Flow.cl para completar el pago...');
     setTimeout(() => {
-      this.membership.set({ status: 'active', plan, classesUsed: 0, renewsOn: '3 de octubre' });
+      this.membership.set({ status: 'active', plan, classesUsed: 0, paidAt: this.todayIso });
+      this.expiryNotified = false;
+      this.stopBookingDemo();
       this.showToast(`¡Listo! Ya tienes el plan ${plan.name}.`);
       this.gymService.simulateMyPlanPayment(plan.id).subscribe({
         error: () => {
@@ -370,6 +527,12 @@ export class MemberPage {
         },
       });
     }, 1500);
+  }
+
+  // Desde la tarjeta de "membresía vencida" — vuelve a mostrar las tarjetas
+  // de plan (mismo estado que un socio que nunca pagó) para "renovar".
+  protected renewPlan(): void {
+    this.membership.update((m) => ({ ...m, status: 'none' }));
   }
 
   protected scrollToPlans(): void {
@@ -459,5 +622,53 @@ export class MemberPage {
   private dayOfWeekMonFirst(year: number, month: number, day: number): number {
     const jsDay = new Date(year, month - 1, day).getDay(); // 0=domingo..6=sábado
     return (jsDay + 6) % 7;
+  }
+
+  private isReservationPast(reservation: Reservation): boolean {
+    return `${reservation.classDate}T${reservation.endTime}` < this.nowChileIso;
+  }
+
+  // Mientras el socio no tiene plan, el calendario borroso va cambiando solo
+  // de día seleccionado (entre los que sí tienen clases) — la idea es que
+  // se note que el sistema responde de verdad, no solo una foto estática
+  // detrás del candado. Se corta apenas elige un plan (selectPlan) o si el
+  // componente se destruye. Respeta prefers-reduced-motion: en ese caso deja
+  // fijo el primer día con clases, sin loop.
+  private demoIntervalId: ReturnType<typeof setInterval> | null = null;
+
+  private startBookingDemo(): void {
+    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+    // Con reduced-motion: se sigue "esperando" (poll corto) a que carguen las
+    // ocurrencias, pero apenas hay datos fija un día y para — sin loop.
+    this.demoIntervalId = setInterval(() => this.advanceBookingDemo(reduceMotion), reduceMotion ? 400 : 2200);
+    this.destroyRef.onDestroy(() => this.stopBookingDemo());
+  }
+
+  private stopBookingDemo(): void {
+    if (this.demoIntervalId !== null) {
+      clearInterval(this.demoIntervalId);
+      this.demoIntervalId = null;
+    }
+  }
+
+  private advanceBookingDemo(reduceMotion: boolean): void {
+    if (!this.bookingLocked()) {
+      this.stopBookingDemo();
+      return;
+    }
+    const daysWithClasses = this.visibleGrid().filter(
+      (cell): cell is MonthDayCell => !!cell && cell.hasClasses,
+    );
+    if (daysWithClasses.length === 0) {
+      return;
+    }
+    if (reduceMotion) {
+      this.selectedDate.set(daysWithClasses[0].iso);
+      this.stopBookingDemo();
+      return;
+    }
+    const currentIndex = daysWithClasses.findIndex((cell) => cell.iso === this.selectedDate());
+    const next = daysWithClasses[(currentIndex + 1) % daysWithClasses.length];
+    this.selectedDate.set(next.iso);
   }
 }

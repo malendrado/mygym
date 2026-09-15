@@ -21,6 +21,18 @@
         </ion-button>
       </ion-buttons>
     </ion-toolbar>
+    <ion-toolbar>
+      <ion-segment [value]="section()" (ionChange)="setSection($any($event.detail.value))">
+        <ion-segment-button value="reservar">
+          <ion-icon name="calendar-outline" aria-hidden="true"></ion-icon>
+          <ion-label>Reserva tu Bloque</ion-label>
+        </ion-segment-button>
+        <ion-segment-button value="reservas">
+          <ion-icon name="checkmark-done-outline" aria-hidden="true"></ion-icon>
+          <ion-label>Mis Reservas</ion-label>
+        </ion-segment-button>
+      </ion-segment>
+    </ion-toolbar>
   </ion-header>
 
   <ion-content
@@ -40,6 +52,9 @@
       }
       <h1>Hola, {{ firstName() }}</h1>
     </div>
+
+    @if (section() === 'reservar') {
+    <p class="section-hook">Elige un día y reserva tu clase en segundos.</p>
 
     <section class="membership">
       @if (membership().status === 'none') {
@@ -78,33 +93,41 @@
             <p class="membership-status__eyebrow">Tu membresía</p>
             <h2>{{ membership().plan?.name }}</h2>
             @if (membership().status === 'past_due') {
-              <p class="membership-status__warn-text">Tu pago está atrasado — regulariza para seguir reservando.</p>
+              <p class="membership-status__warn-text">
+                Venció el {{ renewsOnLabel() }} — renueva para seguir reservando.
+              </p>
+              <button type="button" class="calendar-toggle" (click)="renewPlan()">Ver planes</button>
             } @else {
-              <p class="membership-status__renew">Se renueva el {{ membership().renewsOn }}</p>
+              <p class="membership-status__renew" [class.membership-status__renew--soon]="expirySoon()">
+                @if (expirySoon()) {
+                  <ion-icon name="alert-circle-outline" aria-hidden="true"></ion-icon>
+                }
+                {{ expiryLabel() }} · se renueva el {{ renewsOnLabel() }}
+              </p>
             }
           </div>
-          @if (quotaTotal() !== null) {
-            <div class="quota-ring" [class.quota-ring--exhausted]="quotaExhausted()">
-              <svg viewBox="0 0 120 120">
-                <circle class="quota-ring__track" cx="60" cy="60" r="54" />
-                <circle
-                  class="quota-ring__fill"
-                  cx="60"
-                  cy="60"
-                  r="54"
-                  [style.stroke-dashoffset.px]="quotaRingOffset()"
-                />
-              </svg>
-              <div class="quota-ring__label">
-                <strong>{{ classesRemaining() }}</strong>
-                <span>de {{ quotaTotal() }} clases</span>
+          @if (membership().status === 'active') {
+            @if (quotaTotal() !== null) {
+              <div class="quota-dots">
+                <div class="quota-dots__row">
+                  @for (filled of quotaDots(); track $index) {
+                    <span class="quota-dots__dot" [class.quota-dots__dot--filled]="filled">
+                      @if (filled) {
+                        <ion-icon name="checkmark-outline" aria-hidden="true"></ion-icon>
+                      }
+                    </span>
+                  }
+                </div>
+                <p class="quota-dots__caption">
+                  <strong>{{ membership().classesUsed }} de {{ quotaTotal() }}</strong> clases usadas este mes
+                </p>
               </div>
-            </div>
-          } @else {
-            <div class="quota-ring quota-ring--unlimited">
-              <ion-icon name="sparkles-outline" aria-hidden="true"></ion-icon>
-              <span>Ilimitado</span>
-            </div>
+            } @else {
+              <div class="quota-dots quota-dots--unlimited">
+                <ion-icon name="sparkles-outline" aria-hidden="true"></ion-icon>
+                <span>Clases ilimitadas</span>
+              </div>
+            }
           }
         </div>
       }
@@ -114,127 +137,126 @@
       <ion-text color="danger"><p>Ocurrió un error. Intenta nuevamente.</p></ion-text>
     }
 
-    <section class="member-section">
-      <h2>{{ monthLabel }}</h2>
-      <div class="calendar-grid">
-        @for (wd of weekdayLabels; track wd) {
-          <span class="calendar-grid__weekday">{{ wd }}</span>
-        }
-        @for (cell of visibleGrid(); track $index) {
-          @if (cell) {
-            <button
-              type="button"
-              class="calendar-day"
-              [class.calendar-day--today]="cell.isToday"
-              [class.calendar-day--past]="cell.isPast"
-              [class.calendar-day--selected]="cell.iso === selectedDate()"
-              [class.calendar-day--has-classes]="cell.hasClasses"
-              (click)="selectDay(cell.iso)"
-            >
-              <span class="calendar-day__number">{{ cell.dayNumber }}</span>
-              @if (cell.hasClasses) {
-                <span class="calendar-day__dot" aria-hidden="true"></span>
-              }
-            </button>
-          } @else {
-            <span class="calendar-day calendar-day--empty" aria-hidden="true"></span>
+    <div class="booking-teaser" [class.booking-teaser--locked]="bookingLocked()">
+    <div class="booking-teaser__content" [inert]="bookingLocked()">
+    @if (status() === 'loading') {
+      <div class="occurrences-loading">
+        <ion-spinner name="crescent"></ion-spinner>
+        <p>{{ occurrencesLoadingMessage }}</p>
+      </div>
+    } @else {
+    <div class="member-columns">
+      <section class="member-section member-columns__calendar">
+        <h2>{{ monthLabel }}</h2>
+        <div class="calendar-grid">
+          @for (wd of weekdayLabels; track wd) {
+            <span class="calendar-grid__weekday">{{ wd }}</span>
           }
-        }
-      </div>
-      <button type="button" class="calendar-toggle" (click)="toggleMonthExpanded()">
-        {{ monthExpanded() ? 'Ver solo esta semana' : 'Ver mes completo' }}
-      </button>
-    </section>
-
-    <section class="member-section">
-      <h2>{{ selectedDateLabel() }}</h2>
-      <div class="class-list">
-        @for (occurrence of dayOccurrences(); track occurrence.gymBlockId + occurrence.classDate) {
-          <article
-            class="class-card"
-            [class.class-card--reserved]="!!occurrence.myReservationId"
-            [class.class-card--past]="occurrence.past"
-          >
-            <div class="class-card__info">
-              <p class="class-card__title">
-                <ion-icon [name]="categoryIcon(occurrence.category)" aria-hidden="true"></ion-icon>
-                {{ occurrence.label }}
-              </p>
-              <p class="class-card__meta">{{ occurrence.startTime }}-{{ occurrence.endTime }}</p>
-              @if (occurrence.instructorName) {
-                <p class="class-card__instructor">
-                  @if (occurrence.instructorPhoto) {
-                    <img [src]="occurrence.instructorPhoto" alt="" />
-                  }
-                  {{ occurrence.instructorName }}
-                </p>
-              }
-              <p class="class-card__capacity">{{ occurrence.taken }}/{{ occurrence.capacity }} cupos</p>
-            </div>
-            @if (occurrence.myReservationId) {
-              <div class="class-card__action">
-                <ion-badge color="success">Reservado</ion-badge>
-                @if (!occurrence.past) {
-                  <ion-button
-                    fill="clear"
-                    size="small"
-                    color="danger"
-                    [disabled]="cancelingId() === occurrence.myReservationId"
-                    (click)="cancel(occurrence.myReservationId!)"
-                  >
-                    {{ cancelingId() === occurrence.myReservationId ? 'Cancelando...' : 'Cancelar' }}
-                  </ion-button>
-                }
-              </div>
-            } @else if (occurrence.past) {
-              <ion-text color="medium" class="class-card__quota-note">Esta clase ya pasó</ion-text>
-            } @else if (!canBook()) {
-              <button type="button" class="class-card__quota-note class-card__quota-note--action" (click)="scrollToPlans()">
-                Elige un plan para reservar
-              </button>
-            } @else if (quotaExhausted()) {
-              <ion-text color="medium" class="class-card__quota-note">Alcanzaste tus clases de este mes</ion-text>
-            } @else {
-              <ion-button
-                fill="solid"
-                size="small"
-                [disabled]="!occurrence.bookable || bookingId() === occurrence.gymBlockId"
-                (click)="book(occurrence)"
+          @for (cell of visibleGrid(); track $index) {
+            @if (cell) {
+              <button
+                type="button"
+                class="calendar-day"
+                [class.calendar-day--today]="cell.isToday"
+                [class.calendar-day--past]="cell.isPast"
+                [class.calendar-day--selected]="cell.iso === selectedDate()"
+                [class.calendar-day--has-classes]="cell.hasClasses"
+                (click)="selectDay(cell.iso)"
               >
-                {{ bookingId() === occurrence.gymBlockId ? 'Reservando...' : !occurrence.bookable ? 'Sin cupo' : 'Reservar' }}
-              </ion-button>
+                <span class="calendar-day__number">{{ cell.dayNumber }}</span>
+                @if (cell.hasClasses) {
+                  <span class="calendar-day__dot" aria-hidden="true"></span>
+                }
+              </button>
+            } @else {
+              <span class="calendar-day calendar-day--empty" aria-hidden="true"></span>
             }
-          </article>
-        } @empty {
-          <p class="item-hint">No hay clases programadas este día.</p>
-        }
-      </div>
-    </section>
+          }
+        </div>
+        <button type="button" class="calendar-toggle" (click)="toggleMonthExpanded()">
+          {{ monthExpanded() ? 'Ver solo esta semana' : 'Ver mes completo' }}
+        </button>
+      </section>
 
-    <section class="member-section">
-      <h2>Mis reservas</h2>
-      <div class="class-list">
-        @for (reservation of myReservations(); track reservation.id) {
-          <article class="class-card">
-            <div class="class-card__info">
-              <p class="class-card__title">{{ reservation.blockLabel }}</p>
-              <p class="class-card__meta">{{ reservation.classDate }} · {{ reservation.startTime }}-{{ reservation.endTime }}</p>
-            </div>
-            <ion-button
-              fill="clear"
-              size="small"
-              color="danger"
-              [disabled]="cancelingId() === reservation.id"
-              (click)="cancel(reservation.id)"
-            >
-              {{ cancelingId() === reservation.id ? 'Cancelando...' : 'Cancelar' }}
-            </ion-button>
-          </article>
-        } @empty {
-          <p class="item-hint">Todavía no tienes reservas.</p>
-        }
+      <div class="member-columns__agenda">
+        <section class="member-section">
+          <h2>{{ selectedDateLabel() }}</h2>
+          <div class="class-grid">
+            @for (occurrence of dayOccurrences(); track occurrence.gymBlockId + occurrence.classDate) {
+              <article
+                class="class-tile"
+                [class.class-tile--reserved]="!!occurrence.myReservationId"
+                [class.class-tile--past]="occurrence.past"
+              >
+                <p class="class-tile__title">
+                  <ion-icon [name]="categoryIcon(occurrence.category)" aria-hidden="true"></ion-icon>
+                  {{ occurrence.label }}
+                </p>
+                <p class="class-tile__time">{{ occurrence.startTime }}-{{ occurrence.endTime }}</p>
+                @if (occurrence.instructorName) {
+                  <p class="class-tile__instructor">{{ occurrence.instructorName }}</p>
+                }
+                <p class="class-tile__capacity">{{ occurrence.taken }}/{{ occurrence.capacity }} cupos</p>
+                <div class="class-tile__action">
+                  @if (occurrence.myReservationId) {
+                    <ion-badge color="success">Reservado</ion-badge>
+                    @if (!occurrence.past) {
+                      <button
+                        type="button"
+                        class="class-tile__link class-tile__link--danger"
+                        [disabled]="cancelingId() === occurrence.myReservationId"
+                        (click)="cancel(occurrence.myReservationId!)"
+                      >
+                        {{ cancelingId() === occurrence.myReservationId ? 'Cancelando...' : 'Cancelar' }}
+                      </button>
+                    }
+                  } @else if (occurrence.past) {
+                    <span class="class-tile__note">Ya pasó</span>
+                  } @else if (!canBook()) {
+                    <button type="button" class="class-tile__link" (click)="scrollToPlans()">Elegir plan</button>
+                  } @else if (quotaExhausted()) {
+                    <span class="class-tile__note">Sin cupo del mes</span>
+                  } @else {
+                    <ion-button
+                      expand="block"
+                      fill="solid"
+                      size="small"
+                      [disabled]="!occurrence.bookable || bookingId() === occurrence.gymBlockId"
+                      (click)="book(occurrence)"
+                    >
+                      {{ bookingId() === occurrence.gymBlockId ? 'Reservando...' : !occurrence.bookable ? 'Sin cupo' : 'Reservar' }}
+                    </ion-button>
+                  }
+                </div>
+              </article>
+            } @empty {
+              <p class="item-hint">No hay clases programadas este día.</p>
+            }
+          </div>
+        </section>
       </div>
-    </section>
+    </div>
+    }
+    </div>
+    @if (bookingLocked()) {
+      <button type="button" class="booking-teaser__cta" (click)="scrollToPlans()">
+        <span class="booking-teaser__cta-card">
+          <ion-icon name="lock-closed-outline" aria-hidden="true"></ion-icon>
+          @if (membership().status === 'past_due') {
+            <span class="booking-teaser__cta-title">Renueva tu plan para reservar</span>
+            <span class="booking-teaser__cta-body">
+              Tu membresía venció — así se ve tu calendario de clases, actívalo de nuevo arriba.
+            </span>
+          } @else {
+            <span class="booking-teaser__cta-title">Elige tu plan para reservar</span>
+            <span class="booking-teaser__cta-body">
+              Así se ve tu calendario de clases — actívalo con cualquiera de los planes de arriba.
+            </span>
+          }
+        </span>
+      </button>
+    }
+    </div>
 
     <section class="member-about">
       <img
@@ -283,6 +305,56 @@
           </a>
         }
       </div>
+    }
+    } @else {
+    <p class="section-hook">Tu historial de clases, ordenado y a la vista.</p>
+
+    <section class="member-section">
+      <h2>Próximas</h2>
+      <div class="class-grid">
+        @for (reservation of upcomingReservations(); track reservation.id) {
+          <article class="class-tile class-tile--reserved">
+            <p class="class-tile__title">{{ reservation.blockLabel }}</p>
+            <p class="class-tile__time">{{ reservation.classDate }}</p>
+            <p class="class-tile__instructor">{{ reservation.startTime }}-{{ reservation.endTime }}</p>
+            <div class="class-tile__action">
+              <ion-badge color="success">Reservado</ion-badge>
+              <button
+                type="button"
+                class="class-tile__link class-tile__link--danger"
+                [disabled]="cancelingId() === reservation.id"
+                (click)="cancel(reservation.id)"
+              >
+                {{ cancelingId() === reservation.id ? 'Cancelando...' : 'Cancelar' }}
+              </button>
+            </div>
+          </article>
+        } @empty {
+          <div class="empty-reservations">
+            <p class="item-hint">Todavía no tienes próximas reservas.</p>
+            <button type="button" class="calendar-toggle" (click)="setSection('reservar')">Ir a reservar</button>
+          </div>
+        }
+      </div>
+    </section>
+
+    @if (pastReservations().length > 0) {
+      <section class="member-section">
+        <h2>Pasadas</h2>
+        <div class="class-grid">
+          @for (reservation of pastReservations(); track reservation.id) {
+            <article class="class-tile class-tile--past">
+              <p class="class-tile__title">{{ reservation.blockLabel }}</p>
+              <p class="class-tile__time">{{ reservation.classDate }}</p>
+              <p class="class-tile__instructor">{{ reservation.startTime }}-{{ reservation.endTime }}</p>
+              <div class="class-tile__action">
+                <ion-badge color="medium">Pasada</ion-badge>
+              </div>
+            </article>
+          }
+        </div>
+      </section>
+    }
     }
     </div>
   </ion-content>
