@@ -68,6 +68,12 @@ public class GymController {
         return gymService.getGym(id);
     }
 
+    /** Resuelve el UUID opaco de la URL del super-admin al gym completo (nunca se expone el id secuencial en rutas). */
+    @GetMapping("/by-public-id/{publicId}")
+    public GymResponse getGymByPublicId(@PathVariable java.util.UUID publicId) {
+        return gymService.getGymByPublicId(publicId);
+    }
+
     @PutMapping("/{id}/config")
     public GymResponse updateGymConfig(@PathVariable Long id, @Valid @RequestBody GymConfigUpdateRequest request) {
         return gymService.updateGymConfig(id, request);

@@ -37,7 +37,7 @@ export const webRoutes: Routes = [
         loadComponent: () => import('./pages/admin/gyms/gym-form/gym-form').then((m) => m.GymForm),
       },
       {
-        path: ':id',
+        path: ':publicId',
         loadComponent: () => import('./pages/admin/gyms/gym-form/gym-form').then((m) => m.GymForm),
       },
     ],

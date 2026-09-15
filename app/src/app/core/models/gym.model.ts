@@ -9,6 +9,8 @@ export type DayOfWeek =
 
 export interface Gym {
   id: number;
+  /** UUID opaco usado en la URL del super-admin — el id de arriba nunca se expone en una ruta. */
+  publicId: string;
   name: string;
   slug: string;
   active: boolean;

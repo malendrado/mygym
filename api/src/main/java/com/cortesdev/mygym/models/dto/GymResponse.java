@@ -4,6 +4,7 @@ import java.time.Instant;
 
 public record GymResponse(
         Long id,
+        String publicId,
         String name,
         String slug,
         boolean active,

@@ -118,6 +118,10 @@
         </form>
       </ion-card-content>
     </ion-card>
+  } @else if (!gymLoaded()) {
+    <div class="gym-detail-loading">
+      <ion-spinner name="crescent"></ion-spinner>
+    </div>
   } @else {
     <div class="gym-detail-page">
     <div class="gym-detail-hero">

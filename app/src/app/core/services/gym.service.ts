@@ -87,6 +87,11 @@ export class GymService {
     return this.http.get<Gym>(`${this.base}/${id}`);
   }
 
+  /** Resuelve el UUID opaco de la URL (/admin/gyms/:publicId) al gym completo. */
+  getByPublicId(publicId: string): Observable<Gym> {
+    return this.http.get<Gym>(`${this.base}/by-public-id/${publicId}`);
+  }
+
   create(payload: CreateGymRequest): Observable<Gym> {
     return this.http.post<Gym>(this.base, payload);
   }

@@ -102,6 +102,13 @@ public class GymService {
         return toResponse(findGymOrThrow(id));
     }
 
+    /** Resuelve el gym por el UUID opaco de la URL del super-admin (nunca por el id secuencial). */
+    @Transactional(readOnly = true)
+    public GymResponse getGymByPublicId(java.util.UUID publicId) {
+        Gym gym = gymRepository.findByPublicId(publicId).orElseThrow(() -> new GymNotFoundException(publicId));
+        return toResponse(gym);
+    }
+
     @Transactional(readOnly = true)
     public PublicGymResponse getPublicBySlug(String slug) {
         Gym gym = gymRepository.findBySlug(slug).orElseThrow(() -> new GymNotFoundException(slug));
@@ -447,6 +454,7 @@ public class GymService {
     private GymResponse toResponse(Gym gym) {
         return new GymResponse(
                 gym.getId(),
+                gym.getPublicId().toString(),
                 gym.getName(),
                 gym.getSlug(),
                 gym.isActive(),

@@ -220,6 +220,8 @@ export class GymForm implements OnDestroy {
   protected readonly section = signal<Section>('general');
   protected readonly sectionLabel = computed(() => SECTION_LABELS[this.section()]);
   protected readonly gymId = signal<number | null>(null);
+  protected readonly hasPublicId = signal(false);
+  protected readonly gymLoaded = signal(false);
   protected readonly blocks = signal<GymBlock[]>([]);
   // Mismo fix que gym-admin.ts (2026-09-13): sin esto la lista de bloques de
   // TODOS los días se mostraba de corrido — el super-admin ve esta misma
@@ -323,16 +325,10 @@ export class GymForm implements OnDestroy {
   });
 
   constructor() {
-    const idParam = this.route.snapshot.paramMap.get('id');
-    if (idParam) {
-      const id = Number(idParam);
-      this.gymId.set(id);
-      this.loadGym(id);
-      this.loadBlocks(id);
-      this.loadAdmins(id);
-      this.loadPlans(id);
-      this.loadMembers(id);
-      this.loadPhotos(id);
+    const publicId = this.route.snapshot.paramMap.get('publicId');
+    if (publicId) {
+      this.hasPublicId.set(true);
+      this.resolveAndLoadGym(publicId);
     }
 
     // Mismo mecanismo que gym-admin.ts: los overlays de Ionic (ion-select,
@@ -363,17 +359,26 @@ export class GymForm implements OnDestroy {
   }
 
   protected get isEditing(): boolean {
-    return this.gymId() !== null;
+    return this.hasPublicId();
   }
 
   protected setSection(section: Section): void {
     this.section.set(section);
   }
 
-  private loadGym(id: number): void {
+  /**
+   * La URL solo trae el UUID opaco — nunca el id secuencial de la tabla, ver
+   * comentario en gym.model.ts (Gym.publicId). Este es el único punto donde
+   * se resuelve ese UUID a un id numérico; de ahí en adelante todo el resto
+   * de la página (bloques, planes, socios, fotos) usa ese id resuelto, nunca
+   * el de la URL.
+   */
+  private resolveAndLoadGym(publicId: string): void {
     this.status.set('loading');
-    this.gymService.get(id).subscribe({
+    this.gymService.getByPublicId(publicId).subscribe({
       next: (gym) => {
+        const id = gym.id;
+        this.gymId.set(id);
         this.gym.set(gym);
         this.configForm.setValue({
           active: gym.active,
@@ -392,8 +397,17 @@ export class GymForm implements OnDestroy {
           cancellationWindowHours: gym.cancellationWindowHours,
         });
         this.status.set('idle');
+        this.gymLoaded.set(true);
+        this.loadBlocks(id);
+        this.loadAdmins(id);
+        this.loadPlans(id);
+        this.loadMembers(id);
+        this.loadPhotos(id);
       },
-      error: () => this.status.set('error'),
+      error: () => {
+        this.status.set('error');
+        this.gymLoaded.set(true);
+      },
     });
   }
 
@@ -442,7 +456,7 @@ export class GymForm implements OnDestroy {
       logoSvg: suggestion?.logoSvg ?? null,
     };
     this.gymService.create(payload).subscribe({
-      next: (gym: Gym) => this.router.navigate(['/admin/gyms', gym.id]),
+      next: (gym: Gym) => this.router.navigate(['/admin/gyms', gym.publicId]),
       error: () => this.status.set('error'),
     });
   }

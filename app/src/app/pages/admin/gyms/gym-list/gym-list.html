@@ -54,7 +54,7 @@
     @if (gyms().length > 0) {
       <div class="gym-grid">
         @for (gym of gyms(); track gym.id) {
-          <a class="gym-card" [routerLink]="['/admin/gyms', gym.id]" [style.--gym-accent]="gym.themeColor ?? '#c6ff3d'">
+          <a class="gym-card" [routerLink]="['/admin/gyms', gym.publicId]" [style.--gym-accent]="gym.themeColor ?? '#c6ff3d'">
             <div class="gym-card__badge">
               @if (isRasterLogo(gym)) {
                 <img [src]="gym.logoSvg" alt="" />

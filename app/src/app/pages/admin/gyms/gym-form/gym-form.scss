@@ -9,6 +9,22 @@
   width: 100%;
 }
 
+// Se ve mientras se resuelve el UUID opaco de la URL al gym real — antes de
+// esto el id ya estaba disponible sincrónicamente desde la URL, ahora hay
+// un round-trip HTTP de por medio (mismo patrón que .gym-admin-loading).
+.gym-detail-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 0;
+
+  ion-spinner {
+    width: 48px;
+    height: 48px;
+    color: var(--brand-accent);
+  }
+}
+
 // Administradores y Configuración son dos tarjetas de altura similar y
 // temas independientes — en desktop van lado a lado en vez de una debajo
 // de la otra ocupando todo el ancho disponible cada una.

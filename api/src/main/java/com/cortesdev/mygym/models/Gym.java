@@ -9,6 +9,7 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -27,6 +28,13 @@ public class Gym {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    /**
+     * Identificador opaco para la URL del panel del super-admin — el id
+     * secuencial de arriba nunca se expone en una ruta (dejaba adivinar
+     * cuántos gimnasios existen y filtraba el nombre del cliente en la URL).
+     */
+    private UUID publicId;
 
     private String name;
 
@@ -62,6 +70,9 @@ public class Gym {
         Instant now = Instant.now();
         createdAt = now;
         updatedAt = now;
+        if (publicId == null) {
+            publicId = UUID.randomUUID();
+        }
     }
 
     @PreUpdate
