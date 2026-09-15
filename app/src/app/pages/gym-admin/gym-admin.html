@@ -287,6 +287,29 @@
       </ng-template>
     </ion-modal>
   } @else if (section() === 'members') {
+    <div class="member-stats">
+      <div class="member-stat member-stat--active">
+        <ion-icon name="checkmark-circle-outline" aria-hidden="true"></ion-icon>
+        <p class="member-stat__value">{{ activeMembers() }}</p>
+        <p class="member-stat__label">Activos</p>
+      </div>
+      <div class="member-stat member-stat--soon">
+        <ion-icon name="hourglass-outline" aria-hidden="true"></ion-icon>
+        <p class="member-stat__value">{{ expiringSoonMembers() }}</p>
+        <p class="member-stat__label">Por vencer</p>
+      </div>
+      <div class="member-stat member-stat--warn">
+        <ion-icon name="close-circle-outline" aria-hidden="true"></ion-icon>
+        <p class="member-stat__value">{{ expiredMembers() }}</p>
+        <p class="member-stat__label">Vencidos</p>
+      </div>
+      <div class="member-stat member-stat--dim">
+        <ion-icon name="help-circle-outline" aria-hidden="true"></ion-icon>
+        <p class="member-stat__value">{{ unpaidMembers() }}</p>
+        <p class="member-stat__label">Sin pago</p>
+      </div>
+    </div>
+
     <ion-card>
       <ion-card-header>
         <ion-card-title>
