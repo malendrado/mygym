@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { CreateMemberRequest, Member } from '../models/member.model';
+import { CreateMemberRequest, MarkPaidRequest, Member } from '../models/member.model';
 
 @Injectable({ providedIn: 'root' })
 export class MemberService {
@@ -25,5 +25,15 @@ export class MemberService {
 
   createForGym(gymId: number, payload: CreateMemberRequest): Observable<Member> {
     return this.http.post<Member>(`${this.gymsBase}/${gymId}/members`, payload);
+  }
+
+  /** El gym-admin marca a un socio suyo como pagado. */
+  markPaid(memberId: number, payload: MarkPaidRequest): Observable<void> {
+    return this.http.post<void>(`${this.base}/${memberId}/mark-paid`, payload);
+  }
+
+  /** Contraparte SUPER_ADMIN de markPaid — mismo backend, gymId por path. */
+  markPaidForGym(gymId: number, memberId: number, payload: MarkPaidRequest): Observable<void> {
+    return this.http.post<void>(`${this.gymsBase}/${gymId}/members/${memberId}/mark-paid`, payload);
   }
 }

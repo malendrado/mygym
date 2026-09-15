@@ -42,6 +42,11 @@ public class AppUser {
 
     private boolean active;
 
+    /** Solo aplica a MEMBER — plan contratado y fecha del último pago (marcado a mano por un admin, ver GymService.simulatePlanPayment). */
+    private Long planId;
+
+    private Instant paidAt;
+
     private Instant createdAt;
 
     private Instant updatedAt;

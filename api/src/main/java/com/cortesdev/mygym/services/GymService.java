@@ -39,6 +39,7 @@ import com.cortesdev.mygym.services.exception.InvalidBlockScheduleException;
 import com.cortesdev.mygym.services.exception.InvalidLogoException;
 import com.cortesdev.mygym.services.exception.MemberNotFoundException;
 import com.cortesdev.mygym.services.exception.TooManyGymPhotosException;
+import java.time.Instant;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Locale;
@@ -382,10 +383,13 @@ public class GymService {
     }
 
     /**
-     * Todavía no existe el pago real (Flow.cl, Parte B pendiente) — esto solo
-     * dispara los emails de confirmación como si el pago ya hubiera sido
-     * aprobado. No crea ninguna fila de suscripción/pago (ese esquema no
-     * existe todavía); reemplazar por el webhook real de Flow.cl más adelante.
+     * Todavía no existe el pago real (Flow.cl, Parte B pendiente), así que
+     * esto lo dispara un admin marcando "pagó" a mano (o el propio socio
+     * simulando el pago desde /member) — pero SÍ persiste plan_id/paid_at
+     * reales en app_user, de donde MemberService calcula el estado
+     * Activo/Vencido/Sin pago. Reemplazar por el webhook real de Flow.cl más
+     * adelante (ahí este método deja de existir y el estado lo escribe el
+     * webhook, no un botón).
      */
     public void simulatePlanPayment(Long gymId, Long memberId, Long planId) {
         Gym gym = findGymOrThrow(gymId);
@@ -393,6 +397,9 @@ public class GymService {
         AppUser member = appUserRepository
                 .findByIdAndGymId(memberId, gymId)
                 .orElseThrow(() -> new MemberNotFoundException(memberId));
+        member.setPlanId(planId);
+        member.setPaidAt(Instant.now());
+        appUserRepository.save(member);
         List<String> adminEmails = appUserRepository.findByGymIdAndRole(gymId, Role.GYM_ADMIN).stream()
                 .map(AppUser::getEmail)
                 .toList();

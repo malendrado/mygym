@@ -70,7 +70,7 @@ import {
   UpdateGymPlanRequest,
   sortBlocksBySchedule,
 } from '../../../../core/models/gym.model';
-import { Member } from '../../../../core/models/member.model';
+import { Member, MembershipStatus } from '../../../../core/models/member.model';
 import { BloqueFormModal, DAYS } from '../bloque-form-modal/bloque-form-modal';
 import { BloqueSeriesModal } from '../bloque-series-modal/bloque-series-modal';
 import { PlanFormModal } from '../plan-form-modal/plan-form-modal';
@@ -248,6 +248,9 @@ export class GymForm implements OnDestroy {
 
   // Socios (pestaña Socios)
   protected readonly members = signal<Member[]>([]);
+  protected readonly activeMembers = computed(() => this.members().filter((m) => m.membershipStatus === 'ACTIVE').length);
+  protected readonly expiredMembers = computed(() => this.members().filter((m) => m.membershipStatus === 'EXPIRED').length);
+  protected readonly unpaidMembers = computed(() => this.members().filter((m) => m.membershipStatus === 'UNPAID').length);
   protected readonly memberForm = new FormGroup({
     name: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.minLength(2)] }),
     email: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.email] }),
@@ -759,6 +762,54 @@ export class GymForm implements OnDestroy {
     this.memberService.listForGym(id).subscribe({
       next: (members) => this.members.set(members),
       error: () => this.status.set('error'),
+    });
+  }
+
+  protected statusLabel(status: MembershipStatus): string {
+    return status === 'ACTIVE' ? 'Activo' : status === 'EXPIRED' ? 'Vencido' : 'Sin pago';
+  }
+
+  protected statusColor(status: MembershipStatus): string {
+    return status === 'ACTIVE' ? 'success' : status === 'EXPIRED' ? 'danger' : 'medium';
+  }
+
+  // Registro manual mientras no existe el pago real (Flow.cl, Parte B
+  // pendiente) — el super-admin elige el plan que el socio pagó y queda
+  // persistido de verdad (GymService.simulatePlanPayment).
+  protected async markMemberPaid(member: Member): Promise<void> {
+    const id = this.gymId();
+    if (id === null) {
+      return;
+    }
+    const plans = this.plans();
+    if (plans.length === 0) {
+      this.showToast('Primero crea un plan en la pestaña Planes.', 'danger');
+      return;
+    }
+    const alert = await this.alertController.create({
+      header: `Marcar pago — ${member.name}`,
+      inputs: plans.map((plan, index) => ({
+        type: 'radio' as const,
+        label: plan.name,
+        value: plan.id,
+        checked: index === 0,
+      })),
+      buttons: [
+        { text: 'Cancelar', role: 'cancel' },
+        { text: 'Confirmar', role: 'confirm' },
+      ],
+    });
+    await alert.present();
+    const { role, data } = await alert.onDidDismiss();
+    if (role !== 'confirm' || !data?.values) {
+      return;
+    }
+    this.memberService.markPaidForGym(id, member.id, { planId: data.values }).subscribe({
+      next: () => {
+        this.showToast(`Pago registrado para ${member.name}.`);
+        this.loadMembers(id);
+      },
+      error: () => this.showToast('No pudimos registrar el pago. Intenta nuevamente.', 'danger'),
     });
   }
 

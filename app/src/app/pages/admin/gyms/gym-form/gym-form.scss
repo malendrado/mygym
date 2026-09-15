@@ -429,6 +429,45 @@ ion-segment-button.segment-button-checked {
   --color: var(--brand-accent-text-safe, var(--ion-color-primary));
 }
 
+// Mismas reglas que gym-admin.scss — conteo real de socios
+// activos/vencidos/sin pago, ahora posible porque paid_at se persiste de
+// verdad (ver GymService.simulatePlanPayment).
+.member-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.member-stat {
+  border: 1px solid var(--brand-ink-surface-2);
+  border-radius: 14px;
+  padding: 0.75rem 0.9rem;
+  background: var(--brand-ink-surface);
+  text-align: center;
+
+  &--warn &__value {
+    color: var(--ion-color-danger);
+  }
+
+  &--dim &__value {
+    color: var(--brand-text-dim);
+  }
+}
+
+.member-stat__value {
+  margin: 0 0 0.15rem;
+  font-family: var(--brand-font-mono);
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.member-stat__label {
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--brand-text-dim);
+}
+
 .plan-grid {
   display: grid;
   grid-template-columns: 1fr;

@@ -14,6 +14,7 @@ import com.cortesdev.mygym.models.dto.GymIdentityUpdateRequest;
 import com.cortesdev.mygym.models.dto.GymPhotoCreateRequest;
 import com.cortesdev.mygym.models.dto.GymPhotoResponse;
 import com.cortesdev.mygym.models.dto.GymResponse;
+import com.cortesdev.mygym.models.dto.MarkPaidRequest;
 import com.cortesdev.mygym.models.dto.MemberCreateRequest;
 import com.cortesdev.mygym.models.dto.MemberResponse;
 import com.cortesdev.mygym.models.dto.PlanCreateRequest;
@@ -186,5 +187,13 @@ public class GymController {
             @PathVariable Long id, @Valid @RequestBody MemberCreateRequest request) {
         MemberResponse member = memberService.createMember(id, request);
         return ResponseEntity.created(URI.create("/api/gyms/" + id + "/members/" + member.id())).body(member);
+    }
+
+    /** Contraparte SUPER_ADMIN de MemberController.markPaid — mismo backend, gymId por path. */
+    @PostMapping("/{id}/members/{memberId}/mark-paid")
+    public ResponseEntity<Void> markMemberPaid(
+            @PathVariable Long id, @PathVariable Long memberId, @Valid @RequestBody MarkPaidRequest request) {
+        gymService.simulatePlanPayment(id, memberId, request.planId());
+        return ResponseEntity.noContent().build();
     }
 }
