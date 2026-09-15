@@ -1,3 +1,32 @@
+// Sin ancho fijo a propósito (pedido explícito del usuario: "no pongas
+// anchos fijos, aprovecha al máximo el formato web") — la desproporción
+// original no era por el ancho del contenedor sino por botones
+// full-width y un textarea de SVG mal dimensionado (ver .logo-svg-input
+// y los ion-button de abajo). El ancho se aprovecha con grillas
+// (.gym-detail-stats, .gym-detail-columns, .block-grid), no con un tope
+// de página que angosta todo como si fuera mobile estirado.
+.gym-detail-page {
+  width: 100%;
+}
+
+// Administradores y Configuración son dos tarjetas de altura similar y
+// temas independientes — en desktop van lado a lado en vez de una debajo
+// de la otra ocupando todo el ancho disponible cada una.
+.gym-detail-columns {
+  display: contents;
+
+  @media (min-width: 900px) {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+    align-items: start;
+
+    ion-card {
+      margin: 0;
+    }
+  }
+}
+
 // Reemplaza el header plano (h1 + slug suelto) por un mini-hero con el logo/
 // color del propio gimnasio, mismo lenguaje visual que la tarjeta de
 // gym-list (badge + nombre + estado), pero en formato "detalle" en vez de
@@ -132,6 +161,17 @@
     margin: 0.5rem 0 0;
     color: var(--brand-text-dim);
   }
+}
+
+// El markup SVG pegado ahí es texto largo y técnico — en la fuente sans
+// normal del formulario se leía como un bloque de texto roto/sin estilo
+// (parte de la desproporción reportada). Monoespaciada y más chica se lee
+// como lo que es: un campo de código, no un párrafo.
+.logo-svg-input {
+  font-family: var(--brand-font-mono);
+  font-size: 0.72rem;
+  --padding-top: 0.5rem;
+  --padding-bottom: 0.5rem;
 }
 
 .logo-preview {
@@ -269,9 +309,79 @@
   }
 }
 
-.block-item__label {
-  min-width: 0;
-  white-space: normal;
+// Antes era una fila ion-item por bloque (una lista larga hacia abajo, poco
+// legible con muchos bloques) — mismo criterio ya aplicado en /member y en
+// .plan-grid/.plan-card de gym-admin: tarjetas chicas, 2-3 por línea.
+.block-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+
+  @media (min-width: 480px) {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  }
+}
+
+.block-card {
+  border: 1px solid var(--brand-ink-surface-2);
+  border-radius: 14px;
+  padding: 0.75rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+
+  &--inactive {
+    opacity: 0.6;
+  }
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+
+    h3 {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      margin: 0;
+      font-family: var(--brand-font-display);
+      font-size: 1rem;
+
+      ion-icon {
+        flex-shrink: 0;
+        color: var(--brand-accent);
+        font-size: 0.95rem;
+      }
+    }
+
+  }
+
+  // Plain <div> en vez de <ion-buttons>: ion-buttons fuera de un
+  // ion-toolbar/ion-item queda con un offset vertical negativo (choca con
+  // el fix global de min-height:44px en ion-button — el botón se
+  // renderiza, pero literalmente arriba de la tarjeta, invisible).
+  // Encontrado 2026-09-15 probando esta tarjeta con datos reales.
+  &__actions {
+    display: flex;
+    gap: 0.15rem;
+    flex-shrink: 0;
+  }
+
+  &__time {
+    margin: 0;
+    color: var(--brand-text-dim);
+    font-size: 0.85rem;
+  }
+
+  &__meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.15rem;
+  }
 }
 
 .block-item__instructor {
@@ -287,5 +397,190 @@
     height: 18px;
     border-radius: 999px;
     object-fit: cover;
+  }
+}
+
+// A partir de acá: mismos estilos que gym-admin.scss para Planes/Socios/
+// Marca (pestañas nuevas del super-admin, mismo patrón visual que el panel
+// del dueño de gimnasio — pedido explícito del usuario 2026-09-15).
+// Mismo fix de contraste que gym-admin.scss: el acento libre a veces no
+// alcanza 4.5:1 como texto plano (ver esa hoja para el detalle completo).
+ion-segment-button.segment-button-checked {
+  --color-checked: var(--brand-accent-text-safe, var(--ion-color-primary));
+}
+
+.accent-action-button {
+  --color: var(--brand-accent-text-safe, var(--ion-color-primary));
+}
+
+.plan-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+
+  @media (min-width: 480px) {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  }
+}
+
+.plan-card {
+  border: 1px solid var(--brand-ink-surface-2);
+  border-radius: 14px;
+  padding: 0.75rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+
+  &--inactive {
+    opacity: 0.6;
+  }
+}
+
+.plan-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+
+  h3 {
+    margin: 0;
+    font-family: var(--brand-font-display);
+    font-size: 1rem;
+  }
+}
+
+.plan-card__description {
+  margin: 0;
+  color: var(--brand-text-dim);
+  font-size: 0.85rem;
+}
+
+.plan-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.15rem;
+}
+
+.plan-card__price {
+  font-family: var(--brand-font-mono);
+  font-weight: 600;
+  color: var(--brand-accent-text-safe, var(--brand-accent));
+}
+
+.theme-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.theme-card {
+  border: none;
+  border-radius: 14px;
+  padding: 0.6rem;
+  cursor: pointer;
+  transition: transform 0.15s ease, background-color 0.25s ease;
+
+  &:active {
+    transform: scale(0.97);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  &--selected {
+    outline: 2px solid var(--brand-text);
+    outline-offset: 2px;
+  }
+}
+
+.theme-card__surface {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  padding: 1rem 0.5rem;
+  transition: background-color 0.25s ease;
+}
+
+.theme-card__button {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 0.4rem 0.9rem;
+  font-family: var(--brand-font-display);
+  font-weight: 600;
+  font-size: 0.8rem;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+.custom-color {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.75rem;
+
+  label {
+    font-size: 0.85rem;
+    color: var(--brand-text-dim);
+  }
+
+  input[type='color'] {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border: 1px solid var(--brand-ink-surface-2);
+    border-radius: 10px;
+    background: none;
+    cursor: pointer;
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
+}
+
+.photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 0.6rem;
+  margin-top: 0.5rem;
+}
+
+.photo-grid__item {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 12px;
+  overflow: hidden;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.photo-grid__remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  cursor: pointer;
+
+  ion-icon {
+    font-size: 18px;
   }
 }

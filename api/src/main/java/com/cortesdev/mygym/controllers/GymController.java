@@ -10,9 +10,19 @@ import com.cortesdev.mygym.models.dto.BrandingSuggestionRequest;
 import com.cortesdev.mygym.models.dto.BrandingSuggestionResponse;
 import com.cortesdev.mygym.models.dto.GymConfigUpdateRequest;
 import com.cortesdev.mygym.models.dto.GymCreateRequest;
+import com.cortesdev.mygym.models.dto.GymIdentityUpdateRequest;
+import com.cortesdev.mygym.models.dto.GymPhotoCreateRequest;
+import com.cortesdev.mygym.models.dto.GymPhotoResponse;
 import com.cortesdev.mygym.models.dto.GymResponse;
+import com.cortesdev.mygym.models.dto.MemberCreateRequest;
+import com.cortesdev.mygym.models.dto.MemberResponse;
+import com.cortesdev.mygym.models.dto.PlanCreateRequest;
+import com.cortesdev.mygym.models.dto.PlanResponse;
+import com.cortesdev.mygym.models.dto.PlanUpdateRequest;
+import com.cortesdev.mygym.models.dto.ThemeUpdateRequest;
 import com.cortesdev.mygym.services.BrandingSuggestionService;
 import com.cortesdev.mygym.services.GymService;
+import com.cortesdev.mygym.services.MemberService;
 import jakarta.validation.Valid;
 import java.net.URI;
 import java.util.List;
@@ -34,6 +44,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class GymController {
 
     private final GymService gymService;
+    private final MemberService memberService;
     private final BrandingSuggestionService brandingSuggestionService;
 
     @PostMapping("/suggest-branding")
@@ -104,5 +115,70 @@ public class GymController {
     public AdminResponse updateAdminStatus(
             @PathVariable Long id, @PathVariable Long userId, @Valid @RequestBody AdminStatusUpdateRequest request) {
         return gymService.updateAdminStatus(id, userId, request);
+    }
+
+    @GetMapping("/{id}/plans")
+    public List<PlanResponse> listPlans(@PathVariable Long id) {
+        return gymService.listPlans(id);
+    }
+
+    @PostMapping("/{id}/plans")
+    public ResponseEntity<PlanResponse> addPlan(@PathVariable Long id, @Valid @RequestBody PlanCreateRequest request) {
+        PlanResponse plan = gymService.addPlan(id, request);
+        return ResponseEntity.created(URI.create("/api/gyms/" + id + "/plans/" + plan.id())).body(plan);
+    }
+
+    @PutMapping("/{id}/plans/{planId}")
+    public PlanResponse updatePlan(
+            @PathVariable Long id, @PathVariable Long planId, @Valid @RequestBody PlanUpdateRequest request) {
+        return gymService.updatePlan(id, planId, request);
+    }
+
+    @DeleteMapping("/{id}/plans/{planId}")
+    public ResponseEntity<Void> removePlan(@PathVariable Long id, @PathVariable Long planId) {
+        gymService.removePlan(id, planId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/{id}/theme")
+    public GymResponse updateTheme(@PathVariable Long id, @Valid @RequestBody ThemeUpdateRequest request) {
+        gymService.updateTheme(id, request.themeColor());
+        return gymService.getGym(id);
+    }
+
+    @PutMapping("/{id}/identity")
+    public GymResponse updateIdentity(@PathVariable Long id, @Valid @RequestBody GymIdentityUpdateRequest request) {
+        gymService.updateIdentity(id, request);
+        return gymService.getGym(id);
+    }
+
+    @GetMapping("/{id}/photos")
+    public List<GymPhotoResponse> listPhotos(@PathVariable Long id) {
+        return gymService.listPhotos(id);
+    }
+
+    @PostMapping("/{id}/photos")
+    public ResponseEntity<GymPhotoResponse> addPhoto(
+            @PathVariable Long id, @Valid @RequestBody GymPhotoCreateRequest request) {
+        GymPhotoResponse photo = gymService.addPhoto(id, request);
+        return ResponseEntity.created(URI.create("/api/gyms/" + id + "/photos/" + photo.id())).body(photo);
+    }
+
+    @DeleteMapping("/{id}/photos/{photoId}")
+    public ResponseEntity<Void> removePhoto(@PathVariable Long id, @PathVariable Long photoId) {
+        gymService.removePhoto(id, photoId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{id}/members")
+    public List<MemberResponse> listMembers(@PathVariable Long id) {
+        return memberService.listMembers(id);
+    }
+
+    @PostMapping("/{id}/members")
+    public ResponseEntity<MemberResponse> addMember(
+            @PathVariable Long id, @Valid @RequestBody MemberCreateRequest request) {
+        MemberResponse member = memberService.createMember(id, request);
+        return ResponseEntity.created(URI.create("/api/gyms/" + id + "/members/" + member.id())).body(member);
     }
 }

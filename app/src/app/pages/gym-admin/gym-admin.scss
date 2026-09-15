@@ -152,12 +152,79 @@ ion-segment-button.segment-button-checked {
   }
 }
 
-.block-item__label {
-  // ion-item's default flex layout gives ion-label no min-width, so long
-  // block names/schedules got squeezed unreadable next to the action
-  // buttons on narrow screens instead of wrapping — found 2026-09-13.
-  min-width: 0;
-  white-space: normal;
+// Antes era una fila ion-item por bloque (lista larga hacia abajo) — mismo
+// criterio ya aplicado en /member y en .plan-grid/.plan-card de acá mismo:
+// tarjetas chicas, 2-3 por línea, en vez de una fila completa por bloque.
+.block-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+
+  @media (min-width: 480px) {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  }
+}
+
+.block-card {
+  border: 1px solid var(--brand-ink-surface-2);
+  border-radius: 14px;
+  padding: 0.75rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+
+  &--inactive {
+    opacity: 0.6;
+  }
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+
+    h3 {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      margin: 0;
+      font-family: var(--brand-font-display);
+      font-size: 1rem;
+
+      ion-icon {
+        flex-shrink: 0;
+        color: var(--brand-accent);
+        font-size: 0.95rem;
+      }
+    }
+
+  }
+
+  // Plain <div> en vez de <ion-buttons>: ion-buttons fuera de un
+  // ion-toolbar/ion-item queda con un offset vertical negativo (choca con
+  // el fix global de min-height:44px en ion-button — el botón se
+  // renderiza, pero literalmente arriba de la tarjeta, invisible).
+  // Encontrado 2026-09-15 probando esta tarjeta con datos reales.
+  &__actions {
+    display: flex;
+    gap: 0.15rem;
+    flex-shrink: 0;
+  }
+
+  &__time {
+    margin: 0;
+    color: var(--brand-text-dim);
+    font-size: 0.85rem;
+  }
+
+  &__meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.15rem;
+  }
 }
 
 // Mismo patrón que .class-card__instructor en member.scss — antes el

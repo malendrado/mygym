@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, OnDestroy, computed, effect, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -20,6 +20,8 @@ import {
   IonList,
   IonModal,
   IonNote,
+  IonSegment,
+  IonSegmentButton,
   IonSpinner,
   IonText,
   IonTextarea,
@@ -34,29 +36,47 @@ import {
   barbellOutline,
   businessOutline,
   calendarOutline,
+  cloudUploadOutline,
+  colorPaletteOutline,
+  createOutline,
+  imagesOutline,
   logoGoogle,
+  megaphoneOutline,
   peopleOutline,
+  personCircleOutline,
   personOutline,
+  pricetagOutline,
+  refreshOutline,
   settingsOutline,
   sparklesOutline,
   timeOutline,
+  trashOutline,
 } from 'ionicons/icons';
 import { firstValueFrom } from 'rxjs';
 import { GymService } from '../../../../core/services/gym.service';
+import { MemberService } from '../../../../core/services/member.service';
 import {
   Admin,
   BrandingSuggestion,
   CreateGymBlockRequest,
+  CreateGymPhotoRequest,
+  CreateGymPlanRequest,
   DayOfWeek,
   Gym,
   GymBlock,
+  GymPhoto,
+  GymPlan,
   UpdateGymBlockRequest,
+  UpdateGymPlanRequest,
   sortBlocksBySchedule,
 } from '../../../../core/models/gym.model';
+import { Member } from '../../../../core/models/member.model';
 import { BloqueFormModal, DAYS } from '../bloque-form-modal/bloque-form-modal';
 import { BloqueSeriesModal } from '../bloque-series-modal/bloque-series-modal';
+import { PlanFormModal } from '../plan-form-modal/plan-form-modal';
 import { QuantityStepper } from '../../../../core/components/quantity-stepper/quantity-stepper';
 import { registerClassCategoryIcons, resolveClassCategoryIcon } from '../../../../core/utils/class-category';
+import { deriveSurfaceTint, ensureMinContrastColor } from '../../../../core/utils/gym-theme';
 
 registerClassCategoryIcons();
 
@@ -70,10 +90,85 @@ addIcons({
   'person-outline': personOutline,
   'logo-google': logoGoogle,
   'barbell-outline': barbellOutline,
+  'create-outline': createOutline,
+  'trash-outline': trashOutline,
+  'pricetag-outline': pricetagOutline,
+  'color-palette-outline': colorPaletteOutline,
+  'refresh-outline': refreshOutline,
+  'cloud-upload-outline': cloudUploadOutline,
+  'images-outline': imagesOutline,
+  'megaphone-outline': megaphoneOutline,
+  'person-circle-outline': personCircleOutline,
 });
 
 type Status = 'idle' | 'loading' | 'saving' | 'error';
 type SuggestStatus = 'idle' | 'loading' | 'error';
+type Section = 'general' | 'blocks' | 'plans' | 'members' | 'branding';
+
+const SECTION_LABELS: Record<Section, string> = {
+  general: 'General',
+  blocks: 'Horarios',
+  plans: 'Planes',
+  members: 'Socios',
+  branding: 'Marca',
+};
+
+interface Palette {
+  key: string;
+  label: string;
+  hex: string;
+  contrast: string;
+}
+
+// Mirrors gym-admin.ts's PALETTES (mismas 12 opciones, mismo criterio de
+// contraste) — y GymPalette.java en el backend. Si una cambia, actualizar las 3.
+const PALETTES: Palette[] = [
+  { key: 'lime', label: 'Lima', hex: '#c6ff3d', contrast: '#1a2b00' },
+  { key: 'blue', label: 'Azul eléctrico', hex: '#3da5ff', contrast: '#001a33' },
+  { key: 'rose', label: 'Coral', hex: '#ff5d73', contrast: '#330008' },
+  { key: 'gold', label: 'Ámbar', hex: '#ffb23d', contrast: '#331d00' },
+  { key: 'emerald', label: 'Esmeralda', hex: '#2de6a0', contrast: '#00291a' },
+  { key: 'violet', label: 'Violeta', hex: '#b98bff', contrast: '#1c0d33' },
+  { key: 'cyan', label: 'Cian', hex: '#3de6e6', contrast: '#002626' },
+  { key: 'orange', label: 'Naranja', hex: '#ff7a3d', contrast: '#331500' },
+  { key: 'indigo', label: 'Índigo', hex: '#6d7bff', contrast: '#05073d' },
+  { key: 'fuchsia', label: 'Fucsia', hex: '#ff5cb8', contrast: '#330019' },
+  { key: 'turquoise', label: 'Turquesa', hex: '#2dd4bf', contrast: '#00211c' },
+  { key: 'plum', label: 'Ciruela', hex: '#c15aff', contrast: '#24003d' },
+];
+
+function randomSample<T>(items: T[], count: number): T[] {
+  const copy = [...items];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy.slice(0, count);
+}
+
+const MAX_PHOTO_DIMENSION = 1600;
+const ACCEPTED_PHOTO_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
+const MAX_PHOTOS = 8;
+
+/** Contraste WCAG simple para colores fuera de las 12 paletas curadas (color libre). */
+function computeContrast(hex: string): string {
+  const r = parseInt(hex.slice(1, 3), 16) / 255;
+  const g = parseInt(hex.slice(3, 5), 16) / 255;
+  const b = parseInt(hex.slice(5, 7), 16) / 255;
+  const linear = (c: number) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+  const luminance = 0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b);
+  return luminance > 0.35 ? '#111111' : '#ffffff';
+}
+
+const THEMED_ROOT_PROPERTIES = [
+  '--ion-color-primary',
+  '--ion-color-primary-contrast',
+  '--brand-accent',
+  '--brand-accent-contrast',
+  '--gym-panel-bg',
+  '--gym-panel-card',
+  '--brand-accent-text-safe',
+] as const;
 
 @Component({
   selector: 'app-gym-form',
@@ -101,23 +196,29 @@ type SuggestStatus = 'idle' | 'loading' | 'error';
     IonList,
     IonBadge,
     IonModal,
+    IonSegment,
+    IonSegmentButton,
     IonSpinner,
     BloqueFormModal,
     BloqueSeriesModal,
+    PlanFormModal,
     QuantityStepper,
   ],
   templateUrl: './gym-form.html',
   styleUrl: './gym-form.scss',
 })
-export class GymForm {
+export class GymForm implements OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly gymService = inject(GymService);
+  private readonly memberService = inject(MemberService);
   private readonly sanitizer = inject(DomSanitizer);
   private readonly toastController = inject(ToastController);
   private readonly alertController = inject(AlertController);
 
   protected readonly status = signal<Status>('idle');
+  protected readonly section = signal<Section>('general');
+  protected readonly sectionLabel = computed(() => SECTION_LABELS[this.section()]);
   protected readonly gymId = signal<number | null>(null);
   protected readonly blocks = signal<GymBlock[]>([]);
   // Mismo fix que gym-admin.ts (2026-09-13): sin esto la lista de bloques de
@@ -136,6 +237,51 @@ export class GymForm {
   protected readonly seriesCreating = signal(false);
   protected readonly admins = signal<Admin[]>([]);
   protected readonly adminError = signal<string | null>(null);
+
+  // Planes (pestaña Planes) — misma lógica que gym-admin.ts, pero con gymId
+  // explícito (el de la ruta) en vez de tomarlo del JWT del gym-admin logueado.
+  protected readonly plans = signal<GymPlan[]>([]);
+  protected readonly isPlanModalOpen = signal(false);
+  protected readonly editingPlan = signal<GymPlan | null>(null);
+
+  // Socios (pestaña Socios)
+  protected readonly members = signal<Member[]>([]);
+  protected readonly memberForm = new FormGroup({
+    name: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.minLength(2)] }),
+    email: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.email] }),
+  });
+
+  // Marca (pestaña Marca) — color + identidad + fotos. El logo sigue
+  // editándose en Configuración (ya existía ahí como textarea de SVG); no se
+  // duplica acá para no tener dos editores del mismo campo.
+  protected readonly themeColor = signal<string>(PALETTES[0].hex);
+  protected readonly themeContrast = computed(() => {
+    const hex = this.themeColor();
+    const match = PALETTES.find((p) => p.hex.toLowerCase() === hex.toLowerCase());
+    return match?.contrast ?? computeContrast(hex);
+  });
+  protected readonly themeSurface = computed(() => deriveSurfaceTint(this.themeColor()));
+  protected readonly themeAccentTextSafe = computed(() =>
+    ensureMinContrastColor(this.themeColor(), this.themeSurface().card),
+  );
+  protected readonly paletteOptions = signal<Palette[]>(randomSample(PALETTES, 4));
+  protected readonly themeSaving = signal(false);
+
+  protected readonly identityForm = new FormGroup({
+    tagline: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(160)] }),
+    description: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(600)] }),
+    instagramUrl: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(200)] }),
+    whatsappNumber: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(30)] }),
+    cancellationWindowHours: new FormControl(2, {
+      nonNullable: true,
+      validators: [Validators.required, Validators.min(1), Validators.max(72)],
+    }),
+  });
+  protected readonly identitySaving = signal(false);
+
+  protected readonly photos = signal<GymPhoto[]>([]);
+  protected readonly photoUploading = signal(false);
+  protected readonly maxPhotos = MAX_PHOTOS;
 
   protected readonly suggestStatus = signal<SuggestStatus>('idle');
   protected readonly brandingSuggestion = signal<BrandingSuggestion | null>(null);
@@ -184,11 +330,44 @@ export class GymForm {
       this.loadGym(id);
       this.loadBlocks(id);
       this.loadAdmins(id);
+      this.loadPlans(id);
+      this.loadMembers(id);
+      this.loadPhotos(id);
+    }
+
+    // Mismo mecanismo que gym-admin.ts: los overlays de Ionic (ion-select,
+    // ion-alert, ion-toast) se portan fuera de <ion-content>/<ion-modal>, así
+    // que las variables de tema se setean en <html> mientras esta página
+    // está activa, y se limpian al salir para no filtrar el color de ESTE
+    // gimnasio a otras pantallas del super-admin (gym-list, otro gym-form).
+    effect(() => {
+      const color = this.themeColor();
+      const contrast = this.themeContrast();
+      const surface = this.themeSurface();
+      const root = document.documentElement.style;
+      root.setProperty('--ion-color-primary', color);
+      root.setProperty('--ion-color-primary-contrast', contrast);
+      root.setProperty('--brand-accent', color);
+      root.setProperty('--brand-accent-contrast', contrast);
+      root.setProperty('--gym-panel-bg', surface.bg);
+      root.setProperty('--gym-panel-card', surface.card);
+      root.setProperty('--brand-accent-text-safe', this.themeAccentTextSafe());
+    });
+  }
+
+  ngOnDestroy(): void {
+    const root = document.documentElement.style;
+    for (const property of THEMED_ROOT_PROPERTIES) {
+      root.removeProperty(property);
     }
   }
 
   protected get isEditing(): boolean {
     return this.gymId() !== null;
+  }
+
+  protected setSection(section: Section): void {
+    this.section.set(section);
   }
 
   private loadGym(id: number): void {
@@ -201,6 +380,16 @@ export class GymForm {
           maxUsers: gym.maxUsers,
           googleLoginEnabled: gym.googleLoginEnabled,
           logoSvg: gym.logoSvg ?? '',
+        });
+        if (gym.themeColor) {
+          this.themeColor.set(gym.themeColor);
+        }
+        this.identityForm.patchValue({
+          tagline: gym.tagline ?? '',
+          description: gym.description ?? '',
+          instagramUrl: gym.instagramUrl ?? '',
+          whatsappNumber: gym.whatsappNumber ?? '',
+          cancellationWindowHours: gym.cancellationWindowHours,
         });
         this.status.set('idle');
       },
@@ -456,13 +645,249 @@ export class GymForm {
     });
   }
 
-  private async showToast(message: string): Promise<void> {
+  private async showToast(message: string, color: 'success' | 'danger' = 'success'): Promise<void> {
     const toast = await this.toastController.create({
       message,
       duration: 4000,
       position: 'bottom',
-      color: 'success',
+      color,
     });
     await toast.present();
+  }
+
+  // ---- Planes (pestaña Planes) ----
+
+  protected formatClp(value: number): string {
+    return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(value);
+  }
+
+  protected quotaLabel(plan: GymPlan): string {
+    return plan.monthlyClasses === null ? 'Libre (ilimitado)' : `${plan.monthlyClasses} clases/mes`;
+  }
+
+  protected openAddPlan(): void {
+    this.editingPlan.set(null);
+    this.isPlanModalOpen.set(true);
+  }
+
+  protected openEditPlan(plan: GymPlan): void {
+    this.editingPlan.set(plan);
+    this.isPlanModalOpen.set(true);
+  }
+
+  protected closePlanModal(): void {
+    this.isPlanModalOpen.set(false);
+  }
+
+  protected savePlan(payload: CreateGymPlanRequest | UpdateGymPlanRequest): void {
+    const id = this.gymId();
+    if (id === null) {
+      return;
+    }
+    const editing = this.editingPlan();
+    const request = editing
+      ? this.gymService.updatePlan(id, editing.id, payload as UpdateGymPlanRequest)
+      : this.gymService.createPlan(id, payload as CreateGymPlanRequest);
+
+    this.status.set('saving');
+    request.subscribe({
+      next: () => {
+        this.status.set('idle');
+        this.isPlanModalOpen.set(false);
+        this.loadPlans(id);
+      },
+      error: () => this.status.set('error'),
+    });
+  }
+
+  protected async removePlan(plan: GymPlan): Promise<void> {
+    const id = this.gymId();
+    if (id === null) {
+      return;
+    }
+    const confirmed = await this.confirmAction('Eliminar plan', `¿Eliminar "${plan.name}"? Esta acción no se puede deshacer.`);
+    if (!confirmed) {
+      return;
+    }
+    this.gymService.deletePlan(id, plan.id).subscribe({
+      next: () => this.loadPlans(id),
+      error: () => this.status.set('error'),
+    });
+  }
+
+  private loadPlans(id: number): void {
+    this.gymService.listPlans(id).subscribe({
+      next: (plans) => this.plans.set(plans),
+      error: () => this.status.set('error'),
+    });
+  }
+
+  // ---- Socios (pestaña Socios) ----
+
+  protected submitMember(): void {
+    const id = this.gymId();
+    if (id === null || this.memberForm.invalid) {
+      return;
+    }
+    this.status.set('saving');
+    this.memberService.createForGym(id, this.memberForm.getRawValue()).subscribe({
+      next: (member) => {
+        this.memberForm.reset({ name: '', email: '' });
+        this.status.set('idle');
+        this.loadMembers(id);
+        this.showToast(`Socio agregado: ${member.name}.`);
+      },
+      error: () => this.status.set('error'),
+    });
+  }
+
+  private loadMembers(id: number): void {
+    this.memberService.listForGym(id).subscribe({
+      next: (members) => this.members.set(members),
+      error: () => this.status.set('error'),
+    });
+  }
+
+  // ---- Marca (pestaña Marca): color, identidad, fotos ----
+
+  protected reshufflePalettes(): void {
+    this.paletteOptions.set(randomSample(PALETTES, 4));
+  }
+
+  protected surfaceFor(palette: Palette): { bg: string; card: string } {
+    return deriveSurfaceTint(palette.hex);
+  }
+
+  protected selectPalette(palette: Palette): void {
+    this.selectColor(palette.hex);
+  }
+
+  protected onCustomColorInput(event: Event): void {
+    const hex = (event.target as HTMLInputElement).value;
+    this.selectColor(hex);
+  }
+
+  private selectColor(hex: string): void {
+    const id = this.gymId();
+    if (id === null || this.themeSaving()) {
+      return;
+    }
+    const previous = this.themeColor();
+    this.themeColor.set(hex);
+    this.themeSaving.set(true);
+    this.gymService.updateTheme(id, hex).subscribe({
+      next: () => this.themeSaving.set(false),
+      error: () => {
+        this.themeColor.set(previous);
+        this.themeSaving.set(false);
+        this.showToast('No pudimos guardar el color. Intenta nuevamente.', 'danger');
+      },
+    });
+  }
+
+  protected saveIdentity(): void {
+    const id = this.gymId();
+    if (id === null || this.identityForm.invalid) {
+      return;
+    }
+    const raw = this.identityForm.getRawValue();
+    this.identitySaving.set(true);
+    this.gymService
+      .updateIdentity(id, {
+        tagline: raw.tagline || null,
+        description: raw.description || null,
+        instagramUrl: raw.instagramUrl || null,
+        whatsappNumber: raw.whatsappNumber || null,
+        cancellationWindowHours: raw.cancellationWindowHours,
+      })
+      .subscribe({
+        next: () => {
+          this.identitySaving.set(false);
+          this.showToast('Identidad actualizada.');
+        },
+        error: () => {
+          this.identitySaving.set(false);
+          this.showToast('No pudimos guardar los cambios. Intenta nuevamente.', 'danger');
+        },
+      });
+  }
+
+  protected async onPhotoFileSelected(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0] ?? null;
+    input.value = '';
+    const id = this.gymId();
+    if (!file || id === null) {
+      return;
+    }
+    if (this.photos().length >= this.maxPhotos) {
+      this.showToast(`Ya tienes el máximo de ${this.maxPhotos} fotos.`, 'danger');
+      return;
+    }
+    if (!ACCEPTED_PHOTO_TYPES.includes(file.type)) {
+      this.showToast('Formato no soportado. Usa PNG, JPG o WEBP.', 'danger');
+      return;
+    }
+    this.photoUploading.set(true);
+    try {
+      const data = await this.resizePhotoFile(file);
+      const payload: CreateGymPhotoRequest = { data, caption: null };
+      const photo = await firstValueFrom(this.gymService.createPhoto(id, payload));
+      this.photos.update((list) => [...list, photo]);
+    } catch {
+      this.showToast('No pudimos subir esa foto. Intenta con otra.', 'danger');
+    } finally {
+      this.photoUploading.set(false);
+    }
+  }
+
+  protected async removePhoto(photo: GymPhoto): Promise<void> {
+    const id = this.gymId();
+    if (id === null) {
+      return;
+    }
+    const confirmed = await this.confirmAction('Eliminar foto', '¿Eliminar esta foto de tus instalaciones?');
+    if (!confirmed) {
+      return;
+    }
+    this.gymService.deletePhoto(id, photo.id).subscribe({
+      next: () => this.photos.update((list) => list.filter((p) => p.id !== photo.id)),
+      error: () => this.showToast('No pudimos eliminar esa foto.', 'danger'),
+    });
+  }
+
+  private resizePhotoFile(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('file read error'));
+      reader.onload = () => {
+        const img = new Image();
+        img.onerror = () => reject(new Error('image decode error'));
+        img.onload = () => {
+          const scale = Math.min(MAX_PHOTO_DIMENSION / img.width, MAX_PHOTO_DIMENSION / img.height, 1);
+          const width = Math.max(1, Math.round(img.width * scale));
+          const height = Math.max(1, Math.round(img.height * scale));
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error('canvas not supported'));
+            return;
+          }
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.82));
+        };
+        img.src = reader.result as string;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  private loadPhotos(id: number): void {
+    this.gymService.listPhotos(id).subscribe({
+      next: (photos) => this.photos.set(photos),
+      error: () => this.status.set('error'),
+    });
   }
 }

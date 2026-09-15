@@ -1,13 +1,50 @@
-<ion-header>
+<ion-header
+  [style.--ion-color-primary]="isEditing ? themeColor() : null"
+  [style.--ion-color-primary-contrast]="isEditing ? themeContrast() : null"
+  [style.--brand-accent]="isEditing ? themeColor() : null"
+  [style.--brand-accent-contrast]="isEditing ? themeContrast() : null"
+>
   <ion-toolbar>
     <ion-buttons slot="start">
       <ion-back-button defaultHref="/admin/gyms" text="Gimnasios" />
     </ion-buttons>
     <ion-title>{{ isEditing ? gymName() : 'Nuevo gimnasio' }}</ion-title>
   </ion-toolbar>
+  @if (isEditing) {
+    <ion-toolbar>
+      <ion-segment [value]="section()" (ionChange)="setSection($any($event.detail.value))">
+        <ion-segment-button value="general">
+          <ion-icon name="settings-outline" aria-hidden="true"></ion-icon>
+          <ion-label>General</ion-label>
+        </ion-segment-button>
+        <ion-segment-button value="blocks">
+          <ion-icon name="time-outline" aria-hidden="true"></ion-icon>
+          <ion-label>Horarios</ion-label>
+        </ion-segment-button>
+        <ion-segment-button value="plans">
+          <ion-icon name="pricetag-outline" aria-hidden="true"></ion-icon>
+          <ion-label>Planes</ion-label>
+        </ion-segment-button>
+        <ion-segment-button value="members">
+          <ion-icon name="people-outline" aria-hidden="true"></ion-icon>
+          <ion-label>Socios</ion-label>
+        </ion-segment-button>
+        <ion-segment-button value="branding">
+          <ion-icon name="color-palette-outline" aria-hidden="true"></ion-icon>
+          <ion-label>Marca</ion-label>
+        </ion-segment-button>
+      </ion-segment>
+    </ion-toolbar>
+  }
 </ion-header>
 
-<ion-content class="ion-padding">
+<ion-content
+  class="ion-padding"
+  [style.--ion-color-primary]="isEditing ? themeColor() : null"
+  [style.--ion-color-primary-contrast]="isEditing ? themeContrast() : null"
+  [style.--brand-accent]="isEditing ? themeColor() : null"
+  [style.--brand-accent-contrast]="isEditing ? themeContrast() : null"
+>
   @if (!isEditing) {
     <ion-card>
       <ion-card-header>
@@ -82,6 +119,7 @@
       </ion-card-content>
     </ion-card>
   } @else {
+    <div class="gym-detail-page">
     <div class="gym-detail-hero">
       <div class="gym-detail-hero__badge">
         @if (isGymLogoRaster()) {
@@ -126,6 +164,12 @@
       </div>
     </div>
 
+    @if (status() === 'error') {
+      <ion-text color="danger"><p>Ocurrió un error. Intenta nuevamente.</p></ion-text>
+    }
+
+    @if (section() === 'general') {
+    <div class="gym-detail-columns">
     <ion-card>
       <ion-card-header class="card-header-row">
         <ion-card-title>
@@ -172,7 +216,7 @@
             <ion-input label="Email *" type="email" autocomplete="email" formControlName="email" placeholder="Ej: javiera@mail.com" />
           </ion-item>
           <p class="item-hint">Va a poder administrar este gimnasio iniciando sesión con Google usando este email.</p>
-          <ion-button type="submit" expand="block" fill="outline" [disabled]="adminForm.invalid || status() === 'saving'" class="ion-margin-top">
+          <ion-button type="submit" fill="outline" [disabled]="adminForm.invalid || status() === 'saving'" class="ion-margin-top">
             Agregar administrador
           </ion-button>
           @if (adminError(); as error) {
@@ -211,7 +255,14 @@
           </ion-item>
 
           <ion-item lines="none">
-            <ion-textarea label="Logo (SVG o imagen)" labelPlacement="stacked" formControlName="logoSvg" rows="4" placeholder="Pega aquí el markup SVG del logo generado para este gimnasio" />
+            <ion-textarea
+              class="logo-svg-input"
+              label="Logo (SVG o imagen)"
+              labelPlacement="stacked"
+              formControlName="logoSvg"
+              rows="3"
+              placeholder="Pega aquí el markup SVG del logo generado para este gimnasio"
+            />
           </ion-item>
           <p class="item-hint">Se genera aparte (skill de logos) según el nombre del gimnasio, y se pega acá una vez listo.</p>
           @if (configForm.controls.logoSvg.value.trim()) {
@@ -227,17 +278,14 @@
             </div>
           }
 
-          <ion-button type="submit" expand="block" [disabled]="configForm.invalid || status() === 'saving'" class="ion-margin-top">
+          <ion-button type="submit" [disabled]="configForm.invalid || status() === 'saving'" class="ion-margin-top">
             Guardar configuración
           </ion-button>
         </form>
       </ion-card-content>
     </ion-card>
-
-    @if (status() === 'error') {
-      <ion-text color="danger"><p>Ocurrió un error. Intenta nuevamente.</p></ion-text>
-    }
-
+    </div>
+    } @else if (section() === 'blocks') {
     <ion-card>
       <ion-card-header class="card-header-row">
         <ion-card-title>
@@ -280,40 +328,49 @@
             </button>
           }
         </div>
-        <ion-list lines="full">
+        <div class="block-grid">
           @for (block of filteredBlocks(); track block.id) {
-            <ion-item>
-              <ion-icon [name]="categoryIcon(block.category)" slot="start" aria-hidden="true"></ion-icon>
-              <ion-label class="block-item__label">
-                {{ block.label }} — {{ dayLabel(block.dayOfWeek) }} {{ block.startTime }}-{{ block.endTime }}
-                @if (block.instructorName) {
-                  <p class="block-item__instructor">
-                    @if (block.instructorPhoto) {
-                      <img [src]="block.instructorPhoto" alt="" />
-                    }
-                    {{ block.instructorName }}
-                  </p>
-                }
-                <p>Cupo: {{ block.capacity }}</p>
-              </ion-label>
-              @if (!block.active) {
-                <ion-badge color="medium" slot="end">Inactivo</ion-badge>
+            <div class="block-card" [class.block-card--inactive]="!block.active">
+              <div class="block-card__header">
+                <h3>
+                  <ion-icon [name]="categoryIcon(block.category)" aria-hidden="true"></ion-icon>
+                  {{ block.label }}
+                </h3>
+                <div class="block-card__actions">
+                  <ion-button fill="clear" [attr.aria-label]="'Editar ' + block.label" (click)="openEditBlock(block)">
+                    <ion-icon name="create-outline" slot="icon-only" aria-hidden="true"></ion-icon>
+                  </ion-button>
+                  <ion-button fill="clear" color="danger" [attr.aria-label]="'Eliminar ' + block.label" (click)="removeBlock(block)">
+                    <ion-icon name="trash-outline" slot="icon-only" aria-hidden="true"></ion-icon>
+                  </ion-button>
+                </div>
+              </div>
+              <p class="block-card__time">{{ dayLabel(block.dayOfWeek) }} · {{ block.startTime }}-{{ block.endTime }}</p>
+              @if (block.instructorName) {
+                <p class="block-item__instructor">
+                  @if (block.instructorPhoto) {
+                    <img [src]="block.instructorPhoto" alt="" />
+                  }
+                  {{ block.instructorName }}
+                </p>
               }
-              <ion-button fill="clear" (click)="openEditBlock(block)">Editar</ion-button>
-              <ion-button fill="clear" color="danger" (click)="removeBlock(block)">Eliminar</ion-button>
-            </ion-item>
+              <div class="block-card__meta">
+                <ion-badge color="medium">Cupo {{ block.capacity }}</ion-badge>
+                @if (!block.active) {
+                  <ion-badge color="dark">Inactivo</ion-badge>
+                }
+              </div>
+            </div>
           } @empty {
-            <ion-item lines="none">
-              <ion-label>
-                {{
-                  selectedDay() === null
-                    ? 'Todavía no hay bloques configurados.'
-                    : 'No hay bloques para ' + dayLabel(selectedDay()!) + '.'
-                }}
-              </ion-label>
-            </ion-item>
+            <p class="item-hint">
+              {{
+                selectedDay() === null
+                  ? 'Todavía no hay bloques configurados.'
+                  : 'No hay bloques para ' + dayLabel(selectedDay()!) + '.'
+              }}
+            </p>
           }
-        </ion-list>
+        </div>
       </ion-card-content>
     </ion-card>
 
@@ -333,5 +390,245 @@
         <app-bloque-series-modal (confirmed)="confirmSeries($event)" (dismiss)="closeSeriesModal()" />
       </ng-template>
     </ion-modal>
+    } @else if (section() === 'plans') {
+    <ion-card>
+      <ion-card-header class="card-header-row">
+        <ion-card-title>
+          <ion-icon name="pricetag-outline" aria-hidden="true"></ion-icon>
+          Planes de membresía
+        </ion-card-title>
+        <div class="card-header-row__actions">
+          <ion-button size="small" (click)="openAddPlan()">Agregar plan</ion-button>
+        </div>
+      </ion-card-header>
+      <ion-card-content>
+        <p class="item-hint">
+          Define los planes que los socios de este gimnasio pueden contratar: entrenamiento personal, clases guiadas,
+          cupos mensuales, tarifas especiales, o un plan libre para reservar en cualquier cupo disponible.
+        </p>
+        <div class="plan-grid">
+          @for (plan of plans(); track plan.id) {
+            <div class="plan-card" [class.plan-card--inactive]="!plan.active">
+              <div class="plan-card__header">
+                <h3>{{ plan.name }}</h3>
+                <div class="block-card__actions">
+                  <ion-button fill="clear" [attr.aria-label]="'Editar ' + plan.name" (click)="openEditPlan(plan)">
+                    <ion-icon name="create-outline" slot="icon-only" aria-hidden="true"></ion-icon>
+                  </ion-button>
+                  <ion-button fill="clear" color="danger" [attr.aria-label]="'Eliminar ' + plan.name" (click)="removePlan(plan)">
+                    <ion-icon name="trash-outline" slot="icon-only" aria-hidden="true"></ion-icon>
+                  </ion-button>
+                </div>
+              </div>
+              @if (plan.description) {
+                <p class="plan-card__description">{{ plan.description }}</p>
+              }
+              <div class="plan-card__meta">
+                <span class="plan-card__price">{{ formatClp(plan.priceClp) }} / mes</span>
+                <ion-badge color="medium">{{ quotaLabel(plan) }}</ion-badge>
+                @if (!plan.active) {
+                  <ion-badge color="dark">Inactivo</ion-badge>
+                }
+              </div>
+            </div>
+          } @empty {
+            <p class="item-hint">Todavía no hay planes configurados para este gimnasio.</p>
+          }
+        </div>
+      </ion-card-content>
+    </ion-card>
+
+    <ion-modal
+      class="wide-modal"
+      [isOpen]="isPlanModalOpen()"
+      (didDismiss)="closePlanModal()"
+      [style.--ion-color-primary]="themeColor()"
+      [style.--ion-color-primary-contrast]="themeContrast()"
+      [style.--brand-accent]="themeColor()"
+      [style.--brand-accent-contrast]="themeContrast()"
+    >
+      <ng-template>
+        <app-plan-form-modal
+          [plan]="editingPlan()"
+          [saving]="status() === 'saving'"
+          (saved)="savePlan($event)"
+          (dismiss)="closePlanModal()"
+        />
+      </ng-template>
+    </ion-modal>
+    } @else if (section() === 'members') {
+    <ion-card>
+      <ion-card-header>
+        <ion-card-title>
+          <ion-icon name="people-outline" aria-hidden="true"></ion-icon>
+          Agregar socio
+        </ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <form [formGroup]="memberForm" (ngSubmit)="submitMember()">
+          <ion-item>
+            <ion-input label="Nombre *" formControlName="name" placeholder="Ej: Javiera Pulgar" />
+          </ion-item>
+          <ion-item lines="none">
+            <ion-input label="Email *" type="email" autocomplete="email" formControlName="email" placeholder="Ej: javiera@mail.com" />
+          </ion-item>
+          <ion-button type="submit" fill="outline" [disabled]="memberForm.invalid || status() === 'saving'" class="ion-margin-top">
+            Agregar socio
+          </ion-button>
+        </form>
+      </ion-card-content>
+    </ion-card>
+
+    <ion-card>
+      <ion-card-header>
+        <ion-card-title>
+          <ion-icon name="people-outline" aria-hidden="true"></ion-icon>
+          Socios
+          <ion-badge color="dark">{{ members().length }}</ion-badge>
+        </ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <ion-list lines="full">
+          @for (member of members(); track member.id) {
+            <ion-item>
+              <ion-icon name="person-circle-outline" slot="start" aria-hidden="true"></ion-icon>
+              <ion-label>
+                {{ member.name }}
+                <p>{{ member.email }}</p>
+              </ion-label>
+            </ion-item>
+          } @empty {
+            <ion-item lines="none"><ion-label>Todavía no hay socios cargados.</ion-label></ion-item>
+          }
+        </ion-list>
+      </ion-card-content>
+    </ion-card>
+    } @else {
+    <ion-card>
+      <ion-card-header class="card-header-row">
+        <ion-card-title>
+          <ion-icon name="color-palette-outline" aria-hidden="true"></ion-icon>
+          Color del panel
+        </ion-card-title>
+        <ion-button class="accent-action-button" size="small" fill="clear" (click)="reshufflePalettes()">
+          <ion-icon name="refresh-outline" slot="start" aria-hidden="true"></ion-icon>
+          Ver otras opciones
+        </ion-button>
+      </ion-card-header>
+      <ion-card-content>
+        <p class="item-hint">Elige una combinación para diferenciar el panel de este gimnasio del de otros.</p>
+        <div class="theme-options">
+          @for (palette of paletteOptions(); track palette.key) {
+            <button
+              type="button"
+              class="theme-card"
+              [class.theme-card--selected]="palette.hex === themeColor()"
+              [style.background]="surfaceFor(palette).bg"
+              [disabled]="themeSaving()"
+              (click)="selectPalette(palette)"
+            >
+              <span class="theme-card__surface" [style.background]="surfaceFor(palette).card">
+                <span class="theme-card__button" [style.background]="palette.hex" [style.color]="palette.contrast">
+                  {{ palette.label }}
+                </span>
+              </span>
+            </button>
+          }
+        </div>
+        <div class="custom-color">
+          <label for="customColorInput">O elige el color exacto</label>
+          <input
+            id="customColorInput"
+            type="color"
+            [value]="themeColor()"
+            [disabled]="themeSaving()"
+            (input)="onCustomColorInput($event)"
+          />
+        </div>
+      </ion-card-content>
+    </ion-card>
+
+    <ion-card>
+      <ion-card-header>
+        <ion-card-title>
+          <ion-icon name="megaphone-outline" aria-hidden="true"></ion-icon>
+          Identidad del gimnasio
+        </ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <p class="item-hint">
+          Este texto y estos contactos se muestran en la página de alta pública y en el perfil de los socios.
+        </p>
+        <form [formGroup]="identityForm" (ngSubmit)="saveIdentity()">
+          <ion-item>
+            <ion-input label="Frase corta" formControlName="tagline" placeholder="Ej: Entrena distinto, entrena en serio" />
+          </ion-item>
+          <ion-item lines="none">
+            <ion-textarea
+              label="Descripción"
+              formControlName="description"
+              placeholder="Qué hace especial a este gimnasio"
+              autoGrow="true"
+              rows="3"
+            />
+          </ion-item>
+          <ion-item>
+            <ion-input label="Instagram (link)" formControlName="instagramUrl" placeholder="https://instagram.com/elgym" />
+          </ion-item>
+          <ion-item>
+            <ion-input label="WhatsApp (número)" formControlName="whatsappNumber" placeholder="+56912345678" />
+          </ion-item>
+          <app-quantity-stepper
+            label="Horas mínimas para reservar o cancelar *"
+            formControlName="cancellationWindowHours"
+            [min]="1"
+            [max]="72"
+          />
+          <ion-button type="submit" [disabled]="identityForm.invalid || identitySaving()" class="ion-margin-top">
+            {{ identitySaving() ? 'Guardando...' : 'Guardar identidad' }}
+          </ion-button>
+        </form>
+      </ion-card-content>
+    </ion-card>
+
+    <ion-card>
+      <ion-card-header class="card-header-row">
+        <ion-card-title>
+          <ion-icon name="images-outline" aria-hidden="true"></ion-icon>
+          Fotos de las instalaciones
+          <ion-badge color="medium">{{ photos().length }}/{{ maxPhotos }}</ion-badge>
+        </ion-card-title>
+        <ion-button
+          class="accent-action-button"
+          size="small"
+          fill="clear"
+          (click)="photoInput.click()"
+          [disabled]="photoUploading() || photos().length >= maxPhotos"
+        >
+          <ion-icon name="cloud-upload-outline" slot="start" aria-hidden="true"></ion-icon>
+          {{ photoUploading() ? 'Subiendo...' : 'Subir foto' }}
+        </ion-button>
+      </ion-card-header>
+      <ion-card-content>
+        <p class="item-hint">
+          Se muestran en la página de alta pública y en el perfil de los socios — hasta {{ maxPhotos }} fotos.
+        </p>
+        <div class="photo-grid">
+          @for (photo of photos(); track photo.id) {
+            <div class="photo-grid__item">
+              <img [src]="photo.data" [alt]="photo.caption ?? 'Foto del gimnasio'" />
+              <button type="button" class="photo-grid__remove" [attr.aria-label]="'Eliminar foto'" (click)="removePhoto(photo)">
+                <ion-icon name="trash-outline" aria-hidden="true"></ion-icon>
+              </button>
+            </div>
+          } @empty {
+            <p class="item-hint">Todavía no se subieron fotos.</p>
+          }
+        </div>
+        <input #photoInput type="file" accept="image/png,image/jpeg,image/webp" hidden (change)="onPhotoFileSelected($event)" />
+      </ion-card-content>
+    </ion-card>
+    }
+    </div>
   }
 </ion-content>

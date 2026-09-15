@@ -127,6 +127,43 @@ export class GymService {
     return this.http.put<Admin>(`${this.base}/${gymId}/admins/${userId}`, { active });
   }
 
+  /** Contraparte SUPER_ADMIN de listMyPlans/createMyPlan/etc. — mismo backend, gymId por path en vez de por JWT. */
+  listPlans(gymId: number): Observable<GymPlan[]> {
+    return this.http.get<GymPlan[]>(`${this.base}/${gymId}/plans`);
+  }
+
+  createPlan(gymId: number, payload: CreateGymPlanRequest): Observable<GymPlan> {
+    return this.http.post<GymPlan>(`${this.base}/${gymId}/plans`, payload);
+  }
+
+  updatePlan(gymId: number, planId: number, payload: UpdateGymPlanRequest): Observable<GymPlan> {
+    return this.http.put<GymPlan>(`${this.base}/${gymId}/plans/${planId}`, payload);
+  }
+
+  deletePlan(gymId: number, planId: number): Observable<void> {
+    return this.http.delete<void>(`${this.base}/${gymId}/plans/${planId}`);
+  }
+
+  updateTheme(gymId: number, themeColor: string): Observable<Gym> {
+    return this.http.put<Gym>(`${this.base}/${gymId}/theme`, { themeColor });
+  }
+
+  updateIdentity(gymId: number, payload: GymIdentityUpdateRequest): Observable<Gym> {
+    return this.http.put<Gym>(`${this.base}/${gymId}/identity`, payload);
+  }
+
+  listPhotos(gymId: number): Observable<GymPhoto[]> {
+    return this.http.get<GymPhoto[]>(`${this.base}/${gymId}/photos`);
+  }
+
+  createPhoto(gymId: number, payload: CreateGymPhotoRequest): Observable<GymPhoto> {
+    return this.http.post<GymPhoto>(`${this.base}/${gymId}/photos`, payload);
+  }
+
+  deletePhoto(gymId: number, photoId: number): Observable<void> {
+    return this.http.delete<void>(`${this.base}/${gymId}/photos/${photoId}`);
+  }
+
   /** Scoped to the logged-in gym owner's own gym (GYM_ADMIN) — gymId comes from their JWT, not the URL. */
   getMine(): Observable<Gym> {
     return this.http.get<Gym>(this.myGymBase);

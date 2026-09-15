@@ -109,48 +109,49 @@
             </button>
           }
         </div>
-        <ion-list lines="full">
+        <div class="block-grid">
           @for (block of filteredBlocks(); track block.id) {
-            <ion-item>
-              <ion-icon [name]="categoryIcon(block.category)" slot="start" aria-hidden="true"></ion-icon>
-              <ion-label class="block-item__label">
-                {{ block.label }} — {{ dayLabel(block.dayOfWeek) }} {{ block.startTime }}-{{ block.endTime }}
-                @if (block.instructorName) {
-                  <p class="block-item__instructor">
-                    @if (block.instructorPhoto) {
-                      <img [src]="block.instructorPhoto" alt="" />
-                    }
-                    {{ block.instructorName }}
-                  </p>
-                }
-                <p>
-                  Cupo: {{ block.capacity }}
-                  @if (!block.active) {
-                    · <ion-text color="medium">Inactivo</ion-text>
+            <div class="block-card" [class.block-card--inactive]="!block.active">
+              <div class="block-card__header">
+                <h3>
+                  <ion-icon [name]="categoryIcon(block.category)" aria-hidden="true"></ion-icon>
+                  {{ block.label }}
+                </h3>
+                <div class="block-card__actions">
+                  <ion-button fill="clear" [attr.aria-label]="'Editar ' + block.label" (click)="openEditBlock(block)">
+                    <ion-icon name="create-outline" slot="icon-only" aria-hidden="true"></ion-icon>
+                  </ion-button>
+                  <ion-button fill="clear" color="danger" [attr.aria-label]="'Eliminar ' + block.label" (click)="removeBlock(block)">
+                    <ion-icon name="trash-outline" slot="icon-only" aria-hidden="true"></ion-icon>
+                  </ion-button>
+                </div>
+              </div>
+              <p class="block-card__time">{{ dayLabel(block.dayOfWeek) }} · {{ block.startTime }}-{{ block.endTime }}</p>
+              @if (block.instructorName) {
+                <p class="block-item__instructor">
+                  @if (block.instructorPhoto) {
+                    <img [src]="block.instructorPhoto" alt="" />
                   }
+                  {{ block.instructorName }}
                 </p>
-              </ion-label>
-              <ion-buttons slot="end">
-                <ion-button fill="clear" [attr.aria-label]="'Editar ' + block.label" (click)="openEditBlock(block)">
-                  <ion-icon name="create-outline" slot="icon-only" aria-hidden="true"></ion-icon>
-                </ion-button>
-                <ion-button fill="clear" color="danger" [attr.aria-label]="'Eliminar ' + block.label" (click)="removeBlock(block)">
-                  <ion-icon name="trash-outline" slot="icon-only" aria-hidden="true"></ion-icon>
-                </ion-button>
-              </ion-buttons>
-            </ion-item>
+              }
+              <div class="block-card__meta">
+                <ion-badge color="medium">Cupo {{ block.capacity }}</ion-badge>
+                @if (!block.active) {
+                  <ion-badge color="dark">Inactivo</ion-badge>
+                }
+              </div>
+            </div>
           } @empty {
-            <ion-item lines="none">
-              <ion-label>
-                {{
-                  selectedDay() === null
-                    ? 'Todavía no hay bloques configurados.'
-                    : 'No hay bloques para ' + dayLabel(selectedDay()!) + '.'
-                }}
-              </ion-label>
-            </ion-item>
+            <p class="item-hint">
+              {{
+                selectedDay() === null
+                  ? 'Todavía no hay bloques configurados.'
+                  : 'No hay bloques para ' + dayLabel(selectedDay()!) + '.'
+              }}
+            </p>
           }
-        </ion-list>
+        </div>
       </ion-card-content>
     </ion-card>
 
@@ -274,7 +275,7 @@
           <ion-item lines="none">
             <ion-input label="Email *" type="email" autocomplete="email" formControlName="email" placeholder="Ej: javiera@mail.com" />
           </ion-item>
-          <ion-button type="submit" expand="block" [disabled]="memberForm.invalid || status() === 'saving'" class="ion-margin-top">
+          <ion-button type="submit" fill="outline" [disabled]="memberForm.invalid || status() === 'saving'" class="ion-margin-top">
             Agregar socio
           </ion-button>
         </form>
@@ -418,7 +419,7 @@
             [min]="1"
             [max]="72"
           />
-          <ion-button type="submit" expand="block" [disabled]="identityForm.invalid || identitySaving()" class="ion-margin-top">
+          <ion-button type="submit" [disabled]="identityForm.invalid || identitySaving()" class="ion-margin-top">
             {{ identitySaving() ? 'Guardando...' : 'Guardar identidad' }}
           </ion-button>
         </form>
