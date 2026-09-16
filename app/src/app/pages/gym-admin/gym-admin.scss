@@ -246,6 +246,55 @@ ion-segment-button.segment-button-checked {
   }
 }
 
+// Mismo patrón que .gym-detail-stats en gym-form.scss (panel del
+// super-admin) — resumen de configuración del gimnasio, siempre visible
+// arriba de las pestañas, no solo en General.
+.gym-detail-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.gym-detail-stat {
+  border: 1px solid var(--brand-ink-surface-2);
+  border-radius: 14px;
+  padding: 0.9rem 1rem;
+  background: var(--gym-panel-card, var(--brand-ink-surface));
+
+  ion-icon {
+    font-size: 1.2rem;
+    color: var(--brand-accent);
+  }
+
+  &__value {
+    margin: 0.4rem 0 0.1rem;
+    font-family: var(--brand-font-mono);
+    font-size: 1.4rem;
+    font-weight: 700;
+  }
+
+  &__label {
+    margin: 0;
+    font-size: 0.75rem;
+    color: var(--brand-text-dim);
+  }
+}
+
+.member-stats-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0.6rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--brand-ink-muted, inherit);
+
+  ion-icon {
+    font-size: 1.1rem;
+  }
+}
+
 // Conteo real de socios activos/vencidos/sin pago — pedido explícito del
 // usuario, ahora posible porque paid_at se persiste de verdad (antes solo
 // vivía en el navegador de cada socio, ver GymService.simulatePlanPayment).

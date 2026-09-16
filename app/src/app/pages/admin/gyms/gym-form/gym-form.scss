@@ -429,6 +429,20 @@ ion-segment-button.segment-button-checked {
   --color: var(--brand-accent-text-safe, var(--ion-color-primary));
 }
 
+.member-stats-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0.6rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--brand-ink-muted, inherit);
+
+  ion-icon {
+    font-size: 1.1rem;
+  }
+}
+
 // Mismas reglas que gym-admin.scss — conteo real de socios
 // activos/vencidos/sin pago, ahora posible porque paid_at se persiste de
 // verdad (ver GymService.simulatePlanPayment).

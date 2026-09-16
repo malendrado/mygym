@@ -42,10 +42,12 @@ import {
   hourglassOutline,
   imagesOutline,
   logOutOutline,
+  logoGoogle,
   megaphoneOutline,
   peopleOutline,
   personAddOutline,
   personCircleOutline,
+  personOutline,
   pricetagOutline,
   refreshOutline,
   settingsOutline,
@@ -56,6 +58,7 @@ import { QuantityStepper } from '../../core/components/quantity-stepper/quantity
 import { firstValueFrom } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
 import { GymService } from '../../core/services/gym.service';
+import { Gym } from '../../core/models/gym.model';
 import { MemberService } from '../../core/services/member.service';
 import {
   CreateGymBlockRequest,
@@ -100,6 +103,8 @@ addIcons({
   'hourglass-outline': hourglassOutline,
   'close-circle-outline': closeCircleOutline,
   'help-circle-outline': helpCircleOutline,
+  'person-outline': personOutline,
+  'logo-google': logoGoogle,
 });
 
 type Status = 'idle' | 'loading' | 'saving' | 'error';
@@ -228,6 +233,7 @@ export class GymAdmin implements OnDestroy {
   protected readonly sectionLabel = computed(() => SECTION_LABELS[this.section()]);
   protected readonly adminFirstName = computed(() => this.authService.currentUser()?.name?.split(' ')[0] ?? 'admin');
   protected readonly tip = ADMIN_TIPS[Math.floor(Math.random() * ADMIN_TIPS.length)];
+  protected readonly gym = signal<Gym | null>(null);
   protected readonly gymName = signal('');
   protected readonly gymSlug = signal<string | null>(null);
   protected readonly gymLoaded = signal(false);
@@ -789,6 +795,7 @@ export class GymAdmin implements OnDestroy {
   private loadGym(): void {
     this.gymService.getMine().subscribe({
       next: (gym) => {
+        this.gym.set(gym);
         this.gymName.set(gym.name);
         this.gymSlug.set(gym.slug);
         this.logoSvg.set(gym.logoSvg);

@@ -66,11 +66,33 @@
     <p><strong>Hola, {{ adminFirstName() }}.</strong> {{ tip }}</p>
   </div>
 
+  <div class="gym-detail-stats">
+    <div class="gym-detail-stat">
+      <ion-icon name="time-outline" aria-hidden="true"></ion-icon>
+      <p class="gym-detail-stat__value">{{ blocks().length }}</p>
+      <p class="gym-detail-stat__label">Bloques configurados</p>
+    </div>
+    <div class="gym-detail-stat">
+      <ion-icon name="person-outline" aria-hidden="true"></ion-icon>
+      <p class="gym-detail-stat__value">{{ gym()?.maxUsers ?? '—' }}</p>
+      <p class="gym-detail-stat__label">Cupo máximo</p>
+    </div>
+    <div class="gym-detail-stat">
+      <ion-icon name="logo-google" aria-hidden="true"></ion-icon>
+      <p class="gym-detail-stat__value">{{ gym()?.googleLoginEnabled ? 'Sí' : 'No' }}</p>
+      <p class="gym-detail-stat__label">Login con Google</p>
+    </div>
+  </div>
+
   @if (status() === 'error') {
     <ion-text color="danger"><p>Ocurrió un error. Intenta nuevamente.</p></ion-text>
   }
 
   @if (section() === 'general') {
+    <p class="member-stats-heading">
+      <ion-icon name="people-outline" aria-hidden="true"></ion-icon>
+      Estado de tus socios
+    </p>
     <div class="member-stats">
       <div class="member-stat member-stat--active">
         <ion-icon name="checkmark-circle-outline" aria-hidden="true"></ion-icon>
@@ -287,6 +309,10 @@
       </ng-template>
     </ion-modal>
   } @else if (section() === 'members') {
+    <p class="member-stats-heading">
+      <ion-icon name="people-outline" aria-hidden="true"></ion-icon>
+      Estado de tus socios
+    </p>
     <div class="member-stats">
       <div class="member-stat member-stat--active">
         <ion-icon name="checkmark-circle-outline" aria-hidden="true"></ion-icon>
