@@ -21,6 +21,7 @@ import {
   UpdateGymBlockRequest,
   UpdateGymPlanRequest,
 } from '../models/gym.model';
+import { Member } from '../models/member.model';
 
 @Injectable({ providedIn: 'root' })
 export class GymService {
@@ -58,6 +59,11 @@ export class GymService {
   /** Fotos de las instalaciones del gym del socio logueado. */
   getMyMemberPhotos(): Observable<GymPhoto[]> {
     return this.http.get<GymPhoto[]>(`${this.meBase}/gym/photos`);
+  }
+
+  /** Plan/pago real del socio logueado (planId/paidAt ya persistidos, no el mock local de member.ts). */
+  getMyMembership(): Observable<Member> {
+    return this.http.get<Member>(`${this.meBase}/membership`);
   }
 
   /**

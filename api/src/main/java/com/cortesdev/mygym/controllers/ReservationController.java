@@ -3,11 +3,13 @@ package com.cortesdev.mygym.controllers;
 import com.cortesdev.mygym.models.dto.GymBlockOccurrenceResponse;
 import com.cortesdev.mygym.models.dto.GymPhotoResponse;
 import com.cortesdev.mygym.models.dto.MemberPlanResponse;
+import com.cortesdev.mygym.models.dto.MemberResponse;
 import com.cortesdev.mygym.models.dto.PublicGymResponse;
 import com.cortesdev.mygym.models.dto.ReservationCreateRequest;
 import com.cortesdev.mygym.models.dto.ReservationResponse;
 import com.cortesdev.mygym.security.AuthenticatedUser;
 import com.cortesdev.mygym.services.GymService;
+import com.cortesdev.mygym.services.MemberService;
 import com.cortesdev.mygym.services.ReservationService;
 import jakarta.validation.Valid;
 import java.net.URI;
@@ -34,10 +36,16 @@ public class ReservationController {
 
     private final ReservationService reservationService;
     private final GymService gymService;
+    private final MemberService memberService;
 
     @GetMapping("/gym")
     public PublicGymResponse myGym(@AuthenticationPrincipal Jwt jwt) {
         return gymService.getPublicById(AuthenticatedUser.from(jwt).gymId());
+    }
+
+    @GetMapping("/membership")
+    public MemberResponse myMembership(@AuthenticationPrincipal Jwt jwt) {
+        return memberService.getOwnMembership(AuthenticatedUser.from(jwt).userId());
     }
 
     @GetMapping("/plans")

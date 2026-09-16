@@ -143,6 +143,11 @@ function pad2(n: number): string {
   return n.toString().padStart(2, '0');
 }
 
+/** Instant ISO del backend ("2026-09-16T17:35:38Z") → "YYYY-MM-DD" en hora de Chile, mismo formato que `todayIso`. */
+function toChileIsoDate(instantIso: string): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Santiago' }).format(new Date(instantIso));
+}
+
 function capitalize(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
@@ -449,6 +454,7 @@ export class MemberPage {
   constructor() {
     this.loadGym();
     this.loadPlans();
+    this.loadMembership();
     this.loadPhotos();
     this.loadOccurrences();
     this.loadMyReservations();
@@ -563,6 +569,42 @@ export class MemberPage {
         this.plansLoaded.set(true);
       },
       error: () => this.plansLoaded.set(true),
+    });
+  }
+
+  // El pago/plan YA se persiste de verdad en el backend (app_user.plan_id/
+  // paid_at, marcado por el admin o por selectPlan() más abajo) — antes esta
+  // pantalla nunca lo leía de vuelta y el signal `membership` arrancaba
+  // siempre en "none", mostrando "Elige tu plan" a un socio que un admin ya
+  // había marcado como Activo. Reportado por el usuario probando con una
+  // cuenta real.
+  private loadMembership(): void {
+    this.gymService.getMyMembership().subscribe({
+      next: (member) => {
+        if (!member.planId || !member.paidAt) {
+          return;
+        }
+        const status = member.membershipStatus === 'EXPIRED' ? 'past_due' : 'active';
+        const monthlyClasses = member.monthlyClasses;
+        const classesUsed = monthlyClasses !== null ? monthlyClasses - (member.sessionsRemaining ?? monthlyClasses) : 0;
+        this.membership.set({
+          status,
+          plan: {
+            id: member.planId,
+            name: member.planName ?? 'Plan',
+            priceClp: 0,
+            monthlyClasses,
+          },
+          classesUsed,
+          paidAt: toChileIsoDate(member.paidAt),
+        });
+        this.expiryNotified = false;
+        this.stopBookingDemo();
+      },
+      error: () => {
+        // Best-effort: sin datos reales, se queda en "none" (el estado por
+        // defecto) — el socio puede seguir viendo la pantalla de elegir plan.
+      },
     });
   }
 

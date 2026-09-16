@@ -10,6 +10,7 @@ import com.cortesdev.mygym.repositories.AppUserRepository;
 import com.cortesdev.mygym.repositories.GymPlanRepository;
 import com.cortesdev.mygym.repositories.ReservationRepository;
 import com.cortesdev.mygym.services.exception.DuplicateMemberEmailException;
+import com.cortesdev.mygym.services.exception.MemberNotFoundException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -52,6 +53,18 @@ public class MemberService {
         return appUserRepository.findByGymIdAndRole(gymId, Role.MEMBER).stream()
                 .map(this::toResponse)
                 .toList();
+    }
+
+    // Antes /member (autoservicio del socio) nunca leía de vuelta su propio
+    // plan/paidAt reales — el signal `membership` del frontend arrancaba
+    // siempre en "none" sin importar lo que un admin ya hubiera marcado
+    // como pagado. Reportado por el usuario: un socio con plan "Activo"
+    // visto desde el panel del admin veía "Elige tu plan" en su propia
+    // vista.
+    @Transactional(readOnly = true)
+    public MemberResponse getOwnMembership(Long userId) {
+        AppUser user = appUserRepository.findById(userId).orElseThrow(() -> new MemberNotFoundException(userId));
+        return toResponse(user);
     }
 
     // Mismo umbral que expirySoon en member.ts (0 < díasRestantes <= 3).
