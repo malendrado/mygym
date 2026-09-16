@@ -6,6 +6,9 @@ spring:
     driver-class-name: org.postgresql.Driver
     username: ${SUPABASE_DB_USER}
     password: ${SUPABASE_DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 2
   jpa:
     hibernate:
       ddl-auto: validate
@@ -19,6 +22,10 @@ spring:
 
 server:
   port: ${PORT:8080}
+  tomcat:
+    threads:
+      max: 25
+      min-spare: 5
 
 app:
   jwt:
