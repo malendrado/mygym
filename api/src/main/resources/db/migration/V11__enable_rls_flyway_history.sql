@@ -1,0 +1,27 @@
+-- Supabase reportó "Table publicly accessible" (rls_disabled_in_public):
+-- flyway_schema_history queda expuesta a la API pública (PostgREST) sin RLS
+-- porque Flyway la crea sola y ninguna migración anterior la cubrió — todas
+-- las tablas de dominio (gym, gym_block, app_user, reservation, gym_plan,
+-- gym_photo) ya tenían RLS habilitado desde V4/V7/V8. Sin políticas (igual
+-- que esas 6): nuestro backend se conecta como el owner de la tabla vía JDBC
+-- directo, y el owner nunca queda restringido por RLS a menos que se use
+-- FORCE — solo bloquea a otros roles (anon/authenticated de PostgREST).
+--
+-- ALTER TABLE ... ENABLE ROW LEVEL SECURITY pide un lock ACCESS EXCLUSIVE
+-- sobre esta tabla puntual, y quedó demostrado empíricamente que ese lock
+-- nunca se consigue durante el arranque de Flyway: 21 intentos seguidos
+-- (1 sin timeout explícito, 1 con 30s, 6 más con 30s, 15 con 3s) fallaron
+-- todos con el mismo error (SQL State 55P03, "canceling statement due to
+-- lock timeout") — hay lecturas frecuentes y recurrentes contra esta tabla
+-- específica (probablemente el propio escáner de seguridad de Supabase y/o
+-- el refresh de caché de esquema de PostgREST) que la mantienen ocupada
+-- justo en esa ventana. En cambio, el mismo ALTER corrido una sola vez desde
+-- una conexión de la app ya arrancada (fuera de la secuencia de arranque de
+-- Flyway) funcionó al primer intento.
+--
+-- Por eso el ALTER ya se aplicó manualmente contra la Supabase de
+-- producción el 2026-09-16 (confirmado vía pg_class.relrowsecurity = true
+-- para flyway_schema_history) y este archivo NO lo repite — solo deja el
+-- registro versionado en flyway_schema_history sin volver a competir por
+-- ese lock en cada arranque.
+SELECT 1;
