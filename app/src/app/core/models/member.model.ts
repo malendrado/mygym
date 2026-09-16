@@ -34,3 +34,17 @@ export interface CreateMemberRequest {
 export interface MarkPaidRequest {
   planId: number;
 }
+
+/** Vista completa de un socio reservado en una clase — solo para admins. */
+export interface Attendee {
+  id: number;
+  name: string;
+  email: string;
+  photoUrl: string | null;
+}
+
+/** Vista reducida para otros socios — nunca email ni apellido. */
+export interface AttendeeSummary {
+  firstName: string;
+  photoUrl: string | null;
+}

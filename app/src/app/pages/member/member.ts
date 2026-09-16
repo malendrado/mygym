@@ -37,6 +37,7 @@ import { GymService } from '../../core/services/gym.service';
 import { ReservationService } from '../../core/services/reservation.service';
 import { GymBlockOccurrence, Reservation } from '../../core/models/reservation.model';
 import { GymPhoto, MemberPlan, PublicGym } from '../../core/models/gym.model';
+import { AttendeeSummary } from '../../core/models/member.model';
 import { deriveSurfaceTint, ensureMinContrastColor } from '../../core/utils/gym-theme';
 import { registerClassCategoryIcons, resolveClassCategoryIcon } from '../../core/utils/class-category';
 
@@ -442,6 +443,44 @@ export class MemberPage {
   protected readonly dayOccurrences = computed(() =>
     this.occurrences().filter((o) => o.classDate === this.selectedDate()),
   );
+
+  // Quiénes más reservaron una clase — pedido explícito del usuario. Vista
+  // acordeón (una clase expandida a la vez) para no inundar la lista de
+  // clases del día; se pide al backend recién al expandir, nunca por
+  // adelantado para todas las clases visibles. Nunca se guarda/expone el
+  // email de otro socio acá — el propio endpoint (`/api/me/.../attendees`)
+  // ya devuelve solo nombre de pila + foto.
+  protected readonly expandedAttendeesKey = signal<string | null>(null);
+  protected readonly attendeesByOccurrence = signal<Record<string, AttendeeSummary[]>>({});
+  protected readonly loadingAttendeesKey = signal<string | null>(null);
+
+  protected occurrenceKey(occurrence: GymBlockOccurrence): string {
+    return `${occurrence.gymBlockId}_${occurrence.classDate}`;
+  }
+
+  protected attendeesFor(occurrence: GymBlockOccurrence): AttendeeSummary[] {
+    return this.attendeesByOccurrence()[this.occurrenceKey(occurrence)] ?? [];
+  }
+
+  protected toggleAttendees(occurrence: GymBlockOccurrence): void {
+    const key = this.occurrenceKey(occurrence);
+    if (this.expandedAttendeesKey() === key) {
+      this.expandedAttendeesKey.set(null);
+      return;
+    }
+    this.expandedAttendeesKey.set(key);
+    if (key in this.attendeesByOccurrence()) {
+      return;
+    }
+    this.loadingAttendeesKey.set(key);
+    this.gymService.getMyBlockAttendees(occurrence.gymBlockId, occurrence.classDate).subscribe({
+      next: (attendees) => {
+        this.attendeesByOccurrence.update((map) => ({ ...map, [key]: attendees }));
+        this.loadingAttendeesKey.set(null);
+      },
+      error: () => this.loadingAttendeesKey.set(null),
+    });
+  }
 
   // "Mis reservas" agrupado en Próximas/Pasadas — antes era una sola lista
   // larga sin distinción, poco útil apenas se acumula historial (reportado

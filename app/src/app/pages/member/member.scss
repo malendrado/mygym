@@ -796,6 +796,23 @@ ion-segment-button.segment-button-checked {
     font-size: 0.66rem;
   }
 
+  &__attendees-toggle {
+    align-self: flex-start;
+    margin: 0.2rem 0 0;
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--brand-accent-text-safe, var(--brand-accent));
+    font-family: inherit;
+    font-size: 0.66rem;
+    font-weight: 600;
+    text-decoration: underline;
+    cursor: pointer;
+    // Ancho de touch-target sin agrandar el texto — mismo criterio que
+    // .class-tile__link (min-height 44px pero el texto sigue chico).
+    min-height: 32px;
+  }
+
   &__action {
     display: flex;
     flex-direction: column;
@@ -843,5 +860,50 @@ ion-segment-button.segment-button-checked {
     min-height: 44px;
     color: var(--brand-text-dim);
     font-size: 0.7rem;
+  }
+}
+
+// Lista de "quién más va" — solo nombre de pila + foto, nunca email (ver
+// AttendeeSummaryResponse en el backend). Acordeón: una sola clase
+// expandida a la vez, se pide al backend recién al expandir.
+.attendees-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.3rem;
+
+  ion-spinner {
+    width: 16px;
+    height: 16px;
+    color: var(--brand-accent);
+  }
+
+  &__item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.15rem 0.5rem 0.15rem 0.15rem;
+    border-radius: 999px;
+    background: var(--brand-ink-surface);
+    font-size: 0.68rem;
+    color: var(--brand-text-dim);
+  }
+
+  &__avatar {
+    width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    object-fit: cover;
+    flex-shrink: 0;
+
+    &--placeholder {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--brand-accent);
+      color: var(--brand-accent-contrast);
+      font-size: 0.6rem;
+      font-weight: 700;
+    }
   }
 }

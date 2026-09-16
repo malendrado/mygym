@@ -221,6 +221,33 @@
                   <p class="class-tile__instructor">{{ occurrence.instructorName }}</p>
                 }
                 <p class="class-tile__capacity">{{ occurrence.taken }}/{{ occurrence.capacity }} cupos</p>
+                @if (occurrence.taken > 0) {
+                  <button type="button" class="class-tile__attendees-toggle" (click)="toggleAttendees(occurrence)">
+                    {{ expandedAttendeesKey() === occurrenceKey(occurrence) ? 'Ocultar' : 'Ver quién va' }}
+                  </button>
+                  @if (expandedAttendeesKey() === occurrenceKey(occurrence)) {
+                    <div class="attendees-list">
+                      @if (loadingAttendeesKey() === occurrenceKey(occurrence)) {
+                        <ion-spinner name="crescent"></ion-spinner>
+                      } @else {
+                        @for (attendee of attendeesFor(occurrence); track $index) {
+                          <span class="attendees-list__item">
+                            @if (attendee.photoUrl) {
+                              <img [src]="attendee.photoUrl" alt="" class="attendees-list__avatar" />
+                            } @else {
+                              <span class="attendees-list__avatar attendees-list__avatar--placeholder">
+                                {{ attendee.firstName.charAt(0) }}
+                              </span>
+                            }
+                            {{ attendee.firstName }}
+                          </span>
+                        } @empty {
+                          <span class="item-hint">Nadie más reservado.</span>
+                        }
+                      }
+                    </div>
+                  }
+                }
                 <div class="class-tile__action">
                   @if (occurrence.myReservationId) {
                     <ion-badge color="success">Reservado</ion-badge>

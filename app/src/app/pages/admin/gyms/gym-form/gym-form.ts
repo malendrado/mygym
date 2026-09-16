@@ -75,7 +75,7 @@ import {
   UpdateGymPlanRequest,
   sortBlocksBySchedule,
 } from '../../../../core/models/gym.model';
-import { Member, MembershipStatus } from '../../../../core/models/member.model';
+import { Attendee, Member, MembershipStatus } from '../../../../core/models/member.model';
 import { BloqueFormModal, DAYS } from '../bloque-form-modal/bloque-form-modal';
 import { BloqueSeriesModal } from '../bloque-series-modal/bloque-series-modal';
 import { PlanFormModal } from '../plan-form-modal/plan-form-modal';
@@ -131,6 +131,31 @@ function timeBandOf(startTime: string): TimeBand {
     return 'AM';
   }
   return startTime < '18:00' ? 'PM' : 'NIGHT';
+}
+
+// Mismo criterio que gym-admin.ts — un bloque es una plantilla semanal sin
+// fecha, "quién reservó" necesita la PRÓXIMA ocurrencia real de ese día.
+const DAY_OF_WEEK_INDEX: Record<DayOfWeek, number> = {
+  SUNDAY: 0,
+  MONDAY: 1,
+  TUESDAY: 2,
+  WEDNESDAY: 3,
+  THURSDAY: 4,
+  FRIDAY: 5,
+  SATURDAY: 6,
+};
+
+function pad2(n: number): string {
+  return n.toString().padStart(2, '0');
+}
+
+function nextOccurrenceDate(dayOfWeek: DayOfWeek): string {
+  const todayIso = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Santiago' }).format(new Date());
+  const [y, m, d] = todayIso.split('-').map(Number);
+  const today = new Date(y, m - 1, d);
+  const diff = (DAY_OF_WEEK_INDEX[dayOfWeek] - today.getDay() + 7) % 7;
+  const target = new Date(y, m - 1, d + diff);
+  return `${target.getFullYear()}-${pad2(target.getMonth() + 1)}-${pad2(target.getDate())}`;
 }
 
 const SECTION_LABELS: Record<Section, string> = {
@@ -277,6 +302,9 @@ export class GymForm implements OnDestroy {
 
   // Planes (pestaña Planes) — misma lógica que gym-admin.ts, pero con gymId
   // explícito (el de la ruta) en vez de tomarlo del JWT del gym-admin logueado.
+  protected readonly expandedAttendeesBlockId = signal<number | null>(null);
+  protected readonly attendeesByBlock = signal<Record<number, Attendee[]>>({});
+  protected readonly loadingAttendeesBlockId = signal<number | null>(null);
   protected readonly plans = signal<GymPlan[]>([]);
   protected readonly isPlanModalOpen = signal(false);
   protected readonly editingPlan = signal<GymPlan | null>(null);
@@ -656,6 +684,42 @@ export class GymForm implements OnDestroy {
       return `No hay bloques de ${bandLabel}.`;
     }
     return 'Todavía no hay bloques configurados.';
+  }
+
+  // Mismo motivo que en gym-admin.ts: nextOccurrenceDate() es una fecha
+  // calendario pura, sin hora/huso — formatDate() la interpretaría como
+  // medianoche UTC y se corre un día en husos negativos. Reordenar el
+  // string a mano evita el problema por completo.
+  protected nextOccurrenceLabel(block: GymBlock): string {
+    const [y, m, d] = nextOccurrenceDate(block.dayOfWeek).split('-');
+    return `${d}-${m}-${y}`;
+  }
+
+  protected attendeesFor(block: GymBlock): Attendee[] {
+    return this.attendeesByBlock()[block.id] ?? [];
+  }
+
+  protected toggleAttendees(block: GymBlock): void {
+    const gymId = this.gymId();
+    if (!gymId) {
+      return;
+    }
+    if (this.expandedAttendeesBlockId() === block.id) {
+      this.expandedAttendeesBlockId.set(null);
+      return;
+    }
+    this.expandedAttendeesBlockId.set(block.id);
+    if (block.id in this.attendeesByBlock()) {
+      return;
+    }
+    this.loadingAttendeesBlockId.set(block.id);
+    this.gymService.getBlockAttendees(gymId, block.id, nextOccurrenceDate(block.dayOfWeek)).subscribe({
+      next: (attendees) => {
+        this.attendeesByBlock.update((map) => ({ ...map, [block.id]: attendees }));
+        this.loadingAttendeesBlockId.set(null);
+      },
+      error: () => this.loadingAttendeesBlockId.set(null),
+    });
   }
 
   protected openAddBlock(): void {

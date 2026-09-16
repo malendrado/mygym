@@ -74,7 +74,7 @@ import {
   UpdateGymPlanRequest,
   sortBlocksBySchedule,
 } from '../../core/models/gym.model';
-import { Member, MembershipStatus } from '../../core/models/member.model';
+import { Attendee, Member, MembershipStatus } from '../../core/models/member.model';
 import { BloqueFormModal, DAYS } from '../admin/gyms/bloque-form-modal/bloque-form-modal';
 import { BloqueSeriesModal } from '../admin/gyms/bloque-series-modal/bloque-series-modal';
 import { PlanFormModal } from '../admin/gyms/plan-form-modal/plan-form-modal';
@@ -133,6 +133,34 @@ function timeBandOf(startTime: string): TimeBand {
     return 'AM';
   }
   return startTime < '18:00' ? 'PM' : 'NIGHT';
+}
+
+// Un bloque es una plantilla semanal (sin fecha) — "quién reservó" necesita
+// una fecha real. Como el admin no navega un calendario acá, se usa la
+// PRÓXIMA ocurrencia real de ese día de semana (hoy mismo si coincide) como
+// fecha por defecto, mismo criterio de huso horario (America/Santiago) que
+// ya usa member.ts para todo lo relacionado a fechas de clases.
+const DAY_OF_WEEK_INDEX: Record<DayOfWeek, number> = {
+  SUNDAY: 0,
+  MONDAY: 1,
+  TUESDAY: 2,
+  WEDNESDAY: 3,
+  THURSDAY: 4,
+  FRIDAY: 5,
+  SATURDAY: 6,
+};
+
+function pad2(n: number): string {
+  return n.toString().padStart(2, '0');
+}
+
+function nextOccurrenceDate(dayOfWeek: DayOfWeek): string {
+  const todayIso = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Santiago' }).format(new Date());
+  const [y, m, d] = todayIso.split('-').map(Number);
+  const today = new Date(y, m - 1, d);
+  const diff = (DAY_OF_WEEK_INDEX[dayOfWeek] - today.getDay() + 7) % 7;
+  const target = new Date(y, m - 1, d + diff);
+  return `${target.getFullYear()}-${pad2(target.getMonth() + 1)}-${pad2(target.getDate())}`;
 }
 
 const SECTION_LABELS: Record<Section, string> = {
@@ -279,6 +307,13 @@ export class GymAdmin implements OnDestroy {
       (b) => (!day || b.dayOfWeek === day) && (!band || timeBandOf(b.startTime) === band),
     );
   });
+  // Quién reservó en un bloque — pedido explícito del usuario. Cada bloque
+  // es una plantilla semanal sin fecha, así que se consulta la PRÓXIMA
+  // ocurrencia real de ese día (ver nextOccurrenceDate); acordeón, un solo
+  // bloque expandido a la vez, se pide al backend recién al expandir.
+  protected readonly expandedAttendeesBlockId = signal<number | null>(null);
+  protected readonly attendeesByBlock = signal<Record<number, Attendee[]>>({});
+  protected readonly loadingAttendeesBlockId = signal<number | null>(null);
   protected readonly plans = signal<GymPlan[]>([]);
   protected readonly members = signal<Member[]>([]);
   protected readonly activeMembers = computed(() => this.members().filter((m) => m.membershipStatus === 'ACTIVE').length);
@@ -443,6 +478,39 @@ export class GymAdmin implements OnDestroy {
       return `No hay bloques de ${bandLabel}.`;
     }
     return 'Todavía no hay bloques configurados.';
+  }
+
+  // OJO: nextOccurrenceDate() devuelve una fecha calendario pura ("YYYY-MM-DD",
+  // sin hora/huso) — pasarla por formatDate() (que hace `new Date(value)`) se
+  // interpreta como medianoche UTC y se corría un día para atrás al formatear
+  // en un huso horario negativo (ej. America/Santiago). Reordenar el string a
+  // mano evita construir un Date del todo.
+  protected nextOccurrenceLabel(block: GymBlock): string {
+    const [y, m, d] = nextOccurrenceDate(block.dayOfWeek).split('-');
+    return `${d}-${m}-${y}`;
+  }
+
+  protected attendeesFor(block: GymBlock): Attendee[] {
+    return this.attendeesByBlock()[block.id] ?? [];
+  }
+
+  protected toggleAttendees(block: GymBlock): void {
+    if (this.expandedAttendeesBlockId() === block.id) {
+      this.expandedAttendeesBlockId.set(null);
+      return;
+    }
+    this.expandedAttendeesBlockId.set(block.id);
+    if (block.id in this.attendeesByBlock()) {
+      return;
+    }
+    this.loadingAttendeesBlockId.set(block.id);
+    this.gymService.getMyGymBlockAttendees(block.id, nextOccurrenceDate(block.dayOfWeek)).subscribe({
+      next: (attendees) => {
+        this.attendeesByBlock.update((map) => ({ ...map, [block.id]: attendees }));
+        this.loadingAttendeesBlockId.set(null);
+      },
+      error: () => this.loadingAttendeesBlockId.set(null),
+    });
   }
 
   protected formatClp(value: number): string {

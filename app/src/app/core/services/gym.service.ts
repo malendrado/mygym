@@ -21,7 +21,7 @@ import {
   UpdateGymBlockRequest,
   UpdateGymPlanRequest,
 } from '../models/gym.model';
-import { Member } from '../models/member.model';
+import { Attendee, AttendeeSummary, Member } from '../models/member.model';
 
 @Injectable({ providedIn: 'root' })
 export class GymService {
@@ -64,6 +64,21 @@ export class GymService {
   /** Plan/pago real del socio logueado (planId/paidAt ya persistidos, no el mock local de member.ts). */
   getMyMembership(): Observable<Member> {
     return this.http.get<Member>(`${this.meBase}/membership`);
+  }
+
+  /** Quién más reservó una clase puntual — vista reducida (sin email) para el propio socio. */
+  getMyBlockAttendees(blockId: number, classDate: string): Observable<AttendeeSummary[]> {
+    return this.http.get<AttendeeSummary[]>(`${this.meBase}/gym-blocks/${blockId}/occurrences/${classDate}/attendees`);
+  }
+
+  /** Vista completa (con email) para el dueño del gimnasio. */
+  getMyGymBlockAttendees(blockId: number, classDate: string): Observable<Attendee[]> {
+    return this.http.get<Attendee[]>(`${this.myGymBase}/blocks/${blockId}/occurrences/${classDate}/attendees`);
+  }
+
+  /** Vista completa (con email) para el super-admin, un gimnasio puntual. */
+  getBlockAttendees(gymId: number, blockId: number, classDate: string): Observable<Attendee[]> {
+    return this.http.get<Attendee[]>(`${this.base}/${gymId}/blocks/${blockId}/occurrences/${classDate}/attendees`);
   }
 
   /**

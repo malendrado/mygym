@@ -225,6 +225,66 @@ ion-segment-button.segment-button-checked {
     gap: 0.5rem;
     margin-top: 0.15rem;
   }
+
+  // Ver quién reservó — pedido explícito del usuario. El bloque es una
+  // plantilla semanal sin fecha, así que se consulta la próxima ocurrencia
+  // real de ese día (nextOccurrenceDate en gym-admin.ts).
+  &__attendees-toggle {
+    align-self: flex-start;
+    margin-top: 0.4rem;
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--brand-accent-text-safe, var(--brand-accent));
+    font-family: inherit;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-decoration: underline;
+    cursor: pointer;
+    min-height: 32px;
+  }
+}
+
+.attendees-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.3rem;
+
+  ion-spinner {
+    width: 16px;
+    height: 16px;
+    color: var(--brand-accent);
+  }
+
+  &__item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.15rem 0.5rem 0.15rem 0.15rem;
+    border-radius: 999px;
+    background: var(--brand-ink-surface-2);
+    font-size: 0.72rem;
+    color: var(--brand-text-dim);
+  }
+
+  &__avatar {
+    width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    object-fit: cover;
+    flex-shrink: 0;
+
+    &--placeholder {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--brand-accent);
+      color: var(--brand-accent-contrast);
+      font-size: 0.6rem;
+      font-weight: 700;
+    }
+  }
 }
 
 // Mismo patrón que .class-card__instructor en member.scss — antes el
