@@ -98,6 +98,8 @@ export interface Admin {
   name: string;
   email: string;
   active: boolean;
+  /** Foto de perfil de Google — null si nunca se logueó con Google. */
+  photoUrl: string | null;
 }
 
 export interface CreateGymRequest {

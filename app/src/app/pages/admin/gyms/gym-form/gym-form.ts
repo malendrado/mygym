@@ -11,6 +11,7 @@ import {
   IonCardContent,
   IonCardHeader,
   IonCardTitle,
+  IonChip,
   IonContent,
   IonHeader,
   IonIcon,
@@ -113,6 +114,25 @@ type Status = 'idle' | 'loading' | 'saving' | 'error';
 type SuggestStatus = 'idle' | 'loading' | 'error';
 type Section = 'general' | 'blocks' | 'plans' | 'members' | 'branding';
 
+// Mismo criterio que gym-admin.ts (implementación paralela, no compartida)
+// — segundo eje de filtro para la grilla de horarios, con tooltip que
+// explica el rango exacto de cada franja.
+type TimeBand = 'AM' | 'PM' | 'NIGHT';
+
+const TIME_BAND_OPTIONS: { value: TimeBand; label: string; hint: string }[] = [
+  { value: 'AM', label: 'Mañana', hint: 'Bloques que empiezan antes de las 12:00' },
+  { value: 'PM', label: 'Tarde', hint: 'Bloques que empiezan entre las 12:00 y las 18:00' },
+  { value: 'NIGHT', label: 'Noche', hint: 'Bloques que empiezan desde las 18:00' },
+];
+const TIME_BAND_ALL_HINT = 'Mostrar bloques de cualquier horario';
+
+function timeBandOf(startTime: string): TimeBand {
+  if (startTime < '12:00') {
+    return 'AM';
+  }
+  return startTime < '18:00' ? 'PM' : 'NIGHT';
+}
+
 const SECTION_LABELS: Record<Section, string> = {
   general: 'General',
   blocks: 'Horarios',
@@ -203,6 +223,7 @@ const THEMED_ROOT_PROPERTIES = [
     IonText,
     IonList,
     IonBadge,
+    IonChip,
     IonModal,
     IonSegment,
     IonSegmentButton,
@@ -237,9 +258,15 @@ export class GymForm implements OnDestroy {
   // comparten), así que necesitaba el mismo filtro.
   protected readonly selectedDay = signal<DayOfWeek | null>(null);
   protected readonly days = DAYS;
+  protected readonly selectedTimeBand = signal<TimeBand | null>(null);
+  protected readonly timeBandOptions = TIME_BAND_OPTIONS;
+  protected readonly timeBandAllHint = TIME_BAND_ALL_HINT;
   protected readonly filteredBlocks = computed(() => {
     const day = this.selectedDay();
-    return day ? this.blocks().filter((b) => b.dayOfWeek === day) : this.blocks();
+    const band = this.selectedTimeBand();
+    return this.blocks().filter(
+      (b) => (!day || b.dayOfWeek === day) && (!band || timeBandOf(b.startTime) === band),
+    );
   });
   protected readonly isModalOpen = signal(false);
   protected readonly editingBlock = signal<GymBlock | null>(null);
@@ -260,6 +287,11 @@ export class GymForm implements OnDestroy {
   protected readonly expiringSoonMembers = computed(() => this.members().filter((m) => m.membershipStatus === 'EXPIRING_SOON').length);
   protected readonly expiredMembers = computed(() => this.members().filter((m) => m.membershipStatus === 'EXPIRED').length);
   protected readonly unpaidMembers = computed(() => this.members().filter((m) => m.membershipStatus === 'UNPAID').length);
+  protected readonly memberStatusFilter = signal<MembershipStatus | null>(null);
+  protected readonly filteredMembers = computed(() => {
+    const filter = this.memberStatusFilter();
+    return filter ? this.members().filter((m) => m.membershipStatus === filter) : this.members();
+  });
   protected readonly memberForm = new FormGroup({
     name: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.minLength(2)] }),
     email: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.email] }),
@@ -376,6 +408,15 @@ export class GymForm implements OnDestroy {
 
   protected setSection(section: Section): void {
     this.section.set(section);
+  }
+
+  protected viewMembersByStatus(status: MembershipStatus): void {
+    this.memberStatusFilter.set(status);
+    this.section.set('members');
+  }
+
+  protected clearMemberStatusFilter(): void {
+    this.memberStatusFilter.set(null);
   }
 
   /**
@@ -582,8 +623,39 @@ export class GymForm implements OnDestroy {
     this.selectedDay.set(day);
   }
 
+  protected selectTimeBand(band: TimeBand | null): void {
+    this.selectedTimeBand.set(band);
+  }
+
   protected blockCountForDay(day: DayOfWeek | null): number {
-    return day ? this.blocks().filter((b) => b.dayOfWeek === day).length : this.blocks().length;
+    const band = this.selectedTimeBand();
+    return this.blocks().filter((b) => (!day || b.dayOfWeek === day) && (!band || timeBandOf(b.startTime) === band))
+      .length;
+  }
+
+  protected blockCountForTimeBand(band: TimeBand | null): number {
+    const day = this.selectedDay();
+    return this.blocks().filter((b) => (!day || b.dayOfWeek === day) && (!band || timeBandOf(b.startTime) === band))
+      .length;
+  }
+
+  protected emptyBlocksMessage(): string {
+    if (this.blocks().length === 0) {
+      return 'Todavía no hay bloques configurados.';
+    }
+    const day = this.selectedDay();
+    const band = this.selectedTimeBand();
+    const bandLabel = band ? this.timeBandOptions.find((b) => b.value === band)?.label.toLowerCase() : null;
+    if (day && bandLabel) {
+      return `No hay bloques de ${bandLabel} para ${this.dayLabel(day)}.`;
+    }
+    if (day) {
+      return `No hay bloques para ${this.dayLabel(day)}.`;
+    }
+    if (bandLabel) {
+      return `No hay bloques de ${bandLabel}.`;
+    }
+    return 'Todavía no hay bloques configurados.';
   }
 
   protected openAddBlock(): void {
@@ -685,6 +757,15 @@ export class GymForm implements OnDestroy {
 
   protected formatClp(value: number): string {
     return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(value);
+  }
+
+  protected formatDate(value: string | null): string {
+    if (!value) {
+      return '—';
+    }
+    return new Intl.DateTimeFormat('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(
+      new Date(value),
+    );
   }
 
   protected quotaLabel(plan: GymPlan): string {

@@ -65,6 +65,7 @@ export class AuthService {
       name: response.name,
       role: response.role,
       gymId: response.gymId,
+      photoUrl: response.photoUrl,
     };
     this._currentUser.set(user);
     this._token = response.token;

@@ -10,6 +10,7 @@ import {
   IonCardContent,
   IonCardHeader,
   IonCardTitle,
+  IonChip,
   IonContent,
   IonHeader,
   IonIcon,
@@ -30,6 +31,7 @@ import {
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import {
+  barbellOutline,
   businessOutline,
   bulbOutline,
   calendarOutline,
@@ -105,10 +107,33 @@ addIcons({
   'help-circle-outline': helpCircleOutline,
   'person-outline': personOutline,
   'logo-google': logoGoogle,
+  'barbell-outline': barbellOutline,
 });
 
 type Status = 'idle' | 'loading' | 'saving' | 'error';
 type Section = 'general' | 'blocks' | 'plans' | 'members' | 'branding';
+
+// Segundo eje de filtro para la grilla de horarios (además del día) —
+// pedido del usuario tras encontrar la fusión de bloques consecutivos poco
+// intuitiva; en vez de agrupar visualmente, se deja la grilla como estaba
+// y se agrega este filtro por franja para acotar cuántas tarjetas se ven
+// a la vez. Los cortes (12:00, 18:00) son un criterio de negocio simple,
+// no vienen de ninguna configuración del gimnasio.
+type TimeBand = 'AM' | 'PM' | 'NIGHT';
+
+const TIME_BAND_OPTIONS: { value: TimeBand; label: string; hint: string }[] = [
+  { value: 'AM', label: 'Mañana', hint: 'Bloques que empiezan antes de las 12:00' },
+  { value: 'PM', label: 'Tarde', hint: 'Bloques que empiezan entre las 12:00 y las 18:00' },
+  { value: 'NIGHT', label: 'Noche', hint: 'Bloques que empiezan desde las 18:00' },
+];
+const TIME_BAND_ALL_HINT = 'Mostrar bloques de cualquier horario';
+
+function timeBandOf(startTime: string): TimeBand {
+  if (startTime < '12:00') {
+    return 'AM';
+  }
+  return startTime < '18:00' ? 'PM' : 'NIGHT';
+}
 
 const SECTION_LABELS: Record<Section, string> = {
   general: 'General',
@@ -205,6 +230,7 @@ const THEMED_ROOT_PROPERTIES = [
     IonInput,
     IonList,
     IonBadge,
+    IonChip,
     IonModal,
     IonSegment,
     IonSegmentButton,
@@ -243,9 +269,15 @@ export class GymAdmin implements OnDestroy {
   // usuario). `null` = "Todos los días".
   protected readonly selectedDay = signal<DayOfWeek | null>(null);
   protected readonly days = DAYS;
+  protected readonly selectedTimeBand = signal<TimeBand | null>(null);
+  protected readonly timeBandOptions = TIME_BAND_OPTIONS;
+  protected readonly timeBandAllHint = TIME_BAND_ALL_HINT;
   protected readonly filteredBlocks = computed(() => {
     const day = this.selectedDay();
-    return day ? this.blocks().filter((b) => b.dayOfWeek === day) : this.blocks();
+    const band = this.selectedTimeBand();
+    return this.blocks().filter(
+      (b) => (!day || b.dayOfWeek === day) && (!band || timeBandOf(b.startTime) === band),
+    );
   });
   protected readonly plans = signal<GymPlan[]>([]);
   protected readonly members = signal<Member[]>([]);
@@ -253,6 +285,11 @@ export class GymAdmin implements OnDestroy {
   protected readonly expiringSoonMembers = computed(() => this.members().filter((m) => m.membershipStatus === 'EXPIRING_SOON').length);
   protected readonly expiredMembers = computed(() => this.members().filter((m) => m.membershipStatus === 'EXPIRED').length);
   protected readonly unpaidMembers = computed(() => this.members().filter((m) => m.membershipStatus === 'UNPAID').length);
+  protected readonly memberStatusFilter = signal<MembershipStatus | null>(null);
+  protected readonly filteredMembers = computed(() => {
+    const filter = this.memberStatusFilter();
+    return filter ? this.members().filter((m) => m.membershipStatus === filter) : this.members();
+  });
   protected readonly isModalOpen = signal(false);
   protected readonly editingBlock = signal<GymBlock | null>(null);
   protected readonly isSeriesModalOpen = signal(false);
@@ -343,6 +380,15 @@ export class GymAdmin implements OnDestroy {
     this.section.set(section);
   }
 
+  protected viewMembersByStatus(status: MembershipStatus): void {
+    this.memberStatusFilter.set(status);
+    this.section.set('members');
+  }
+
+  protected clearMemberStatusFilter(): void {
+    this.memberStatusFilter.set(null);
+  }
+
   protected dayLabel(day: DayOfWeek): string {
     return DAYS.find((d) => d.value === day)?.label ?? day;
   }
@@ -360,12 +406,56 @@ export class GymAdmin implements OnDestroy {
     this.selectedDay.set(day);
   }
 
+  protected selectTimeBand(band: TimeBand | null): void {
+    this.selectedTimeBand.set(band);
+  }
+
+  // Cada chip cuenta contra el OTRO filtro activo (día vs. franja), no
+  // contra el total sin filtrar — si el admin ya eligió "Lunes", el chip
+  // "Mañana" debe mostrar cuántos bloques de LUNES son de mañana, no el
+  // total de bloques de mañana en toda la semana.
   protected blockCountForDay(day: DayOfWeek | null): number {
-    return day ? this.blocks().filter((b) => b.dayOfWeek === day).length : this.blocks().length;
+    const band = this.selectedTimeBand();
+    return this.blocks().filter((b) => (!day || b.dayOfWeek === day) && (!band || timeBandOf(b.startTime) === band))
+      .length;
+  }
+
+  protected blockCountForTimeBand(band: TimeBand | null): number {
+    const day = this.selectedDay();
+    return this.blocks().filter((b) => (!day || b.dayOfWeek === day) && (!band || timeBandOf(b.startTime) === band))
+      .length;
+  }
+
+  protected emptyBlocksMessage(): string {
+    if (this.blocks().length === 0) {
+      return 'Todavía no hay bloques configurados.';
+    }
+    const day = this.selectedDay();
+    const band = this.selectedTimeBand();
+    const bandLabel = band ? this.timeBandOptions.find((b) => b.value === band)?.label.toLowerCase() : null;
+    if (day && bandLabel) {
+      return `No hay bloques de ${bandLabel} para ${this.dayLabel(day)}.`;
+    }
+    if (day) {
+      return `No hay bloques para ${this.dayLabel(day)}.`;
+    }
+    if (bandLabel) {
+      return `No hay bloques de ${bandLabel}.`;
+    }
+    return 'Todavía no hay bloques configurados.';
   }
 
   protected formatClp(value: number): string {
     return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(value);
+  }
+
+  protected formatDate(value: string | null): string {
+    if (!value) {
+      return '—';
+    }
+    return new Intl.DateTimeFormat('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(
+      new Date(value),
+    );
   }
 
   protected quotaLabel(plan: GymPlan): string {

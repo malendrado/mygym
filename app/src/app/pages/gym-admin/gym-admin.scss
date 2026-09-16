@@ -281,6 +281,68 @@ ion-segment-button.segment-button-checked {
   }
 }
 
+// Reemplaza el botón "Marcar pago" en la fila del socio una vez que ya
+// tiene un plan asociado — pedido del usuario: no tiene sentido seguir
+// invitando a marcar un pago que ya existe, mejor mostrar el estado real.
+// Fila completa del socio (nombre + email + info de plan) en UNA sola
+// línea horizontal — pedido explícito, nada se apila hacia abajo. En
+// pantallas angostas scrollea horizontal en su propia franja en vez de
+// romper el layout de la lista.
+// Mismo tamaño/posición que el ion-icon genérico que reemplaza — solo
+// aparece cuando el socio/admin se logueó alguna vez con Google.
+.member-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.member-row {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.6rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  &__name {
+    flex-shrink: 0;
+    font-weight: 600;
+  }
+
+  &__email {
+    flex-shrink: 0;
+    color: var(--brand-text-dim);
+    font-size: 0.85rem;
+
+    &::before {
+      content: '·';
+      margin-right: 0.6rem;
+      color: var(--brand-text-dim);
+    }
+  }
+}
+
+.member-plan-info__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--brand-text-dim);
+  font-size: 0.78rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+
+  ion-icon {
+    font-size: 0.9rem;
+    color: var(--brand-accent);
+  }
+}
+
 .member-stats-heading {
   display: flex;
   align-items: center;
@@ -311,6 +373,17 @@ ion-segment-button.segment-button-checked {
   padding: 0.75rem 0.9rem;
   background: var(--gym-panel-card, var(--brand-ink-surface-2));
   text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+
+  &:hover,
+  &:focus-visible {
+    border-color: var(--brand-accent);
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
 
   ion-icon {
     font-size: 1.3rem;

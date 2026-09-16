@@ -14,6 +14,16 @@ export interface Member {
   planId: number | null;
   paidAt: string | null;
   membershipStatus: MembershipStatus;
+  /** Nombre del plan contratado — null si nunca se marcó un pago. */
+  planName: string | null;
+  /** paidAt + 1 mes calendario — null si nunca se marcó un pago. */
+  planEndDate: string | null;
+  /** Cupo mensual del plan — null si el plan es libre (ilimitado) o no hay plan. */
+  monthlyClasses: number | null;
+  /** monthlyClasses menos reservas activas en el período actual — null si el plan es ilimitado o no hay plan. */
+  sessionsRemaining: number | null;
+  /** Foto de perfil de Google — null si el socio nunca se logueó con Google. */
+  photoUrl: string | null;
 }
 
 export interface CreateMemberRequest {

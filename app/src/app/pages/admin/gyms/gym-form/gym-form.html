@@ -178,22 +178,50 @@
       Estado de los socios del gimnasio
     </p>
     <div class="member-stats">
-      <div class="member-stat member-stat--active">
+      <div
+        class="member-stat member-stat--active"
+        role="button"
+        tabindex="0"
+        aria-label="Ver socios activos"
+        (click)="viewMembersByStatus('ACTIVE')"
+        (keydown.enter)="viewMembersByStatus('ACTIVE')"
+      >
         <ion-icon name="checkmark-circle-outline" aria-hidden="true"></ion-icon>
         <p class="member-stat__value">{{ activeMembers() }}</p>
         <p class="member-stat__label">Activos</p>
       </div>
-      <div class="member-stat member-stat--soon">
+      <div
+        class="member-stat member-stat--soon"
+        role="button"
+        tabindex="0"
+        aria-label="Ver socios por vencer"
+        (click)="viewMembersByStatus('EXPIRING_SOON')"
+        (keydown.enter)="viewMembersByStatus('EXPIRING_SOON')"
+      >
         <ion-icon name="hourglass-outline" aria-hidden="true"></ion-icon>
         <p class="member-stat__value">{{ expiringSoonMembers() }}</p>
         <p class="member-stat__label">Por vencer</p>
       </div>
-      <div class="member-stat member-stat--warn">
+      <div
+        class="member-stat member-stat--warn"
+        role="button"
+        tabindex="0"
+        aria-label="Ver socios vencidos"
+        (click)="viewMembersByStatus('EXPIRED')"
+        (keydown.enter)="viewMembersByStatus('EXPIRED')"
+      >
         <ion-icon name="close-circle-outline" aria-hidden="true"></ion-icon>
         <p class="member-stat__value">{{ expiredMembers() }}</p>
         <p class="member-stat__label">Vencidos</p>
       </div>
-      <div class="member-stat member-stat--dim">
+      <div
+        class="member-stat member-stat--dim"
+        role="button"
+        tabindex="0"
+        aria-label="Ver socios sin pago"
+        (click)="viewMembersByStatus('UNPAID')"
+        (keydown.enter)="viewMembersByStatus('UNPAID')"
+      >
         <ion-icon name="help-circle-outline" aria-hidden="true"></ion-icon>
         <p class="member-stat__value">{{ unpaidMembers() }}</p>
         <p class="member-stat__label">Sin pago</p>
@@ -212,9 +240,13 @@
         <ion-list lines="full">
           @for (admin of admins(); track admin.id) {
             <ion-item>
-              <div class="admin-avatar" slot="start" [class.admin-avatar--inactive]="!admin.active">
-                {{ initials(admin.name) }}
-              </div>
+              @if (admin.photoUrl) {
+                <img [src]="admin.photoUrl" alt="" slot="start" class="member-avatar" />
+              } @else {
+                <div class="admin-avatar" slot="start" [class.admin-avatar--inactive]="!admin.active">
+                  {{ initials(admin.name) }}
+                </div>
+              }
               <ion-label>
                 {{ admin.name }}
                 <p>{{ admin.email }}</p>
@@ -359,6 +391,30 @@
             </button>
           }
         </div>
+        <div class="day-chips">
+          <button
+            type="button"
+            class="day-chip"
+            [class.day-chip--selected]="selectedTimeBand() === null"
+            [title]="timeBandAllHint"
+            (click)="selectTimeBand(null)"
+          >
+            Todas
+            <ion-badge color="medium">{{ blockCountForTimeBand(null) }}</ion-badge>
+          </button>
+          @for (band of timeBandOptions; track band.value) {
+            <button
+              type="button"
+              class="day-chip"
+              [class.day-chip--selected]="selectedTimeBand() === band.value"
+              [title]="band.hint"
+              (click)="selectTimeBand(band.value)"
+            >
+              {{ band.label }}
+              <ion-badge color="medium">{{ blockCountForTimeBand(band.value) }}</ion-badge>
+            </button>
+          }
+        </div>
         <div class="block-grid">
           @for (block of filteredBlocks(); track block.id) {
             <div class="block-card" [class.block-card--inactive]="!block.active">
@@ -394,11 +450,7 @@
             </div>
           } @empty {
             <p class="item-hint">
-              {{
-                selectedDay() === null
-                  ? 'Todavía no hay bloques configurados.'
-                  : 'No hay bloques para ' + dayLabel(selectedDay()!) + '.'
-              }}
+              {{ emptyBlocksMessage() }}
             </p>
           }
         </div>
@@ -493,22 +545,50 @@
       Estado de los socios del gimnasio
     </p>
     <div class="member-stats">
-      <div class="member-stat member-stat--active">
+      <div
+        class="member-stat member-stat--active"
+        role="button"
+        tabindex="0"
+        aria-label="Ver socios activos"
+        (click)="viewMembersByStatus('ACTIVE')"
+        (keydown.enter)="viewMembersByStatus('ACTIVE')"
+      >
         <ion-icon name="checkmark-circle-outline" aria-hidden="true"></ion-icon>
         <p class="member-stat__value">{{ activeMembers() }}</p>
         <p class="member-stat__label">Activos</p>
       </div>
-      <div class="member-stat member-stat--soon">
+      <div
+        class="member-stat member-stat--soon"
+        role="button"
+        tabindex="0"
+        aria-label="Ver socios por vencer"
+        (click)="viewMembersByStatus('EXPIRING_SOON')"
+        (keydown.enter)="viewMembersByStatus('EXPIRING_SOON')"
+      >
         <ion-icon name="hourglass-outline" aria-hidden="true"></ion-icon>
         <p class="member-stat__value">{{ expiringSoonMembers() }}</p>
         <p class="member-stat__label">Por vencer</p>
       </div>
-      <div class="member-stat member-stat--warn">
+      <div
+        class="member-stat member-stat--warn"
+        role="button"
+        tabindex="0"
+        aria-label="Ver socios vencidos"
+        (click)="viewMembersByStatus('EXPIRED')"
+        (keydown.enter)="viewMembersByStatus('EXPIRED')"
+      >
         <ion-icon name="close-circle-outline" aria-hidden="true"></ion-icon>
         <p class="member-stat__value">{{ expiredMembers() }}</p>
         <p class="member-stat__label">Vencidos</p>
       </div>
-      <div class="member-stat member-stat--dim">
+      <div
+        class="member-stat member-stat--dim"
+        role="button"
+        tabindex="0"
+        aria-label="Ver socios sin pago"
+        (click)="viewMembersByStatus('UNPAID')"
+        (keydown.enter)="viewMembersByStatus('UNPAID')"
+      >
         <ion-icon name="help-circle-outline" aria-hidden="true"></ion-icon>
         <p class="member-stat__value">{{ unpaidMembers() }}</p>
         <p class="member-stat__label">Sin pago</p>
@@ -542,25 +622,57 @@
         <ion-card-title>
           <ion-icon name="people-outline" aria-hidden="true"></ion-icon>
           Socios
-          <ion-badge color="dark">{{ members().length }}</ion-badge>
+          <ion-badge color="dark">{{ filteredMembers().length }}</ion-badge>
         </ion-card-title>
+        @if (memberStatusFilter()) {
+          <ion-chip (click)="clearMemberStatusFilter()">
+            Filtro: {{ statusLabel(memberStatusFilter()!) }}
+            <ion-icon name="close-circle-outline" aria-hidden="true"></ion-icon>
+          </ion-chip>
+        }
       </ion-card-header>
       <ion-card-content>
         <ion-list lines="full">
-          @for (member of members(); track member.id) {
+          @for (member of filteredMembers(); track member.id) {
             <ion-item>
-              <ion-icon name="person-circle-outline" slot="start" aria-hidden="true"></ion-icon>
+              @if (member.photoUrl) {
+                <img [src]="member.photoUrl" alt="" slot="start" class="member-avatar" />
+              } @else {
+                <ion-icon name="person-circle-outline" slot="start" aria-hidden="true"></ion-icon>
+              }
               <ion-label>
-                {{ member.name }}
-                <p>{{ member.email }}</p>
+                <div class="member-row">
+                  <span class="member-row__name">{{ member.name }}</span>
+                  <span class="member-row__email">{{ member.email }}</span>
+                  @if (member.planId) {
+                    <span class="member-plan-info__item">
+                      <ion-icon name="pricetag-outline" aria-hidden="true"></ion-icon>
+                      {{ member.planName ?? 'Plan' }}
+                    </span>
+                    <span class="member-plan-info__item">
+                      <ion-icon name="barbell-outline" aria-hidden="true"></ion-icon>
+                      {{ member.monthlyClasses ? member.sessionsRemaining + '/' + member.monthlyClasses + ' sesiones' : 'Ilimitado' }}
+                    </span>
+                    <span class="member-plan-info__item">
+                      <ion-icon name="calendar-outline" aria-hidden="true"></ion-icon>
+                      {{ formatDate(member.paidAt) }} → {{ formatDate(member.planEndDate) }}
+                    </span>
+                  }
+                </div>
               </ion-label>
               <ion-badge slot="end" [color]="statusColor(member.membershipStatus)">
                 {{ statusLabel(member.membershipStatus) }}
               </ion-badge>
-              <ion-button fill="clear" size="small" (click)="markMemberPaid(member)">Marcar pago</ion-button>
+              @if (!member.planId) {
+                <ion-button fill="clear" size="small" (click)="markMemberPaid(member)">Marcar pago</ion-button>
+              }
             </ion-item>
           } @empty {
-            <ion-item lines="none"><ion-label>Todavía no hay socios cargados.</ion-label></ion-item>
+            <ion-item lines="none">
+              <ion-label>
+                {{ memberStatusFilter() ? 'No hay socios en este estado.' : 'Todavía no hay socios cargados.' }}
+              </ion-label>
+            </ion-item>
           }
         </ion-list>
       </ion-card-content>

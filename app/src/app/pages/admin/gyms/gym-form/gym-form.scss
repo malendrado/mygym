@@ -429,6 +429,59 @@ ion-segment-button.segment-button-checked {
   --color: var(--brand-accent-text-safe, var(--ion-color-primary));
 }
 
+.member-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.member-row {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.6rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  &__name {
+    flex-shrink: 0;
+    font-weight: 600;
+  }
+
+  &__email {
+    flex-shrink: 0;
+    color: var(--brand-text-dim);
+    font-size: 0.85rem;
+
+    &::before {
+      content: '·';
+      margin-right: 0.6rem;
+      color: var(--brand-text-dim);
+    }
+  }
+}
+
+.member-plan-info__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--brand-text-dim);
+  font-size: 0.78rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+
+  ion-icon {
+    font-size: 0.9rem;
+    color: var(--brand-accent);
+  }
+}
+
 .member-stats-heading {
   display: flex;
   align-items: center;
@@ -459,6 +512,17 @@ ion-segment-button.segment-button-checked {
   padding: 0.75rem 0.9rem;
   background: var(--brand-ink-surface);
   text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+
+  &:hover,
+  &:focus-visible {
+    border-color: var(--brand-accent);
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
 
   ion-icon {
     font-size: 1.3rem;
