@@ -1,8 +1,10 @@
 package com.cortesdev.mygym.controllers;
 
+import com.cortesdev.mygym.models.AppUser;
 import com.cortesdev.mygym.models.dto.AdminCreateRequest;
 import com.cortesdev.mygym.models.dto.AdminResponse;
 import com.cortesdev.mygym.models.dto.AdminStatusUpdateRequest;
+import com.cortesdev.mygym.models.dto.AttendeeResponse;
 import com.cortesdev.mygym.models.dto.BlockCreateRequest;
 import com.cortesdev.mygym.models.dto.BlockResponse;
 import com.cortesdev.mygym.models.dto.BlockUpdateRequest;
@@ -24,10 +26,13 @@ import com.cortesdev.mygym.models.dto.ThemeUpdateRequest;
 import com.cortesdev.mygym.services.BrandingSuggestionService;
 import com.cortesdev.mygym.services.GymService;
 import com.cortesdev.mygym.services.MemberService;
+import com.cortesdev.mygym.services.ReservationService;
 import jakarta.validation.Valid;
 import java.net.URI;
+import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -47,6 +52,7 @@ public class GymController {
     private final GymService gymService;
     private final MemberService memberService;
     private final BrandingSuggestionService brandingSuggestionService;
+    private final ReservationService reservationService;
 
     @PostMapping("/suggest-branding")
     public BrandingSuggestionResponse suggestBranding(@Valid @RequestBody BrandingSuggestionRequest request) {
@@ -97,6 +103,20 @@ public class GymController {
     public BlockResponse updateBlock(
             @PathVariable Long id, @PathVariable Long blockId, @Valid @RequestBody BlockUpdateRequest request) {
         return gymService.updateBlock(id, blockId, request);
+    }
+
+    @GetMapping("/{id}/blocks/{blockId}/occurrences/{classDate}/attendees")
+    public List<AttendeeResponse> blockAttendees(
+            @PathVariable Long id,
+            @PathVariable Long blockId,
+            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate classDate) {
+        return reservationService.getOccurrenceAttendees(id, blockId, classDate).stream()
+                .map(this::toAttendeeResponse)
+                .toList();
+    }
+
+    private AttendeeResponse toAttendeeResponse(AppUser user) {
+        return new AttendeeResponse(user.getId(), user.getName(), user.getEmail(), user.getPhotoUrl());
     }
 
     @DeleteMapping("/{id}/blocks/{blockId}")

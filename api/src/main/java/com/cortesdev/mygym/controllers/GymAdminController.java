@@ -1,5 +1,7 @@
 package com.cortesdev.mygym.controllers;
 
+import com.cortesdev.mygym.models.AppUser;
+import com.cortesdev.mygym.models.dto.AttendeeResponse;
 import com.cortesdev.mygym.models.dto.BlockCreateRequest;
 import com.cortesdev.mygym.models.dto.BlockResponse;
 import com.cortesdev.mygym.models.dto.BlockUpdateRequest;
@@ -14,10 +16,13 @@ import com.cortesdev.mygym.models.dto.PlanUpdateRequest;
 import com.cortesdev.mygym.models.dto.ThemeUpdateRequest;
 import com.cortesdev.mygym.security.AuthenticatedUser;
 import com.cortesdev.mygym.services.GymService;
+import com.cortesdev.mygym.services.ReservationService;
 import jakarta.validation.Valid;
 import java.net.URI;
+import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -42,10 +47,26 @@ import org.springframework.web.bind.annotation.RestController;
 public class GymAdminController {
 
     private final GymService gymService;
+    private final ReservationService reservationService;
 
     @GetMapping
     public GymResponse getMyGym(@AuthenticationPrincipal Jwt jwt) {
         return gymService.getGym(AuthenticatedUser.from(jwt).gymId());
+    }
+
+    @GetMapping("/blocks/{blockId}/occurrences/{classDate}/attendees")
+    public List<AttendeeResponse> myBlockAttendees(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long blockId,
+            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate classDate) {
+        Long gymId = AuthenticatedUser.from(jwt).gymId();
+        return reservationService.getOccurrenceAttendees(gymId, blockId, classDate).stream()
+                .map(this::toAttendeeResponse)
+                .toList();
+    }
+
+    private AttendeeResponse toAttendeeResponse(AppUser user) {
+        return new AttendeeResponse(user.getId(), user.getName(), user.getEmail(), user.getPhotoUrl());
     }
 
     @GetMapping("/blocks")

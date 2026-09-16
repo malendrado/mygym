@@ -22,4 +22,6 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
     List<Reservation> findByMemberIdAndStatusOrderByClassDateAsc(Long memberId, ReservationStatus status);
 
     int countByMemberIdAndStatusAndClassDateBetween(Long memberId, ReservationStatus status, LocalDate from, LocalDate to);
+
+    List<Reservation> findByGymBlockIdAndClassDateAndStatus(Long gymBlockId, LocalDate classDate, ReservationStatus status);
 }

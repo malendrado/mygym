@@ -1,5 +1,7 @@
 package com.cortesdev.mygym.controllers;
 
+import com.cortesdev.mygym.models.AppUser;
+import com.cortesdev.mygym.models.dto.AttendeeSummaryResponse;
 import com.cortesdev.mygym.models.dto.GymBlockOccurrenceResponse;
 import com.cortesdev.mygym.models.dto.GymPhotoResponse;
 import com.cortesdev.mygym.models.dto.MemberPlanResponse;
@@ -76,6 +78,26 @@ public class ReservationController {
     @GetMapping("/gym/photos")
     public List<GymPhotoResponse> myGymPhotos(@AuthenticationPrincipal Jwt jwt) {
         return gymService.listPhotos(AuthenticatedUser.from(jwt).gymId());
+    }
+
+    // Vista reducida para OTROS socios: solo nombre de pila + foto, nunca
+    // email ni apellido — pedido explícito del usuario ("el email nunca
+    // debes mostrarlo"). Reusa el mismo ReservationService que el admin,
+    // pero el controller decide acá qué campos exponer, no el servicio.
+    @GetMapping("/gym-blocks/{blockId}/occurrences/{classDate}/attendees")
+    public List<AttendeeSummaryResponse> myBlockAttendees(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long blockId,
+            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate classDate) {
+        Long gymId = AuthenticatedUser.from(jwt).gymId();
+        return reservationService.getOccurrenceAttendees(gymId, blockId, classDate).stream()
+                .map(this::toAttendeeSummary)
+                .toList();
+    }
+
+    private AttendeeSummaryResponse toAttendeeSummary(AppUser user) {
+        String firstName = user.getName() == null ? "Socio" : user.getName().split(" ")[0];
+        return new AttendeeSummaryResponse(firstName, user.getPhotoUrl());
     }
 
     @GetMapping("/gym-blocks")

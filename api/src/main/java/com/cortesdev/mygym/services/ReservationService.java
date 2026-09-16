@@ -1,5 +1,6 @@
 package com.cortesdev.mygym.services;
 
+import com.cortesdev.mygym.models.AppUser;
 import com.cortesdev.mygym.models.Gym;
 import com.cortesdev.mygym.models.GymBlock;
 import com.cortesdev.mygym.models.Reservation;
@@ -7,6 +8,7 @@ import com.cortesdev.mygym.models.ReservationStatus;
 import com.cortesdev.mygym.models.dto.GymBlockOccurrenceResponse;
 import com.cortesdev.mygym.models.dto.ReservationCreateRequest;
 import com.cortesdev.mygym.models.dto.ReservationResponse;
+import com.cortesdev.mygym.repositories.AppUserRepository;
 import com.cortesdev.mygym.repositories.GymBlockRepository;
 import com.cortesdev.mygym.repositories.GymRepository;
 import com.cortesdev.mygym.repositories.ReservationRepository;
@@ -39,6 +41,7 @@ public class ReservationService {
     private final GymBlockRepository gymBlockRepository;
     private final ReservationRepository reservationRepository;
     private final GymRepository gymRepository;
+    private final AppUserRepository appUserRepository;
 
     @Transactional(readOnly = true)
     public List<GymBlockOccurrenceResponse> listOccurrences(Long gymId, Long memberId, LocalDate from, LocalDate to) {
@@ -102,6 +105,25 @@ public class ReservationService {
         result.sort(Comparator.comparing(GymBlockOccurrenceResponse::classDate)
                 .thenComparing(GymBlockOccurrenceResponse::startTime));
         return result;
+    }
+
+    // Quiénes están reservados en una clase puntual — pedido explícito del
+    // usuario (admin y socios). El filtrado de qué campos exponer (email
+    // solo para admins, nunca para otros socios) queda a cargo del llamador
+    // (controller), no de este método: acá se devuelve el AppUser completo.
+    @Transactional(readOnly = true)
+    public List<AppUser> getOccurrenceAttendees(Long gymId, Long gymBlockId, LocalDate classDate) {
+        gymBlockRepository
+                .findByIdAndGymId(gymBlockId, gymId)
+                .orElseThrow(() -> new GymBlockNotFoundException(gymBlockId, gymId));
+        List<Long> memberIds = reservationRepository
+                .findByGymBlockIdAndClassDateAndStatus(gymBlockId, classDate, ReservationStatus.BOOKED)
+                .stream()
+                .map(Reservation::getMemberId)
+                .toList();
+        return appUserRepository.findAllById(memberIds).stream()
+                .sorted(Comparator.comparing(AppUser::getName))
+                .toList();
     }
 
     public ReservationResponse book(Long gymId, Long memberId, ReservationCreateRequest request) {
