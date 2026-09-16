@@ -561,6 +561,53 @@ ion-segment-button.segment-button-checked {
 // --- Calendario del mes ----------------------------------------------------
 // El socio elige un día concreto del mes en curso, no solo "el bloque de los
 // lunes" en abstracto — ver más abajo la lista de clases de ese día puntual.
+.calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+
+  h2 {
+    margin: 0;
+  }
+}
+
+.calendar-header__nav {
+  display: flex;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+// Botón plano de 44px (no ion-button) — mismo motivo que .day-chip en
+// gym-admin.scss: ion-button fuera de un ion-toolbar/ion-item queda con
+// offset vertical negativo.
+.calendar-nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--brand-ink-surface-2);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--brand-text);
+  cursor: pointer;
+  transition: border-color 0.15s ease, opacity 0.15s ease;
+
+  ion-icon {
+    font-size: 1.1rem;
+  }
+
+  &:hover:not(:disabled) {
+    border-color: var(--brand-accent);
+  }
+
+  &:disabled {
+    opacity: 0.35;
+    cursor: default;
+  }
+}
+
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);

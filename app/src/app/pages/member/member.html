@@ -147,7 +147,31 @@
     } @else {
     <div class="member-columns">
       <section class="member-section member-columns__calendar">
-        <h2>{{ monthLabel }}</h2>
+        <div class="calendar-header">
+          <h2>{{ monthLabel }}</h2>
+          @if (!monthExpanded()) {
+            <div class="calendar-header__nav">
+              <button
+                type="button"
+                class="calendar-nav-btn"
+                aria-label="Semana anterior"
+                [disabled]="!canGoPreviousWeek()"
+                (click)="previousWeek()"
+              >
+                <ion-icon name="chevron-back-outline" aria-hidden="true"></ion-icon>
+              </button>
+              <button
+                type="button"
+                class="calendar-nav-btn"
+                aria-label="Semana siguiente"
+                [disabled]="!canGoNextWeek()"
+                (click)="nextWeek()"
+              >
+                <ion-icon name="chevron-forward-outline" aria-hidden="true"></ion-icon>
+              </button>
+            </div>
+          }
+        </div>
         <div class="calendar-grid">
           @for (wd of weekdayLabels; track wd) {
             <span class="calendar-grid__weekday">{{ wd }}</span>

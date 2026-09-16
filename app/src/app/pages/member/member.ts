@@ -22,6 +22,8 @@ import {
   calendarOutline,
   checkmarkDoneOutline,
   checkmarkOutline,
+  chevronBackOutline,
+  chevronForwardOutline,
   flashOutline,
   lockClosedOutline,
   logOutOutline,
@@ -54,6 +56,8 @@ addIcons({
   'lock-closed-outline': lockClosedOutline,
   'alert-circle-outline': alertCircleOutline,
   'checkmark-outline': checkmarkOutline,
+  'chevron-back-outline': chevronBackOutline,
+  'chevron-forward-outline': chevronForwardOutline,
 });
 
 type Status = 'idle' | 'loading' | 'error';
@@ -398,6 +402,42 @@ export class MemberPage {
     const rowStart = index === -1 ? 0 : Math.floor(index / 7) * 7;
     return grid.slice(rowStart, rowStart + 7);
   });
+
+  // Flechas para pasar de semana sin tener que tocar un día específico —
+  // pedido explícito del usuario. Acotadas al mes calendario en curso (mismo
+  // límite que ya regía `monthGrid`, no navegan a meses futuros/pasados):
+  // se deshabilitan solas cuando la semana actual es la primera/última fila
+  // real de esa grilla.
+  private readonly selectedWeekRowStart = computed(() => {
+    const grid = this.monthGrid();
+    const index = grid.findIndex((cell) => cell?.iso === this.selectedDate());
+    return index === -1 ? 0 : Math.floor(index / 7) * 7;
+  });
+  protected readonly canGoPreviousWeek = computed(() => this.selectedWeekRowStart() > 0);
+  protected readonly canGoNextWeek = computed(() => this.selectedWeekRowStart() + 7 < this.monthGrid().length);
+
+  protected previousWeek(): void {
+    this.shiftWeek(-1);
+  }
+
+  protected nextWeek(): void {
+    this.shiftWeek(1);
+  }
+
+  private shiftWeek(direction: -1 | 1): void {
+    const grid = this.monthGrid();
+    const currentIndex = grid.findIndex((cell) => cell?.iso === this.selectedDate());
+    const column = currentIndex === -1 ? 0 : currentIndex % 7;
+    const targetRowStart = this.selectedWeekRowStart() + direction * 7;
+    if (targetRowStart < 0 || targetRowStart >= grid.length) {
+      return;
+    }
+    const targetRow = grid.slice(targetRowStart, targetRowStart + 7);
+    const target = targetRow[column] ?? targetRow.find((cell) => cell !== null);
+    if (target) {
+      this.selectedDate.set(target.iso);
+    }
+  }
 
   protected readonly dayOccurrences = computed(() =>
     this.occurrences().filter((o) => o.classDate === this.selectedDate()),
