@@ -33,7 +33,11 @@ public class GoogleTokenVerifier {
         if (!jwt.getAudience().contains(googleClientId)) {
             throw new InvalidGoogleTokenException("El token de Google no corresponde a esta aplicación");
         }
-        return new GoogleIdentity(jwt.getSubject(), jwt.getClaimAsString("email"), jwt.getClaimAsString("name"));
+        return new GoogleIdentity(
+                jwt.getSubject(),
+                jwt.getClaimAsString("email"),
+                jwt.getClaimAsString("name"),
+                jwt.getClaimAsString("picture"));
     }
 
     private JwtDecoder decoder() {
@@ -50,5 +54,5 @@ public class GoogleTokenVerifier {
         return local;
     }
 
-    public record GoogleIdentity(String googleSub, String email, String name) {}
+    public record GoogleIdentity(String googleSub, String email, String name, String pictureUrl) {}
 }

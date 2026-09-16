@@ -20,4 +20,6 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
     Optional<Reservation> findByIdAndMemberId(Long id, Long memberId);
 
     List<Reservation> findByMemberIdAndStatusOrderByClassDateAsc(Long memberId, ReservationStatus status);
+
+    int countByMemberIdAndStatusAndClassDateBetween(Long memberId, ReservationStatus status, LocalDate from, LocalDate to);
 }

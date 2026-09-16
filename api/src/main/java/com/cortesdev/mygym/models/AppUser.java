@@ -35,6 +35,9 @@ public class AppUser {
 
     private String name;
 
+    /** Foto de perfil de Google (claim "picture" del ID token) — null si nunca se logueó con Google. */
+    private String photoUrl;
+
     @Enumerated(EnumType.STRING)
     private Role role;
 

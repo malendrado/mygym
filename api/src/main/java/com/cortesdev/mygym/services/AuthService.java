@@ -12,6 +12,7 @@ import com.cortesdev.mygym.security.JwtService;
 import com.cortesdev.mygym.services.exception.GymNotFoundException;
 import com.cortesdev.mygym.services.exception.UnauthorizedGoogleLoginException;
 import java.util.List;
+import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,13 +36,35 @@ public class AuthService {
         if (!user.isActive()) {
             throw new UnauthorizedGoogleLoginException(identity.email());
         }
-        if (user.getGoogleSub() == null) {
-            user.setGoogleSub(identity.googleSub());
-            appUserRepository.save(user);
-        }
+        updateGoogleProfile(user, identity);
         String token = jwtService.issueToken(user.getId(), user.getEmail(), user.getRole(), user.getGymId());
         return new LoginResponse(
-                token, user.getId(), user.getEmail(), user.getName(), user.getRole(), user.getGymId(), false);
+                token,
+                user.getId(),
+                user.getEmail(),
+                user.getName(),
+                user.getRole(),
+                user.getGymId(),
+                false,
+                user.getPhotoUrl());
+    }
+
+    // Se re-guarda en CADA login (no solo la primera vez, a diferencia de
+    // googleSub que es inmutable) porque la foto de perfil de Google sí
+    // puede cambiar — así se refresca sola sin que nadie tenga que pedirlo.
+    private void updateGoogleProfile(AppUser user, GoogleTokenVerifier.GoogleIdentity identity) {
+        boolean changed = false;
+        if (user.getGoogleSub() == null) {
+            user.setGoogleSub(identity.googleSub());
+            changed = true;
+        }
+        if (!Objects.equals(user.getPhotoUrl(), identity.pictureUrl())) {
+            user.setPhotoUrl(identity.pictureUrl());
+            changed = true;
+        }
+        if (changed) {
+            appUserRepository.save(user);
+        }
     }
 
     /**
@@ -70,6 +93,7 @@ public class AuthService {
                         .gymId(gym.getId())
                         .active(true)
                         .googleSub(identity.googleSub())
+                        .photoUrl(identity.pictureUrl())
                         .build()));
 
         if (isNewMember) {
@@ -83,12 +107,16 @@ public class AuthService {
         if (!user.isActive()) {
             throw new UnauthorizedGoogleLoginException(identity.email());
         }
-        if (user.getGoogleSub() == null) {
-            user.setGoogleSub(identity.googleSub());
-            appUserRepository.save(user);
-        }
+        updateGoogleProfile(user, identity);
         String token = jwtService.issueToken(user.getId(), user.getEmail(), user.getRole(), user.getGymId());
         return new LoginResponse(
-                token, user.getId(), user.getEmail(), user.getName(), user.getRole(), user.getGymId(), isNewMember);
+                token,
+                user.getId(),
+                user.getEmail(),
+                user.getName(),
+                user.getRole(),
+                user.getGymId(),
+                isNewMember,
+                user.getPhotoUrl());
     }
 }

@@ -1,10 +1,14 @@
 package com.cortesdev.mygym.services;
 
 import com.cortesdev.mygym.models.AppUser;
+import com.cortesdev.mygym.models.GymPlan;
+import com.cortesdev.mygym.models.ReservationStatus;
 import com.cortesdev.mygym.models.Role;
 import com.cortesdev.mygym.models.dto.MemberCreateRequest;
 import com.cortesdev.mygym.models.dto.MemberResponse;
 import com.cortesdev.mygym.repositories.AppUserRepository;
+import com.cortesdev.mygym.repositories.GymPlanRepository;
+import com.cortesdev.mygym.repositories.ReservationRepository;
 import com.cortesdev.mygym.services.exception.DuplicateMemberEmailException;
 import java.time.Duration;
 import java.time.Instant;
@@ -26,6 +30,8 @@ public class MemberService {
     private static final ZoneId GYM_ZONE = ZoneId.of("America/Santiago");
 
     private final AppUserRepository appUserRepository;
+    private final GymPlanRepository gymPlanRepository;
+    private final ReservationRepository reservationRepository;
 
     public MemberResponse createMember(Long gymId, MemberCreateRequest request) {
         if (appUserRepository.existsByEmail(request.email())) {
@@ -66,6 +72,27 @@ public class MemberService {
     }
 
     private MemberResponse toResponse(AppUser user) {
+        String planName = null;
+        Instant planEndDate = null;
+        Integer monthlyClasses = null;
+        Integer sessionsRemaining = null;
+        Long planId = user.getPlanId();
+        Instant paidAt = user.getPaidAt();
+        if (planId != null && paidAt != null) {
+            ZonedDateTime periodStart = paidAt.atZone(GYM_ZONE);
+            ZonedDateTime periodEnd = periodStart.plusMonths(1);
+            planEndDate = periodEnd.toInstant();
+            GymPlan plan = gymPlanRepository.findById(planId).orElse(null);
+            if (plan != null) {
+                planName = plan.getName();
+                monthlyClasses = plan.getMonthlyClasses();
+                if (monthlyClasses != null) {
+                    int used = reservationRepository.countByMemberIdAndStatusAndClassDateBetween(
+                            user.getId(), ReservationStatus.BOOKED, periodStart.toLocalDate(), periodEnd.toLocalDate());
+                    sessionsRemaining = Math.max(0, monthlyClasses - used);
+                }
+            }
+        }
         return new MemberResponse(
                 user.getId(),
                 user.getName(),
@@ -76,6 +103,11 @@ public class MemberService {
                 user.getCreatedAt(),
                 user.getPlanId(),
                 user.getPaidAt(),
-                membershipStatus(user));
+                membershipStatus(user),
+                planName,
+                planEndDate,
+                monthlyClasses,
+                sessionsRemaining,
+                user.getPhotoUrl());
     }
 }
