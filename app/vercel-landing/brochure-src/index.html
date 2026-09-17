@@ -29,7 +29,16 @@
 
   * { box-sizing: border-box; }
 
-  html { scroll-behavior: smooth; }
+  html {
+    scroll-behavior: smooth;
+    /* El header es sticky — sin esto, saltar a un #ancla deja el título
+       tapado justo detrás de la barra superior. */
+    scroll-padding-top: 84px;
+  }
+
+  section[id] {
+    scroll-margin-top: 84px;
+  }
 
   body {
     margin: 0;
