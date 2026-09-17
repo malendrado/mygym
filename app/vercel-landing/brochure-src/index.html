@@ -164,6 +164,65 @@
 
   .btn--sm { padding: 0.55rem 1rem; font-size: 0.85rem; min-height: 38px; }
 
+  .btn--dark {
+    background: var(--accent-contrast);
+    color: var(--accent);
+  }
+
+  .btn--dark:hover { filter: brightness(1.4); }
+
+  /* ---------- Banda diferencial ---------- */
+  /* Pedido explícito del usuario: un sello propio, contraste invertido a
+     propósito para que corte la lectura y se note distinto de cualquier
+     otra sección — la promesa de flexibilidad como diferenciador real. */
+
+  .diff-band {
+    background: var(--accent);
+    color: var(--accent-contrast);
+    padding: 2.4rem 0;
+  }
+
+  .diff-band__inner {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1.4rem;
+  }
+
+  @media (min-width: 760px) {
+    .diff-band__inner {
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      gap: 2rem;
+    }
+  }
+
+  .diff-band__eyebrow {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 0.55rem;
+    opacity: 0.72;
+  }
+
+  .diff-band h2 {
+    color: var(--accent-contrast);
+    font-size: clamp(1.35rem, 2.6vw, 1.9rem);
+    margin-bottom: 0.5rem;
+  }
+
+  .diff-band p {
+    color: var(--accent-contrast);
+    opacity: 0.82;
+    max-width: 56ch;
+    font-size: 0.98rem;
+  }
+
+  .diff-band__cta { flex-shrink: 0; }
+
   /* ---------- Hero ---------- */
 
   .hero {
@@ -1188,6 +1247,19 @@
       <div class="stack-chip"><b>Resend</b><span>Emails transaccionales reales</span></div>
       <div class="stack-chip"><b>Capacitor 8</b><span>Camino directo a apps iOS/Android nativas</span></div>
       <div class="stack-chip"><b>Multi-tenant real</b><span>Un despliegue sirve a todos los gimnasios</span></div>
+    </div>
+  </section>
+
+  <!-- SELLO DIFERENCIAL -->
+  <section class="diff-band">
+    <div class="container diff-band__inner">
+      <div>
+        <span class="diff-band__eyebrow">Lo que casi nadie ofrece</span>
+        <h2>¿Algo de esto no calza del todo con tu gimnasio?</h2>
+        <p>Conversemos y lo adaptamos a tu forma de trabajar — planes, flujos y hasta
+          funciones nuevas, pensadas a la medida de tu gimnasio, no al revés.</p>
+      </div>
+      <a class="btn btn--dark diff-band__cta" href="#contacto">Conversemos</a>
     </div>
   </section>
 
