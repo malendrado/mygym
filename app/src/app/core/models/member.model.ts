@@ -24,7 +24,12 @@ export interface Member {
   sessionsRemaining: number | null;
   /** Foto de perfil de Google — null si el socio nunca se logueó con Google. */
   photoUrl: string | null;
+  /** Eje independiente de membershipStatus: null (se auto-registró) | 'PENDING' (el admin lo agregó a
+   *  mano, todavía no entró con Google) | 'REGISTERED' (el admin lo agregó a mano y ya entró). */
+  inviteStatus: InviteStatus;
 }
+
+export type InviteStatus = 'PENDING' | 'REGISTERED' | null;
 
 export interface CreateMemberRequest {
   name: string;

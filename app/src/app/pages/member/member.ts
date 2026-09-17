@@ -1,4 +1,5 @@
 import { Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
+import { DomSanitizer } from '@angular/platform-browser';
 import { Router } from '@angular/router';
 import {
   IonBadge,
@@ -216,6 +217,7 @@ export class MemberPage {
   private readonly gymService = inject(GymService);
   private readonly reservationService = inject(ReservationService);
   private readonly router = inject(Router);
+  private readonly sanitizer = inject(DomSanitizer);
   private readonly toastController = inject(ToastController);
   private readonly destroyRef = inject(DestroyRef);
 
@@ -224,6 +226,11 @@ export class MemberPage {
   protected readonly status = signal<Status>('idle');
   protected readonly gym = signal<PublicGym | null>(null);
   protected readonly gymLoaded = signal(false);
+  protected readonly isRasterLogo = computed(() => (this.gym()?.logoSvg ?? '').startsWith('data:image'));
+  protected readonly safeLogo = computed(() => {
+    const svg = this.gym()?.logoSvg;
+    return svg && !this.isRasterLogo() ? this.sanitizer.bypassSecurityTrustHtml(svg) : null;
+  });
   protected readonly occurrences = signal<GymBlockOccurrence[]>([]);
   protected readonly myReservations = signal<Reservation[]>([]);
   protected readonly bookingId = signal<number | null>(null);

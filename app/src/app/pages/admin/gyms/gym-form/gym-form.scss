@@ -432,6 +432,92 @@
   min-height: 44px;
 }
 
+.history-week-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.history-week-label {
+  min-width: 11ch;
+  text-align: center;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.calendar-nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 999px;
+  background: var(--brand-ink-surface-2);
+  color: var(--brand-text);
+  font-size: 1.1rem;
+
+  &:disabled {
+    opacity: 0.4;
+  }
+}
+
+.history-week {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+// Colapsado por día — mismo mecanismo que gym-admin.ts (ver comentario ahí).
+.history-day {
+  border: 1px solid var(--brand-ink-surface-2);
+  border-radius: 12px;
+  overflow: hidden;
+
+  &--empty {
+    opacity: 0.6;
+  }
+}
+
+.history-day__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 44px;
+  padding: 0.7rem 1rem;
+  border: none;
+  background: var(--gym-panel-card, var(--brand-ink-surface-2));
+  color: var(--brand-text);
+  text-align: left;
+  font-family: inherit;
+
+  &:disabled {
+    cursor: default;
+  }
+}
+
+.history-day__label {
+  font-weight: 600;
+}
+
+.history-day__summary {
+  margin-left: auto;
+  font-size: 0.82rem;
+  color: var(--brand-text-dim);
+
+  &--muted {
+    font-style: italic;
+  }
+}
+
+.history-day .block-grid {
+  padding: 0.75rem;
+}
+
 .attendees-list {
   display: flex;
   flex-wrap: wrap;
@@ -541,6 +627,29 @@ ion-segment-button.segment-button-checked {
   }
 }
 
+// Ver comentario largo en gym-admin.scss.
+.member-invite-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--ion-color-tertiary, #8b5cf6);
+  background: color-mix(in srgb, var(--ion-color-tertiary, #8b5cf6) 14%, transparent);
+
+  ion-icon {
+    font-size: 0.85rem;
+  }
+
+  &--registered {
+    color: var(--brand-accent);
+    background: color-mix(in srgb, var(--brand-accent) 16%, transparent);
+  }
+}
+
 .member-plan-info__item {
   display: inline-flex;
   align-items: center;
@@ -619,6 +728,14 @@ ion-segment-button.segment-button-checked {
     color: var(--brand-text-dim);
   }
 
+  &--invited ion-icon {
+    color: var(--ion-color-tertiary, #8b5cf6);
+  }
+
+  &--registered ion-icon {
+    color: var(--brand-accent);
+  }
+
   &--soon &__value {
     color: var(--ion-color-warning);
   }
@@ -629,6 +746,14 @@ ion-segment-button.segment-button-checked {
 
   &--dim &__value {
     color: var(--brand-text-dim);
+  }
+
+  &--invited &__value {
+    color: var(--ion-color-tertiary, #8b5cf6);
+  }
+
+  &--registered &__value {
+    color: var(--brand-accent);
   }
 }
 

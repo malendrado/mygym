@@ -13,7 +13,20 @@
     [style.--brand-accent-contrast]="gym()?.themeContrast ?? '#1a2b00'"
   >
     <ion-toolbar>
-      <ion-title>{{ gym()?.name ?? 'mygym' }}</ion-title>
+      <ion-title>
+        <div class="gym-title">
+          @if (gym()?.logoSvg) {
+            <span class="gym-title__logo">
+              @if (isRasterLogo()) {
+                <img [src]="gym()?.logoSvg" alt="" />
+              } @else if (safeLogo()) {
+                <span class="gym-title__logo-svg" [innerHTML]="safeLogo()"></span>
+              }
+            </span>
+          }
+          <span>{{ gym()?.name ?? 'mygym' }}</span>
+        </div>
+      </ion-title>
       <ion-buttons slot="end">
         <ion-button (click)="logout()">
           <ion-icon name="log-out-outline" slot="start" aria-hidden="true"></ion-icon>

@@ -50,6 +50,12 @@ public class AppUser {
 
     private Instant paidAt;
 
+    /** Seteado solo cuando un admin agrega este socio a mano (MemberService.createMember) — null si se
+     *  auto-registró vía /j/{slug}. Junto con googleSub permite distinguir "invitado pendiente" (todavía
+     *  no entró) de "invitado registrado" (ya entró al menos una vez), sin depender del email para nada
+     *  más que su unicidad de siempre. */
+    private Instant invitedAt;
+
     private Instant createdAt;
 
     private Instant updatedAt;

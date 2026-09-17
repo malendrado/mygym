@@ -1,4 +1,4 @@
-import { Component, OnDestroy, computed, effect, inject, signal } from '@angular/core';
+import { Component, OnDestroy, computed, effect, inject, signal, untracked } from '@angular/core';
 import { Router } from '@angular/router';
 import { DomSanitizer } from '@angular/platform-browser';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -36,6 +36,10 @@ import {
   bulbOutline,
   calendarOutline,
   checkmarkCircleOutline,
+  chevronBackOutline,
+  chevronDownOutline,
+  chevronForwardOutline,
+  chevronUpOutline,
   closeCircleOutline,
   cloudUploadOutline,
   colorPaletteOutline,
@@ -46,6 +50,7 @@ import {
   logOutOutline,
   logoGoogle,
   megaphoneOutline,
+  paperPlaneOutline,
   peopleOutline,
   personAddOutline,
   personCircleOutline,
@@ -74,7 +79,7 @@ import {
   UpdateGymPlanRequest,
   sortBlocksBySchedule,
 } from '../../core/models/gym.model';
-import { Attendee, Member, MembershipStatus } from '../../core/models/member.model';
+import { Attendee, InviteStatus, Member, MembershipStatus } from '../../core/models/member.model';
 import { BloqueFormModal, DAYS } from '../admin/gyms/bloque-form-modal/bloque-form-modal';
 import { BloqueSeriesModal } from '../admin/gyms/bloque-series-modal/bloque-series-modal';
 import { PlanFormModal } from '../admin/gyms/plan-form-modal/plan-form-modal';
@@ -86,7 +91,12 @@ import { deriveSurfaceTint, ensureMinContrastColor } from '../../core/utils/gym-
 addIcons({
   'time-outline': timeOutline,
   'calendar-outline': calendarOutline,
+  'chevron-back-outline': chevronBackOutline,
+  'chevron-forward-outline': chevronForwardOutline,
+  'chevron-up-outline': chevronUpOutline,
+  'chevron-down-outline': chevronDownOutline,
   'people-outline': peopleOutline,
+  'paper-plane-outline': paperPlaneOutline,
   'person-add-outline': personAddOutline,
   'person-circle-outline': personCircleOutline,
   'color-palette-outline': colorPaletteOutline,
@@ -189,6 +199,33 @@ const DAY_OF_WEEK_BY_INDEX: DayOfWeek[] = [
 function dayOfWeekOfDate(dateIso: string): DayOfWeek {
   const [y, m, d] = dateIso.split('-').map(Number);
   return DAY_OF_WEEK_BY_INDEX[new Date(y, m - 1, d).getDay()];
+}
+
+function addDaysIso(dateIso: string, days: number): string {
+  const [y, m, d] = dateIso.split('-').map(Number);
+  const date = new Date(y, m - 1, d + days);
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+}
+
+function mondayOfWeek(dateIso: string): string {
+  const [y, m, d] = dateIso.split('-').map(Number);
+  const dow = new Date(y, m - 1, d).getDay();
+  return addDaysIso(dateIso, dow === 0 ? -6 : 1 - dow);
+}
+
+function historyDayLabel(dateIso: string): string {
+  const [y, m, d] = dateIso.split('-').map(Number);
+  const label = new Intl.DateTimeFormat('es-CL', { weekday: 'long', day: 'numeric', month: 'short' }).format(
+    new Date(y, m - 1, d),
+  );
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
+interface HistoryDaySummary {
+  date: string;
+  dayLabel: string;
+  blocks: GymBlock[];
+  totalAttendees: number;
 }
 
 // Rotan igual que las citas motivacionales de /member, pero con un tono de
@@ -343,12 +380,62 @@ export class GymAdmin implements OnDestroy {
   protected readonly historyDate = signal(
     new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Santiago' }).format(new Date()),
   );
-  protected readonly historyBlocks = computed(() => {
-    const dow = dayOfWeekOfDate(this.historyDate());
-    return this.blocks()
-      .filter((b) => b.dayOfWeek === dow)
-      .sort((a, b) => a.startTime.localeCompare(b.startTime));
+  protected readonly historyLoading = signal(false);
+  protected readonly expandedHistoryDay = signal<string | null>(null);
+
+  // Semana en vez de un solo día — pedido explícito del usuario tras ver la
+  // versión de un día ("¿podría ser una semana?"). `historyDate` sigue
+  // siendo la fecha elegida a mano (ancla), la semana se deriva de ahí
+  // (lunes a domingo) para poder navegar con flechas sin perder el punto
+  // de partida elegido.
+  protected readonly historyWeekStart = computed(() => mondayOfWeek(this.historyDate()));
+  protected readonly historyWeekDates = computed(() => {
+    const start = this.historyWeekStart();
+    return Array.from({ length: 7 }, (_, i) => addDaysIso(start, i));
   });
+  protected readonly historyWeekLabel = computed(() => {
+    const dates = this.historyWeekDates();
+    const fmt = (iso: string) => {
+      const [y, m, d] = iso.split('-').map(Number);
+      return new Intl.DateTimeFormat('es-CL', { day: 'numeric', month: 'short' }).format(new Date(y, m - 1, d));
+    };
+    return `${fmt(dates[0])} – ${fmt(dates[6])}`;
+  });
+
+  // Todos los bloques candidatos de la semana (uno por día que coincide con
+  // su día de semana) — se usan para pedir asistentes de antemano, sin lo
+  // cual no se puede saber qué clases tuvieron al menos una reserva.
+  private readonly historyWeekCandidates = computed(() => {
+    return this.historyWeekDates().flatMap((date) => {
+      const dow = dayOfWeekOfDate(date);
+      return this.blocks()
+        .filter((b) => b.dayOfWeek === dow)
+        .map((block) => ({ block, date }));
+    });
+  });
+
+  // Pedido explícito del usuario: en Historial solo importan las clases donde
+  // se anotó alguien — una clase sin reservas no aporta nada para revisar.
+  // Colapsado por día (resumen + conteo) para no repetir la sobrecarga de
+  // información ya resuelta en Horarios al mostrar 7 días de una.
+  protected readonly historyWeekSummary = computed<HistoryDaySummary[]>(() => {
+    const cache = this.attendeesByKey();
+    return this.historyWeekDates().map((date) => {
+      const dow = dayOfWeekOfDate(date);
+      const blocks = this.blocks()
+        .filter((b) => b.dayOfWeek === dow)
+        .filter((b) => (cache[this.attendeesKey(b.id, date)] ?? []).length > 0)
+        .sort((a, b) => a.startTime.localeCompare(b.startTime));
+      const totalAttendees = blocks.reduce(
+        (sum, b) => sum + (cache[this.attendeesKey(b.id, date)] ?? []).length,
+        0,
+      );
+      return { date, dayLabel: historyDayLabel(date), blocks, totalAttendees };
+    });
+  });
+  protected readonly historyWeekHasBookings = computed(() =>
+    this.historyWeekSummary().some((day) => day.blocks.length > 0),
+  );
   protected readonly plans = signal<GymPlan[]>([]);
   protected readonly members = signal<Member[]>([]);
   protected readonly activeMembers = computed(() => this.members().filter((m) => m.membershipStatus === 'ACTIVE').length);
@@ -356,9 +443,21 @@ export class GymAdmin implements OnDestroy {
   protected readonly expiredMembers = computed(() => this.members().filter((m) => m.membershipStatus === 'EXPIRED').length);
   protected readonly unpaidMembers = computed(() => this.members().filter((m) => m.membershipStatus === 'UNPAID').length);
   protected readonly memberStatusFilter = signal<MembershipStatus | null>(null);
+  // Eje independiente del de pago — mide invitación manual del admin, no
+  // plata. Un socio puede estar "Invitado registrado" Y "Sin pago" a la vez,
+  // por eso son dos filtros que se combinan (AND), no uno que reemplaza al
+  // otro.
+  protected readonly invitedPendingMembers = computed(() => this.members().filter((m) => m.inviteStatus === 'PENDING').length);
+  protected readonly invitedRegisteredMembers = computed(
+    () => this.members().filter((m) => m.inviteStatus === 'REGISTERED').length,
+  );
+  protected readonly memberInviteFilter = signal<InviteStatus>(null);
   protected readonly filteredMembers = computed(() => {
-    const filter = this.memberStatusFilter();
-    return filter ? this.members().filter((m) => m.membershipStatus === filter) : this.members();
+    const statusFilter = this.memberStatusFilter();
+    const inviteFilter = this.memberInviteFilter();
+    return this.members().filter(
+      (m) => (!statusFilter || m.membershipStatus === statusFilter) && (!inviteFilter || m.inviteStatus === inviteFilter),
+    );
   });
   protected readonly isModalOpen = signal(false);
   protected readonly editingBlock = signal<GymBlock | null>(null);
@@ -437,6 +536,18 @@ export class GymAdmin implements OnDestroy {
       root.setProperty('--gym-panel-card', surface.card);
       root.setProperty('--brand-accent-text-safe', this.themeAccentTextSafe());
     });
+
+    // Los bloques llegan async (loadBlocks) — si el admin entra a Historial
+    // antes de que respondan, hay que reintentar la carga de asistentes en
+    // cuanto historyDayBlocks() deje de estar vacío, no solo al cambiar de
+    // fecha o sección.
+    effect(() => {
+      this.blocks();
+      this.historyDate();
+      if (this.section() === 'history') {
+        this.loadHistoryAttendees();
+      }
+    });
   }
 
   ngOnDestroy(): void {
@@ -448,6 +559,9 @@ export class GymAdmin implements OnDestroy {
 
   protected setSection(section: Section): void {
     this.section.set(section);
+    if (section === 'history') {
+      this.loadHistoryAttendees();
+    }
   }
 
   protected viewMembersByStatus(status: MembershipStatus): void {
@@ -457,6 +571,19 @@ export class GymAdmin implements OnDestroy {
 
   protected clearMemberStatusFilter(): void {
     this.memberStatusFilter.set(null);
+  }
+
+  protected viewMembersByInvite(status: Exclude<InviteStatus, null>): void {
+    this.memberInviteFilter.set(status);
+    this.section.set('members');
+  }
+
+  protected clearMemberInviteFilter(): void {
+    this.memberInviteFilter.set(null);
+  }
+
+  protected inviteStatusLabel(status: Exclude<InviteStatus, null>): string {
+    return status === 'PENDING' ? 'Invitado' : 'Invitado registrado';
   }
 
   protected dayLabel(day: DayOfWeek): string {
@@ -579,25 +706,79 @@ export class GymAdmin implements OnDestroy {
     return this.isAttendeesLoading(block.id, nextOccurrenceDate(block.dayOfWeek));
   }
 
-  protected historyAttendeesFor(block: GymBlock): Attendee[] {
-    return this.attendeesForDate(block.id, this.historyDate());
+  // A diferencia de Horarios (siempre "hoy o la próxima ocurrencia"), acá
+  // conviven 7 fechas distintas a la vez en pantalla — cada wrapper recibe
+  // la fecha del día puntual que el admin está mirando.
+  protected historyAttendeesFor(block: GymBlock, date: string): Attendee[] {
+    return this.attendeesForDate(block.id, date);
   }
 
-  protected toggleHistoryAttendees(block: GymBlock): void {
-    this.toggleAttendeesFor(block.id, this.historyDate());
+  protected toggleHistoryAttendees(block: GymBlock, date: string): void {
+    this.toggleAttendeesFor(block.id, date);
   }
 
-  protected isHistoryAttendeesExpanded(block: GymBlock): boolean {
-    return this.isAttendeesExpanded(block.id, this.historyDate());
+  protected isHistoryAttendeesExpanded(block: GymBlock, date: string): boolean {
+    return this.isAttendeesExpanded(block.id, date);
   }
 
-  protected isHistoryAttendeesLoading(block: GymBlock): boolean {
-    return this.isAttendeesLoading(block.id, this.historyDate());
+  protected isHistoryAttendeesLoading(block: GymBlock, date: string): boolean {
+    return this.isAttendeesLoading(block.id, date);
+  }
+
+  protected toggleHistoryDay(date: string): void {
+    this.expandedHistoryDay.update((current) => (current === date ? null : date));
+  }
+
+  protected isHistoryDayExpanded(date: string): boolean {
+    return this.expandedHistoryDay() === date;
   }
 
   protected setHistoryDate(date: string): void {
     this.historyDate.set(date);
     this.expandedAttendeesKey.set(null);
+    this.expandedHistoryDay.set(null);
+    this.loadHistoryAttendees();
+  }
+
+  protected shiftHistoryWeek(direction: -1 | 1): void {
+    this.setHistoryDate(addDaysIso(this.historyWeekStart(), direction * 7));
+  }
+
+  private readonly historyKeysInFlight = new Set<string>();
+
+  private loadHistoryAttendees(): void {
+    const cache = untracked(this.attendeesByKey);
+    const pending = this.historyWeekCandidates().filter(({ block, date }) => {
+      const key = this.attendeesKey(block.id, date);
+      return !(key in cache) && !this.historyKeysInFlight.has(key);
+    });
+    if (!pending.length) {
+      return;
+    }
+    this.historyLoading.set(true);
+    let remaining = pending.length;
+    const done = () => {
+      remaining -= 1;
+      if (remaining === 0) {
+        this.historyLoading.set(false);
+      }
+    };
+    pending.forEach(({ block, date }) => {
+      const key = this.attendeesKey(block.id, date);
+      this.historyKeysInFlight.add(key);
+      this.gymService.getMyGymBlockAttendees(block.id, date).subscribe({
+        next: (attendees) => {
+          this.historyKeysInFlight.delete(key);
+          this.attendeesByKey.update((map) => ({ ...map, [key]: attendees }));
+          done();
+        },
+        error: () => {
+          this.historyKeysInFlight.delete(key);
+          this.attendeesByKey.update((map) => ({ ...map, [key]: [] }));
+          done();
+        },
+      });
+    });
   }
 
   protected formatClp(value: number): string {
@@ -949,7 +1130,7 @@ export class GymAdmin implements OnDestroy {
         this.memberForm.reset({ name: '', email: '' });
         this.status.set('idle');
         this.loadMembers();
-        this.showToast(`Socio agregado: ${member.name}.`);
+        this.showToast(`Socio agregado: ${member.name}. Le enviamos un correo para activar su cuenta y elegir un plan.`);
       },
       error: () => this.status.set('error'),
     });

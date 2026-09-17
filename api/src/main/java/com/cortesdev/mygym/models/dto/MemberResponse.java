@@ -24,4 +24,8 @@ public record MemberResponse(
         /** monthlyClasses menos reservas BOOKED en el período actual — null si el plan es ilimitado o no hay plan. */
         Integer sessionsRemaining,
         /** Foto de perfil de Google — null si el socio nunca se logueó con Google. */
-        String photoUrl) {}
+        String photoUrl,
+        /** null (se auto-registró) | "PENDING" (el admin lo agregó a mano, todavía no entró con Google) |
+         *  "REGISTERED" (el admin lo agregó a mano y ya entró al menos una vez) — eje independiente de
+         *  membershipStatus, ver MemberService.inviteStatus. */
+        String inviteStatus) {}

@@ -6,6 +6,7 @@ import com.cortesdev.mygym.models.GymPlan;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -64,6 +65,90 @@ public class MemberLifecycleEmailService {
                 "Entrar con Google",
                 LOGIN_URL,
                 "Recibiste este correo porque te uniste a " + escapeHtml(gym.getName()) + " a través de mygym.");
+    }
+
+    // Alta manual del admin ("Agregar socio") — a diferencia de sendMemberWelcome
+    // (disparado desde el alta pública en /j/{slug}, cuando el socio ya se unió
+    // solo), acá el socio todavía no hizo nada: el objetivo es motivarlo a
+    // activar su cuenta con Google Y, de paso, tentarlo a elegir un plan de
+    // una vez — por eso el cuerpo incluye un teaser con los planes activos del
+    // gimnasio en vez de solo un aviso de bienvenida.
+    public void sendMemberInviteWithPlans(Gym gym, AppUser member, List<GymPlan> activePlans) {
+        String joinUrl = "https://www.mygym.cl/j/" + gym.getSlug();
+        String name = firstName(member);
+        String headline = "¡" + name + ", bienvenido a " + gym.getName() + "!";
+        StringBuilder body = new StringBuilder();
+        body.append("<p style=\"margin:0 0 12px;\"><strong style=\"color:#eaf6f7;\">")
+                .append(escapeHtml(gym.getName()))
+                .append("</strong> te sumó como socio — tu cupo ya está reservado, solo falta activarlo con tu cuenta de Google.</p>");
+        if (activePlans.isEmpty()) {
+            body.append("<p style=\"margin:0;\">Elige un plan apenas entres y reserva tu primera clase.</p>");
+        } else {
+            body.append(
+                    "<p style=\"margin:0 0 16px;\">De paso, mira los planes disponibles: la mayoría de los socios elige "
+                            + "el suyo apenas entra, así reserva su primera clase el mismo día.</p>");
+            body.append(planTeaserHtml(gym, activePlans));
+        }
+        send(
+                gym,
+                member.getEmail(),
+                name + ", tu cupo en " + gym.getName() + " ya está reservado",
+                "Cupo reservado",
+                headline,
+                body.toString(),
+                activePlans.isEmpty() ? "Activar mi cupo" : "Activar mi cupo y ver planes",
+                joinUrl,
+                "Recibiste este correo porque " + escapeHtml(gym.getName()) + " te agregó como socio en mygym.");
+    }
+
+    // Máximo 2 planes en la tarjeta (más se ve saturado en 600px de ancho de
+    // email) — sin un campo "recomendado" en GymPlan, el de mayor precio se
+    // marca como "Más elegido" (proxy razonable: normalmente el plan full/
+    // ilimitado cuesta más), solo cuando hay más de uno para comparar.
+    private String planTeaserHtml(Gym gym, List<GymPlan> activePlans) {
+        String themeColor = gym.getThemeColor() != null ? gym.getThemeColor() : GymPalette.defaultHex();
+        String themeContrast = GymPalette.contrastFor(themeColor);
+        List<GymPlan> featured = activePlans.stream()
+                .sorted(Comparator.comparing(GymPlan::getPriceClp, Comparator.nullsLast(Comparator.reverseOrder())))
+                .limit(2)
+                .toList();
+
+        StringBuilder sb = new StringBuilder();
+        sb.append(
+                "<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"margin:0 0 20px;\"><tr>");
+        for (int i = 0; i < featured.size(); i++) {
+            GymPlan plan = featured.get(i);
+            boolean isFeatured = i == 0 && featured.size() > 1;
+            String quota = plan.getMonthlyClasses() == null
+                    ? "Clases ilimitadas"
+                    : plan.getMonthlyClasses() + " clases al mes";
+            String borderColor = isFeatured ? themeColor : "#2f3d41";
+            sb.append("<td width=\"").append(100 / featured.size()).append("%\" valign=\"top\" style=\"padding:0 6px;\">");
+            sb.append("<div style=\"background-color:#12191c; border:1px solid ")
+                    .append(borderColor)
+                    .append("; border-radius:14px; padding:16px;\">");
+            if (isFeatured) {
+                sb.append("<div style=\"display:inline-block; background-color:")
+                        .append(themeColor)
+                        .append("; color:")
+                        .append(themeContrast)
+                        .append("; font-size:10px; font-weight:bold; letter-spacing:0.06em; text-transform:uppercase; "
+                                + "padding:3px 9px; border-radius:999px; margin-bottom:8px;\">Más elegido</div><br/>");
+            }
+            sb.append("<div style=\"font-size:13px; font-weight:bold; color:#eaf6f7; margin-bottom:6px;\">")
+                    .append(escapeHtml(plan.getName()))
+                    .append("</div>");
+            sb.append("<div style=\"font-family:'Courier New', Courier, monospace; font-size:20px; font-weight:bold; color:#eaf6f7;\">$")
+                    .append(formatClp(plan.getPriceClp()))
+                    .append("<span style=\"font-family:Helvetica Neue, Helvetica, Arial, sans-serif; font-size:12px; "
+                            + "font-weight:normal; color:#7d9296;\">/mes</span></div>");
+            sb.append("<div style=\"margin-top:6px; font-size:12px; color:#a9c2c6;\">")
+                    .append(quota)
+                    .append("</div>");
+            sb.append("</div></td>");
+        }
+        sb.append("</tr></table>");
+        return sb.toString();
     }
 
     public void sendNewMemberNotice(Gym gym, AppUser member, List<String> adminEmails) {

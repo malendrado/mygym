@@ -230,6 +230,30 @@
         <p class="member-stat__value">{{ unpaidMembers() }}</p>
         <p class="member-stat__label">Sin pago</p>
       </div>
+      <div
+        class="member-stat member-stat--invited"
+        role="button"
+        tabindex="0"
+        aria-label="Ver invitados pendientes"
+        (click)="viewMembersByInvite('PENDING')"
+        (keydown.enter)="viewMembersByInvite('PENDING')"
+      >
+        <ion-icon name="paper-plane-outline" aria-hidden="true"></ion-icon>
+        <p class="member-stat__value">{{ invitedPendingMembers() }}</p>
+        <p class="member-stat__label">Invitados</p>
+      </div>
+      <div
+        class="member-stat member-stat--registered"
+        role="button"
+        tabindex="0"
+        aria-label="Ver invitados registrados"
+        (click)="viewMembersByInvite('REGISTERED')"
+        (keydown.enter)="viewMembersByInvite('REGISTERED')"
+      >
+        <ion-icon name="logo-google" aria-hidden="true"></ion-icon>
+        <p class="member-stat__value">{{ invitedRegisteredMembers() }}</p>
+        <p class="member-stat__label">Invitados registrados</p>
+      </div>
     </div>
 
     <div class="gym-detail-columns">
@@ -622,6 +646,30 @@
         <p class="member-stat__value">{{ unpaidMembers() }}</p>
         <p class="member-stat__label">Sin pago</p>
       </div>
+      <div
+        class="member-stat member-stat--invited"
+        role="button"
+        tabindex="0"
+        aria-label="Ver invitados pendientes"
+        (click)="viewMembersByInvite('PENDING')"
+        (keydown.enter)="viewMembersByInvite('PENDING')"
+      >
+        <ion-icon name="paper-plane-outline" aria-hidden="true"></ion-icon>
+        <p class="member-stat__value">{{ invitedPendingMembers() }}</p>
+        <p class="member-stat__label">Invitados</p>
+      </div>
+      <div
+        class="member-stat member-stat--registered"
+        role="button"
+        tabindex="0"
+        aria-label="Ver invitados registrados"
+        (click)="viewMembersByInvite('REGISTERED')"
+        (keydown.enter)="viewMembersByInvite('REGISTERED')"
+      >
+        <ion-icon name="logo-google" aria-hidden="true"></ion-icon>
+        <p class="member-stat__value">{{ invitedRegisteredMembers() }}</p>
+        <p class="member-stat__label">Invitados registrados</p>
+      </div>
     </div>
 
     <ion-card>
@@ -659,6 +707,12 @@
             <ion-icon name="close-circle-outline" aria-hidden="true"></ion-icon>
           </ion-chip>
         }
+        @if (memberInviteFilter()) {
+          <ion-chip (click)="clearMemberInviteFilter()">
+            Filtro: {{ inviteStatusLabel(memberInviteFilter()!) }}
+            <ion-icon name="close-circle-outline" aria-hidden="true"></ion-icon>
+          </ion-chip>
+        }
       </ion-card-header>
       <ion-card-content>
         <ion-list lines="full">
@@ -673,6 +727,18 @@
                 <div class="member-row">
                   <span class="member-row__name">{{ member.name }}</span>
                   <span class="member-row__email">{{ member.email }}</span>
+                  @if (member.inviteStatus) {
+                    <span
+                      class="member-invite-badge"
+                      [class.member-invite-badge--registered]="member.inviteStatus === 'REGISTERED'"
+                    >
+                      <ion-icon
+                        [name]="member.inviteStatus === 'REGISTERED' ? 'logo-google' : 'paper-plane-outline'"
+                        aria-hidden="true"
+                      ></ion-icon>
+                      {{ inviteStatusLabel(member.inviteStatus) }}
+                    </span>
+                  }
                   @if (member.planId) {
                     <span class="member-plan-info__item">
                       <ion-icon name="pricetag-outline" aria-hidden="true"></ion-icon>
@@ -699,7 +765,11 @@
           } @empty {
             <ion-item lines="none">
               <ion-label>
-                {{ memberStatusFilter() ? 'No hay socios en este estado.' : 'Todavía no hay socios cargados.' }}
+                {{
+                  memberStatusFilter() || memberInviteFilter()
+                    ? 'No hay socios en este filtro.'
+                    : 'Todavía no hay socios cargados.'
+                }}
               </ion-label>
             </ion-item>
           }
@@ -841,7 +911,7 @@
       </ion-card-header>
       <ion-card-content>
         <ion-item lines="none" class="history-date-item">
-          <ion-label position="stacked">Elige una fecha</ion-label>
+          <ion-label position="stacked">Semana de</ion-label>
           <input
             type="date"
             class="history-date-input"
@@ -849,52 +919,99 @@
             (change)="setHistoryDate($any($event.target).value)"
           />
         </ion-item>
-        <div class="block-grid">
-          @for (block of historyBlocks(); track block.id) {
-            <div class="block-card" [class.block-card--inactive]="!block.active">
-              <div class="block-card__header">
-                <h3>
-                  <ion-icon [name]="categoryIcon(block.category)" aria-hidden="true"></ion-icon>
-                  {{ block.label }}
-                </h3>
-              </div>
-              <p class="block-card__time">{{ dayLabel(block.dayOfWeek) }} · {{ block.startTime }}-{{ block.endTime }}</p>
-              <div class="block-card__meta">
-                <ion-badge color="medium">Cupo {{ block.capacity }}</ion-badge>
-                @if (!block.active) {
-                  <ion-badge color="dark">Inactivo</ion-badge>
+        <div class="history-week-nav">
+          <button type="button" class="calendar-nav-btn" (click)="shiftHistoryWeek(-1)" aria-label="Semana anterior">
+            <ion-icon name="chevron-back-outline" aria-hidden="true"></ion-icon>
+          </button>
+          <span class="history-week-label">{{ historyWeekLabel() }}</span>
+          <button type="button" class="calendar-nav-btn" (click)="shiftHistoryWeek(1)" aria-label="Semana siguiente">
+            <ion-icon name="chevron-forward-outline" aria-hidden="true"></ion-icon>
+          </button>
+        </div>
+        @if (historyLoading()) {
+          <div class="ion-text-center">
+            <ion-spinner name="crescent"></ion-spinner>
+          </div>
+        }
+        <div class="history-week">
+          @for (day of historyWeekSummary(); track day.date) {
+            <div class="history-day" [class.history-day--empty]="!day.blocks.length">
+              <button
+                type="button"
+                class="history-day__header"
+                [disabled]="!day.blocks.length"
+                (click)="toggleHistoryDay(day.date)"
+              >
+                <span class="history-day__label">{{ day.dayLabel }}</span>
+                @if (day.blocks.length) {
+                  <span class="history-day__summary">
+                    {{ day.blocks.length }} {{ day.blocks.length === 1 ? 'clase' : 'clases' }} · {{ day.totalAttendees }}
+                    {{ day.totalAttendees === 1 ? 'persona' : 'personas' }}
+                  </span>
+                  <ion-icon
+                    [name]="isHistoryDayExpanded(day.date) ? 'chevron-up-outline' : 'chevron-down-outline'"
+                    aria-hidden="true"
+                  ></ion-icon>
+                } @else if (!historyLoading()) {
+                  <span class="history-day__summary history-day__summary--muted">Sin reservas</span>
                 }
-              </div>
-              <button type="button" class="block-card__attendees-toggle" (click)="toggleHistoryAttendees(block)">
-                {{ isHistoryAttendeesExpanded(block) ? 'Ocultar' : 'Ver quién reservó' }}
               </button>
-              @if (isHistoryAttendeesExpanded(block)) {
-                <div class="attendees-list">
-                  @if (isHistoryAttendeesLoading(block)) {
-                    <ion-spinner name="crescent"></ion-spinner>
-                  } @else {
-                    @for (attendee of historyAttendeesFor(block); track attendee.id) {
-                      <span class="attendees-list__item" [title]="attendee.email">
-                        @if (attendee.photoUrl) {
-                          <img [src]="attendee.photoUrl" alt="" class="attendees-list__avatar" />
-                        } @else {
-                          <span class="attendees-list__avatar attendees-list__avatar--placeholder">
-                            {{ attendee.name.charAt(0) }}
-                          </span>
+              @if (isHistoryDayExpanded(day.date) && day.blocks.length) {
+                <div class="block-grid">
+                  @for (block of day.blocks; track block.id) {
+                    <div class="block-card" [class.block-card--inactive]="!block.active">
+                      <div class="block-card__header">
+                        <h3>
+                          <ion-icon [name]="categoryIcon(block.category)" aria-hidden="true"></ion-icon>
+                          {{ block.label }}
+                        </h3>
+                      </div>
+                      <p class="block-card__time">{{ block.startTime }}-{{ block.endTime }}</p>
+                      <div class="block-card__meta">
+                        <ion-badge color="medium">Cupo {{ block.capacity }}</ion-badge>
+                        @if (!block.active) {
+                          <ion-badge color="dark">Inactivo</ion-badge>
                         }
-                        {{ attendee.name }}
-                      </span>
-                    } @empty {
-                      <span class="item-hint">Nadie reservado ese día.</span>
-                    }
+                      </div>
+                      <button
+                        type="button"
+                        class="block-card__attendees-toggle"
+                        (click)="toggleHistoryAttendees(block, day.date)"
+                      >
+                        {{ isHistoryAttendeesExpanded(block, day.date) ? 'Ocultar' : 'Ver quién reservó' }}
+                      </button>
+                      @if (isHistoryAttendeesExpanded(block, day.date)) {
+                        <div class="attendees-list">
+                          @if (isHistoryAttendeesLoading(block, day.date)) {
+                            <ion-spinner name="crescent"></ion-spinner>
+                          } @else {
+                            @for (attendee of historyAttendeesFor(block, day.date); track attendee.id) {
+                              <span class="attendees-list__item" [title]="attendee.email">
+                                @if (attendee.photoUrl) {
+                                  <img [src]="attendee.photoUrl" alt="" class="attendees-list__avatar" />
+                                } @else {
+                                  <span class="attendees-list__avatar attendees-list__avatar--placeholder">
+                                    {{ attendee.name.charAt(0) }}
+                                  </span>
+                                }
+                                {{ attendee.name }}
+                              </span>
+                            } @empty {
+                              <span class="item-hint">Nadie reservado ese día.</span>
+                            }
+                          }
+                        </div>
+                      }
+                    </div>
                   }
                 </div>
               }
             </div>
-          } @empty {
-            <p class="item-hint">No hay bloques configurados para ese día de la semana.</p>
           }
         </div>
+        @if (!historyLoading() && !historyWeekHasBookings()) {
+          <p class="item-hint">Nadie reservó ninguna clase esta semana.</p>
+        }
       </ion-card-content>
     </ion-card>
     }

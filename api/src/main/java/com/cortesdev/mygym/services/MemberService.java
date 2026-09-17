@@ -8,6 +8,7 @@ import com.cortesdev.mygym.models.dto.MemberCreateRequest;
 import com.cortesdev.mygym.models.dto.MemberResponse;
 import com.cortesdev.mygym.repositories.AppUserRepository;
 import com.cortesdev.mygym.repositories.GymPlanRepository;
+import com.cortesdev.mygym.repositories.GymRepository;
 import com.cortesdev.mygym.repositories.ReservationRepository;
 import com.cortesdev.mygym.services.exception.DuplicateMemberEmailException;
 import com.cortesdev.mygym.services.exception.MemberNotFoundException;
@@ -15,6 +16,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.Comparator;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -33,19 +35,36 @@ public class MemberService {
     private final AppUserRepository appUserRepository;
     private final GymPlanRepository gymPlanRepository;
     private final ReservationRepository reservationRepository;
+    private final GymRepository gymRepository;
+    private final MemberLifecycleEmailService memberLifecycleEmailService;
 
     public MemberResponse createMember(Long gymId, MemberCreateRequest request) {
         if (appUserRepository.existsByEmail(request.email())) {
             throw new DuplicateMemberEmailException(request.email());
         }
-        AppUser member = AppUser.builder()
+        AppUser member = appUserRepository.save(AppUser.builder()
                 .name(request.name())
                 .email(request.email())
                 .role(Role.MEMBER)
                 .gymId(gymId)
                 .active(true)
-                .build();
-        return toResponse(appUserRepository.save(member));
+                .invitedAt(Instant.now())
+                .build());
+
+        // Alta manual por el admin — a diferencia de /j/{slug} (alta pública
+        // con Google), acá el socio no recibía ningún email hasta ahora y
+        // quedaba pasivo en la base sin ninguna forma de saber que ya podía
+        // entrar. Reusa MemberLifecycleEmailService (best-effort, nunca
+        // rompe este flujo si Resend falla).
+        gymRepository.findById(gymId).ifPresent(gym -> {
+            List<GymPlan> activePlans = gymPlanRepository.findByGymId(gymId).stream()
+                    .filter(GymPlan::isActive)
+                    .sorted(Comparator.comparing(GymPlan::getPriceClp, Comparator.nullsLast(Comparator.reverseOrder())))
+                    .toList();
+            memberLifecycleEmailService.sendMemberInviteWithPlans(gym, member, activePlans);
+        });
+
+        return toResponse(member);
     }
 
     @Transactional(readOnly = true)
@@ -69,6 +88,18 @@ public class MemberService {
 
     // Mismo umbral que expirySoon en member.ts (0 < díasRestantes <= 3).
     private static final int EXPIRING_SOON_DAYS = 3;
+
+    // Eje independiente de membershipStatus (pago) — mide si este socio vino
+    // de una alta manual del admin y, si vino de ahí, si ya llegó a activar
+    // su cuenta con Google. invitedAt se setea una sola vez, en createMember;
+    // el alta pública (/j/{slug}) nunca lo toca, así que un socio auto-
+    // registrado siempre da null acá.
+    private String inviteStatus(AppUser user) {
+        if (user.getInvitedAt() == null) {
+            return null;
+        }
+        return user.getGoogleSub() != null ? "REGISTERED" : "PENDING";
+    }
 
     private String membershipStatus(AppUser user) {
         Instant paidAt = user.getPaidAt();
@@ -121,6 +152,7 @@ public class MemberService {
                 planEndDate,
                 monthlyClasses,
                 sessionsRemaining,
-                user.getPhotoUrl());
+                user.getPhotoUrl(),
+                inviteStatus(user));
     }
 }
