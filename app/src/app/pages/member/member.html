@@ -21,6 +21,15 @@
         </ion-button>
       </ion-buttons>
     </ion-toolbar>
+    @if (photoStrip().length) {
+      <div class="gym-photo-strip" aria-hidden="true">
+        <div class="gym-photo-strip__track">
+          @for (photo of photoStrip(); track $index) {
+            <img [src]="photo.data" alt="" class="gym-photo-strip__img" />
+          }
+        </div>
+      </div>
+    }
     <ion-toolbar>
       <ion-segment [value]="section()" (ionChange)="setSection($any($event.detail.value))">
         <ion-segment-button value="reservar">
@@ -216,7 +225,7 @@
                   <ion-icon [name]="categoryIcon(occurrence.category)" aria-hidden="true"></ion-icon>
                   {{ occurrence.label }}
                 </p>
-                <p class="class-tile__time">{{ occurrence.startTime }}-{{ occurrence.endTime }}</p>
+                <p class="class-tile__datetime">{{ shortTime(occurrence.startTime) }}-{{ shortTime(occurrence.endTime) }}</p>
                 @if (occurrence.instructorName) {
                   <p class="class-tile__instructor">{{ occurrence.instructorName }}</p>
                 }
@@ -366,8 +375,9 @@
         @for (reservation of upcomingReservations(); track reservation.id) {
           <article class="class-tile class-tile--reserved">
             <p class="class-tile__title">{{ reservation.blockLabel }}</p>
-            <p class="class-tile__time">{{ reservation.classDate }}</p>
-            <p class="class-tile__instructor">{{ reservation.startTime }}-{{ reservation.endTime }}</p>
+            <p class="class-tile__datetime">
+              {{ formatShortDate(reservation.classDate) }} · {{ shortTime(reservation.startTime) }}-{{ shortTime(reservation.endTime) }}
+            </p>
             <div class="class-tile__action">
               <ion-badge color="success">Reservado</ion-badge>
               <button
@@ -396,8 +406,9 @@
           @for (reservation of pastReservations(); track reservation.id) {
             <article class="class-tile class-tile--past">
               <p class="class-tile__title">{{ reservation.blockLabel }}</p>
-              <p class="class-tile__time">{{ reservation.classDate }}</p>
-              <p class="class-tile__instructor">{{ reservation.startTime }}-{{ reservation.endTime }}</p>
+              <p class="class-tile__datetime">
+                {{ formatShortDate(reservation.classDate) }} · {{ shortTime(reservation.startTime) }}-{{ shortTime(reservation.endTime) }}
+              </p>
               <div class="class-tile__action">
                 <ion-badge color="medium">Pasada</ion-badge>
               </div>

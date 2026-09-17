@@ -14,6 +14,49 @@
   --background: var(--member-bg, var(--brand-ink));
 }
 
+// Tira de fotos del gimnasio en el header — antes era solo el nombre en un
+// fondo plano, "muy vacío" (pedido explícito del usuario). Scroll infinito
+// en CSS puro (sin librería de animación, este proyecto no usa ninguna):
+// la lista ya viene duplicada desde el componente (photoStrip), así que
+// mover el track exactamente -50% cierra el loop sin salto visible.
+.gym-photo-strip {
+  overflow: hidden;
+  // Fade en los bordes en vez de un corte duro — se nota "vivo" sin gritar.
+  mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
+}
+
+.gym-photo-strip__track {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.4rem 0;
+  width: max-content;
+  animation: gym-photo-strip-scroll 32s linear infinite;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+.gym-photo-strip__img {
+  width: 56px;
+  height: 40px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
+@keyframes gym-photo-strip-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    // La lista está duplicada — a mitad de camino queda idéntica al inicio.
+    transform: translateX(-50%);
+  }
+}
+
 // Sin este tope, en un navegador de escritorio real (no un celular) todo el
 // contenido se estira al ancho completo de la ventana — la grilla del
 // calendario queda con celdas gigantes (aspect-ratio:1 sobre una columna de
@@ -779,6 +822,20 @@ ion-segment-button.segment-button-checked {
     color: var(--brand-text-dim);
     font-family: var(--brand-font-mono);
     font-size: 0.68rem;
+  }
+
+  // Fecha/hora de la clase — pedido explícito para que se note más que el
+  // resto de la tarjeta (antes tan tenue como cualquier otro dato
+  // secundario). Reemplaza __time en las tarjetas de "Reserva tu bloque" y
+  // "Mis reservas" — mismo criterio que el resto de la app: mono para
+  // cifras/horarios.
+  &__datetime {
+    margin: 0.1rem 0 0;
+    color: var(--brand-accent-text-safe, var(--brand-accent));
+    font-family: var(--brand-font-mono);
+    font-size: 0.76rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
   }
 
   &__instructor {

@@ -157,6 +157,18 @@ function capitalize(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
+/** "YYYY-MM-DD" → "mié 23 sep" — construido a partir de y/m/d explícitos, nunca `new Date(isoString)` (ver el bug de huso horario ya encontrado con nextOccurrenceDate). */
+function formatShortDate(dateIso: string): string {
+  const [y, m, d] = dateIso.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+  return capitalize(new Intl.DateTimeFormat('es-CL', { weekday: 'short', day: 'numeric', month: 'short' }).format(date));
+}
+
+/** "06:00:00" → "06:00" — pedido explícito: la fecha/hora de cada clase debe notarse más, sin los segundos redundantes. */
+function shortTime(time: string): string {
+  return time.slice(0, 5);
+}
+
 /** "YYYY-MM-DDTHH:mm:ss" en hora de Chile — comparable lexicográficamente contra `classDate + 'T' + endTime`. */
 function nowInGymZoneIso(): string {
   const parts = new Intl.DateTimeFormat('en-CA', {
@@ -245,6 +257,15 @@ export class MemberPage {
   protected readonly quote = computed(() => this.gym()?.tagline || this.fallbackQuote);
 
   protected readonly photos = signal<GymPhoto[]>([]);
+  // Tira de fotos del gimnasio en el header — antes el header no tenía nada
+  // más que el nombre, pedido explícito de hacerlo más notorio sin
+  // recargarlo. Duplicada para que el scroll infinito (CSS puro, ver
+  // member.scss) cierre el loop sin salto visible; con 1 sola foto igual
+  // se duplica para que la animación tenga sentido (dos copias moviéndose).
+  protected readonly photoStrip = computed(() => {
+    const list = this.photos();
+    return list.length ? [...list, ...list] : [];
+  });
   protected readonly heroPhotoUrl = computed(() => this.photos()[0]?.data ?? FALLBACK_HERO_PHOTO);
   protected readonly galleryPhotos = computed(() => this.photos().slice(1));
 
@@ -542,6 +563,14 @@ export class MemberPage {
 
   protected categoryIcon(category: string | null): string {
     return resolveClassCategoryIcon(category);
+  }
+
+  protected formatShortDate(dateIso: string): string {
+    return formatShortDate(dateIso);
+  }
+
+  protected shortTime(time: string): string {
+    return shortTime(time);
   }
 
   protected selectDay(iso: string): void {
