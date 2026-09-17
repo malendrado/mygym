@@ -1,0 +1,1306 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>mygym — Software para gimnasios</title>
+<meta name="description" content="La plataforma con la que un gimnasio da de alta socios, cobra membresías y organiza sus clases — con la marca de tu box, no la nuestra." />
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --ink: #1e2c30;
+    --ink-surface: #28393e;
+    --ink-surface-2: #33474d;
+    --ink-surface-3: #3d545b;
+    --text: #eaf6f7;
+    --text-dim: #a9c2c6;
+    --accent: #c6ff3d;
+    --accent-contrast: #1a2b00;
+    --danger: #ff6b6b;
+    --warn: #ffcf5c;
+    --font-display: 'Barlow', -apple-system, 'Segoe UI', system-ui, sans-serif;
+    --font-heading: 'Barlow Condensed', -apple-system, 'Segoe UI', system-ui, sans-serif;
+    --font-mono: 'Space Mono', ui-monospace, 'SFMono-Regular', monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    margin: 0;
+    background-color: var(--ink);
+    background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNjAiIGhlaWdodD0iMTYwIj48ZmlsdGVyIGlkPSJuIj48ZmVUdXJidWxlbmNlIHR5cGU9ImZyYWN0YWxOb2lzZSIgYmFzZUZyZXF1ZW5jeT0iMC44IiBudW1PY3RhdmVzPSIyIiBzdGl0Y2hUaWxlcz0ic3RpdGNoIi8+PGZlQ29sb3JNYXRyaXggdHlwZT0ibWF0cml4IiB2YWx1ZXM9IjAgMCAwIDAgMSAwIDAgMCAwIDEgMCAwIDAgMCAxIDAgMCAwIDAuMDUgMCIvPjwvZmlsdGVyPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbHRlcj0idXJsKCNuKSIvPjwvc3ZnPg==");
+    color: var(--text);
+    font-family: var(--font-display);
+    font-size: 16px;
+    line-height: 1.6;
+    padding: 0;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  img { max-width: 100%; }
+
+  h1, h2, h3, h4 {
+    font-family: var(--font-heading);
+    font-weight: 600;
+    line-height: 1.08;
+    text-wrap: balance;
+    margin: 0;
+  }
+
+  p { margin: 0; }
+
+  a { color: inherit; }
+
+  .container {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding-inline: 20px;
+  }
+
+  @media (min-width: 640px) {
+    .container { padding-inline: 32px; }
+  }
+
+  /* ---------- Header ---------- */
+
+  .site-header {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.9rem 20px;
+    background: rgba(30, 44, 48, 0.86);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--ink-surface-2);
+  }
+
+  @media (min-width: 640px) {
+    .site-header { padding: 0.9rem 32px; }
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    text-decoration: none;
+    flex-shrink: 0;
+  }
+
+  .brand svg { width: 30px; height: 30px; }
+
+  .brand span {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 1.3rem;
+    letter-spacing: 0.01em;
+  }
+
+  .nav-links {
+    display: none;
+    align-items: center;
+    gap: 1.6rem;
+    font-size: 0.92rem;
+    color: var(--text-dim);
+  }
+
+  .nav-links a { text-decoration: none; }
+  .nav-links a:hover { color: var(--text); }
+
+  @media (min-width: 860px) {
+    .nav-links { display: flex; }
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    border: none;
+    border-radius: 999px;
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 0.92rem;
+    cursor: pointer;
+    text-decoration: none;
+    padding: 0.7rem 1.3rem;
+    min-height: 44px;
+    transition: transform 0.15s ease, filter 0.15s ease;
+  }
+
+  .btn:active { transform: scale(0.97); }
+
+  .btn--accent {
+    background: var(--accent);
+    color: var(--accent-contrast);
+  }
+
+  .btn--accent:hover { filter: brightness(1.06); }
+
+  .btn--ghost {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--ink-surface-3);
+  }
+
+  .btn--ghost:hover { border-color: var(--accent); }
+
+  .btn--sm { padding: 0.55rem 1rem; font-size: 0.85rem; min-height: 38px; }
+
+  /* ---------- Hero ---------- */
+
+  .hero {
+    padding: 4.5rem 0 3.5rem;
+    display: grid;
+    gap: 2.5rem;
+  }
+
+  @media (min-width: 960px) {
+    .hero {
+      grid-template-columns: 1.05fr 0.95fr;
+      align-items: center;
+      padding: 6rem 0 4.5rem;
+    }
+  }
+
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+    padding: 0.3rem 0.7rem;
+    border-radius: 999px;
+    margin-bottom: 1.1rem;
+  }
+
+  .hero h1 {
+    font-size: clamp(2.2rem, 5vw, 3.4rem);
+    margin-bottom: 1.1rem;
+  }
+
+  .hero h1 em {
+    font-style: normal;
+    color: var(--accent);
+  }
+
+  .hero p.lede {
+    font-size: 1.08rem;
+    color: var(--text-dim);
+    max-width: 46ch;
+    margin-bottom: 1.8rem;
+  }
+
+  .hero-ctas {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.8rem;
+    margin-bottom: 1.6rem;
+  }
+
+  .hero-trust {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.4rem;
+    font-size: 0.8rem;
+    color: var(--text-dim);
+  }
+
+  .hero-trust span { display: flex; align-items: center; gap: 0.4rem; }
+  .hero-trust b { color: var(--text); font-family: var(--font-mono); }
+
+  /* ---------- Hero device mock ---------- */
+
+  .device {
+    position: relative;
+    background: var(--ink-surface);
+    border: 1px solid var(--ink-surface-2);
+    border-radius: 22px;
+    padding: 1.1rem;
+    box-shadow: 0 30px 60px -20px rgba(0,0,0,0.55);
+  }
+
+  .device__label {
+    position: absolute;
+    top: -0.65rem;
+    left: 1.1rem;
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink);
+    background: var(--accent);
+    padding: 0.15rem 0.55rem;
+    border-radius: 999px;
+  }
+
+  .device__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.9rem;
+  }
+
+  .device__title {
+    font-family: var(--font-heading);
+    font-weight: 600;
+    font-size: 1rem;
+  }
+
+  .device__avatars { display: flex; }
+
+  .device__avatars span {
+    width: 24px; height: 24px; border-radius: 999px;
+    background: var(--ink-surface-3);
+    border: 2px solid var(--ink-surface);
+    margin-left: -8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.6rem; font-weight: 700; color: var(--text-dim);
+  }
+  .device__avatars span:first-child { margin-left: 0; }
+
+  .device__strip {
+    display: flex;
+    gap: 0.5rem;
+    overflow: hidden;
+    margin-bottom: 0.9rem;
+  }
+
+  .device__strip div {
+    flex-shrink: 0;
+    width: 52px; height: 36px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--ink-surface-3), var(--ink-surface-2));
+  }
+
+  .device__stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+    margin-bottom: 0.9rem;
+  }
+
+  .device__stat {
+    background: var(--ink-surface-2);
+    border-radius: 12px;
+    padding: 0.55rem 0.4rem;
+    text-align: center;
+  }
+
+  .device__stat b {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 1.15rem;
+    color: var(--accent);
+  }
+
+  .device__stat span { font-size: 0.62rem; color: var(--text-dim); }
+
+  .device__tile {
+    background: var(--ink-surface-2);
+    border-radius: 14px;
+    padding: 0.8rem 0.9rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.55rem;
+  }
+
+  .device__tile div:first-child { display: flex; flex-direction: column; gap: 0.2rem; }
+  .device__tile b { font-size: 0.88rem; }
+  .device__tile small { font-family: var(--font-mono); color: var(--accent); font-size: 0.72rem; font-weight: 700; }
+
+  .device__pill {
+    font-size: 0.66rem;
+    font-weight: 700;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
+    color: var(--accent);
+  }
+
+  /* ---------- Sections generic ---------- */
+
+  section { padding: 3.6rem 0; }
+
+  .section-head {
+    max-width: 62ch;
+    margin-bottom: 2.4rem;
+  }
+
+  .section-head .eyebrow { margin-bottom: 0.9rem; }
+
+  .section-head h2 {
+    font-size: clamp(1.7rem, 3.4vw, 2.4rem);
+    margin-bottom: 0.7rem;
+  }
+
+  .section-head p {
+    color: var(--text-dim);
+    font-size: 1.02rem;
+  }
+
+  /* ---------- Problem grid ---------- */
+
+  .problem-grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: 1fr;
+  }
+
+  @media (min-width: 700px) {
+    .problem-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  .problem-card {
+    background: var(--ink-surface);
+    border: 1px solid var(--ink-surface-2);
+    border-radius: 16px;
+    padding: 1.4rem 1.5rem;
+  }
+
+  .problem-card__icon {
+    width: 38px; height: 38px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--danger) 16%, transparent);
+    color: var(--danger);
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 0.9rem;
+    font-size: 1.1rem;
+  }
+
+  .problem-card h3 { font-size: 1.08rem; margin-bottom: 0.4rem; }
+  .problem-card p { color: var(--text-dim); font-size: 0.92rem; }
+
+  /* ---------- Steps ---------- */
+
+  .steps {
+    display: grid;
+    gap: 1.2rem;
+    counter-reset: step;
+  }
+
+  @media (min-width: 760px) {
+    .steps { grid-template-columns: repeat(3, 1fr); }
+  }
+
+  .step {
+    position: relative;
+    background: var(--ink-surface);
+    border: 1px solid var(--ink-surface-2);
+    border-radius: 16px;
+    padding: 1.6rem 1.4rem 1.4rem;
+  }
+
+  .step__num {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--accent-contrast);
+    background: var(--accent);
+    width: 26px; height: 26px;
+    border-radius: 999px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700;
+    margin-bottom: 0.9rem;
+  }
+
+  .step h3 { font-size: 1.1rem; margin-bottom: 0.45rem; }
+  .step p { color: var(--text-dim); font-size: 0.9rem; }
+
+  /* ---------- Module tabs ---------- */
+
+  .audience-tabs {
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    padding-bottom: 0.3rem;
+    margin-bottom: 1.6rem;
+    scrollbar-width: none;
+  }
+  .audience-tabs::-webkit-scrollbar { display: none; }
+
+  .audience-tab {
+    flex-shrink: 0;
+    border: 1px solid var(--ink-surface-2);
+    background: var(--ink-surface);
+    color: var(--text-dim);
+    border-radius: 999px;
+    padding: 0.6rem 1.1rem;
+    font-family: var(--font-display);
+    font-size: 0.86rem;
+    font-weight: 600;
+    cursor: pointer;
+    min-height: 44px;
+  }
+
+  .audience-tab[aria-selected="true"] {
+    background: var(--accent);
+    color: var(--accent-contrast);
+    border-color: var(--accent);
+  }
+
+  .module-panel { display: none; }
+  .module-panel.is-active { display: block; }
+
+  .accordion-item {
+    border: 1px solid var(--ink-surface-2);
+    border-radius: 14px;
+    margin-bottom: 0.7rem;
+    background: var(--ink-surface);
+    overflow: hidden;
+  }
+
+  .accordion-trigger {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    background: none;
+    border: none;
+    color: var(--text);
+    text-align: left;
+    font-family: var(--font-display);
+    padding: 1.1rem 1.3rem;
+    cursor: pointer;
+    min-height: 44px;
+  }
+
+  .accordion-trigger__title {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+  }
+
+  .accordion-trigger__icon {
+    width: 34px; height: 34px;
+    border-radius: 9px;
+    background: color-mix(in srgb, var(--accent) 15%, transparent);
+    color: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem;
+    flex-shrink: 0;
+  }
+
+  .accordion-trigger b { font-size: 0.98rem; font-weight: 600; }
+
+  .accordion-chevron {
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
+    color: var(--text-dim);
+  }
+
+  .accordion-item.is-open .accordion-chevron { transform: rotate(180deg); color: var(--accent); }
+
+  .accordion-panel {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.22s ease;
+  }
+
+  .accordion-item.is-open .accordion-panel { grid-template-rows: 1fr; }
+
+  .accordion-panel > div { overflow: hidden; }
+
+  .accordion-body {
+    padding: 0 1.3rem 1.2rem 3.9rem;
+    color: var(--text-dim);
+    font-size: 0.92rem;
+  }
+
+  .accordion-benefit {
+    margin-top: 0.6rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.78rem;
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  /* ---------- Dashboard demo ---------- */
+
+  .demo-card {
+    background: var(--ink-surface);
+    border: 1px solid var(--ink-surface-2);
+    border-radius: 20px;
+    padding: 1.6rem;
+  }
+
+  .demo-card__tag {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    background: var(--ink-surface-2);
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    margin-bottom: 1.2rem;
+  }
+
+  .demo-grid {
+    display: grid;
+    gap: 1.2rem;
+    grid-template-columns: 1fr;
+  }
+
+  @media (min-width: 860px) {
+    .demo-grid { grid-template-columns: 1.15fr 1fr; align-items: center; }
+  }
+
+  .demo-stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.8rem;
+    margin-bottom: 1.2rem;
+  }
+
+  @media (min-width: 480px) {
+    .demo-stats { grid-template-columns: repeat(4, 1fr); }
+  }
+
+  .demo-stat {
+    background: var(--ink-surface-2);
+    border-radius: 12px;
+    padding: 0.85rem 0.7rem;
+    text-align: center;
+  }
+
+  .demo-stat b {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 1.5rem;
+    color: var(--accent);
+  }
+
+  .demo-stat span { font-size: 0.7rem; color: var(--text-dim); }
+
+  .demo-chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.5rem;
+    height: 140px;
+    padding: 0.6rem 0.6rem 0;
+    background: var(--ink-surface-2);
+    border-radius: 12px;
+  }
+
+  .demo-chart__bar {
+    flex: 1;
+    background: linear-gradient(180deg, var(--accent), color-mix(in srgb, var(--accent) 55%, transparent));
+    border-radius: 6px 6px 0 0;
+    position: relative;
+  }
+
+  .demo-chart__bar span {
+    position: absolute;
+    bottom: -1.35rem;
+    left: 0; right: 0;
+    text-align: center;
+    font-size: 0.62rem;
+    color: var(--text-dim);
+  }
+
+  .demo-chart-wrap { position: relative; padding-bottom: 1.4rem; }
+
+  /* ---------- Security ---------- */
+
+  .security-grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: 1fr;
+  }
+
+  @media (min-width: 760px) {
+    .security-grid { grid-template-columns: repeat(3, 1fr); }
+  }
+
+  .security-card {
+    background: var(--ink-surface);
+    border: 1px solid var(--ink-surface-2);
+    border-radius: 16px;
+    padding: 1.4rem;
+  }
+
+  .security-card__icon {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--accent) 15%, transparent);
+    color: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 1rem;
+  }
+
+  .security-card h3 { font-size: 1.02rem; margin-bottom: 0.4rem; }
+  .security-card p { color: var(--text-dim); font-size: 0.88rem; }
+
+  /* ---------- Stack ---------- */
+
+  .stack-grid {
+    display: grid;
+    gap: 0.8rem;
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (min-width: 640px) { .stack-grid { grid-template-columns: repeat(3, 1fr); } }
+  @media (min-width: 960px) { .stack-grid { grid-template-columns: repeat(4, 1fr); } }
+
+  .stack-chip {
+    background: var(--ink-surface);
+    border: 1px solid var(--ink-surface-2);
+    border-radius: 14px;
+    padding: 1rem 1.1rem;
+  }
+
+  .stack-chip b { display: block; font-size: 0.92rem; margin-bottom: 0.2rem; }
+  .stack-chip span { font-size: 0.76rem; color: var(--text-dim); }
+
+  /* ---------- Contact ---------- */
+
+  .contact-card {
+    background: var(--ink-surface);
+    border: 1px solid var(--ink-surface-2);
+    border-radius: 22px;
+    padding: 2rem;
+    display: grid;
+    gap: 2rem;
+  }
+
+  @media (min-width: 860px) {
+    .contact-card { grid-template-columns: 1fr 1fr; padding: 2.6rem; }
+  }
+
+  .contact-card h2 { font-size: clamp(1.6rem, 3vw, 2.1rem); margin-bottom: 0.6rem; }
+  .contact-card > div:first-child p { color: var(--text-dim); margin-bottom: 1.4rem; }
+
+  .whatsapp-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.92rem;
+  }
+
+  form { display: grid; gap: 0.9rem; }
+
+  label {
+    display: block;
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    margin-bottom: 0.35rem;
+  }
+
+  input, textarea {
+    width: 100%;
+    background: var(--ink-surface-2);
+    border: 1px solid var(--ink-surface-3);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: var(--font-display);
+    font-size: 0.95rem;
+    padding: 0.7rem 0.85rem;
+  }
+
+  input:focus, textarea:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+
+  textarea { resize: vertical; min-height: 90px; }
+
+  .form-msg {
+    font-size: 0.85rem;
+    padding: 0.7rem 0.9rem;
+    border-radius: 10px;
+  }
+
+  .form-msg--ok { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); }
+  .form-msg--err { background: color-mix(in srgb, var(--danger) 16%, transparent); color: var(--danger); }
+
+  /* ---------- Footer ---------- */
+
+  footer {
+    border-top: 1px solid var(--ink-surface-2);
+    padding: 2rem 0 3rem;
+    color: var(--text-dim);
+    font-size: 0.82rem;
+  }
+
+  footer .container {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .footer-brand { display: flex; align-items: center; gap: 0.5rem; }
+  .footer-brand svg { width: 20px; height: 20px; }
+
+  [hidden] { display: none !important; }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .accordion-panel, .accordion-chevron { transition: none; }
+  }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <a class="brand" href="#top">
+    <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path fill="#c6ff3d" fill-rule="evenodd" d="M128,40 H384 A88,88 0 0 1 472,128 V384 A88,88 0 0 1 384,472 H128 A88,88 0 0 1 40,384 V128 A88,88 0 0 1 128,40 Z M128,72 H384 A56,56 0 0 1 440,128 V384 A56,56 0 0 1 384,440 H128 A56,56 0 0 1 72,384 V128 A56,56 0 0 1 128,72 Z"/>
+      <g transform="translate(256,256) scale(0.72) translate(-256,-256)">
+        <path d="M120,360 L120,90 L256,260 L392,90 L392,360" fill="none" stroke="#c6ff3d" stroke-width="84" stroke-linecap="round" stroke-linejoin="round"/>
+        <path fill="#c6ff3d" fill-rule="evenodd" d="M224,360 L172,450.07 L68,450.07 L16,360 L68,269.93 L172,269.93 Z M148,360 A28,28 0 1 0 92,360 A28,28 0 1 0 148,360 Z"/>
+        <path fill="#c6ff3d" fill-rule="evenodd" d="M496,360 L444,450.07 L340,450.07 L288,360 L340,269.93 L444,269.93 Z M420,360 A28,28 0 1 0 364,360 A28,28 0 1 0 420,360 Z"/>
+      </g>
+    </svg>
+    <span>mygym</span>
+  </a>
+  <nav class="nav-links">
+    <a href="#problema">El problema</a>
+    <a href="#modulos">Módulos</a>
+    <a href="#numeros">En números</a>
+    <a href="#seguridad">Seguridad</a>
+    <a href="#stack">Stack</a>
+  </nav>
+  <a class="btn btn--accent btn--sm" href="#contacto">Agendar demo</a>
+</header>
+
+<main id="top">
+
+  <!-- HERO -->
+  <section class="hero container">
+    <div>
+      <span class="eyebrow">Software para gimnasios y boxes</span>
+      <h1>El gimnasio se administra <em>solo</em>.<br>Vos entrená a tus socios, no a un Excel.</h1>
+      <p class="lede">
+        mygym es la plataforma con la que un gimnasio da de alta socios, cobra membresías
+        y organiza sus clases desde el celular — con la marca de tu box, no la nuestra.
+      </p>
+      <div class="hero-ctas">
+        <a class="btn btn--accent" href="#contacto">Agendar una demo</a>
+        <a class="btn btn--ghost" href="#modulos">Ver los módulos</a>
+      </div>
+      <div class="hero-trust">
+        <span>🔐 <b>Row Level Security</b> real por gimnasio</span>
+        <span>📅 Reservas <b>en tiempo real</b></span>
+        <span>✉️ Emails <b>automáticos</b></span>
+      </div>
+    </div>
+
+    <div class="device" aria-hidden="true">
+      <span class="device__label">Vista previa ilustrativa</span>
+      <div class="device__top">
+        <span class="device__title">Fortis Training Center</span>
+        <div class="device__avatars">
+          <span>JP</span><span>MC</span><span>DR</span>
+        </div>
+      </div>
+      <div class="device__strip">
+        <div></div><div></div><div></div><div></div><div></div>
+      </div>
+      <div class="device__stats">
+        <div class="device__stat"><b>128</b><span>Activos</span></div>
+        <div class="device__stat"><b>14</b><span>Por vencer</span></div>
+        <div class="device__stat"><b>6</b><span>Invitados</span></div>
+      </div>
+      <div class="device__tile">
+        <div><b>CrossFit 18:00</b><small>07 / 12 cupos</small></div>
+        <span class="device__pill">Reservar</span>
+      </div>
+      <div class="device__tile">
+        <div><b>Yoga Funcional 19:30</b><small>03 / 10 cupos</small></div>
+        <span class="device__pill">Reservar</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- PROBLEMA -->
+  <section id="problema" class="container">
+    <div class="section-head">
+      <span class="eyebrow">El problema de hoy</span>
+      <h2>La mayoría de los gimnasios se administra a mano</h2>
+      <p>WhatsApp para reservar, cuadernos o Excel para los pagos, y ningún lugar único que
+        diga quién entrena seguido, quién está por vencer y quién ya se fue.</p>
+    </div>
+    <div class="problem-grid">
+      <div class="problem-card">
+        <div class="problem-card__icon">📲</div>
+        <h3>Reservas por WhatsApp</h3>
+        <p>Cupos que se prometen dos veces, mensajes que se pierden, nadie sabe si la clase ya está llena.</p>
+      </div>
+      <div class="problem-card">
+        <div class="problem-card__icon">💸</div>
+        <h3>Cobros a mano</h3>
+        <p>Nadie recuerda quién pagó este mes hasta que el socio se aparece sin plan vigente.</p>
+      </div>
+      <div class="problem-card">
+        <div class="problem-card__icon">👻</div>
+        <h3>Cero visibilidad de bajas</h3>
+        <p>El socio que dejó de venir no manda ningún aviso — se entera el gimnasio cuando ya es tarde.</p>
+      </div>
+      <div class="problem-card">
+        <div class="problem-card__icon">🧩</div>
+        <h3>Cada gimnasio con su propio parche</h3>
+        <p>Una planilla distinta por sucursal, sin ningún dato compartido entre quien administra varias.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- CÓMO FUNCIONA -->
+  <section class="container">
+    <div class="section-head">
+      <span class="eyebrow">Cómo funciona</span>
+      <h2>Tres pasos, no una implementación de meses</h2>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="step__num">1</div>
+        <h3>Creás tu gimnasio</h3>
+        <p>Tu nombre, tu color, tu logo y tus planes. Tu propio link público
+          (<span style="font-family:var(--font-mono)">mygym.cl/j/tu-gimnasio</span>) queda listo en minutos.</p>
+      </div>
+      <div class="step">
+        <div class="step__num">2</div>
+        <h3>Invitás a tus socios</h3>
+        <p>De a uno desde tu panel, o compartiendo tu link — entran con su cuenta de Google,
+          sin contraseñas que se olvidan.</p>
+      </div>
+      <div class="step">
+        <div class="step__num">3</div>
+        <h3>Reservan, pagan y vuelven</h3>
+        <p>El sistema les avisa su cupo, su plan y cuándo vence — y a vos te avisa quién pagó
+          y quién nunca activó su cuenta.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- MÓDULOS -->
+  <section id="modulos" class="container">
+    <div class="section-head">
+      <span class="eyebrow">Módulos al detalle</span>
+      <h2>Una plataforma, tres formas de usarla</h2>
+      <p>Elige quién la va a usar y mirá qué resuelve para esa persona en concreto.</p>
+    </div>
+
+    <div class="audience-tabs" role="tablist" aria-label="Explorar módulos por audiencia">
+      <button class="audience-tab" role="tab" aria-selected="true" data-panel="panel-dueno">Dueño de gimnasio</button>
+      <button class="audience-tab" role="tab" aria-selected="false" data-panel="panel-socio">Socio</button>
+      <button class="audience-tab" role="tab" aria-selected="false" data-panel="panel-multi">Multi-gimnasio</button>
+    </div>
+
+    <div id="panel-dueno" class="module-panel is-active" role="tabpanel">
+      <div class="accordion" data-accordion>
+        <div class="accordion-item is-open">
+          <button class="accordion-trigger">
+            <span class="accordion-trigger__title">
+              <span class="accordion-trigger__icon">🗓️</span>
+              <b>Horarios y bloques</b>
+            </span>
+            <svg class="accordion-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+          <div class="accordion-panel"><div><div class="accordion-body">
+            Clases recurrentes por día y categoría (funcional, crossfit, yoga, lo que sea).
+            Filtro por franja horaria para no perderte en una grilla con 40 bloques a la semana.
+            <span class="accordion-benefit">✓ Menos tiempo armando el horario, más tiempo entrenando gente</span>
+          </div></div></div>
+        </div>
+        <div class="accordion-item">
+          <button class="accordion-trigger">
+            <span class="accordion-trigger__title">
+              <span class="accordion-trigger__icon">🧑‍🤝‍🧑</span>
+              <b>Socios e invitaciones</b>
+            </span>
+            <svg class="accordion-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+          <div class="accordion-panel"><div><div class="accordion-body">
+            Alta manual o pública, estado de pago en 4 colores (Activo / Por vencer / Vencido / Sin pago),
+            y un contador aparte de cuántos invitados ya activaron su cuenta.
+            <span class="accordion-benefit">✓ Sabés exactamente a quién cobrarle y a quién recordarle que se registre</span>
+          </div></div></div>
+        </div>
+        <div class="accordion-item">
+          <button class="accordion-trigger">
+            <span class="accordion-trigger__title">
+              <span class="accordion-trigger__icon">🏷️</span>
+              <b>Planes y precios</b>
+            </span>
+            <svg class="accordion-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+          <div class="accordion-panel"><div><div class="accordion-body">
+            Tus propios planes, precios y cupos mensuales — los cambiás vos, sin pedirle nada a nadie.
+            <span class="accordion-benefit">✓ Ajustás precios el mismo día que decidís subirlos</span>
+          </div></div></div>
+        </div>
+        <div class="accordion-item">
+          <button class="accordion-trigger">
+            <span class="accordion-trigger__title">
+              <span class="accordion-trigger__icon">📊</span>
+              <b>Historial de asistencia</b>
+            </span>
+            <svg class="accordion-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+          <div class="accordion-panel"><div><div class="accordion-body">
+            Mirá semana por semana quién reservó cada clase, no solo la próxima — útil para detectar
+            bloques horarios que no funcionan.
+            <span class="accordion-benefit">✓ Decisiones con datos, no con la sensación de "esa clase está vacía siempre"</span>
+          </div></div></div>
+        </div>
+        <div class="accordion-item">
+          <button class="accordion-trigger">
+            <span class="accordion-trigger__title">
+              <span class="accordion-trigger__icon">🎨</span>
+              <b>Tu marca, no la nuestra</b>
+            </span>
+            <svg class="accordion-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+          <div class="accordion-panel"><div><div class="accordion-body">
+            Tu color, tu logo, las fotos de tu gimnasio en el header de la app de tus socios.
+            Cero rastro de "hecho con una plantilla genérica".
+            <span class="accordion-benefit">✓ Tus socios sienten que es TU app, no una app compartida</span>
+          </div></div></div>
+        </div>
+        <div class="accordion-item">
+          <button class="accordion-trigger">
+            <span class="accordion-trigger__title">
+              <span class="accordion-trigger__icon">✉️</span>
+              <b>Emails automáticos</b>
+            </span>
+            <svg class="accordion-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+          <div class="accordion-panel"><div><div class="accordion-body">
+            Bienvenida con los planes disponibles, aviso de pago vencido, confirmación de pago —
+            se mandan solos, vos no escribís un solo mensaje.
+            <span class="accordion-benefit">✓ Comunicación consistente sin que dependa de tu memoria</span>
+          </div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="panel-socio" class="module-panel" role="tabpanel" hidden>
+      <div class="accordion" data-accordion>
+        <div class="accordion-item is-open">
+          <button class="accordion-trigger">
+            <span class="accordion-trigger__title">
+              <span class="accordion-trigger__icon">📱</span>
+              <b>Reserva desde el celular</b>
+            </span>
+            <svg class="accordion-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+          <div class="accordion-panel"><div><div class="accordion-body">
+            Cupo en tiempo real, cancelación dentro de la ventana que el gimnasio permita —
+            todo sin escribir a nadie por WhatsApp.
+            <span class="accordion-benefit">✓ Reserva en 10 segundos, desde cualquier lugar</span>
+          </div></div></div>
+        </div>
+        <div class="accordion-item">
+          <button class="accordion-trigger">
+            <span class="accordion-trigger__title">
+              <span class="accordion-trigger__icon">👋</span>
+              <b>Quién más va a la clase</b>
+            </span>
+            <svg class="accordion-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+          <div class="accordion-panel"><div><div class="accordion-body">
+            Ve el nombre y la foto de quienes ya se anotaron — nunca su email, ni con nadie más
+            que administradores del gimnasio.
+            <span class="accordion-benefit">✓ Motivación social sin exponer datos privados de nadie</span>
+          </div></div></div>
+        </div>
+        <div class="accordion-item">
+          <button class="accordion-trigger">
+            <span class="accordion-trigger__title">
+              <span class="accordion-trigger__icon">🪪</span>
+              <b>Su propia membresía</b>
+            </span>
+            <svg class="accordion-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+          <div class="accordion-panel"><div><div class="accordion-body">
+            Plan contratado, sesiones que le quedan en el mes y cuándo vence — sin tener que preguntarle a nadie.
+            <span class="accordion-benefit">✓ Cero sorpresas al llegar a entrenar sin cupo</span>
+          </div></div></div>
+        </div>
+        <div class="accordion-item">
+          <button class="accordion-trigger">
+            <span class="accordion-trigger__title">
+              <span class="accordion-trigger__icon">🔑</span>
+              <b>Login con Google</b>
+            </span>
+            <svg class="accordion-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+          <div class="accordion-panel"><div><div class="accordion-body">
+            Ninguna contraseña nueva que recordar — la misma cuenta de Google que ya usa todos los días.
+            <span class="accordion-benefit">✓ Un clic para entrar, nunca un "olvidé mi clave"</span>
+          </div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="panel-multi" class="module-panel" role="tabpanel" hidden>
+      <div class="accordion" data-accordion>
+        <div class="accordion-item is-open">
+          <button class="accordion-trigger">
+            <span class="accordion-trigger__title">
+              <span class="accordion-trigger__icon">🏢</span>
+              <b>Un panel para todos tus gimnasios</b>
+            </span>
+            <svg class="accordion-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+          <div class="accordion-panel"><div><div class="accordion-body">
+            Si administrás varios gimnasios (o los vendés como negocio), un solo login te deja entrar
+            a la configuración completa de cada uno.
+            <span class="accordion-benefit">✓ Escalás de 1 a N gimnasios sin duplicar infraestructura</span>
+          </div></div></div>
+        </div>
+        <div class="accordion-item">
+          <button class="accordion-trigger">
+            <span class="accordion-trigger__title">
+              <span class="accordion-trigger__icon">🧱</span>
+              <b>Aislamiento real de datos</b>
+            </span>
+            <svg class="accordion-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+          <div class="accordion-panel"><div><div class="accordion-body">
+            Row Level Security a nivel de base de datos — cada gimnasio ve solo lo suyo, siempre,
+            reforzado en la capa que menos se puede saltear.
+            <span class="accordion-benefit">✓ No es "una copia de la app por cliente", es una sola plataforma segura</span>
+          </div></div></div>
+        </div>
+        <div class="accordion-item">
+          <button class="accordion-trigger">
+            <span class="accordion-trigger__title">
+              <span class="accordion-trigger__icon">⚡</span>
+              <b>Alta de gimnasios en minutos</b>
+            </span>
+            <svg class="accordion-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+          <div class="accordion-panel"><div><div class="accordion-body">
+            Sumar un gimnasio nuevo no es un proyecto de implementación — es un formulario.
+            <span class="accordion-benefit">✓ El costo de agregar un cliente nuevo tiende a cero</span>
+          </div></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- NÚMEROS -->
+  <section id="numeros" class="container">
+    <div class="section-head">
+      <span class="eyebrow">Mirá los números</span>
+      <h2>Así se ve el panel de un gimnasio activo</h2>
+      <p>Datos de ejemplo, ilustrativos — pensados para mostrar qué es lo que un dueño de
+        gimnasio ve de un vistazo apenas entra a su panel.</p>
+    </div>
+    <div class="demo-card">
+      <span class="demo-card__tag">Ejemplo ilustrativo · no son datos reales</span>
+      <div class="demo-grid">
+        <div>
+          <div class="demo-stats">
+            <div class="demo-stat"><b>132</b><span>Socios activos</span></div>
+            <div class="demo-stat"><b>$4,2M</b><span>Facturación mensual</span></div>
+            <div class="demo-stat"><b>18</b><span>Clases por semana</span></div>
+            <div class="demo-stat"><b>91%</b><span>Ocupación promedio</span></div>
+          </div>
+        </div>
+        <div class="demo-chart-wrap">
+          <div class="demo-chart" role="img" aria-label="Reservas por día, ejemplo ilustrativo de una semana">
+            <div class="demo-chart__bar" style="height:52%"><span>Lun</span></div>
+            <div class="demo-chart__bar" style="height:78%"><span>Mar</span></div>
+            <div class="demo-chart__bar" style="height:64%"><span>Mié</span></div>
+            <div class="demo-chart__bar" style="height:88%"><span>Jue</span></div>
+            <div class="demo-chart__bar" style="height:96%"><span>Vie</span></div>
+            <div class="demo-chart__bar" style="height:40%"><span>Sáb</span></div>
+            <div class="demo-chart__bar" style="height:18%"><span>Dom</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SEGURIDAD -->
+  <section id="seguridad" class="container">
+    <div class="section-head">
+      <span class="eyebrow">Seguridad y multi-tenant</span>
+      <h2>Cada gimnasio, con paredes reales entre sus datos</h2>
+    </div>
+    <div class="security-grid">
+      <div class="security-card">
+        <div class="security-card__icon">🧱</div>
+        <h3>Row Level Security</h3>
+        <p>Reforzado en PostgreSQL, no solo en el código de la aplicación — la base de datos misma
+          impide que un gimnasio vea filas de otro.</p>
+      </div>
+      <div class="security-card">
+        <div class="security-card__icon">🙈</div>
+        <h3>Emails nunca expuestos</h3>
+        <p>Ni un socio ve el email de otro socio en ningún lado de la app — ni siquiera en la
+          lista de "quién reservó" una clase.</p>
+      </div>
+      <div class="security-card">
+        <div class="security-card__icon">🔐</div>
+        <h3>Sin contraseñas propias</h3>
+        <p>Autenticación con Google (OAuth) — mygym nunca guarda ni gestiona contraseñas de nadie.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- STACK -->
+  <section id="stack" class="container">
+    <div class="section-head">
+      <span class="eyebrow">Stack técnico de producción</span>
+      <h2>Construido para durar, no un prototipo</h2>
+    </div>
+    <div class="stack-grid">
+      <div class="stack-chip"><b>Angular 22 + Ionic 9</b><span>Web y apps nativas desde el mismo código</span></div>
+      <div class="stack-chip"><b>Spring Boot 3.5 / Java 21</b><span>Backend en capas, tipado y probado</span></div>
+      <div class="stack-chip"><b>PostgreSQL (Supabase)</b><span>Con Row Level Security activo</span></div>
+      <div class="stack-chip"><b>Railway + Vercel</b><span>Backend y frontend en infraestructura real</span></div>
+      <div class="stack-chip"><b>Google OAuth</b><span>Login sin contraseñas propias</span></div>
+      <div class="stack-chip"><b>Resend</b><span>Emails transaccionales reales</span></div>
+      <div class="stack-chip"><b>Capacitor 8</b><span>Camino directo a apps iOS/Android nativas</span></div>
+      <div class="stack-chip"><b>Multi-tenant real</b><span>Un despliegue sirve a todos los gimnasios</span></div>
+    </div>
+  </section>
+
+  <!-- CONTACTO -->
+  <section id="contacto" class="container">
+    <div class="contact-card">
+      <div>
+        <h2>¿Lo probamos con tu gimnasio?</h2>
+        <p>Contanos cómo administrás hoy tus socios y tus clases — te mostramos mygym funcionando
+          con un caso parecido al tuyo.</p>
+        <a class="whatsapp-link" href="https://wa.me/56964641042?text=Hola!%20Quiero%20pedir%20una%20demo%20de%20mygym%20para%20mi%20gimnasio." target="_blank" rel="noopener">
+          💬 O escribinos directo por WhatsApp
+        </a>
+      </div>
+      <form id="contact-form">
+        <div>
+          <label for="cf-name">Nombre</label>
+          <input id="cf-name" name="name" type="text" required placeholder="Tu nombre" />
+        </div>
+        <div>
+          <label for="cf-email">Email</label>
+          <input id="cf-email" name="email" type="email" required placeholder="tu@gimnasio.cl" />
+        </div>
+        <div>
+          <label for="cf-message">Contanos de tu gimnasio</label>
+          <textarea id="cf-message" name="message" placeholder="Cuántos socios, cuántas sedes, qué usás hoy..."></textarea>
+        </div>
+        <button type="submit" class="btn btn--accent" id="cf-submit">Agendar una demo</button>
+        <p id="cf-msg" class="form-msg" hidden></p>
+      </form>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="container">
+    <div class="footer-brand">
+      <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path fill="#c6ff3d" fill-rule="evenodd" d="M128,40 H384 A88,88 0 0 1 472,128 V384 A88,88 0 0 1 384,472 H128 A88,88 0 0 1 40,384 V128 A88,88 0 0 1 128,40 Z M128,72 H384 A56,56 0 0 1 440,128 V384 A56,56 0 0 1 384,440 H128 A56,56 0 0 1 72,384 V128 A56,56 0 0 1 128,72 Z"/>
+        <g transform="translate(256,256) scale(0.72) translate(-256,-256)">
+          <path d="M120,360 L120,90 L256,260 L392,90 L392,360" fill="none" stroke="#c6ff3d" stroke-width="84" stroke-linecap="round" stroke-linejoin="round"/>
+          <path fill="#c6ff3d" fill-rule="evenodd" d="M224,360 L172,450.07 L68,450.07 L16,360 L68,269.93 L172,269.93 Z M148,360 A28,28 0 1 0 92,360 A28,28 0 1 0 148,360 Z"/>
+          <path fill="#c6ff3d" fill-rule="evenodd" d="M496,360 L444,450.07 L340,450.07 L288,360 L340,269.93 L444,269.93 Z M420,360 A28,28 0 1 0 364,360 A28,28 0 1 0 420,360 Z"/>
+        </g>
+      </svg>
+      <span>mygym</span>
+    </div>
+    <span>© 2026 mygym. Software de gestión para gimnasios.</span>
+    <a href="/">Volver al sitio</a>
+  </div>
+</footer>
+
+<script>
+  // Tabs de audiencia (Dueño / Socio / Multi-gimnasio)
+  const tabs = document.querySelectorAll('.audience-tab');
+  tabs.forEach((tab) => {
+    tab.addEventListener('click', () => {
+      tabs.forEach((t) => t.setAttribute('aria-selected', 'false'));
+      tab.setAttribute('aria-selected', 'true');
+      document.querySelectorAll('.module-panel').forEach((panel) => {
+        const isTarget = panel.id === tab.dataset.panel;
+        panel.classList.toggle('is-active', isTarget);
+        panel.hidden = !isTarget;
+      });
+    });
+  });
+
+  // Acordeones de módulos — uno abierto a la vez por grupo
+  document.querySelectorAll('[data-accordion]').forEach((group) => {
+    const items = group.querySelectorAll('.accordion-item');
+    items.forEach((item) => {
+      const trigger = item.querySelector('.accordion-trigger');
+      trigger.addEventListener('click', () => {
+        const wasOpen = item.classList.contains('is-open');
+        items.forEach((i) => i.classList.remove('is-open'));
+        if (!wasOpen) item.classList.add('is-open');
+      });
+    });
+  });
+
+  // Form de contacto — reusa el mismo endpoint /api/contact que ya usa mygym.cl
+  const form = document.getElementById('contact-form');
+  const msgEl = document.getElementById('cf-msg');
+  const submitBtn = document.getElementById('cf-submit');
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    msgEl.hidden = true;
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Enviando…';
+
+    const payload = {
+      name: document.getElementById('cf-name').value,
+      email: document.getElementById('cf-email').value,
+      message: document.getElementById('cf-message').value,
+    };
+
+    try {
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.ok) {
+        msgEl.textContent = '¡Listo! Te vamos a escribir a la brevedad para coordinar la demo.';
+        msgEl.className = 'form-msg form-msg--ok';
+        form.reset();
+      } else {
+        throw new Error(data.error || 'No se pudo enviar.');
+      }
+    } catch (err) {
+      msgEl.textContent = 'No pudimos enviar tu mensaje automáticamente. Escribinos por WhatsApp mejor.';
+      msgEl.className = 'form-msg form-msg--err';
+    } finally {
+      msgEl.hidden = false;
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Agendar una demo';
+    }
+  });
+</script>
+
+</body>
+</html>
