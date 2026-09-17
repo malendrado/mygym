@@ -245,6 +245,25 @@ ion-segment-button.segment-button-checked {
   }
 }
 
+// Selector de fecha en Historial — input nativo (no ion-input) para que el
+// picker del sistema operativo maneje la accesibilidad del calendario.
+.history-date-item {
+  --padding-start: 0;
+  margin-bottom: 1rem;
+}
+
+.history-date-input {
+  margin-top: 0.35rem;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--brand-ink-surface-2);
+  border-radius: 10px;
+  background: var(--gym-panel-card, var(--brand-ink-surface-2));
+  color: var(--brand-text);
+  font-family: inherit;
+  font-size: 0.9rem;
+  min-height: 44px;
+}
+
 .attendees-list {
   display: flex;
   flex-wrap: wrap;

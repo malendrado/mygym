@@ -112,7 +112,7 @@ addIcons({
 
 type Status = 'idle' | 'loading' | 'saving' | 'error';
 type SuggestStatus = 'idle' | 'loading' | 'error';
-type Section = 'general' | 'blocks' | 'plans' | 'members' | 'branding';
+type Section = 'general' | 'blocks' | 'plans' | 'members' | 'branding' | 'history';
 
 // Mismo criterio que gym-admin.ts (implementación paralela, no compartida)
 // — segundo eje de filtro para la grilla de horarios, con tooltip que
@@ -164,7 +164,24 @@ const SECTION_LABELS: Record<Section, string> = {
   plans: 'Planes',
   members: 'Socios',
   branding: 'Marca',
+  history: 'Historial',
 };
+
+// Mismo criterio que gym-admin.ts (implementación paralela, no compartida).
+const DAY_OF_WEEK_BY_INDEX: DayOfWeek[] = [
+  'SUNDAY',
+  'MONDAY',
+  'TUESDAY',
+  'WEDNESDAY',
+  'THURSDAY',
+  'FRIDAY',
+  'SATURDAY',
+];
+
+function dayOfWeekOfDate(dateIso: string): DayOfWeek {
+  const [y, m, d] = dateIso.split('-').map(Number);
+  return DAY_OF_WEEK_BY_INDEX[new Date(y, m - 1, d).getDay()];
+}
 
 interface Palette {
   key: string;
@@ -302,9 +319,19 @@ export class GymForm implements OnDestroy {
 
   // Planes (pestaña Planes) — misma lógica que gym-admin.ts, pero con gymId
   // explícito (el de la ruta) en vez de tomarlo del JWT del gym-admin logueado.
-  protected readonly expandedAttendeesBlockId = signal<number | null>(null);
-  protected readonly attendeesByBlock = signal<Record<number, Attendee[]>>({});
-  protected readonly loadingAttendeesBlockId = signal<number | null>(null);
+  // Clave de cache con fecha incluida — ver comentario largo en gym-admin.ts.
+  protected readonly expandedAttendeesKey = signal<string | null>(null);
+  protected readonly attendeesByKey = signal<Record<string, Attendee[]>>({});
+  protected readonly loadingAttendeesKey = signal<string | null>(null);
+  protected readonly historyDate = signal(
+    new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Santiago' }).format(new Date()),
+  );
+  protected readonly historyBlocks = computed(() => {
+    const dow = dayOfWeekOfDate(this.historyDate());
+    return this.blocks()
+      .filter((b) => b.dayOfWeek === dow)
+      .sort((a, b) => a.startTime.localeCompare(b.startTime));
+  });
   protected readonly plans = signal<GymPlan[]>([]);
   protected readonly isPlanModalOpen = signal(false);
   protected readonly editingPlan = signal<GymPlan | null>(null);
@@ -695,31 +722,83 @@ export class GymForm implements OnDestroy {
     return `${d}-${m}-${y}`;
   }
 
-  protected attendeesFor(block: GymBlock): Attendee[] {
-    return this.attendeesByBlock()[block.id] ?? [];
+  private attendeesKey(blockId: number, date: string): string {
+    return `${blockId}_${date}`;
   }
 
-  protected toggleAttendees(block: GymBlock): void {
+  protected isAttendeesExpanded(blockId: number, date: string): boolean {
+    return this.expandedAttendeesKey() === this.attendeesKey(blockId, date);
+  }
+
+  protected isAttendeesLoading(blockId: number, date: string): boolean {
+    return this.loadingAttendeesKey() === this.attendeesKey(blockId, date);
+  }
+
+  protected attendeesForDate(blockId: number, date: string): Attendee[] {
+    return this.attendeesByKey()[this.attendeesKey(blockId, date)] ?? [];
+  }
+
+  protected toggleAttendeesFor(blockId: number, date: string): void {
     const gymId = this.gymId();
     if (!gymId) {
       return;
     }
-    if (this.expandedAttendeesBlockId() === block.id) {
-      this.expandedAttendeesBlockId.set(null);
+    const key = this.attendeesKey(blockId, date);
+    if (this.expandedAttendeesKey() === key) {
+      this.expandedAttendeesKey.set(null);
       return;
     }
-    this.expandedAttendeesBlockId.set(block.id);
-    if (block.id in this.attendeesByBlock()) {
+    this.expandedAttendeesKey.set(key);
+    if (key in this.attendeesByKey()) {
       return;
     }
-    this.loadingAttendeesBlockId.set(block.id);
-    this.gymService.getBlockAttendees(gymId, block.id, nextOccurrenceDate(block.dayOfWeek)).subscribe({
+    this.loadingAttendeesKey.set(key);
+    this.gymService.getBlockAttendees(gymId, blockId, date).subscribe({
       next: (attendees) => {
-        this.attendeesByBlock.update((map) => ({ ...map, [block.id]: attendees }));
-        this.loadingAttendeesBlockId.set(null);
+        this.attendeesByKey.update((map) => ({ ...map, [key]: attendees }));
+        this.loadingAttendeesKey.set(null);
       },
-      error: () => this.loadingAttendeesBlockId.set(null),
+      error: () => this.loadingAttendeesKey.set(null),
     });
+  }
+
+  // Wrappers para la plantilla (Angular no puede llamar funciones sueltas
+  // del módulo, solo métodos/propiedades del componente).
+  protected attendeesFor(block: GymBlock): Attendee[] {
+    return this.attendeesForDate(block.id, nextOccurrenceDate(block.dayOfWeek));
+  }
+
+  protected toggleAttendees(block: GymBlock): void {
+    this.toggleAttendeesFor(block.id, nextOccurrenceDate(block.dayOfWeek));
+  }
+
+  protected isBlockAttendeesExpanded(block: GymBlock): boolean {
+    return this.isAttendeesExpanded(block.id, nextOccurrenceDate(block.dayOfWeek));
+  }
+
+  protected isBlockAttendeesLoading(block: GymBlock): boolean {
+    return this.isAttendeesLoading(block.id, nextOccurrenceDate(block.dayOfWeek));
+  }
+
+  protected historyAttendeesFor(block: GymBlock): Attendee[] {
+    return this.attendeesForDate(block.id, this.historyDate());
+  }
+
+  protected toggleHistoryAttendees(block: GymBlock): void {
+    this.toggleAttendeesFor(block.id, this.historyDate());
+  }
+
+  protected isHistoryAttendeesExpanded(block: GymBlock): boolean {
+    return this.isAttendeesExpanded(block.id, this.historyDate());
+  }
+
+  protected isHistoryAttendeesLoading(block: GymBlock): boolean {
+    return this.isAttendeesLoading(block.id, this.historyDate());
+  }
+
+  protected setHistoryDate(date: string): void {
+    this.historyDate.set(date);
+    this.expandedAttendeesKey.set(null);
   }
 
   protected openAddBlock(): void {

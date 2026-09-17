@@ -111,7 +111,7 @@ addIcons({
 });
 
 type Status = 'idle' | 'loading' | 'saving' | 'error';
-type Section = 'general' | 'blocks' | 'plans' | 'members' | 'branding';
+type Section = 'general' | 'blocks' | 'plans' | 'members' | 'branding' | 'history';
 
 // Segundo eje de filtro para la grilla de horarios (además del día) —
 // pedido del usuario tras encontrar la fusión de bloques consecutivos poco
@@ -169,7 +169,27 @@ const SECTION_LABELS: Record<Section, string> = {
   plans: 'Planes',
   members: 'Socios',
   branding: 'Marca',
+  history: 'Historial',
 };
+
+// Índice → DayOfWeek, para saber qué día de semana cae una fecha elegida a
+// mano en el selector de Historial. Construido a partir de componentes
+// y/m/d explícitos (nunca `new Date(isoString)`) para no repetir el bug de
+// interpretación UTC ya encontrado con nextOccurrenceDate/formatDate.
+const DAY_OF_WEEK_BY_INDEX: DayOfWeek[] = [
+  'SUNDAY',
+  'MONDAY',
+  'TUESDAY',
+  'WEDNESDAY',
+  'THURSDAY',
+  'FRIDAY',
+  'SATURDAY',
+];
+
+function dayOfWeekOfDate(dateIso: string): DayOfWeek {
+  const [y, m, d] = dateIso.split('-').map(Number);
+  return DAY_OF_WEEK_BY_INDEX[new Date(y, m - 1, d).getDay()];
+}
 
 // Rotan igual que las citas motivacionales de /member, pero con un tono de
 // negocio en vez de motivacional — un guiño sutil, no un hero completo.
@@ -308,12 +328,27 @@ export class GymAdmin implements OnDestroy {
     );
   });
   // Quién reservó en un bloque — pedido explícito del usuario. Cada bloque
-  // es una plantilla semanal sin fecha, así que se consulta la PRÓXIMA
-  // ocurrencia real de ese día (ver nextOccurrenceDate); acordeón, un solo
-  // bloque expandido a la vez, se pide al backend recién al expandir.
-  protected readonly expandedAttendeesBlockId = signal<number | null>(null);
-  protected readonly attendeesByBlock = signal<Record<number, Attendee[]>>({});
-  protected readonly loadingAttendeesBlockId = signal<number | null>(null);
+  // es una plantilla semanal sin fecha, así que hace falta una fecha real
+  // para consultar (próxima ocurrencia en Horarios, la elegida a mano en
+  // Historial) — la clave de cache incluye la fecha para que ver el mismo
+  // bloque en dos fechas distintas no pise una caché con la otra. Acordeón,
+  // un solo bloque expandido a la vez, se pide al backend recién al expandir.
+  protected readonly expandedAttendeesKey = signal<string | null>(null);
+  protected readonly attendeesByKey = signal<Record<string, Attendee[]>>({});
+  protected readonly loadingAttendeesKey = signal<string | null>(null);
+
+  // Historial: mismo mecanismo que "Ver quién reservó" en Horarios, pero con
+  // una fecha elegida a mano en vez de la próxima ocurrencia automática —
+  // pedido explícito del usuario para poder mirar cualquier clase pasada.
+  protected readonly historyDate = signal(
+    new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Santiago' }).format(new Date()),
+  );
+  protected readonly historyBlocks = computed(() => {
+    const dow = dayOfWeekOfDate(this.historyDate());
+    return this.blocks()
+      .filter((b) => b.dayOfWeek === dow)
+      .sort((a, b) => a.startTime.localeCompare(b.startTime));
+  });
   protected readonly plans = signal<GymPlan[]>([]);
   protected readonly members = signal<Member[]>([]);
   protected readonly activeMembers = computed(() => this.members().filter((m) => m.membershipStatus === 'ACTIVE').length);
@@ -490,27 +525,79 @@ export class GymAdmin implements OnDestroy {
     return `${d}-${m}-${y}`;
   }
 
+  private attendeesKey(blockId: number, date: string): string {
+    return `${blockId}_${date}`;
+  }
+
+  protected isAttendeesExpanded(blockId: number, date: string): boolean {
+    return this.expandedAttendeesKey() === this.attendeesKey(blockId, date);
+  }
+
+  protected isAttendeesLoading(blockId: number, date: string): boolean {
+    return this.loadingAttendeesKey() === this.attendeesKey(blockId, date);
+  }
+
+  protected attendeesForDate(blockId: number, date: string): Attendee[] {
+    return this.attendeesByKey()[this.attendeesKey(blockId, date)] ?? [];
+  }
+
+  protected toggleAttendeesFor(blockId: number, date: string): void {
+    const key = this.attendeesKey(blockId, date);
+    if (this.expandedAttendeesKey() === key) {
+      this.expandedAttendeesKey.set(null);
+      return;
+    }
+    this.expandedAttendeesKey.set(key);
+    if (key in this.attendeesByKey()) {
+      return;
+    }
+    this.loadingAttendeesKey.set(key);
+    this.gymService.getMyGymBlockAttendees(blockId, date).subscribe({
+      next: (attendees) => {
+        this.attendeesByKey.update((map) => ({ ...map, [key]: attendees }));
+        this.loadingAttendeesKey.set(null);
+      },
+      error: () => this.loadingAttendeesKey.set(null),
+    });
+  }
+
+  // Wrappers para la plantilla (Angular no puede llamar funciones sueltas
+  // del módulo, solo métodos/propiedades del componente).
   protected attendeesFor(block: GymBlock): Attendee[] {
-    return this.attendeesByBlock()[block.id] ?? [];
+    return this.attendeesForDate(block.id, nextOccurrenceDate(block.dayOfWeek));
   }
 
   protected toggleAttendees(block: GymBlock): void {
-    if (this.expandedAttendeesBlockId() === block.id) {
-      this.expandedAttendeesBlockId.set(null);
-      return;
-    }
-    this.expandedAttendeesBlockId.set(block.id);
-    if (block.id in this.attendeesByBlock()) {
-      return;
-    }
-    this.loadingAttendeesBlockId.set(block.id);
-    this.gymService.getMyGymBlockAttendees(block.id, nextOccurrenceDate(block.dayOfWeek)).subscribe({
-      next: (attendees) => {
-        this.attendeesByBlock.update((map) => ({ ...map, [block.id]: attendees }));
-        this.loadingAttendeesBlockId.set(null);
-      },
-      error: () => this.loadingAttendeesBlockId.set(null),
-    });
+    this.toggleAttendeesFor(block.id, nextOccurrenceDate(block.dayOfWeek));
+  }
+
+  protected isBlockAttendeesExpanded(block: GymBlock): boolean {
+    return this.isAttendeesExpanded(block.id, nextOccurrenceDate(block.dayOfWeek));
+  }
+
+  protected isBlockAttendeesLoading(block: GymBlock): boolean {
+    return this.isAttendeesLoading(block.id, nextOccurrenceDate(block.dayOfWeek));
+  }
+
+  protected historyAttendeesFor(block: GymBlock): Attendee[] {
+    return this.attendeesForDate(block.id, this.historyDate());
+  }
+
+  protected toggleHistoryAttendees(block: GymBlock): void {
+    this.toggleAttendeesFor(block.id, this.historyDate());
+  }
+
+  protected isHistoryAttendeesExpanded(block: GymBlock): boolean {
+    return this.isAttendeesExpanded(block.id, this.historyDate());
+  }
+
+  protected isHistoryAttendeesLoading(block: GymBlock): boolean {
+    return this.isAttendeesLoading(block.id, this.historyDate());
+  }
+
+  protected setHistoryDate(date: string): void {
+    this.historyDate.set(date);
+    this.expandedAttendeesKey.set(null);
   }
 
   protected formatClp(value: number): string {

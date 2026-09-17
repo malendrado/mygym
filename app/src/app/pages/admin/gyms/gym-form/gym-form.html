@@ -33,6 +33,10 @@
           <ion-icon name="color-palette-outline" aria-hidden="true"></ion-icon>
           <ion-label>Marca</ion-label>
         </ion-segment-button>
+        <ion-segment-button value="history">
+          <ion-icon name="calendar-outline" aria-hidden="true"></ion-icon>
+          <ion-label>Historial</ion-label>
+        </ion-segment-button>
       </ion-segment>
     </ion-toolbar>
   }
@@ -448,11 +452,11 @@
                 }
               </div>
               <button type="button" class="block-card__attendees-toggle" (click)="toggleAttendees(block)">
-                {{ expandedAttendeesBlockId() === block.id ? 'Ocultar' : 'Ver quién reservó' }} · {{ nextOccurrenceLabel(block) }}
+                {{ isBlockAttendeesExpanded(block) ? 'Ocultar' : 'Ver quién reservó' }} · {{ nextOccurrenceLabel(block) }}
               </button>
-              @if (expandedAttendeesBlockId() === block.id) {
+              @if (isBlockAttendeesExpanded(block)) {
                 <div class="attendees-list">
-                  @if (loadingAttendeesBlockId() === block.id) {
+                  @if (isBlockAttendeesLoading(block)) {
                     <ion-spinner name="crescent"></ion-spinner>
                   } @else {
                     @for (attendee of attendeesFor(block); track attendee.id) {
@@ -702,7 +706,7 @@
         </ion-list>
       </ion-card-content>
     </ion-card>
-    } @else {
+    } @else if (section() === 'branding') {
     <ion-card>
       <ion-card-header class="card-header-row">
         <ion-card-title>
@@ -825,6 +829,72 @@
           }
         </div>
         <input #photoInput type="file" accept="image/png,image/jpeg,image/webp" hidden (change)="onPhotoFileSelected($event)" />
+      </ion-card-content>
+    </ion-card>
+    } @else if (section() === 'history') {
+    <ion-card>
+      <ion-card-header>
+        <ion-card-title>
+          <ion-icon name="calendar-outline" aria-hidden="true"></ion-icon>
+          Historial
+        </ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <ion-item lines="none" class="history-date-item">
+          <ion-label position="stacked">Elige una fecha</ion-label>
+          <input
+            type="date"
+            class="history-date-input"
+            [value]="historyDate()"
+            (change)="setHistoryDate($any($event.target).value)"
+          />
+        </ion-item>
+        <div class="block-grid">
+          @for (block of historyBlocks(); track block.id) {
+            <div class="block-card" [class.block-card--inactive]="!block.active">
+              <div class="block-card__header">
+                <h3>
+                  <ion-icon [name]="categoryIcon(block.category)" aria-hidden="true"></ion-icon>
+                  {{ block.label }}
+                </h3>
+              </div>
+              <p class="block-card__time">{{ dayLabel(block.dayOfWeek) }} · {{ block.startTime }}-{{ block.endTime }}</p>
+              <div class="block-card__meta">
+                <ion-badge color="medium">Cupo {{ block.capacity }}</ion-badge>
+                @if (!block.active) {
+                  <ion-badge color="dark">Inactivo</ion-badge>
+                }
+              </div>
+              <button type="button" class="block-card__attendees-toggle" (click)="toggleHistoryAttendees(block)">
+                {{ isHistoryAttendeesExpanded(block) ? 'Ocultar' : 'Ver quién reservó' }}
+              </button>
+              @if (isHistoryAttendeesExpanded(block)) {
+                <div class="attendees-list">
+                  @if (isHistoryAttendeesLoading(block)) {
+                    <ion-spinner name="crescent"></ion-spinner>
+                  } @else {
+                    @for (attendee of historyAttendeesFor(block); track attendee.id) {
+                      <span class="attendees-list__item" [title]="attendee.email">
+                        @if (attendee.photoUrl) {
+                          <img [src]="attendee.photoUrl" alt="" class="attendees-list__avatar" />
+                        } @else {
+                          <span class="attendees-list__avatar attendees-list__avatar--placeholder">
+                            {{ attendee.name.charAt(0) }}
+                          </span>
+                        }
+                        {{ attendee.name }}
+                      </span>
+                    } @empty {
+                      <span class="item-hint">Nadie reservado ese día.</span>
+                    }
+                  }
+                </div>
+              }
+            </div>
+          } @empty {
+            <p class="item-hint">No hay bloques configurados para ese día de la semana.</p>
+          }
+        </div>
       </ion-card-content>
     </ion-card>
     }
