@@ -712,6 +712,14 @@ export class MemberPage {
     document.querySelector('.membership')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
+  // Igual que scrollToPlans(), pero desde la pestaña "Mis Reservas" — ahí .membership
+  // todavía no está en el DOM (vive en la pestaña "Reserva tu Bloque"), hay que cambiar
+  // de pestaña primero y recién ahí buscar el elemento, una vez que Angular lo pintó.
+  protected goToPlans(): void {
+    this.setSection('reservar');
+    setTimeout(() => this.scrollToPlans());
+  }
+
   protected formatClp(amount: number): string {
     return amount.toLocaleString('es-CL');
   }

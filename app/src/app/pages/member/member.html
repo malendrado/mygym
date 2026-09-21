@@ -410,6 +410,8 @@
     } @else {
     <p class="section-hook">Tu historial de clases, ordenado y a la vista.</p>
 
+    <div class="booking-teaser" [class.booking-teaser--locked]="bookingLocked()">
+    <div class="booking-teaser__content" [inert]="bookingLocked()">
     <section class="member-section">
       <h2>Próximas</h2>
       <div class="class-grid">
@@ -458,6 +460,31 @@
         </div>
       </section>
     }
+    </div>
+
+    @if (checkoutPending()) {
+      <span class="booking-teaser__cta booking-teaser__cta--static">
+        <span class="booking-teaser__cta-card">
+          <ion-spinner name="crescent"></ion-spinner>
+          <span class="booking-teaser__cta-title">Confirmando tu pago</span>
+          <span class="booking-teaser__cta-body">Tus reservas se desbloquean apenas Flow confirme el pago.</span>
+        </span>
+      </span>
+    } @else if (bookingLocked()) {
+      <button type="button" class="booking-teaser__cta" (click)="goToPlans()">
+        <span class="booking-teaser__cta-card">
+          <ion-icon name="lock-closed-outline" aria-hidden="true"></ion-icon>
+          @if (membership().status === 'past_due') {
+            <span class="booking-teaser__cta-title">Renueva tu plan para ver tus reservas</span>
+            <span class="booking-teaser__cta-body">Tu membresía venció — actívala de nuevo para reservar y ver tu historial.</span>
+          } @else {
+            <span class="booking-teaser__cta-title">Elige tu plan para ver tus reservas</span>
+            <span class="booking-teaser__cta-body">Activa un plan para reservar clases y ver tu historial acá.</span>
+          }
+        </span>
+      </button>
+    }
+    </div>
     }
     </div>
   </ion-content>
