@@ -4,12 +4,15 @@ import {
   ElementRef,
   HostListener,
   OnDestroy,
+  OnInit,
   QueryList,
   ViewChild,
   ViewChildren,
+  inject,
   signal,
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { GymService } from '../../core/services/gym.service';
 import { IonContent, IonIcon } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import {
@@ -92,7 +95,9 @@ interface MemberBenefit {
   templateUrl: './landing.html',
   styleUrl: './landing.scss',
 })
-export class Landing implements AfterViewInit, OnDestroy {
+export class Landing implements OnInit, AfterViewInit, OnDestroy {
+  private readonly gymService = inject(GymService);
+
   @ViewChildren('reveal') protected revealEls!: QueryList<ElementRef<HTMLElement>>;
   @ViewChild('modalCloseButton') protected modalCloseButtonRef?: ElementRef<HTMLElement>;
   @ViewChild('heroCta') protected heroCtaRef?: ElementRef<HTMLElement>;
@@ -370,6 +375,10 @@ export class Landing implements AfterViewInit, OnDestroy {
       this.isSending.set(false);
       setTimeout(() => this.modalCloseButtonRef?.nativeElement.focus());
     }
+  }
+
+  ngOnInit(): void {
+    this.gymService.recordVisit('LANDING');
   }
 
   ngAfterViewInit(): void {

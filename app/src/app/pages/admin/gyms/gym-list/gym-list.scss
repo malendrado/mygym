@@ -169,6 +169,51 @@
   flex-shrink: 0;
 }
 
+// Lista simple, sin tabla — mismo criterio que la lista de socios en
+// gym-admin.html (filas planas, no una grilla de tarjetas como los
+// gimnasios de arriba, porque acá el dato relevante es un número por fila,
+// no algo que se necesite abrir).
+.visit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1.75rem;
+}
+
+.visit-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.65rem 0.9rem;
+  border: 1px solid var(--brand-ink-surface-2);
+  border-radius: 12px;
+  background: var(--brand-ink-surface);
+
+  &__name {
+    flex: 1;
+    min-width: 0;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__meta {
+    flex-shrink: 0;
+    font-size: 0.78rem;
+    color: var(--brand-text-dim);
+  }
+
+  &__total {
+    flex-shrink: 0;
+    min-width: 2.5ch;
+    text-align: right;
+    font-family: var(--brand-font-mono);
+    font-weight: 700;
+    color: var(--brand-accent);
+  }
+}
+
 .gyms-empty {
   text-align: center;
   padding: 3rem 1.5rem;

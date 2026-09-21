@@ -178,3 +178,29 @@ export interface MemberPlan {
   priceClp: number;
   monthlyClasses: number | null;
 }
+
+/** Superficie pública instrumentada con el beacon de visitas — ver GymService.recordVisit. */
+export type TrackedPage = 'BROCHURE' | 'LANDING' | 'JOIN';
+
+export interface PageStats {
+  total: number;
+  last7d: number;
+  last30d: number;
+}
+
+export interface GymVisitStats {
+  gymId: number;
+  gymName: string;
+  gymSlug: string;
+  total: number;
+  last30d: number;
+}
+
+/** Panel de Visitas del super-admin (GET /api/gyms/analytics/summary). */
+export interface AnalyticsSummary {
+  brochure: PageStats;
+  landing: PageStats;
+  joinTotal: PageStats;
+  /** Ordenada de mayor a menor por total. */
+  byGym: GymVisitStats[];
+}

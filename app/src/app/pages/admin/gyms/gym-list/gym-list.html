@@ -85,6 +85,46 @@
         </ion-button>
       </div>
     }
+
+    <h2 class="gyms-section-title">Visitas</h2>
+
+    @if (analyticsStatus() === 'loading') {
+      <p class="item-hint">Cargando visitas…</p>
+    } @else if (analyticsStatus() === 'error') {
+      <ion-text color="danger"><p>No se pudieron cargar las visitas. Intenta nuevamente.</p></ion-text>
+    } @else if (analytics(); as stats) {
+      <div class="gyms-stats">
+        <div class="gyms-stat">
+          <ion-icon name="eye-outline" aria-hidden="true"></ion-icon>
+          <p class="gyms-stat__value">{{ stats.brochure.total }}</p>
+          <p class="gyms-stat__label">Brochure · {{ stats.brochure.last30d }} en 30 días</p>
+        </div>
+        <div class="gyms-stat">
+          <ion-icon name="eye-outline" aria-hidden="true"></ion-icon>
+          <p class="gyms-stat__value">{{ stats.landing.total }}</p>
+          <p class="gyms-stat__label">Landing · {{ stats.landing.last30d }} en 30 días</p>
+        </div>
+        <div class="gyms-stat">
+          <ion-icon name="eye-outline" aria-hidden="true"></ion-icon>
+          <p class="gyms-stat__value">{{ stats.joinTotal.total }}</p>
+          <p class="gyms-stat__label">Páginas de gimnasio · {{ stats.joinTotal.last30d }} en 30 días</p>
+        </div>
+      </div>
+
+      @if (stats.byGym.length > 0) {
+        <div class="visit-list">
+          @for (row of stats.byGym; track row.gymId) {
+            <div class="visit-row">
+              <span class="visit-row__name">{{ row.gymName }}</span>
+              <span class="visit-row__meta">{{ row.last30d }} en 30 días</span>
+              <span class="visit-row__total">{{ row.total }}</span>
+            </div>
+          }
+        </div>
+      } @else {
+        <p class="item-hint">Todavía nadie visitó la página de alta de un gimnasio.</p>
+      }
+    }
   }
 
   <ion-fab vertical="bottom" horizontal="end" slot="fixed">

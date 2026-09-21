@@ -99,6 +99,8 @@ export class Join {
       },
     });
 
+    this.gymService.recordVisit('JOIN', this.slug);
+
     this.socialAuthService.authState.subscribe((user) => {
       if (!user?.idToken || this.status() !== 'ready') {
         return;

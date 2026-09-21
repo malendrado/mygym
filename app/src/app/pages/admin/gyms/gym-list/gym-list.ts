@@ -20,12 +20,13 @@ import {
   barbellOutline,
   businessOutline,
   checkmarkCircleOutline,
+  eyeOutline,
   logOutOutline,
   peopleOutline,
   sparklesOutline,
 } from 'ionicons/icons';
 import { GymService } from '../../../../core/services/gym.service';
-import { Gym } from '../../../../core/models/gym.model';
+import { AnalyticsSummary, Gym } from '../../../../core/models/gym.model';
 import { AuthService } from '../../../../core/services/auth.service';
 
 addIcons({
@@ -36,6 +37,7 @@ addIcons({
   'checkmark-circle-outline': checkmarkCircleOutline,
   'people-outline': peopleOutline,
   'sparkles-outline': sparklesOutline,
+  'eye-outline': eyeOutline,
 });
 
 type Status = 'idle' | 'loading' | 'loaded' | 'error';
@@ -68,6 +70,13 @@ export class GymList {
   protected readonly status = signal<Status>('idle');
   protected readonly gyms = signal<Gym[]>([]);
 
+  // Panel de Visitas — contador propio (no depende de leer Vercel Analytics
+  // por API, que no existe). Se carga aparte de la lista de gimnasios y
+  // nunca bloquea la pantalla si falla (best-effort, mismo criterio que el
+  // resto de las llamadas públicas de este proyecto).
+  protected readonly analyticsStatus = signal<Status>('idle');
+  protected readonly analytics = signal<AnalyticsSummary | null>(null);
+
   protected readonly activeCount = computed(() => this.gyms().filter((g) => g.active).length);
   protected readonly totalCapacity = computed(() => this.gyms().reduce((sum, g) => sum + g.maxUsers, 0));
   protected readonly brandedCount = computed(() => this.gyms().filter((g) => !!g.logoSvg).length);
@@ -76,6 +85,7 @@ export class GymList {
 
   constructor() {
     this.load();
+    this.loadAnalytics();
   }
 
   // Un super-admin no pertenece a ningún gimnasio puntual — al salir vuelve a
@@ -102,6 +112,17 @@ export class GymList {
         this.status.set('loaded');
       },
       error: () => this.status.set('error'),
+    });
+  }
+
+  private loadAnalytics(): void {
+    this.analyticsStatus.set('loading');
+    this.gymService.getAnalyticsSummary().subscribe({
+      next: (summary) => {
+        this.analytics.set(summary);
+        this.analyticsStatus.set('loaded');
+      },
+      error: () => this.analyticsStatus.set('error'),
     });
   }
 }

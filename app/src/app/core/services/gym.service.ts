@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import {
   Admin,
+  AnalyticsSummary,
   BrandingSuggestion,
   CreateAdminRequest,
   CreateGymBlockRequest,
@@ -18,6 +19,7 @@ import {
   GymPlan,
   MemberPlan,
   PublicGym,
+  TrackedPage,
   UpdateGymBlockRequest,
   UpdateGymPlanRequest,
 } from '../models/gym.model';
@@ -29,6 +31,7 @@ export class GymService {
   private readonly base = `${environment.apiUrl}/api/gyms`;
   private readonly myGymBase = `${environment.apiUrl}/api/gym-admin/gym`;
   private readonly publicGymsBase = `${environment.apiUrl}/api/public/gyms`;
+  private readonly publicAnalyticsBase = `${environment.apiUrl}/api/public/analytics`;
   private readonly meBase = `${environment.apiUrl}/api/me`;
 
   /** No auth required — powers the public join page for a specific gym. */
@@ -44,6 +47,21 @@ export class GymService {
   /** No auth required — fotos de las instalaciones para mostrar antes del alta en /j/{slug}. */
   getPublicPhotosBySlug(slug: string): Observable<GymPhoto[]> {
     return this.http.get<GymPhoto[]>(`${this.publicGymsBase}/${slug}/photos`);
+  }
+
+  /** Beacon fire-and-forget de "visita real" — nunca debe interrumpir la página que lo llama,
+   *  por eso maneja su propia suscripción acá en vez de devolver el Observable al caller. */
+  recordVisit(page: TrackedPage, gymSlug?: string): void {
+    this.http.post(`${this.publicAnalyticsBase}/visit`, { page, gymSlug: gymSlug ?? null }).subscribe({
+      error: () => {
+        /* Best-effort: si falla, no pasa nada — la página sigue funcionando igual. */
+      },
+    });
+  }
+
+  /** SUPER_ADMIN only — panel de Visitas en /admin/gyms. */
+  getAnalyticsSummary(): Observable<AnalyticsSummary> {
+    return this.http.get<AnalyticsSummary>(`${this.base}/analytics/summary`);
   }
 
   /** Branding for the logged-in member's own gym — gymId comes from their JWT, not a param. */

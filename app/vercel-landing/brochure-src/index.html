@@ -1464,6 +1464,15 @@
       submitBtn.textContent = 'Agendar una demo';
     }
   });
+
+  // Contador propio de visitas (panel de Visitas del super-admin) — cross-origin
+  // directo a la API de Railway, ya permitida por CORS para este dominio.
+  // Fire-and-forget: si falla, no afecta nada de la página.
+  fetch('https://api-production-be95.up.railway.app/api/public/analytics/visit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ page: 'BROCHURE' }),
+  }).catch(() => {});
 </script>
 
 <!-- Vercel Web Analytics — para saber si alguien visita el brochure y por
