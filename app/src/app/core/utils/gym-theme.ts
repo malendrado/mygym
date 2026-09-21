@@ -216,6 +216,8 @@ const THEME_OVERRIDE_PROPERTY_NAMES = [
   '--brand-ink-surface-2',
   '--brand-text',
   '--brand-text-dim',
+  '--ion-background-color-rgb',
+  '--ion-text-color-rgb',
   '--ion-color-danger',
   '--ion-color-danger-rgb',
   '--ion-color-danger-contrast',
@@ -244,6 +246,21 @@ export function applyLightThemeOverrides(accentHex: string): void {
   root.setProperty('--brand-ink-surface-2', palette.border);
   root.setProperty('--brand-text', palette.fg);
   root.setProperty('--brand-text-dim', palette.mutedFg);
+
+  // --ion-background-color y --ion-text-color ya son var(--brand-ink)/var(--brand-text)
+  // en styles.scss, así que las 2 líneas de arriba alcanzan para esos — pero sus
+  // versiones "-rgb" (usadas por Ionic vía rgba(var(--ion-text-color-rgb), X) en el CSS
+  // interno de ion-item, ion-checkbox, ion-radio, ion-toggle, ion-chip, ion-segment-button
+  // y varios overlays) están hardcodeadas en :root como literal "234, 246, 247"/"30, 44, 48"
+  // (el RGB del texto/fondo oscuro), nunca como var() — no heredan el override de arriba.
+  // Sin esto, CUALQUIER componente de esa lista queda con su color de tema oscuro aunque
+  // el resto de la superficie ya esté clara — bug real: las pestañas sin seleccionar del
+  // segment de gym-admin (GENERAL/HORARIOS/...) quedaban casi invisibles en modo claro,
+  // texto casi blanco sobre fondo casi blanco.
+  const textRgb = hexToRgb(palette.fg);
+  const bgRgb = hexToRgb(palette.bg);
+  root.setProperty('--ion-text-color-rgb', `${textRgb.r}, ${textRgb.g}, ${textRgb.b}`);
+  root.setProperty('--ion-background-color-rgb', `${bgRgb.r}, ${bgRgb.g}, ${bgRgb.b}`);
 
   const rgb = hexToRgb(LIGHT_DANGER.base);
   const contrastRgb = hexToRgb(LIGHT_DANGER.contrast);
