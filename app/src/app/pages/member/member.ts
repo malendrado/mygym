@@ -389,9 +389,13 @@ export class MemberPage {
   // de datos de prueba) mientras el webhook del pago nuevo todavía no confirma — sin
   // esto, el socio veía el calendario completo (reservas de otros, cupos reales) por
   // debajo del cartel "Confirmando tu pago...", bug real reportado probando el flujo.
+  // 'pending' también bloquea — es el estado optimista que selectPlan() setea al
+  // toque de "Elegir plan", ANTES de siquiera terminar de armar la URL de Flow (no
+  // depende de checkoutPending, que solo se activa al volver de Flow) — sin esto, el
+  // calendario se veía sin blur durante esa ventana, bug real reportado probando el flujo.
   protected readonly bookingLocked = computed(() => {
     const status = this.membership().status;
-    return this.checkoutPending() || status === 'none' || status === 'past_due';
+    return this.checkoutPending() || status === 'none' || status === 'past_due' || status === 'pending';
   });
 
   protected readonly firstName = computed(() => this.authService.currentUser()?.name?.split(' ')[0] ?? 'socio');
