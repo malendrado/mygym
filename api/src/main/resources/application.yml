@@ -40,6 +40,14 @@ app:
   resend:
     api-key: ${RESEND_API_KEY:}
     from: ${RESEND_FROM:mygym <onboarding@resend.dev>}
+  flow:
+    api-key: ${FLOW_API_KEY:}
+    secret-key: ${FLOW_SECRET_KEY:}
+    # Sandbox por default a propósito — nunca apuntar a producción sin que
+    # el usuario cambie esta env var a mano, ver plan de integración.
+    base-url: ${FLOW_BASE_URL:https://sandbox.flow.cl/api}
+    return-url: ${FLOW_RETURN_URL:https://www.mygym.cl/member?checkout=return}
+    webhook-url: ${FLOW_WEBHOOK_URL:https://api-production-be95.up.railway.app/api/public/flow/webhook}
 
 management:
   endpoints:

@@ -196,6 +196,11 @@ export interface GymVisitStats {
   last30d: number;
 }
 
+/** Respuesta de POST /api/me/plans/{id}/checkout — URL de Flow a la que redirigir el navegador. */
+export interface CheckoutResponse {
+  redirectUrl: string;
+}
+
 /** Panel de Visitas del super-admin (GET /api/gyms/analytics/summary). */
 export interface AnalyticsSummary {
   brochure: PageStats;

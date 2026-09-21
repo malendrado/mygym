@@ -6,6 +6,7 @@ import {
   Admin,
   AnalyticsSummary,
   BrandingSuggestion,
+  CheckoutResponse,
   CreateAdminRequest,
   CreateGymBlockRequest,
   CreateGymPhotoRequest,
@@ -100,22 +101,14 @@ export class GymService {
   }
 
   /**
-   * Todavía no existe el pago real (Flow.cl, pendiente) — este endpoint solo
-   * dispara los emails de "pago confirmado" a socio y admin, sin crear
-   * ninguna suscripción real. El resto del "pago" sigue simulado en el
-   * frontend (member.ts selectPlan()).
+   * Arranca el pago real con Flow.cl — pago manual mes a mes, sin tarjeta
+   * guardada ni cobro automático (mygym no se hace cargo de guardar
+   * tarjetas de nadie). Devuelve la URL a la que hay que redirigir el
+   * navegador completo para que el socio pague. La confirmación real llega
+   * después por webhook, nunca acá.
    */
-  simulateMyPlanPayment(planId: number): Observable<void> {
-    return this.http.post<void>(`${this.meBase}/plans/${planId}/simulate-payment`, {});
-  }
-
-  /**
-   * Mismo caso que simulateMyPlanPayment: el frontend calcula cuándo se
-   * cumplió el mes desde el pago (member.ts, membershipExpired) y dispara
-   * esto una vez — solo manda los emails de aviso a socio y admin.
-   */
-  simulateMyPlanExpiry(planId: number): Observable<void> {
-    return this.http.post<void>(`${this.meBase}/plans/${planId}/simulate-expiry`, {});
+  startCheckout(planId: number): Observable<CheckoutResponse> {
+    return this.http.post<CheckoutResponse>(`${this.meBase}/plans/${planId}/checkout`, {});
   }
 
   list(): Observable<Gym[]> {

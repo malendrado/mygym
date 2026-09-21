@@ -21,9 +21,10 @@ import org.springframework.web.client.RestClientException;
 
 /**
  * Emails transaccionales del ciclo de vida de un socio: bienvenida al
- * unirse, aviso al admin de un socio nuevo, y confirmación de pago (todavía
- * simulada — sin Flow.cl real, ver GymService.simulatePlanPayment) a socio y
- * admin. Mismo patrón que AdminInviteEmailService (Resend, best-effort: una
+ * unirse, aviso al admin de un socio nuevo, y confirmación de pago (real,
+ * vía Flow.cl — ver FlowSubscriptionService.handleWebhook — o manual, ver
+ * GymService.simulatePlanPayment) a socio y admin. Mismo patrón que
+ * AdminInviteEmailService (Resend, best-effort: una
  * falla acá nunca rompe el flujo que dispara el envío) y misma plantilla
  * visual (templates/email/notification.html) — lo único que cambia entre
  * envíos es el contenido.
@@ -212,6 +213,32 @@ public class MemberLifecycleEmailService {
                     LOGIN_URL,
                     "Recibiste este correo porque administras " + escapeHtml(gym.getName()) + " en mygym.");
         }
+    }
+
+    // Aviso ANTES de que venza (a diferencia de sendMembershipExpiredMember,
+    // que avisa cuando ya venció) — disparado por MembershipReminderJob, un
+    // cron diario, no por el cliente. Con pago manual mes a mes (sin cobro
+    // automático) este aviso es lo único que le recuerda al socio pagar de
+    // nuevo antes de quedarse sin poder reservar.
+    public void sendMembershipExpiringSoonMember(Gym gym, AppUser member, GymPlan plan, long daysRemaining) {
+        String dayWord = daysRemaining == 1 ? "día" : "días";
+        String headline = "Tu membresía vence en " + daysRemaining + " " + dayWord;
+        String body = "<p style=\"margin:0 0 12px;\">Tu plan <strong style=\"color:#eaf6f7;\">" + escapeHtml(plan.getName())
+                + "</strong> vence en " + daysRemaining + " " + dayWord
+                + " — paga antes de esa fecha para no quedarte sin poder reservar.</p>"
+                + "<p style=\"margin:0;\">Puedes pagar cuando quieras desde tu cuenta en " + escapeHtml(gym.getName())
+                + ".</p>";
+        send(
+                gym,
+                member.getEmail(),
+                "Tu membresía en " + gym.getName() + " vence en " + daysRemaining + " " + dayWord,
+                "Por vencer",
+                headline,
+                body,
+                "Pagar mi plan",
+                LOGIN_URL,
+                "Recibiste este correo porque tu plan " + escapeHtml(plan.getName()) + " en " + escapeHtml(gym.getName())
+                        + " está por vencer.");
     }
 
     public void sendMembershipExpiredMember(Gym gym, AppUser member, GymPlan plan) {

@@ -101,18 +101,33 @@ public class MemberService {
         return user.getGoogleSub() != null ? "REGISTERED" : "PENDING";
     }
 
+    // Usado como gate real de autorización por ReservationService.book() — hasta que esto
+    // existió, cualquier socio podía reservar clases gratis sin importar si había pagado o
+    // no (membershipStatus era puramente informativo para la UI). Reusa el mismo cálculo,
+    // nunca duplica la lógica de "1 mes calendario desde paidAt".
+    public boolean hasActiveMembership(AppUser user) {
+        String status = membershipStatus(user);
+        return "ACTIVE".equals(status) || "EXPIRING_SOON".equals(status);
+    }
+
     private String membershipStatus(AppUser user) {
         Instant paidAt = user.getPaidAt();
         if (paidAt == null) {
             return "UNPAID";
         }
         ZonedDateTime now = ZonedDateTime.now(GYM_ZONE);
-        ZonedDateTime periodEnd = paidAt.atZone(GYM_ZONE).plusMonths(1);
+        ZonedDateTime periodEnd = periodEnd(user);
         if (!now.isBefore(periodEnd)) {
             return "EXPIRED";
         }
         long daysRemaining = Duration.between(now, periodEnd).toDays();
         return daysRemaining <= EXPIRING_SOON_DAYS ? "EXPIRING_SOON" : "ACTIVE";
+    }
+
+    // Usado también por MembershipReminderJob — nunca duplicar la cuenta de "1 mes calendario
+    // desde paidAt" en dos lugares (así fue como se armó membershipStatus originalmente).
+    public ZonedDateTime periodEnd(AppUser user) {
+        return user.getPaidAt().atZone(GYM_ZONE).plusMonths(1);
     }
 
     private MemberResponse toResponse(AppUser user) {

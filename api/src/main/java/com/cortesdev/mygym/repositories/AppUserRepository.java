@@ -15,4 +15,7 @@ public interface AppUserRepository extends JpaRepository<AppUser, Long> {
     List<AppUser> findByGymIdAndRole(Long gymId, Role role);
 
     Optional<AppUser> findByIdAndGymId(Long id, Long gymId);
+
+    /** Usado por MembershipReminderJob — solo socios que alguna vez pagaron. */
+    List<AppUser> findByRoleAndPaidAtIsNotNull(Role role);
 }

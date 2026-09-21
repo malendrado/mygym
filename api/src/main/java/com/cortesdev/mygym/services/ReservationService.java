@@ -16,7 +16,9 @@ import com.cortesdev.mygym.services.exception.BookingWindowClosedException;
 import com.cortesdev.mygym.services.exception.CapacityExceededException;
 import com.cortesdev.mygym.services.exception.GymBlockNotFoundException;
 import com.cortesdev.mygym.services.exception.GymNotFoundException;
+import com.cortesdev.mygym.services.exception.MemberNotFoundException;
 import com.cortesdev.mygym.services.exception.ReservationNotFoundException;
+import com.cortesdev.mygym.services.exception.SubscriptionRequiredException;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
@@ -42,6 +44,7 @@ public class ReservationService {
     private final ReservationRepository reservationRepository;
     private final GymRepository gymRepository;
     private final AppUserRepository appUserRepository;
+    private final MemberService memberService;
 
     @Transactional(readOnly = true)
     public List<GymBlockOccurrenceResponse> listOccurrences(Long gymId, Long memberId, LocalDate from, LocalDate to) {
@@ -149,6 +152,16 @@ public class ReservationService {
                 block.getId(), request.classDate(), ReservationStatus.BOOKED);
         if (taken >= block.getCapacity()) {
             throw new CapacityExceededException(block.getId());
+        }
+
+        // Gate real de suscripción — hasta esta validación, cualquier socio con rol MEMBER
+        // podía reservar gratis sin importar si había pagado o no (el estado Activo/Vencido
+        // era puramente decorativo en la UI). Ver MemberService.hasActiveMembership.
+        AppUser member = appUserRepository
+                .findByIdAndGymId(memberId, gymId)
+                .orElseThrow(() -> new MemberNotFoundException(memberId));
+        if (!memberService.hasActiveMembership(member)) {
+            throw new SubscriptionRequiredException("Necesitas un plan activo para reservar clases");
         }
 
         Reservation reservation = Reservation.builder()

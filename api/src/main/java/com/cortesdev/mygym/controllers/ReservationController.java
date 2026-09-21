@@ -9,7 +9,9 @@ import com.cortesdev.mygym.models.dto.MemberResponse;
 import com.cortesdev.mygym.models.dto.PublicGymResponse;
 import com.cortesdev.mygym.models.dto.ReservationCreateRequest;
 import com.cortesdev.mygym.models.dto.ReservationResponse;
+import com.cortesdev.mygym.models.dto.CheckoutResponse;
 import com.cortesdev.mygym.security.AuthenticatedUser;
+import com.cortesdev.mygym.services.FlowPaymentService;
 import com.cortesdev.mygym.services.GymService;
 import com.cortesdev.mygym.services.MemberService;
 import com.cortesdev.mygym.services.ReservationService;
@@ -39,6 +41,7 @@ public class ReservationController {
     private final ReservationService reservationService;
     private final GymService gymService;
     private final MemberService memberService;
+    private final FlowPaymentService flowPaymentService;
 
     @GetMapping("/gym")
     public PublicGymResponse myGym(@AuthenticationPrincipal Jwt jwt) {
@@ -55,24 +58,16 @@ public class ReservationController {
         return gymService.listActivePlans(AuthenticatedUser.from(jwt).gymId());
     }
 
-    // Simula la confirmación de pago de Flow.cl (Parte B, todavía sin construir)
-    // — solo dispara los emails de "pago confirmado" a socio y admin. No crea
-    // ninguna suscripción real todavía.
-    @PostMapping("/plans/{planId}/simulate-payment")
-    public ResponseEntity<Void> simulatePlanPayment(@AuthenticationPrincipal Jwt jwt, @PathVariable Long planId) {
+    // Arranca el pago real con Flow.cl (manual, un mes por vez — reemplaza al
+    // viejo simulate-payment). El frontend redirige el navegador completo a
+    // la URL devuelta; la confirmación real llega después por el webhook
+    // público de Flow, nunca acá (nunca confiar en que "empezar el checkout"
+    // significa que ya pagó).
+    @PostMapping("/plans/{planId}/checkout")
+    public CheckoutResponse startCheckout(@AuthenticationPrincipal Jwt jwt, @PathVariable Long planId) {
         AuthenticatedUser user = AuthenticatedUser.from(jwt);
-        gymService.simulatePlanPayment(user.gymId(), user.userId(), planId);
-        return ResponseEntity.noContent().build();
-    }
-
-    // Simula que se cumplió el mes desde el último pago (Parte B, Flow.cl,
-    // todavía sin construir) — el cliente calcula la fecha de vencimiento y
-    // dispara esto una vez; solo manda los emails de aviso a socio y admin.
-    @PostMapping("/plans/{planId}/simulate-expiry")
-    public ResponseEntity<Void> simulatePlanExpiry(@AuthenticationPrincipal Jwt jwt, @PathVariable Long planId) {
-        AuthenticatedUser user = AuthenticatedUser.from(jwt);
-        gymService.simulatePlanExpiry(user.gymId(), user.userId(), planId);
-        return ResponseEntity.noContent().build();
+        String redirectUrl = flowPaymentService.startCheckout(user.gymId(), user.userId(), planId);
+        return new CheckoutResponse(redirectUrl);
     }
 
     @GetMapping("/gym/photos")

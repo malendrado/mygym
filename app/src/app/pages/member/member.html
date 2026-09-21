@@ -79,7 +79,12 @@
     <p class="section-hook">Elige un día y reserva tu clase en segundos.</p>
 
     <section class="membership">
-      @if (membership().status === 'none') {
+      @if (checkoutPending()) {
+        <div class="membership-status membership-status--pending">
+          <ion-spinner name="crescent"></ion-spinner>
+          <p>Confirmando tu pago con Flow.cl...</p>
+        </div>
+      } @else if (membership().status === 'none') {
         <h2>Elige tu plan</h2>
         @if (plansLoaded() && plans().length === 0) {
           <p class="item-hint">Tu gimnasio todavía no tiene planes configurados. Pregúntale al equipo cuándo estarán disponibles.</p>

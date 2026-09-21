@@ -383,13 +383,12 @@ public class GymService {
     }
 
     /**
-     * Todavía no existe el pago real (Flow.cl, Parte B pendiente), así que
-     * esto lo dispara un admin marcando "pagó" a mano (o el propio socio
-     * simulando el pago desde /member) — pero SÍ persiste plan_id/paid_at
-     * reales en app_user, de donde MemberService calcula el estado
-     * Activo/Vencido/Sin pago. Reemplazar por el webhook real de Flow.cl más
-     * adelante (ahí este método deja de existir y el estado lo escribe el
-     * webhook, no un botón).
+     * Registro MANUAL de pago (efectivo/transferencia fuera del sistema) —
+     * el admin marca "pagó" a mano. Desde que existe FlowSubscriptionService,
+     * este es el camino paralelo para dinero que no pasó por Flow; el propio
+     * socio ya no puede auto-marcarse como pagado (ver
+     * FlowSubscriptionService.handleWebhook, que es quien persiste
+     * plan_id/paid_at reales cuando el pago SÍ pasó por Flow).
      */
     public void simulatePlanPayment(Long gymId, Long memberId, Long planId) {
         Gym gym = findGymOrThrow(gymId);
@@ -405,25 +404,6 @@ public class GymService {
                 .toList();
         memberLifecycleEmailService.sendPaymentConfirmedMember(gym, member, plan);
         memberLifecycleEmailService.sendPaymentConfirmedAdmin(gym, member, plan, adminEmails);
-    }
-
-    /**
-     * Mismo caso que simulatePlanPayment: todavía no existe el ciclo de
-     * suscripción real (Flow.cl, Parte B pendiente), así que el cliente
-     * calcula cuándo se cumplió el mes desde el pago y dispara esto — solo
-     * manda los emails de aviso a socio y admin, no cambia ningún estado acá.
-     */
-    public void simulatePlanExpiry(Long gymId, Long memberId, Long planId) {
-        Gym gym = findGymOrThrow(gymId);
-        GymPlan plan = findPlanOrThrow(gymId, planId);
-        AppUser member = appUserRepository
-                .findByIdAndGymId(memberId, gymId)
-                .orElseThrow(() -> new MemberNotFoundException(memberId));
-        List<String> adminEmails = appUserRepository.findByGymIdAndRole(gymId, Role.GYM_ADMIN).stream()
-                .map(AppUser::getEmail)
-                .toList();
-        memberLifecycleEmailService.sendMembershipExpiredMember(gym, member, plan);
-        memberLifecycleEmailService.sendMembershipExpiredAdmin(gym, member, plan, adminEmails);
     }
 
     private void validateSchedule(LocalTime startTime, LocalTime endTime) {

@@ -17,6 +17,7 @@ import com.cortesdev.mygym.services.exception.InvalidGoogleTokenException;
 import com.cortesdev.mygym.services.exception.InvalidLogoException;
 import com.cortesdev.mygym.services.exception.MemberNotFoundException;
 import com.cortesdev.mygym.services.exception.ReservationNotFoundException;
+import com.cortesdev.mygym.services.exception.SubscriptionRequiredException;
 import com.cortesdev.mygym.services.exception.TooManyGymPhotosException;
 import com.cortesdev.mygym.services.exception.UnauthorizedGoogleLoginException;
 import java.net.URI;
@@ -153,6 +154,14 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
         problem.setTitle("Ventana de reserva cerrada");
         problem.setProperty("timestamp", Instant.now());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
+    }
+
+    @ExceptionHandler(SubscriptionRequiredException.class)
+    public ResponseEntity<ProblemDetail> handleSubscriptionRequired(SubscriptionRequiredException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.PAYMENT_REQUIRED, ex.getMessage());
+        problem.setTitle("Membresía requerida");
+        problem.setProperty("timestamp", Instant.now());
+        return ResponseEntity.status(HttpStatus.PAYMENT_REQUIRED).body(problem);
     }
 
     @ExceptionHandler(UnauthorizedGoogleLoginException.class)

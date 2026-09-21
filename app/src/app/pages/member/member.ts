@@ -1,6 +1,6 @@
 import { Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
 import { DomSanitizer } from '@angular/platform-browser';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import {
   IonBadge,
   IonButton,
@@ -217,6 +217,7 @@ export class MemberPage {
   private readonly gymService = inject(GymService);
   private readonly reservationService = inject(ReservationService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly sanitizer = inject(DomSanitizer);
   private readonly toastController = inject(ToastController);
   private readonly destroyRef = inject(DestroyRef);
@@ -290,6 +291,11 @@ export class MemberPage {
     classesUsed: 0,
     paidAt: null,
   });
+  // true al volver de Flow.cl (?checkout=return) mientras esperamos que el
+  // webhook confirme — la redirección del navegador siempre llega antes que
+  // la confirmación server-to-server, así que no alcanza con un solo
+  // refresco inmediato.
+  protected readonly checkoutPending = signal(false);
   protected readonly quotaTotal = computed(() => this.membership().plan?.monthlyClasses ?? null);
   protected readonly classesRemaining = computed(() => {
     const total = this.quotaTotal();
@@ -532,9 +538,11 @@ export class MemberPage {
   });
 
   // Apenas se cumple el mes desde el pago, bloquea (mismo candado que "sin
-  // plan") y dispara los emails reales de aviso a socio y admin — una sola
-  // vez por sesión, guardado en `expiryNotified` para no repetir el envío
-  // en cada re-render mientras el effect sigue vivo.
+  // plan") — el email de aviso de vencimiento ya no lo dispara el cliente
+  // (antes simulateMyPlanExpiry); con pago real, ese aviso quedaría mejor
+  // como un job del backend que sepa que de verdad pasó un mes, pendiente.
+  // `expiryNotified` sigue evitando repetir esta transición de estado en
+  // cada re-render mientras el effect sigue vivo.
   private expiryNotified = false;
   private readonly notifyExpiry = effect(() => {
     if (!this.membershipExpired() || this.expiryNotified) {
@@ -545,17 +553,8 @@ export class MemberPage {
       return;
     }
     this.expiryNotified = true;
-    const plan = current.plan;
     this.membership.update((m) => ({ ...m, status: 'past_due' }));
     this.startBookingDemo();
-    if (plan) {
-      this.gymService.simulateMyPlanExpiry(plan.id).subscribe({
-        error: () => {
-          // Best-effort, igual que simulateMyPlanPayment — el bloqueo en la
-          // UI ya se aplicó arriba independientemente de si el email sale.
-        },
-      });
-    }
   });
 
   constructor() {
@@ -566,6 +565,41 @@ export class MemberPage {
     this.loadOccurrences();
     this.loadMyReservations();
     this.startBookingDemo();
+
+    // Volvimos de Flow.cl con el navegador — el webhook que confirma de
+    // verdad puede tardar unos segundos más que ese redirect, así que
+    // reintentamos el refresco de membresía en vez de confiar en el único
+    // loadMembership() del arranque de arriba.
+    if (this.route.snapshot.queryParamMap.get('checkout') === 'return') {
+      this.checkoutPending.set(true);
+      this.router.navigate([], { queryParams: {}, replaceUrl: true });
+      let attempts = 0;
+      const poll = () => {
+        attempts += 1;
+        this.gymService.getMyMembership().subscribe({
+          next: (member) => {
+            if (member.planId && member.paidAt && member.membershipStatus !== 'EXPIRED') {
+              this.checkoutPending.set(false);
+              this.loadMembership();
+              this.showToast('¡Pago confirmado! Ya puedes reservar tus clases.');
+            } else if (attempts < 5) {
+              setTimeout(poll, 3000);
+            } else {
+              this.checkoutPending.set(false);
+              this.showToast('Todavía estamos confirmando tu pago — recarga en un minuto.', 'danger');
+            }
+          },
+          error: () => {
+            if (attempts < 5) {
+              setTimeout(poll, 3000);
+            } else {
+              this.checkoutPending.set(false);
+            }
+          },
+        });
+      };
+      setTimeout(poll, 2000);
+    }
   }
 
   protected categoryIcon(category: string | null): string {
@@ -628,26 +662,22 @@ export class MemberPage {
     });
   }
 
-  // El checkout en sí sigue siendo MOCK (Flow.cl, Parte B, pendiente) — pasa a
-  // "pending" y luego a "active" en el cliente sin crear ninguna suscripción
-  // real. Lo que SÍ es real: el POST a simulate-payment dispara los emails de
-  // "pago confirmado" a socio y admin (mismo patrón que el alta de socio).
+  // Pago real con Flow.cl — el navegador sale del dominio de mygym por
+  // completo (primer uso de este patrón en la app) y vuelve recién cuando
+  // Flow termina el registro de tarjeta, a /member?checkout=return (ver
+  // constructor). El estado "pending" acá es solo mientras se arma la URL
+  // de checkout, no simula ningún pago.
   protected selectPlan(plan: MembershipPlan): void {
     this.membership.update((m) => ({ ...m, status: 'pending' }));
-    this.showToast('Redirigiendo a Flow.cl para completar el pago...');
-    setTimeout(() => {
-      this.membership.set({ status: 'active', plan, classesUsed: 0, paidAt: this.todayIso });
-      this.expiryNotified = false;
-      this.stopBookingDemo();
-      this.showToast(`¡Listo! Ya tienes el plan ${plan.name}.`);
-      this.gymService.simulateMyPlanPayment(plan.id).subscribe({
-        error: () => {
-          // Best-effort: el "pago" del cliente ya se dio por exitoso arriba —
-          // si el email de confirmación falla, no tiene sentido revertir la
-          // experiencia del socio por eso.
-        },
-      });
-    }, 1500);
+    this.gymService.startCheckout(plan.id).subscribe({
+      next: (res) => {
+        window.location.href = res.redirectUrl;
+      },
+      error: () => {
+        this.membership.update((m) => ({ ...m, status: 'none' }));
+        this.showToast('No pudimos iniciar el pago. Intenta nuevamente.', 'danger');
+      },
+    });
   }
 
   // Desde la tarjeta de "membresía vencida" — vuelve a mostrar las tarjetas
