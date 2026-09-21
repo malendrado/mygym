@@ -137,7 +137,8 @@ public class GymService {
                 gym.getTagline(),
                 gym.getDescription(),
                 gym.getInstagramUrl(),
-                gym.getWhatsappNumber());
+                gym.getWhatsappNumber(),
+                gym.getCancellationWindowHours());
     }
 
     public GymResponse updateGymConfig(Long id, GymConfigUpdateRequest request) {
@@ -384,10 +385,10 @@ public class GymService {
 
     /**
      * Registro MANUAL de pago (efectivo/transferencia fuera del sistema) —
-     * el admin marca "pagó" a mano. Desde que existe FlowSubscriptionService,
+     * el admin marca "pagó" a mano. Desde que existe FlowPaymentService,
      * este es el camino paralelo para dinero que no pasó por Flow; el propio
      * socio ya no puede auto-marcarse como pagado (ver
-     * FlowSubscriptionService.handleWebhook, que es quien persiste
+     * FlowPaymentService.handleWebhook, que es quien persiste
      * plan_id/paid_at reales cuando el pago SÍ pasó por Flow).
      */
     public void simulatePlanPayment(Long gymId, Long memberId, Long planId) {
@@ -404,6 +405,23 @@ public class GymService {
                 .toList();
         memberLifecycleEmailService.sendPaymentConfirmedMember(gym, member, plan);
         memberLifecycleEmailService.sendPaymentConfirmedAdmin(gym, member, plan, adminEmails);
+    }
+
+    /**
+     * Contraparte de simulatePlanPayment — le quita a un socio el plan/pago que tenga
+     * registrado (plan_id y paid_at a null), sin importar si ese pago vino de Flow o fue
+     * marcado a mano. Camino manual para corregir un pago mal confirmado (ej. Flow lo marcó
+     * como aprobado pero en realidad falló o se reembolsó) o para dar de baja a un socio por
+     * cualquier otro motivo del gimnasio.
+     */
+    public void revokePlan(Long gymId, Long memberId) {
+        findGymOrThrow(gymId);
+        AppUser member = appUserRepository
+                .findByIdAndGymId(memberId, gymId)
+                .orElseThrow(() -> new MemberNotFoundException(memberId));
+        member.setPlanId(null);
+        member.setPaidAt(null);
+        appUserRepository.save(member);
     }
 
     private void validateSchedule(LocalTime startTime, LocalTime endTime) {

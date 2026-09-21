@@ -48,4 +48,11 @@ public class MemberController {
         gymService.simulatePlanPayment(AuthenticatedUser.from(jwt).gymId(), memberId, request.planId());
         return ResponseEntity.noContent().build();
     }
+
+    /** El admin le quita a un socio el plan/pago que tenga registrado — ver GymService.revokePlan. */
+    @PostMapping("/{memberId}/revoke-plan")
+    public ResponseEntity<Void> revokePlan(@AuthenticationPrincipal Jwt jwt, @PathVariable Long memberId) {
+        gymService.revokePlan(AuthenticatedUser.from(jwt).gymId(), memberId);
+        return ResponseEntity.noContent().build();
+    }
 }

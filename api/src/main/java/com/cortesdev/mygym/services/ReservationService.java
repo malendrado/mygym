@@ -6,6 +6,7 @@ import com.cortesdev.mygym.models.GymBlock;
 import com.cortesdev.mygym.models.Reservation;
 import com.cortesdev.mygym.models.ReservationStatus;
 import com.cortesdev.mygym.models.dto.GymBlockOccurrenceResponse;
+import com.cortesdev.mygym.models.dto.OccurrenceAttendees;
 import com.cortesdev.mygym.models.dto.ReservationCreateRequest;
 import com.cortesdev.mygym.models.dto.ReservationResponse;
 import com.cortesdev.mygym.repositories.AppUserRepository;
@@ -26,6 +27,7 @@ import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -128,6 +130,52 @@ public class ReservationService {
                 .sorted(Comparator.comparing(AppUser::getName))
                 .toList();
     }
+
+    // Batch equivalente a llamar getOccurrenceAttendees() una vez por cada bloque×día de la
+    // semana — que es justo lo que hacía la pestaña Historial del frontend antes: un fan-out
+    // de N requests en paralelo (N = bloques semanales del gym), cada una abriendo su propia
+    // transacción contra un pool de solo 5 conexiones a la Supabase remota. Con pocos bloques
+    // ya alcanzaba para que la mayoría de las requests quedara haciendo cola esperando una
+    // conexión libre. Mismo patrón que listOccurrences: una sola query de reservas en el rango
+    // + un solo findAllById, todo agrupado en memoria — un solo round-trip en vez de N.
+    // Solo devuelve ocurrencias con al menos 1 asistente (las vacías no le sirven a Historial).
+    @Transactional(readOnly = true)
+    public List<OccurrenceAttendees> getOccurrenceAttendeesForRange(Long gymId, LocalDate from, LocalDate to) {
+        List<GymBlock> blocks =
+                gymBlockRepository.findByGymId(gymId).stream().filter(GymBlock::isActive).toList();
+        List<Long> blockIds = blocks.stream().map(GymBlock::getId).toList();
+        List<Reservation> bookedInRange = blockIds.isEmpty()
+                ? List.of()
+                : reservationRepository.findByGymBlockIdInAndClassDateBetweenAndStatus(
+                        blockIds, from, to, ReservationStatus.BOOKED);
+
+        Map<Long, AppUser> membersById = appUserRepository
+                .findAllById(bookedInRange.stream().map(Reservation::getMemberId).collect(Collectors.toSet()))
+                .stream()
+                .collect(Collectors.toMap(AppUser::getId, member -> member));
+
+        Map<OccurrenceGroupKey, List<AppUser>> attendeesByOccurrence = new LinkedHashMap<>();
+        for (Reservation reservation : bookedInRange) {
+            AppUser member = membersById.get(reservation.getMemberId());
+            if (member == null) {
+                continue;
+            }
+            attendeesByOccurrence
+                    .computeIfAbsent(
+                            new OccurrenceGroupKey(reservation.getGymBlockId(), reservation.getClassDate()),
+                            key -> new ArrayList<>())
+                    .add(member);
+        }
+
+        return attendeesByOccurrence.entrySet().stream()
+                .map(entry -> new OccurrenceAttendees(
+                        entry.getKey().gymBlockId(),
+                        entry.getKey().classDate(),
+                        entry.getValue().stream().sorted(Comparator.comparing(AppUser::getName)).toList()))
+                .toList();
+    }
+
+    private record OccurrenceGroupKey(Long gymBlockId, LocalDate classDate) {}
 
     public ReservationResponse book(Long gymId, Long memberId, ReservationCreateRequest request) {
         int cancellationWindowHours = findGymOrThrow(gymId).getCancellationWindowHours();

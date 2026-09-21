@@ -302,8 +302,19 @@
                       [disabled]="!occurrence.bookable || bookingId() === occurrence.gymBlockId"
                       (click)="book(occurrence)"
                     >
-                      {{ bookingId() === occurrence.gymBlockId ? 'Reservando...' : !occurrence.bookable ? 'Sin cupo' : 'Reservar' }}
+                      {{
+                        bookingId() === occurrence.gymBlockId
+                          ? 'Reservando...'
+                          : !occurrence.bookable
+                            ? (isCapacityFull(occurrence) ? 'Sin cupo' : 'Reservas cerradas')
+                            : 'Reservar'
+                      }}
                     </ion-button>
+                    @if (!occurrence.bookable && !isCapacityFull(occurrence)) {
+                      <span class="class-tile__note class-tile__note--hint">
+                        Se puede reservar hasta {{ gym()?.cancellationWindowHours }} h antes del inicio
+                      </span>
+                    }
                   }
                 </div>
               </article>

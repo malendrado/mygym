@@ -3,6 +3,8 @@ package com.cortesdev.mygym.controllers;
 import com.cortesdev.mygym.models.AppUser;
 import com.cortesdev.mygym.models.dto.AttendeeResponse;
 import com.cortesdev.mygym.models.dto.BlockCreateRequest;
+import com.cortesdev.mygym.models.dto.BlockOccurrenceAttendeesResponse;
+import com.cortesdev.mygym.models.dto.OccurrenceAttendees;
 import com.cortesdev.mygym.models.dto.BlockResponse;
 import com.cortesdev.mygym.models.dto.BlockUpdateRequest;
 import com.cortesdev.mygym.models.dto.GymIdentityUpdateRequest;
@@ -33,6 +35,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -67,6 +70,27 @@ public class GymAdminController {
 
     private AttendeeResponse toAttendeeResponse(AppUser user) {
         return new AttendeeResponse(user.getId(), user.getName(), user.getEmail(), user.getPhotoUrl());
+    }
+
+    // Batch para la pestaña Historial — una sola llamada por semana en vez de una por cada
+    // bloque×día (ver ReservationService.getOccurrenceAttendeesForRange, arregla la lentitud
+    // reportada por fan-out de requests contra el pool de conexiones).
+    @GetMapping("/history-attendees")
+    public List<BlockOccurrenceAttendeesResponse> myHistoryAttendees(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        Long gymId = AuthenticatedUser.from(jwt).gymId();
+        return reservationService.getOccurrenceAttendeesForRange(gymId, from, to).stream()
+                .map(this::toBatchResponse)
+                .toList();
+    }
+
+    private BlockOccurrenceAttendeesResponse toBatchResponse(OccurrenceAttendees occurrence) {
+        return new BlockOccurrenceAttendeesResponse(
+                occurrence.gymBlockId(),
+                occurrence.classDate(),
+                occurrence.attendees().stream().map(this::toAttendeeResponse).toList());
     }
 
     @GetMapping("/blocks")

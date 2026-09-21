@@ -11,4 +11,5 @@ public record PublicGymResponse(
         String tagline,
         String description,
         String instagramUrl,
-        String whatsappNumber) {}
+        String whatsappNumber,
+        int cancellationWindowHours) {}

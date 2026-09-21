@@ -665,6 +665,16 @@ ion-segment-button.segment-button-checked {
   }
 }
 
+// Botones de acción por socio (Marcar pago / Quitar plan) — el spinner de carga toma por
+// defecto el tamaño de línea del botón (bastante grande), se achica para que coincida con
+// el ícono que reemplaza.
+.member-action-btn {
+  ion-spinner {
+    width: 16px;
+    height: 16px;
+  }
+}
+
 .member-stats-heading {
   display: flex;
   align-items: center;

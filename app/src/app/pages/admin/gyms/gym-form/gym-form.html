@@ -759,7 +759,37 @@
                 {{ statusLabel(member.membershipStatus) }}
               </ion-badge>
               @if (!member.planId) {
-                <ion-button fill="clear" size="small" (click)="markMemberPaid(member)">Marcar pago</ion-button>
+                <ion-button
+                  fill="outline"
+                  size="small"
+                  color="primary"
+                  class="member-action-btn"
+                  [disabled]="markingPaidId() === member.id"
+                  (click)="markMemberPaid(member)"
+                >
+                  @if (markingPaidId() === member.id) {
+                    <ion-spinner name="crescent" slot="start"></ion-spinner>
+                  } @else {
+                    <ion-icon name="checkmark-circle-outline" slot="start" aria-hidden="true"></ion-icon>
+                  }
+                  Marcar pago
+                </ion-button>
+              } @else {
+                <ion-button
+                  fill="outline"
+                  size="small"
+                  color="danger"
+                  class="member-action-btn"
+                  [disabled]="revokingPlanId() === member.id"
+                  (click)="revokeMemberPlan(member)"
+                >
+                  @if (revokingPlanId() === member.id) {
+                    <ion-spinner name="crescent" slot="start"></ion-spinner>
+                  } @else {
+                    <ion-icon name="remove-circle-outline" slot="start" aria-hidden="true"></ion-icon>
+                  }
+                  Quitar plan
+                </ion-button>
               }
             </ion-item>
           } @empty {

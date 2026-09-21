@@ -6,6 +6,7 @@ import com.cortesdev.mygym.models.dto.AdminResponse;
 import com.cortesdev.mygym.models.dto.AdminStatusUpdateRequest;
 import com.cortesdev.mygym.models.dto.AttendeeResponse;
 import com.cortesdev.mygym.models.dto.BlockCreateRequest;
+import com.cortesdev.mygym.models.dto.BlockOccurrenceAttendeesResponse;
 import com.cortesdev.mygym.models.dto.BlockResponse;
 import com.cortesdev.mygym.models.dto.BlockUpdateRequest;
 import com.cortesdev.mygym.models.dto.BrandingSuggestionRequest;
@@ -19,6 +20,7 @@ import com.cortesdev.mygym.models.dto.GymResponse;
 import com.cortesdev.mygym.models.dto.MarkPaidRequest;
 import com.cortesdev.mygym.models.dto.MemberCreateRequest;
 import com.cortesdev.mygym.models.dto.MemberResponse;
+import com.cortesdev.mygym.models.dto.OccurrenceAttendees;
 import com.cortesdev.mygym.models.dto.PlanCreateRequest;
 import com.cortesdev.mygym.models.dto.PlanResponse;
 import com.cortesdev.mygym.models.dto.PlanUpdateRequest;
@@ -119,6 +121,24 @@ public class GymController {
         return new AttendeeResponse(user.getId(), user.getName(), user.getEmail(), user.getPhotoUrl());
     }
 
+    // Contraparte SUPER_ADMIN de GymAdminController.myHistoryAttendees — mismo backend, gymId por path.
+    @GetMapping("/{id}/history-attendees")
+    public List<BlockOccurrenceAttendeesResponse> historyAttendees(
+            @PathVariable Long id,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return reservationService.getOccurrenceAttendeesForRange(id, from, to).stream()
+                .map(this::toBatchResponse)
+                .toList();
+    }
+
+    private BlockOccurrenceAttendeesResponse toBatchResponse(OccurrenceAttendees occurrence) {
+        return new BlockOccurrenceAttendeesResponse(
+                occurrence.gymBlockId(),
+                occurrence.classDate(),
+                occurrence.attendees().stream().map(this::toAttendeeResponse).toList());
+    }
+
     @DeleteMapping("/{id}/blocks/{blockId}")
     public ResponseEntity<Void> removeBlock(@PathVariable Long id, @PathVariable Long blockId) {
         gymService.removeBlock(id, blockId);
@@ -214,6 +234,13 @@ public class GymController {
     public ResponseEntity<Void> markMemberPaid(
             @PathVariable Long id, @PathVariable Long memberId, @Valid @RequestBody MarkPaidRequest request) {
         gymService.simulatePlanPayment(id, memberId, request.planId());
+        return ResponseEntity.noContent().build();
+    }
+
+    /** Contraparte SUPER_ADMIN de MemberController.revokePlan — mismo backend, gymId por path. */
+    @PostMapping("/{id}/members/{memberId}/revoke-plan")
+    public ResponseEntity<Void> revokeMemberPlan(@PathVariable Long id, @PathVariable Long memberId) {
+        gymService.revokePlan(id, memberId);
         return ResponseEntity.noContent().build();
     }
 }

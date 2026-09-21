@@ -307,6 +307,14 @@ export class MemberPage {
   // del backend sin explicación. `quotaExhausted()` no cubre este caso: sin
   // plan, `quotaTotal()` es null, así que da `false` (no "agotado").
   protected readonly canBook = computed(() => this.membership().status === 'active');
+  // "Sin cupo" antes se mostraba también cuando la clase seguía con lugar libre pero ya
+  // estaba fuera de la ventana mínima de reserva del gym (cancellationWindowHours) — el
+  // socio leía "no queda lugar" cuando el problema real era otro (la clase está por
+  // empezar). `!occurrence.bookable` cubre ambos casos; esto distingue cuál es cuál sin
+  // tocar el backend (capacity/taken ya venían en la respuesta).
+  protected isCapacityFull(occurrence: GymBlockOccurrence): boolean {
+    return occurrence.taken >= occurrence.capacity;
+  }
   // Un punto por clase del plan — los primeros `classesUsed` salen marcados.
   // Reemplaza la barra horizontal (probada antes): con pocas clases al mes
   // (8-12, lo típico) se lee más directo como tarjeta de sellos que como

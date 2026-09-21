@@ -181,6 +181,7 @@
 }
 
 .visit-row {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 0.6rem;
@@ -188,6 +189,26 @@
   border: 1px solid var(--brand-ink-surface-2);
   border-radius: 12px;
   background: var(--brand-ink-surface);
+  overflow: hidden;
+
+  // Barra proporcional al total de visitas (relativa al gym con más visitas) — el ranking
+  // era antes solo implícito en el orden de la lista; ahora también se lee de un vistazo,
+  // sin depender de comparar números entre filas. Es puramente de apoyo: el número exacto
+  // sigue siempre visible en &__total, la barra nunca es la única forma de leer el dato.
+  &__bar {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background: linear-gradient(90deg, rgba(198, 255, 61, 0.16), rgba(198, 255, 61, 0.03));
+    transition: width 0.4s ease-out;
+  }
+
+  &__name,
+  &__meta,
+  &__total {
+    position: relative;
+    z-index: 1;
+  }
 
   &__name {
     flex: 1;
@@ -219,6 +240,11 @@
   &--unresolved {
     border-style: dashed;
     background: transparent;
+
+    // No es un gimnasio real compitiendo por el ranking — no le corresponde una barra.
+    .visit-row__bar {
+      display: none;
+    }
 
     .visit-row__name {
       font-weight: 400;

@@ -81,6 +81,12 @@ export class GymList {
   protected readonly totalCapacity = computed(() => this.gyms().reduce((sum, g) => sum + g.maxUsers, 0));
   protected readonly brandedCount = computed(() => this.gyms().filter((g) => !!g.logoSvg).length);
 
+  /** Para dibujar cada fila de "Visitas" como una barra proporcional al máximo, no una
+   *  lista plana de números — el mínimo de 1 evita dividir por cero cuando no hay datos. */
+  protected readonly maxByGymVisits = computed(() =>
+    Math.max(1, ...this.analytics()?.byGym.map((row) => row.total) ?? [1]),
+  );
+
   protected readonly adminFirstName = computed(() => this.authService.currentUser()?.name?.split(' ')[0] ?? 'admin');
 
   constructor() {

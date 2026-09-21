@@ -5,6 +5,7 @@ import { environment } from '../../../environments/environment';
 import {
   Admin,
   AnalyticsSummary,
+  BlockOccurrenceAttendees,
   BrandingSuggestion,
   CheckoutResponse,
   CreateAdminRequest,
@@ -98,6 +99,17 @@ export class GymService {
   /** Vista completa (con email) para el super-admin, un gimnasio puntual. */
   getBlockAttendees(gymId: number, blockId: number, classDate: string): Observable<Attendee[]> {
     return this.http.get<Attendee[]>(`${this.base}/${gymId}/blocks/${blockId}/occurrences/${classDate}/attendees`);
+  }
+
+  /** Batch para Historial (dueño del gym) — una sola llamada por semana en vez de una por
+   *  cada bloque×día, ver GymAdminController.myHistoryAttendees. */
+  getMyHistoryAttendees(from: string, to: string): Observable<BlockOccurrenceAttendees[]> {
+    return this.http.get<BlockOccurrenceAttendees[]>(`${this.myGymBase}/history-attendees`, { params: { from, to } });
+  }
+
+  /** Contraparte SUPER_ADMIN de getMyHistoryAttendees — mismo backend, gymId por path. */
+  getHistoryAttendees(gymId: number, from: string, to: string): Observable<BlockOccurrenceAttendees[]> {
+    return this.http.get<BlockOccurrenceAttendees[]>(`${this.base}/${gymId}/history-attendees`, { params: { from, to } });
   }
 
   /**

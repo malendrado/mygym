@@ -1,4 +1,4 @@
-import { Component, OnDestroy, computed, effect, inject, signal, untracked } from '@angular/core';
+import { Component, OnDestroy, computed, effect, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { DomSanitizer } from '@angular/platform-browser';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -402,18 +402,6 @@ export class GymAdmin implements OnDestroy {
     return `${fmt(dates[0])} – ${fmt(dates[6])}`;
   });
 
-  // Todos los bloques candidatos de la semana (uno por día que coincide con
-  // su día de semana) — se usan para pedir asistentes de antemano, sin lo
-  // cual no se puede saber qué clases tuvieron al menos una reserva.
-  private readonly historyWeekCandidates = computed(() => {
-    return this.historyWeekDates().flatMap((date) => {
-      const dow = dayOfWeekOfDate(date);
-      return this.blocks()
-        .filter((b) => b.dayOfWeek === dow)
-        .map((block) => ({ block, date }));
-    });
-  });
-
   // Pedido explícito del usuario: en Historial solo importan las clases donde
   // se anotó alguien — una clase sin reservas no aporta nada para revisar.
   // Colapsado por día (resumen + conteo) para no repetir la sobrecarga de
@@ -443,10 +431,10 @@ export class GymAdmin implements OnDestroy {
   protected readonly expiredMembers = computed(() => this.members().filter((m) => m.membershipStatus === 'EXPIRED').length);
   protected readonly unpaidMembers = computed(() => this.members().filter((m) => m.membershipStatus === 'UNPAID').length);
   protected readonly memberStatusFilter = signal<MembershipStatus | null>(null);
-  // Eje independiente del de pago — mide invitación manual del admin, no
-  // plata. Un socio puede estar "Invitado registrado" Y "Sin pago" a la vez,
-  // por eso son dos filtros que se combinan (AND), no uno que reemplaza al
-  // otro.
+  // Antes memberStatusFilter/memberInviteFilter eran dos ejes independientes que se
+  // combinaban con AND (podían dar 0 socios sin que se viera obvio por qué) — las 6 calugas
+  // se ven como un único grupo de filtro, así que ahora click en cualquiera reemplaza
+  // cualquier filtro activo del otro eje, nunca se suman. Ver viewMembersByStatus/ByInvite.
   protected readonly invitedPendingMembers = computed(() => this.members().filter((m) => m.inviteStatus === 'PENDING').length);
   protected readonly invitedRegisteredMembers = computed(
     () => this.members().filter((m) => m.inviteStatus === 'REGISTERED').length,
@@ -566,6 +554,7 @@ export class GymAdmin implements OnDestroy {
 
   protected viewMembersByStatus(status: MembershipStatus): void {
     this.memberStatusFilter.set(status);
+    this.memberInviteFilter.set(null);
     this.section.set('members');
   }
 
@@ -575,6 +564,7 @@ export class GymAdmin implements OnDestroy {
 
   protected viewMembersByInvite(status: Exclude<InviteStatus, null>): void {
     this.memberInviteFilter.set(status);
+    this.memberStatusFilter.set(null);
     this.section.set('members');
   }
 
@@ -744,40 +734,35 @@ export class GymAdmin implements OnDestroy {
     this.setHistoryDate(addDaysIso(this.historyWeekStart(), direction * 7));
   }
 
-  private readonly historyKeysInFlight = new Set<string>();
+  // Antes esto era 1 request por cada bloque×día de la semana en paralelo (fan-out de
+  // N llamadas contra el pool de conexiones del backend — con pocos bloques ya alcanzaba
+  // para sentirse lento, ver SKILL.md). Una sola llamada trae toda la semana. Se cachea por
+  // rango de fechas (no por key individual, porque el batch solo devuelve ocurrencias CON
+  // asistentes — una semana ya pedida no vuelve a pedirse aunque el effect se re-dispare).
+  private readonly historyLoadedRanges = new Set<string>();
 
   private loadHistoryAttendees(): void {
-    const cache = untracked(this.attendeesByKey);
-    const pending = this.historyWeekCandidates().filter(({ block, date }) => {
-      const key = this.attendeesKey(block.id, date);
-      return !(key in cache) && !this.historyKeysInFlight.has(key);
-    });
-    if (!pending.length) {
+    const dates = this.historyWeekDates();
+    const from = dates[0];
+    const to = dates[dates.length - 1];
+    const rangeKey = `${from}_${to}`;
+    if (this.historyLoadedRanges.has(rangeKey)) {
       return;
     }
+    this.historyLoadedRanges.add(rangeKey);
     this.historyLoading.set(true);
-    let remaining = pending.length;
-    const done = () => {
-      remaining -= 1;
-      if (remaining === 0) {
+    this.gymService.getMyHistoryAttendees(from, to).subscribe({
+      next: (occurrences) => {
+        this.attendeesByKey.update((map) => {
+          const next = { ...map };
+          for (const occurrence of occurrences) {
+            next[this.attendeesKey(occurrence.gymBlockId, occurrence.classDate)] = occurrence.attendees;
+          }
+          return next;
+        });
         this.historyLoading.set(false);
-      }
-    };
-    pending.forEach(({ block, date }) => {
-      const key = this.attendeesKey(block.id, date);
-      this.historyKeysInFlight.add(key);
-      this.gymService.getMyGymBlockAttendees(block.id, date).subscribe({
-        next: (attendees) => {
-          this.historyKeysInFlight.delete(key);
-          this.attendeesByKey.update((map) => ({ ...map, [key]: attendees }));
-          done();
-        },
-        error: () => {
-          this.historyKeysInFlight.delete(key);
-          this.attendeesByKey.update((map) => ({ ...map, [key]: [] }));
-          done();
-        },
-      });
+      },
+      error: () => this.historyLoading.set(false),
     });
   }
 
@@ -1106,13 +1091,13 @@ export class GymAdmin implements OnDestroy {
     });
   }
 
-  private async confirmAction(header: string, message: string): Promise<boolean> {
+  private async confirmAction(header: string, message: string, confirmText = 'Eliminar'): Promise<boolean> {
     const alert = await this.alertController.create({
       header,
       message,
       buttons: [
         { text: 'Cancelar', role: 'cancel' },
-        { text: 'Eliminar', role: 'destructive' },
+        { text: confirmText, role: 'destructive' },
       ],
     });
     await alert.present();
@@ -1162,9 +1147,13 @@ export class GymAdmin implements OnDestroy {
     }
   }
 
-  // Registro manual mientras no existe el pago real (Flow.cl, Parte B
-  // pendiente) — el admin elige el plan que el socio pagó y queda persistido
-  // de verdad (GymService.simulatePlanPayment), no solo en su navegador.
+  // Mismo patrón que togglingAdminId — id del socio con una acción de plan en curso, para
+  // deshabilitar y mostrar spinner solo en ese botón mientras se espera la respuesta.
+  protected readonly markingPaidId = signal<number | null>(null);
+  protected readonly revokingPlanId = signal<number | null>(null);
+
+  // Registro manual para dinero que no pasó por Flow.cl (efectivo/transferencia) — el admin
+  // elige el plan que el socio pagó y queda persistido de verdad (GymService.simulatePlanPayment).
   protected async markMemberPaid(member: Member): Promise<void> {
     const plans = this.plans();
     if (plans.length === 0) {
@@ -1189,12 +1178,42 @@ export class GymAdmin implements OnDestroy {
     if (role !== 'confirm' || !data?.values) {
       return;
     }
+    this.markingPaidId.set(member.id);
     this.memberService.markPaid(member.id, { planId: data.values }).subscribe({
       next: () => {
+        this.markingPaidId.set(null);
         this.showToast(`Pago registrado para ${member.name}.`);
         this.loadMembers();
       },
-      error: () => this.showToast('No pudimos registrar el pago. Intenta nuevamente.', 'danger'),
+      error: () => {
+        this.markingPaidId.set(null);
+        this.showToast('No pudimos registrar el pago. Intenta nuevamente.', 'danger');
+      },
+    });
+  }
+
+  // Contraparte de markMemberPaid — para corregir un pago mal confirmado (ej. Flow lo marcó
+  // aprobado pero en realidad falló) o dar de baja a un socio por cualquier otro motivo.
+  protected async revokeMemberPlan(member: Member): Promise<void> {
+    const confirmed = await this.confirmAction(
+      'Quitar plan',
+      `¿Quitarle el plan a ${member.name}? Va a dejar de poder reservar clases hasta que pague de nuevo.`,
+      'Quitar plan',
+    );
+    if (!confirmed) {
+      return;
+    }
+    this.revokingPlanId.set(member.id);
+    this.memberService.revokePlan(member.id).subscribe({
+      next: () => {
+        this.revokingPlanId.set(null);
+        this.showToast(`Se le quitó el plan a ${member.name}.`);
+        this.loadMembers();
+      },
+      error: () => {
+        this.revokingPlanId.set(null);
+        this.showToast('No pudimos quitar el plan. Intenta nuevamente.', 'danger');
+      },
     });
   }
 

@@ -1,3 +1,5 @@
+import { Attendee } from './member.model';
+
 export type DayOfWeek =
   | 'MONDAY'
   | 'TUESDAY'
@@ -39,6 +41,7 @@ export interface PublicGym {
   description: string | null;
   instagramUrl: string | null;
   whatsappNumber: string | null;
+  cancellationWindowHours: number;
 }
 
 export interface GymIdentityUpdateRequest {
@@ -209,4 +212,13 @@ export interface AnalyticsSummary {
   joinTotal: PageStats;
   /** Ordenada de mayor a menor por total. */
   byGym: GymVisitStats[];
+}
+
+/** Una entrada por cada ocurrencia de bloque con al menos un asistente — respuesta del
+ *  endpoint batch de Historial (.../history-attendees?from=&to=), reemplaza el fan-out de
+ *  una llamada por cada bloque×día de la semana. */
+export interface BlockOccurrenceAttendees {
+  gymBlockId: number;
+  classDate: string;
+  attendees: Attendee[];
 }

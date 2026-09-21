@@ -36,4 +36,14 @@ export class MemberService {
   markPaidForGym(gymId: number, memberId: number, payload: MarkPaidRequest): Observable<void> {
     return this.http.post<void>(`${this.gymsBase}/${gymId}/members/${memberId}/mark-paid`, payload);
   }
+
+  /** El gym-admin le quita a un socio suyo el plan/pago que tenga registrado. */
+  revokePlan(memberId: number): Observable<void> {
+    return this.http.post<void>(`${this.base}/${memberId}/revoke-plan`, {});
+  }
+
+  /** Contraparte SUPER_ADMIN de revokePlan — mismo backend, gymId por path. */
+  revokePlanForGym(gymId: number, memberId: number): Observable<void> {
+    return this.http.post<void>(`${this.gymsBase}/${gymId}/members/${memberId}/revoke-plan`, {});
+  }
 }
