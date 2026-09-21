@@ -22,12 +22,15 @@ import com.cortesdev.mygym.models.dto.MemberPlanResponse;
 import com.cortesdev.mygym.models.dto.PlanCreateRequest;
 import com.cortesdev.mygym.models.dto.PlanResponse;
 import com.cortesdev.mygym.models.dto.PlanUpdateRequest;
+import com.cortesdev.mygym.models.Reservation;
+import com.cortesdev.mygym.models.ReservationStatus;
 import com.cortesdev.mygym.models.dto.PublicGymResponse;
 import com.cortesdev.mygym.repositories.AppUserRepository;
 import com.cortesdev.mygym.repositories.GymBlockRepository;
 import com.cortesdev.mygym.repositories.GymPhotoRepository;
 import com.cortesdev.mygym.repositories.GymPlanRepository;
 import com.cortesdev.mygym.repositories.GymRepository;
+import com.cortesdev.mygym.repositories.ReservationRepository;
 import com.cortesdev.mygym.services.exception.AdminNotFoundException;
 import com.cortesdev.mygym.services.exception.DuplicateOwnerEmailException;
 import com.cortesdev.mygym.services.exception.DuplicateSlugException;
@@ -41,7 +44,9 @@ import com.cortesdev.mygym.services.exception.InvalidThemeException;
 import com.cortesdev.mygym.services.exception.MemberNotFoundException;
 import com.cortesdev.mygym.services.exception.TooManyGymPhotosException;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Locale;
 import lombok.RequiredArgsConstructor;
@@ -53,11 +58,16 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class GymService {
 
+    // Mismo huso que usa MemberService para calcular vigencia de plan — acá
+    // define qué reservas cuentan como "a futuro" al expulsar a un socio.
+    private static final ZoneId GYM_ZONE = ZoneId.of("America/Santiago");
+
     private final GymRepository gymRepository;
     private final GymBlockRepository gymBlockRepository;
     private final GymPlanRepository gymPlanRepository;
     private final GymPhotoRepository gymPhotoRepository;
     private final AppUserRepository appUserRepository;
+    private final ReservationRepository reservationRepository;
     private final AdminInviteEmailService adminInviteEmailService;
     private final MemberLifecycleEmailService memberLifecycleEmailService;
 
@@ -424,6 +434,12 @@ public class GymService {
      * marcado a mano. Camino manual para corregir un pago mal confirmado (ej. Flow lo marcó
      * como aprobado pero en realidad falló o se reembolsó) o para dar de baja a un socio por
      * cualquier otro motivo del gimnasio.
+     *
+     * Dar de baja el plan equivale a expulsar al socio: sus reservas BOOKED a futuro se
+     * cancelan acá mismo, liberando el cupo para otros socios. Si más adelante paga de
+     * nuevo, arranca desde cero (sin reservas viejas coladas en el ciclo nuevo — bug real
+     * reportado: quedaban contando contra el cupo del ciclo recién pagado). Las reservas
+     * pasadas no se tocan, quedan como historial de la cuenta.
      */
     public void revokePlan(Long gymId, Long memberId) {
         findGymOrThrow(gymId);
@@ -433,6 +449,12 @@ public class GymService {
         member.setPlanId(null);
         member.setPaidAt(null);
         appUserRepository.save(member);
+
+        LocalDate today = LocalDate.now(GYM_ZONE);
+        List<Reservation> futureReservations = reservationRepository
+                .findByMemberIdAndStatusAndClassDateGreaterThanEqual(memberId, ReservationStatus.BOOKED, today);
+        futureReservations.forEach(r -> r.setStatus(ReservationStatus.CANCELLED));
+        reservationRepository.saveAll(futureReservations);
     }
 
     private void validateSchedule(LocalTime startTime, LocalTime endTime) {
