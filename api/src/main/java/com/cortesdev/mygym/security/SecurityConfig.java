@@ -58,6 +58,21 @@ public class SecurityConfig {
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+
+        // Flow/Webpay redirige el navegador del socio con un POST cross-origin de vuelta acá
+        // (urlReturn) — nunca es nuestro propio frontend, así que el navegador manda un
+        // Origin que jamás va a estar en la allowlist de abajo (pensada para www.mygym.cl).
+        // TIENE que registrarse ANTES que "/**": UrlBasedCorsConfigurationSource devuelve la
+        // config del PRIMER patrón registrado que matchea (no el más específico) — registrarlo
+        // después de "/**" seguía cayendo en la config genérica y rechazando con
+        // "Invalid CORS request" antes de que el controller llegara a hacer el redirect 302
+        // hacia la SPA (confirmado con el patrón al revés, no alcanzaba con agregarlo nomás).
+        CorsConfiguration flowConfig = new CorsConfiguration();
+        flowConfig.setAllowedOriginPatterns(List.of("*"));
+        flowConfig.setAllowedMethods(List.of("GET", "POST"));
+        flowConfig.setAllowedHeaders(List.of("*"));
+        source.registerCorsConfiguration("/api/public/flow/**", flowConfig);
+
         source.registerCorsConfiguration("/**", config);
         return source;
     }
