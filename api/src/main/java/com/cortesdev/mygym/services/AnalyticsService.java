@@ -9,6 +9,7 @@ import com.cortesdev.mygym.repositories.GymRepository;
 import com.cortesdev.mygym.repositories.PageViewRepository;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -60,7 +61,7 @@ public class AnalyticsService {
                 .stream()
                 .collect(Collectors.groupingBy(PageView::getGymId, Collectors.counting()));
 
-        List<GymVisitStats> byGym = gymRepository.findAll().stream()
+        List<GymVisitStats> byGym = new ArrayList<>(gymRepository.findAll().stream()
                 .filter(gym -> totalByGym.containsKey(gym.getId()))
                 .map(gym -> new GymVisitStats(
                         gym.getId(),
@@ -69,7 +70,17 @@ public class AnalyticsService {
                         totalByGym.getOrDefault(gym.getId(), 0L),
                         last30dByGym.getOrDefault(gym.getId(), 0L)))
                 .sorted(Comparator.comparingLong(GymVisitStats::total).reversed())
-                .toList();
+                .toList());
+
+        // El total de joinTotal cuenta TODAS las visitas a /j/:slug, incluidas las de un slug
+        // que no coincidió con ningún gimnasio (link roto, gimnasio borrado, typo) — esas nunca
+        // quedan agrupadas en totalByGym/last30dByGym porque no tienen gymId. Sin esta fila, el
+        // número agregado de la tarjeta no reconciliaba con la suma de la lista de abajo.
+        long unresolvedTotal = joinTotal.total() - totalByGym.values().stream().mapToLong(Long::longValue).sum();
+        long unresolvedLast30d = joinTotal.last30d() - last30dByGym.values().stream().mapToLong(Long::longValue).sum();
+        if (unresolvedTotal > 0) {
+            byGym.add(new GymVisitStats(null, "Otros (link sin gimnasio)", null, unresolvedTotal, unresolvedLast30d));
+        }
 
         return new AnalyticsSummaryResponse(brochure, landing, joinTotal, byGym);
     }

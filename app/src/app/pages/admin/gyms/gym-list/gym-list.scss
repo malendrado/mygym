@@ -212,6 +212,24 @@
     font-weight: 700;
     color: var(--brand-accent);
   }
+
+  // Fila "Otros" — visitas a /j/:slug que no resolvieron a ningún gimnasio real, no es
+  // un dato del mismo tipo que el resto de la lista, se distingue para que no se lea
+  // como un gimnasio más.
+  &--unresolved {
+    border-style: dashed;
+    background: transparent;
+
+    .visit-row__name {
+      font-weight: 400;
+      font-style: italic;
+      color: var(--brand-text-dim);
+    }
+
+    .visit-row__total {
+      color: var(--brand-text-dim);
+    }
+  }
 }
 
 .gyms-empty {

@@ -113,8 +113,8 @@
 
       @if (stats.byGym.length > 0) {
         <div class="visit-list">
-          @for (row of stats.byGym; track row.gymId) {
-            <div class="visit-row">
+          @for (row of stats.byGym; track row.gymId ?? row.gymName) {
+            <div class="visit-row" [class.visit-row--unresolved]="row.gymId === null">
               <span class="visit-row__name">{{ row.gymName }}</span>
               <span class="visit-row__meta">{{ row.last30d }} en 30 días</span>
               <span class="visit-row__total">{{ row.total }}</span>

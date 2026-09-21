@@ -189,9 +189,10 @@ export interface PageStats {
 }
 
 export interface GymVisitStats {
-  gymId: number;
+  /** null en la fila "Otros" — visitas a /j/:slug cuyo slug no coincidió con ningún gimnasio. */
+  gymId: number | null;
   gymName: string;
-  gymSlug: string;
+  gymSlug: string | null;
   total: number;
   last30d: number;
 }
