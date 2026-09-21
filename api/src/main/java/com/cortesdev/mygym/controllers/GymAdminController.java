@@ -146,7 +146,7 @@ public class GymAdminController {
     @PutMapping("/theme")
     public GymResponse updateMyTheme(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody ThemeUpdateRequest request) {
         Long gymId = AuthenticatedUser.from(jwt).gymId();
-        gymService.updateTheme(gymId, request.themeColor());
+        gymService.updateTheme(gymId, request.themeColor(), request.themeMode());
         return gymService.getGym(gymId);
     }
 

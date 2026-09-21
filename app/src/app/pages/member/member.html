@@ -327,7 +327,19 @@
     </div>
     }
     </div>
-    @if (bookingLocked()) {
+    @if (checkoutPending()) {
+      <!-- Sin botón/click acá a propósito: no hay ninguna acción que tomar todavía,
+           el cartel de arriba ya dice que se está confirmando el pago con Flow. -->
+      <span class="booking-teaser__cta booking-teaser__cta--static">
+        <span class="booking-teaser__cta-card">
+          <ion-spinner name="crescent"></ion-spinner>
+          <span class="booking-teaser__cta-title">Confirmando tu pago</span>
+          <span class="booking-teaser__cta-body">
+            Así se ve tu calendario de clases — se desbloquea apenas Flow confirme el pago.
+          </span>
+        </span>
+      </span>
+    } @else if (bookingLocked()) {
       <button type="button" class="booking-teaser__cta" (click)="scrollToPlans()">
         <span class="booking-teaser__cta-card">
           <ion-icon name="lock-closed-outline" aria-hidden="true"></ion-icon>

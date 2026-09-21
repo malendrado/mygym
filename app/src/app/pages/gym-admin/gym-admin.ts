@@ -57,6 +57,7 @@ import {
   personOutline,
   pricetagOutline,
   refreshOutline,
+  removeCircleOutline,
   settingsOutline,
   timeOutline,
   trashOutline,
@@ -86,7 +87,15 @@ import { PlanFormModal } from '../admin/gyms/plan-form-modal/plan-form-modal';
 import { registerClassCategoryIcons, resolveClassCategoryIcon } from '../../core/utils/class-category';
 
 registerClassCategoryIcons();
-import { deriveSurfaceTint, ensureMinContrastColor } from '../../core/utils/gym-theme';
+import {
+  LIGHT_PALETTES,
+  LightPaletteEntry,
+  ThemeMode,
+  clearThemeOverrides,
+  deriveSurfaceTint,
+  ensureMinContrastColor,
+  syncThemeOverrides,
+} from '../../core/utils/gym-theme';
 
 addIcons({
   'time-outline': timeOutline,
@@ -102,6 +111,7 @@ addIcons({
   'color-palette-outline': colorPaletteOutline,
   'pricetag-outline': pricetagOutline,
   'refresh-outline': refreshOutline,
+  'remove-circle-outline': removeCircleOutline,
   'business-outline': businessOutline,
   'cloud-upload-outline': cloudUploadOutline,
   'create-outline': createOutline,
@@ -463,12 +473,20 @@ export class GymAdmin implements OnDestroy {
   protected readonly logoUploading = signal(false);
 
   protected readonly themeColor = signal<string>(PALETTES[0].hex);
+  // 'DARK' (default, acento libre) o 'LIGHT' (limitado a LIGHT_PALETTES) — también decide
+  // qué grilla de swatches se muestra (ver template). Cuando cambia junto con themeColor,
+  // el effect() de más abajo sincroniza los tokens base globales (ver gym-theme.ts).
+  protected readonly themeMode = signal<ThemeMode>('DARK');
+  protected readonly lightPalettes = LIGHT_PALETTES;
   protected readonly themeContrast = computed(() => {
     const hex = this.themeColor();
+    if (this.themeMode() === 'LIGHT') {
+      return LIGHT_PALETTES.find((p) => p.hex.toLowerCase() === hex.toLowerCase())?.contrast ?? '#FFFFFF';
+    }
     const match = PALETTES.find((p) => p.hex.toLowerCase() === hex.toLowerCase());
     return match?.contrast ?? computeContrast(hex);
   });
-  protected readonly themeSurface = computed(() => deriveSurfaceTint(this.themeColor()));
+  protected readonly themeSurface = computed(() => deriveSurfaceTint(this.themeColor(), this.themeMode()));
   // El acento libre a veces no alcanza 4.5:1 como texto plano sobre la tarjeta
   // (ej. el índigo real de Fortis mide ~4.07:1) — esta variante SOLO se usa
   // donde el acento pinta texto, nunca donde pinta un fondo sólido.
@@ -523,6 +541,9 @@ export class GymAdmin implements OnDestroy {
       root.setProperty('--gym-panel-bg', surface.bg);
       root.setProperty('--gym-panel-card', surface.card);
       root.setProperty('--brand-accent-text-safe', this.themeAccentTextSafe());
+      // Modo claro necesita además los tokens base globales (--brand-ink, --ion-color-danger,
+      // el step-ramp de Ionic) que --gym-panel-bg/card no cubren — ver gym-theme.ts.
+      syncThemeOverrides(this.themeMode(), color);
     });
 
     // Los bloques llegan async (loadBlocks) — si el admin entra a Historial
@@ -543,6 +564,7 @@ export class GymAdmin implements OnDestroy {
     for (const property of THEMED_ROOT_PROPERTIES) {
       root.removeProperty(property);
     }
+    clearThemeOverrides();
   }
 
   protected setSection(section: Section): void {
@@ -788,31 +810,44 @@ export class GymAdmin implements OnDestroy {
   }
 
   protected surfaceFor(palette: Palette): { bg: string; card: string } {
-    return deriveSurfaceTint(palette.hex);
+    return deriveSurfaceTint(palette.hex, 'DARK');
+  }
+
+  // Cambiar el segment Oscuro/Claro solo cambia qué grilla se ve — no guarda nada hasta
+  // que se elige un swatch puntual (mismo criterio que ya existía: click = guarda ya).
+  protected setThemeModeView(mode: ThemeMode): void {
+    this.themeMode.set(mode);
   }
 
   protected readonly themeSaving = signal(false);
 
   protected selectPalette(palette: Palette): void {
-    this.selectColor(palette.hex);
+    this.selectColor(palette.hex, 'DARK');
+  }
+
+  protected selectLightPalette(palette: LightPaletteEntry): void {
+    this.selectColor(palette.hex, 'LIGHT');
   }
 
   protected onCustomColorInput(event: Event): void {
     const hex = (event.target as HTMLInputElement).value;
-    this.selectColor(hex);
+    this.selectColor(hex, 'DARK');
   }
 
-  private selectColor(hex: string): void {
+  private selectColor(hex: string, mode: ThemeMode): void {
     if (this.themeSaving()) {
       return;
     }
-    const previous = this.themeColor();
+    const previousColor = this.themeColor();
+    const previousMode = this.themeMode();
     this.themeColor.set(hex);
+    this.themeMode.set(mode);
     this.themeSaving.set(true);
-    this.gymService.updateMyTheme(hex).subscribe({
+    this.gymService.updateMyTheme({ themeColor: hex, themeMode: mode }).subscribe({
       next: () => this.themeSaving.set(false),
       error: () => {
-        this.themeColor.set(previous);
+        this.themeColor.set(previousColor);
+        this.themeMode.set(previousMode);
         this.themeSaving.set(false);
         this.showToast('No pudimos guardar el color. Intenta nuevamente.', 'danger');
       },
@@ -1247,6 +1282,7 @@ export class GymAdmin implements OnDestroy {
         if (gym.themeColor) {
           this.themeColor.set(gym.themeColor);
         }
+        this.themeMode.set(gym.themeMode ?? 'DARK');
         this.identityForm.patchValue({
           tagline: gym.tagline ?? '',
           description: gym.description ?? '',

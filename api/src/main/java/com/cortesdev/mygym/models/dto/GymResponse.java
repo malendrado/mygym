@@ -11,6 +11,7 @@ public record GymResponse(
         Integer maxUsers,
         boolean googleLoginEnabled,
         String themeColor,
+        String themeMode,
         String logoSvg,
         String tagline,
         String description,

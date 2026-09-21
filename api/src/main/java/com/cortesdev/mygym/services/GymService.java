@@ -37,6 +37,7 @@ import com.cortesdev.mygym.services.exception.GymPhotoNotFoundException;
 import com.cortesdev.mygym.services.exception.GymPlanNotFoundException;
 import com.cortesdev.mygym.services.exception.InvalidBlockScheduleException;
 import com.cortesdev.mygym.services.exception.InvalidLogoException;
+import com.cortesdev.mygym.services.exception.InvalidThemeException;
 import com.cortesdev.mygym.services.exception.MemberNotFoundException;
 import com.cortesdev.mygym.services.exception.TooManyGymPhotosException;
 import java.time.Instant;
@@ -132,6 +133,7 @@ public class GymService {
                 gym.getSlug(),
                 themeColor,
                 GymPalette.contrastFor(themeColor),
+                gym.getThemeMode(),
                 gym.getLogoSvg(),
                 gym.isGoogleLoginEnabled(),
                 gym.getTagline(),
@@ -150,9 +152,18 @@ public class GymService {
         return toResponse(gymRepository.save(gym));
     }
 
-    public void updateTheme(Long gymId, String themeColor) {
+    // "LIGHT" está limitado a las 4 paletas curadas de GymPalette.LIGHT_ALL — a
+    // diferencia de "DARK" (acento libre), no alcanza con validar el formato del hex
+    // en el DTO, hay que validar que sea exactamente uno de los 4 colores conocidos
+    // (evita que alguien mande un color libre en modo claro, sin superficie/contraste
+    // verificados para ese tono).
+    public void updateTheme(Long gymId, String themeColor, String themeMode) {
+        if ("LIGHT".equals(themeMode) && GymPalette.LIGHT_ALL.stream().noneMatch(e -> e.hex().equalsIgnoreCase(themeColor))) {
+            throw new InvalidThemeException("El modo claro solo admite una de las paletas curadas, no un color libre");
+        }
         Gym gym = findGymOrThrow(gymId);
         gym.setThemeColor(themeColor);
+        gym.setThemeMode(themeMode);
         gymRepository.save(gym);
     }
 
@@ -466,6 +477,7 @@ public class GymService {
                 gym.getMaxUsers(),
                 gym.isGoogleLoginEnabled(),
                 gym.getThemeColor(),
+                gym.getThemeMode(),
                 gym.getLogoSvg(),
                 gym.getTagline(),
                 gym.getDescription(),

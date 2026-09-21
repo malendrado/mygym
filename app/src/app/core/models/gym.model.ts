@@ -25,6 +25,8 @@ export interface Gym {
   instagramUrl: string | null;
   whatsappNumber: string | null;
   cancellationWindowHours: number;
+  /** 'DARK' (acento libre) o 'LIGHT' (limitado a las 4 paletas curadas — ver LIGHT_PALETTES). */
+  themeMode: 'DARK' | 'LIGHT';
   createdAt: string;
   updatedAt: string;
 }
@@ -42,6 +44,13 @@ export interface PublicGym {
   instagramUrl: string | null;
   whatsappNumber: string | null;
   cancellationWindowHours: number;
+  themeMode: 'DARK' | 'LIGHT';
+}
+
+/** PUT .../theme (gym-admin y super-admin comparten el mismo shape). */
+export interface ThemeUpdateRequest {
+  themeColor: string;
+  themeMode: 'DARK' | 'LIGHT';
 }
 
 export interface GymIdentityUpdateRequest {

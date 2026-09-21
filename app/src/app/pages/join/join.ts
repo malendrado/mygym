@@ -1,4 +1,4 @@
-import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { DomSanitizer } from '@angular/platform-browser';
 import { IonContent, IonHeader, IonIcon, IonSpinner, IonText, IonTitle, IonToolbar } from '@ionic/angular';
@@ -9,7 +9,7 @@ import { AuthService } from '../../core/services/auth.service';
 import { GymService } from '../../core/services/gym.service';
 import { LoginResponse } from '../../core/models/auth.model';
 import { GymPhoto, MemberPlan, PublicGym } from '../../core/models/gym.model';
-import { deriveSurfaceTint, ensureMinContrastColor } from '../../core/utils/gym-theme';
+import { deriveSurfaceTint, ensureMinContrastColor, syncThemeOverrides } from '../../core/utils/gym-theme';
 
 addIcons({
   'logo-instagram': logoInstagram,
@@ -63,7 +63,9 @@ export class Join {
     return number ? `https://wa.me/${number.replace(/[^\d]/g, '')}` : null;
   });
 
-  protected readonly themeSurface = computed(() => deriveSurfaceTint(this.gym()?.themeColor ?? '#c6ff3d'));
+  protected readonly themeSurface = computed(() =>
+    deriveSurfaceTint(this.gym()?.themeColor ?? '#c6ff3d', this.gym()?.themeMode),
+  );
   // Ver el mismo comentario en member.ts — el acento libre a veces no llega
   // a 4.5:1 usado como texto plano (ej. el precio de un plan).
   protected readonly accentTextSafe = computed(() =>
@@ -83,6 +85,15 @@ export class Join {
       },
       error: () => this.status.set('not-found'),
     });
+
+    // Modo claro necesita más que --join-bg/--join-card (bindeadas inline abajo) — también
+    // los tokens base globales (--brand-ink, --ion-color-danger, el step-ramp de Ionic) que
+    // hoy asumen "siempre oscuro" en styles.scss. Ver gym-theme.ts:syncThemeOverrides.
+    effect(() => {
+      const currentGym = this.gym();
+      syncThemeOverrides(currentGym?.themeMode, currentGym?.themeColor);
+    });
+    this.destroyRef.onDestroy(() => syncThemeOverrides('DARK', null));
 
     this.gymService.getPublicPlansBySlug(this.slug).subscribe({
       next: (plans) => {

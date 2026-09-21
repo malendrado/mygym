@@ -2,9 +2,10 @@ package com.cortesdev.mygym.services;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 
 /**
- * Single source of truth (backend side) for the 7 gym theme colors and their
+ * Single source of truth (backend side) for the 12 dark gym theme colors and their
  * matching high-contrast text color. Mirrors the PALETTES constant in
  * app/src/app/pages/gym-admin/gym-admin.ts — if one changes, update the other.
  */
@@ -26,6 +27,20 @@ public final class GymPalette {
             new Entry("turquoise", "#2dd4bf", "#00211c"),
             new Entry("plum", "#c15aff", "#24003d"));
 
+    // Paletas de modo CLARO — a diferencia de ALL (acentos libres sobre una superficie
+    // oscura derivada por hue, ver deriveSurfaceTint en el frontend), estas son 4 combos
+    // curados a mano (fondo/tarjeta claros específicos, no derivados) porque la fórmula
+    // de contraste de luminanceContrast() no es lo bastante precisa para garantizar
+    // texto blanco legible sobre CUALQUIER acento en un botón — se verificó cada una
+    // contra la fórmula real de contraste WCAG (≥4.5:1 texto/fondo, texto/tarjeta, y
+    // blanco sobre el botón de acento) antes de fijarlas acá. Mirrors LIGHT_PALETTES en
+    // app/src/app/core/utils/gym-theme.ts — si una cambia, actualizar la otra.
+    public static final List<Entry> LIGHT_ALL = List.of(
+            new Entry("amanecer", "#C2410C", "#FFFFFF"),
+            new Entry("oceano", "#2563EB", "#FFFFFF"),
+            new Entry("menta", "#047857", "#FFFFFF"),
+            new Entry("frambuesa", "#DB2777", "#FFFFFF"));
+
     private static final String DEFAULT_HEX = "#c6ff3d";
     private static final String DEFAULT_CONTRAST = "#1a2b00";
 
@@ -39,16 +54,19 @@ public final class GymPalette {
                 .orElse(null);
     }
 
-    /** Contrast color for a known palette hex, or a sensible default for anything else. */
+    /** Contrast color for a known palette hex (dark or light), or a sensible default
+     *  (luminance heuristic) for a free color outside both lists. */
     public static String contrastFor(String hex) {
         if (hex == null) {
             return DEFAULT_CONTRAST;
         }
-        return ALL.stream()
-                .filter(e -> e.hex().equalsIgnoreCase(hex))
-                .map(Entry::contrast)
-                .findFirst()
+        return contrastForKnown(ALL, hex)
+                .or(() -> contrastForKnown(LIGHT_ALL, hex))
                 .orElseGet(() -> luminanceContrast(hex));
+    }
+
+    private static Optional<String> contrastForKnown(List<Entry> palette, String hex) {
+        return palette.stream().filter(e -> e.hex().equalsIgnoreCase(hex)).map(Entry::contrast).findFirst();
     }
 
     public static String defaultHex() {

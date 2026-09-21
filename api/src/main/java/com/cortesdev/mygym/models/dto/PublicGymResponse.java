@@ -6,6 +6,7 @@ public record PublicGymResponse(
         String slug,
         String themeColor,
         String themeContrast,
+        String themeMode,
         String logoSvg,
         boolean googleLoginEnabled,
         String tagline,

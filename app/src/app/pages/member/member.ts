@@ -39,7 +39,7 @@ import { ReservationService } from '../../core/services/reservation.service';
 import { GymBlockOccurrence, Reservation } from '../../core/models/reservation.model';
 import { GymPhoto, MemberPlan, PublicGym } from '../../core/models/gym.model';
 import { AttendeeSummary } from '../../core/models/member.model';
-import { deriveSurfaceTint, ensureMinContrastColor } from '../../core/utils/gym-theme';
+import { deriveSurfaceTint, ensureMinContrastColor, syncThemeOverrides } from '../../core/utils/gym-theme';
 import { registerClassCategoryIcons, resolveClassCategoryIcon } from '../../core/utils/class-category';
 
 registerClassCategoryIcons();
@@ -384,9 +384,14 @@ export class MemberPage {
   });
   // 'none' (nunca eligió plan) y 'past_due' (venció, sin renovar) bloquean
   // por igual el calendario — mismo candado borroso para los dos casos.
+  // checkoutPending también bloquea: recién volviendo de Flow, loadMembership()
+  // puede traer un estado 'active' viejo (de un pago anterior, ya sea de este socio o
+  // de datos de prueba) mientras el webhook del pago nuevo todavía no confirma — sin
+  // esto, el socio veía el calendario completo (reservas de otros, cupos reales) por
+  // debajo del cartel "Confirmando tu pago...", bug real reportado probando el flujo.
   protected readonly bookingLocked = computed(() => {
     const status = this.membership().status;
-    return status === 'none' || status === 'past_due';
+    return this.checkoutPending() || status === 'none' || status === 'past_due';
   });
 
   protected readonly firstName = computed(() => this.authService.currentUser()?.name?.split(' ')[0] ?? 'socio');
@@ -397,7 +402,7 @@ export class MemberPage {
   // falls through to the plain --brand-ink default instead.
   protected readonly themeSurface = computed(() => {
     const color = this.gym()?.themeColor;
-    return color ? deriveSurfaceTint(color) : null;
+    return color ? deriveSurfaceTint(color, this.gym()?.themeMode) : null;
   });
   // El acento libre a veces no llega a 4.5:1 como texto plano (ej. el índigo
   // real de Fortis, ~4.07:1) — solo se usa donde el acento pinta TEXTO
@@ -573,6 +578,15 @@ export class MemberPage {
     this.loadOccurrences();
     this.loadMyReservations();
     this.startBookingDemo();
+
+    // Modo claro necesita más que --member-bg/--member-card (bindeadas inline abajo) —
+    // también los tokens base globales (--brand-ink, --ion-color-danger, el step-ramp de
+    // Ionic) que hoy asumen "siempre oscuro" en styles.scss. Ver gym-theme.ts:syncThemeOverrides.
+    effect(() => {
+      const currentGym = this.gym();
+      syncThemeOverrides(currentGym?.themeMode, currentGym?.themeColor);
+    });
+    this.destroyRef.onDestroy(() => syncThemeOverrides('DARK', null));
 
     // Volvimos de Flow.cl con el navegador — el webhook que confirma de
     // verdad puede tardar unos segundos más que ese redirect, así que

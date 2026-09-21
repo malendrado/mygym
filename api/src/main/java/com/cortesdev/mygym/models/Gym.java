@@ -48,6 +48,11 @@ public class Gym {
 
     private String themeColor;
 
+    // "DARK" (default, acento libre) o "LIGHT" (limitado a las 4 paletas curadas de
+    // GymPalette.LIGHT_ALL — ver ThemeUpdateRequest/GymService.updateTheme).
+    @Builder.Default
+    private String themeMode = "DARK";
+
     @Column(columnDefinition = "text")
     private String logoSvg;
 

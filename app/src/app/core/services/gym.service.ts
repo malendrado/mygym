@@ -21,6 +21,7 @@ import {
   GymPlan,
   MemberPlan,
   PublicGym,
+  ThemeUpdateRequest,
   TrackedPage,
   UpdateGymBlockRequest,
   UpdateGymPlanRequest,
@@ -193,8 +194,8 @@ export class GymService {
     return this.http.delete<void>(`${this.base}/${gymId}/plans/${planId}`);
   }
 
-  updateTheme(gymId: number, themeColor: string): Observable<Gym> {
-    return this.http.put<Gym>(`${this.base}/${gymId}/theme`, { themeColor });
+  updateTheme(gymId: number, request: ThemeUpdateRequest): Observable<Gym> {
+    return this.http.put<Gym>(`${this.base}/${gymId}/theme`, request);
   }
 
   updateIdentity(gymId: number, payload: GymIdentityUpdateRequest): Observable<Gym> {
@@ -250,8 +251,8 @@ export class GymService {
     return this.http.delete<void>(`${this.myGymBase}/plans/${planId}`);
   }
 
-  updateMyTheme(themeColor: string): Observable<Gym> {
-    return this.http.put<Gym>(`${this.myGymBase}/theme`, { themeColor });
+  updateMyTheme(request: ThemeUpdateRequest): Observable<Gym> {
+    return this.http.put<Gym>(`${this.myGymBase}/theme`, request);
   }
 
   updateMyLogo(logo: string): Observable<Gym> {

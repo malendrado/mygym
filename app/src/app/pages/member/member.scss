@@ -317,6 +317,12 @@ ion-segment-button.segment-button-checked {
   border-radius: 16px;
   cursor: pointer;
   font-family: inherit;
+
+  // Variante <span> para checkoutPending — no hay ninguna acción que tomar mientras se
+  // confirma el pago, así que no debe parecer clickeable.
+  &--static {
+    cursor: default;
+  }
 }
 
 .booking-teaser__cta-card {
@@ -332,7 +338,8 @@ ion-segment-button.segment-button-checked {
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
   text-align: center;
 
-  ion-icon {
+  ion-icon,
+  ion-spinner {
     font-size: 1.6rem;
     color: var(--brand-accent-text-safe, var(--brand-accent));
   }
@@ -485,7 +492,9 @@ ion-segment-button.segment-button-checked {
     // la skill UX, "no transmitir información solo con color") — el ícono +
     // texto explícito ("Vence en N días") ya lo dicen sin depender del tono.
     &--soon {
-      color: #ff5d73;
+      // var(), no el hex suelto — este rojo estaba calibrado a mano solo contra el fondo
+      // oscuro fijo; con var(--ion-color-danger) sigue el override de modo claro también.
+      color: var(--ion-color-danger);
       font-weight: 600;
 
       ion-icon {
@@ -497,7 +506,7 @@ ion-segment-button.segment-button-checked {
 
   &__warn-text {
     margin: 0.15rem 0 0;
-    color: #ff5d73;
+    color: var(--ion-color-danger);
     font-size: 0.85rem;
     font-weight: 600;
   }
@@ -939,7 +948,7 @@ ion-segment-button.segment-button-checked {
     cursor: pointer;
 
     &--danger {
-      color: #ff8a9b;
+      color: var(--ion-color-danger-tint);
     }
   }
 

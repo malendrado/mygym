@@ -216,7 +216,10 @@
   border: 1px solid var(--brand-ink-surface-2);
   border-radius: 14px;
   padding: 0.75rem;
-  background: var(--brand-ink);
+  // Antes usaba --brand-ink (el token global fijo) en vez de --join-card como el resto de
+  // las superficies de esta página — daba igual mientras --brand-ink siempre fuera oscuro,
+  // pero desincroniza esta tarjeta del resto en un join claro. Mismo fallback que --join-bg.
+  background: var(--join-card, var(--brand-ink-surface-2));
 
   h3 {
     margin: 0 0 0.25rem;

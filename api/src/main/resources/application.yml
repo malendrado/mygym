@@ -46,7 +46,11 @@ app:
     # Sandbox por default a propósito — nunca apuntar a producción sin que
     # el usuario cambie esta env var a mano, ver plan de integración.
     base-url: ${FLOW_BASE_URL:https://sandbox.flow.cl/api}
-    return-url: ${FLOW_RETURN_URL:https://www.mygym.cl/member?checkout=return}
+    # Flow hace un POST del navegador a esta URL (no un GET) — no puede apuntar directo a la
+    # SPA (Vercel solo sirve GET ahí, un POST da 405). Apunta al backend, que rebota con un
+    # 302 hacia member-return-url (GET, eso sí lo puede servir Vercel). Ver PublicFlowController.
+    return-url: ${FLOW_RETURN_URL:https://api-production-be95.up.railway.app/api/public/flow/return}
+    member-return-url: ${FLOW_MEMBER_RETURN_URL:https://www.mygym.cl/member?checkout=return}
     webhook-url: ${FLOW_WEBHOOK_URL:https://api-production-be95.up.railway.app/api/public/flow/webhook}
 
 management:

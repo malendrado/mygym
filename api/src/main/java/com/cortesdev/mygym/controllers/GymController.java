@@ -189,7 +189,7 @@ public class GymController {
 
     @PutMapping("/{id}/theme")
     public GymResponse updateTheme(@PathVariable Long id, @Valid @RequestBody ThemeUpdateRequest request) {
-        gymService.updateTheme(id, request.themeColor());
+        gymService.updateTheme(id, request.themeColor(), request.themeMode());
         return gymService.getGym(id);
     }
 

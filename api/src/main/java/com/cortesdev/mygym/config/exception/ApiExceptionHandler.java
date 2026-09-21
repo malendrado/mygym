@@ -15,6 +15,7 @@ import com.cortesdev.mygym.services.exception.GymPlanNotFoundException;
 import com.cortesdev.mygym.services.exception.InvalidBlockScheduleException;
 import com.cortesdev.mygym.services.exception.InvalidGoogleTokenException;
 import com.cortesdev.mygym.services.exception.InvalidLogoException;
+import com.cortesdev.mygym.services.exception.InvalidThemeException;
 import com.cortesdev.mygym.services.exception.MemberNotFoundException;
 import com.cortesdev.mygym.services.exception.ReservationNotFoundException;
 import com.cortesdev.mygym.services.exception.SubscriptionRequiredException;
@@ -96,6 +97,14 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     public ResponseEntity<ProblemDetail> handleInvalidSchedule(InvalidBlockScheduleException ex) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
         problem.setTitle("Horario de bloque inválido");
+        problem.setProperty("timestamp", Instant.now());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
+    }
+
+    @ExceptionHandler(InvalidThemeException.class)
+    public ResponseEntity<ProblemDetail> handleInvalidTheme(InvalidThemeException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+        problem.setTitle("Theme inválido");
         problem.setProperty("timestamp", Instant.now());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
     }
