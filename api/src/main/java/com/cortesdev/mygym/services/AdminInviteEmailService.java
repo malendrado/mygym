@@ -81,16 +81,28 @@ public class AdminInviteEmailService {
                 .replace("{{INVITE_URL}}", LOGIN_URL)
                 .replace("{{THEME_COLOR}}", themeColor)
                 .replace("{{THEME_CONTRAST}}", contrast)
-                .replace("{{LOGO_BADGE_INNER}}", logoBadgeInner(gym, contrast));
+                .replace("{{LOGO_BADGE_INNER}}", logoBadgeInner(gym));
     }
 
-    private String logoBadgeInner(Gym gym, String contrast) {
+    // Ver el mismo fix/comentario en MemberLifecycleEmailService — gym.logoSvg guarda tanto SVG
+    // crudo como data:image/... (raster subido desde Marca) en la misma columna; sin este branch,
+    // un logo raster caía como texto sin renderizar dentro del <div> y solo se veía el círculo
+    // de color liso.
+    //
+    // El <svg> inline (rama de abajo, ahora eliminada) tampoco servía: Gmail y Outlook no
+    // renderizan SVG embebido en el HTML del email de forma confiable (solo Apple Mail sí) —
+    // rasterizarlo a PNG en el backend requeriría sumar una librería nueva, así que para email
+    // se usa el mismo fallback de inicial que "sin logo"; el SVG real se sigue viendo en la web.
+    private String logoBadgeInner(Gym gym) {
         String logoSvg = gym.getLogoSvg();
         if (logoSvg == null || logoSvg.isBlank()) {
             return escapeHtml(GymPalette.initialOf(gym.getName()));
         }
-        String sized = logoSvg.replaceFirst("<svg ", "<svg width=\"34\" height=\"34\" ");
-        return "<div style=\"width:34px;height:34px;color:" + contrast + ";\">" + sized + "</div>";
+        if (logoSvg.startsWith("data:image")) {
+            return "<img src=\"" + logoSvg
+                    + "\" width=\"64\" height=\"64\" alt=\"\" style=\"width:64px;height:64px;border-radius:32px;display:block;object-fit:cover;\" />";
+        }
+        return escapeHtml(GymPalette.initialOf(gym.getName()));
     }
 
     private String escapeHtml(String value) {

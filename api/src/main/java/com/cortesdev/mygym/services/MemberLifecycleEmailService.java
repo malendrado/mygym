@@ -328,7 +328,7 @@ public class MemberLifecycleEmailService {
                 .replace("{{GYM_NAME}}", escapeHtml(gym.getName()))
                 .replace("{{THEME_COLOR}}", themeColor)
                 .replace("{{THEME_CONTRAST}}", contrast)
-                .replace("{{LOGO_BADGE_INNER}}", logoBadgeInner(gym, contrast))
+                .replace("{{LOGO_BADGE_INNER}}", logoBadgeInner(gym))
                 .replace("{{BADGE_LABEL}}", escapeHtml(badgeLabel))
                 .replace("{{HEADLINE}}", escapeHtml(headline))
                 .replace("{{BODY_HTML}}", bodyHtml)
@@ -337,13 +337,33 @@ public class MemberLifecycleEmailService {
                 .replace("{{FOOTER_TEXT}}", footerText);
     }
 
-    private String logoBadgeInner(Gym gym, String contrast) {
+    // Bug real reportado: un gym con logo RASTER (PNG/JPEG subido desde Marca, no SVG generado)
+    // mostraba el círculo vacío en el email — este método solo sabía manejar SVG crudo o "sin
+    // logo", así que un data:image/... caía al mismo branch del SVG y quedaba como texto crudo
+    // sin renderizar dentro del <div>. gym.logoSvg guarda AMBOS formatos en la misma columna
+    // (ver GymService.updateLogo) desde que se agregó la subida de imagen, este método nunca se
+    // actualizó para el caso raster. Mismo trade-off ya aceptado para el SVG: en Outlook de
+    // escritorio (motor Word) puede no soportar data URI en <img> tampoco — el peor caso sigue
+    // siendo el círculo de color liso, un fallback aceptable, no un error visible.
+
+    // Segundo bug real, más grave, reportado después: un gym CON logo SVG genuino (ej. Fortis)
+    // seguía mostrando el círculo vacío. No era un problema de detección de formato — el <svg>
+    // inline simplemente no se pinta en Gmail (soporte parcial/inconsistente) ni en Outlook
+    // (motor Word, cero soporte), solo Apple Mail lo renderiza de forma confiable. El comentario
+    // original de admin-invite.html que asumía que Gmail lo soportaba estaba mal. Rasterizar el
+    // SVG a PNG en el backend requeriría sumar una librería nueva (se decidió explícitamente
+    // evitar ese peso), así que para email se usa el mismo fallback de inicial que "sin logo" —
+    // el SVG real se sigue viendo en la web/app, donde sí se renderiza bien.
+    private String logoBadgeInner(Gym gym) {
         String logoSvg = gym.getLogoSvg();
         if (logoSvg == null || logoSvg.isBlank()) {
             return escapeHtml(GymPalette.initialOf(gym.getName()));
         }
-        String sized = logoSvg.replaceFirst("<svg ", "<svg width=\"34\" height=\"34\" ");
-        return "<div style=\"width:34px;height:34px;color:" + contrast + ";\">" + sized + "</div>";
+        if (logoSvg.startsWith("data:image")) {
+            return "<img src=\"" + logoSvg
+                    + "\" width=\"64\" height=\"64\" alt=\"\" style=\"width:64px;height:64px;border-radius:32px;display:block;object-fit:cover;\" />";
+        }
+        return escapeHtml(GymPalette.initialOf(gym.getName()));
     }
 
     private String firstName(AppUser user) {

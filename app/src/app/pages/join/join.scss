@@ -39,6 +39,65 @@
     justify-content: center;
     padding-top: 0.5rem;
   }
+
+  // En mobile, .join-card__story y .join-card__action son solo agrupadores
+  // semánticos (el contenido sigue apilado en una sola columna, igual que
+  // antes de que existieran estos wrappers) — el split real de dos columnas
+  // recién entra en el media query de abajo.
+  &__action {
+    margin-top: 0.5rem;
+  }
+
+  // Antes esto era una tarjeta angosta (420px) centrada en medio de una
+  // pantalla ancha, con muchísimo espacio negro sin usar a los costados
+  // (reportado por el usuario viendo /j/:slug en desktop). A partir de acá
+  // pasa a un layout de dos columnas — identidad del gym a la izquierda
+  // (logo, foto, descripción, contacto), la acción real (planes + botón de
+  // Google) a la derecha — mismo patrón "split hero" que ya usa el resto
+  // del sitio (ver .hero en landing.scss), en vez de simplemente estirar
+  // la tarjeta angosta a lo ancho.
+  @media (min-width: 900px) {
+    max-width: 1040px;
+    display: grid;
+    grid-template-columns: 1.05fr 0.95fr;
+    align-items: start;
+    gap: 3rem;
+    text-align: left;
+    padding: 3rem;
+
+    h1 {
+      font-size: 2rem;
+    }
+
+    p {
+      margin-bottom: 1rem;
+    }
+
+    .google-auth {
+      justify-content: flex-start;
+    }
+  }
+
+  &__story {
+    @media (min-width: 900px) {
+      display: flex;
+      flex-direction: column;
+    }
+  }
+
+  &__action {
+    @media (min-width: 900px) {
+      // Nunca queda más angosta que el ancho real de un plan-card (ver
+      // .join-plans__grid) — con 2 planes en la columna de acción angosta,
+      // "estirar" en vez de scrollear/apilar se ve mejor que forzar 2
+      // columnas en un espacio insuficiente.
+      background: var(--join-bg, var(--brand-ink));
+      border: 1px solid var(--brand-ink-surface);
+      border-radius: 14px;
+      padding: 1.75rem;
+      margin-top: 0;
+    }
+  }
 }
 
 // Estado intermedio (verificando con Google) — reemplaza al botón por completo
@@ -137,6 +196,10 @@
   margin-top: 1rem;
   padding-top: 0.75rem;
   border-top: 1px solid var(--brand-ink-surface-2);
+
+  @media (min-width: 900px) {
+    justify-content: flex-start;
+  }
 
   a {
     display: inline-flex;
@@ -282,6 +345,10 @@
 .join-logo {
   display: flex;
   justify-content: center;
+
+  @media (min-width: 900px) {
+    justify-content: flex-start;
+  }
 
   img {
     width: 96px;

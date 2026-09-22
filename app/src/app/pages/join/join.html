@@ -39,103 +39,107 @@
     [style.--brand-accent-text-safe]="accentTextSafe()"
   >
     <div class="join-card">
-      @if (isRasterLogo()) {
-        <div class="join-logo"><img [src]="gym()!.logoSvg" alt="Logo de {{ gym()!.name }}" /></div>
-      } @else if (safeLogo()) {
-        <div class="join-logo" [innerHTML]="safeLogo()"></div>
-      }
+      <div class="join-card__story">
+        @if (isRasterLogo()) {
+          <div class="join-logo"><img [src]="gym()!.logoSvg" alt="Logo de {{ gym()!.name }}" /></div>
+        } @else if (safeLogo()) {
+          <div class="join-logo" [innerHTML]="safeLogo()"></div>
+        }
 
-      <h1>Únete a {{ gym()!.name }}</h1>
-      <p>{{ gym()!.tagline || 'Reserva tus clases y gestiona tu membresía con tu cuenta de Google.' }}</p>
-      @if (gym()!.description) {
-        <p class="join-description">{{ gym()!.description }}</p>
-      }
+        <h1>Únete a {{ gym()!.name }}</h1>
+        <p>{{ gym()!.tagline || 'Reserva tus clases y gestiona tu membresía con tu cuenta de Google.' }}</p>
+        @if (gym()!.description) {
+          <p class="join-description">{{ gym()!.description }}</p>
+        }
 
-      @if (photos().length > 0) {
-        <div class="join-gallery">
-          @for (photo of photos(); track photo.id) {
-            <img [src]="photo.data" [alt]="photo.caption ?? 'Foto de las instalaciones'" />
-          }
-        </div>
-      }
-
-      @if (plansLoaded() && plans().length > 0) {
-        <div class="join-plans">
-          <p class="join-plans__label">Planes disponibles</p>
-          <div class="join-plans__grid">
-            @for (plan of plans(); track plan.id) {
-              <div class="join-plan-card" [class.join-plan-card--highlight]="plan.id === highlightedPlanId()">
-                @if (plan.id === highlightedPlanId()) {
-                  <span class="join-plan-card__badge">
-                    <ion-icon name="sparkles-outline" aria-hidden="true"></ion-icon>
-                    Recomendado
-                  </span>
-                }
-                <h3>{{ plan.name }}</h3>
-                <p class="join-plan-card__price">{{ formatClp(plan.priceClp) }}<span> / mes</span></p>
-                <p class="join-plan-card__quota">{{ quotaLabel(plan) }}</p>
-              </div>
+        @if (photos().length > 0) {
+          <div class="join-gallery">
+            @for (photo of photos(); track photo.id) {
+              <img [src]="photo.data" [alt]="photo.caption ?? 'Foto de las instalaciones'" />
             }
           </div>
-          <p class="join-plans__note">
-            <ion-icon name="information-circle-outline" aria-hidden="true"></ion-icon>
-            Elige tu plan apenas te unas — no necesitas decidir ahora.
-          </p>
-        </div>
-      }
+        }
 
-      @if (status() === 'ready') {
-        @if (gym()!.googleLoginEnabled) {
-          <div class="google-auth">
-            <div class="google-auth__frame">
-              <asl-google-signin-button type="standard" size="large" text="signin_with" shape="pill" theme="outline" logo_alignment="left" />
-            </div>
+        @if (instagramUrl() || whatsappLink()) {
+          <div class="join-contact">
+            @if (instagramUrl()) {
+              <a [href]="instagramUrl()" target="_blank" rel="noopener">
+                <ion-icon name="logo-instagram" aria-hidden="true"></ion-icon>
+                Instagram
+              </a>
+            }
+            @if (whatsappLink()) {
+              <a [href]="whatsappLink()" target="_blank" rel="noopener">
+                <ion-icon name="logo-whatsapp" aria-hidden="true"></ion-icon>
+                WhatsApp
+              </a>
+            }
           </div>
-        } @else {
-          <ion-text color="medium">
-            <p>Este gimnasio todavía no habilitó el ingreso con Google. Consulta con tu gimnasio.</p>
+        }
+      </div>
+
+      <div class="join-card__action">
+        @if (plansLoaded() && plans().length > 0) {
+          <div class="join-plans">
+            <p class="join-plans__label">Planes disponibles</p>
+            <div class="join-plans__grid">
+              @for (plan of plans(); track plan.id) {
+                <div class="join-plan-card" [class.join-plan-card--highlight]="plan.id === highlightedPlanId()">
+                  @if (plan.id === highlightedPlanId()) {
+                    <span class="join-plan-card__badge">
+                      <ion-icon name="sparkles-outline" aria-hidden="true"></ion-icon>
+                      Recomendado
+                    </span>
+                  }
+                  <h3>{{ plan.name }}</h3>
+                  <p class="join-plan-card__price">{{ formatClp(plan.priceClp) }}<span> / mes</span></p>
+                  <p class="join-plan-card__quota">{{ quotaLabel(plan) }}</p>
+                </div>
+              }
+            </div>
+            <p class="join-plans__note">
+              <ion-icon name="information-circle-outline" aria-hidden="true"></ion-icon>
+              Elige tu plan apenas te unas — no necesitas decidir ahora.
+            </p>
+          </div>
+        }
+
+        @if (status() === 'ready') {
+          @if (gym()!.googleLoginEnabled) {
+            <div class="google-auth">
+              <div class="google-auth__frame">
+                <asl-google-signin-button type="standard" size="large" text="signin_with" shape="pill" theme="outline" logo_alignment="left" />
+              </div>
+            </div>
+          } @else {
+            <ion-text color="medium">
+              <p>Este gimnasio todavía no habilitó el ingreso con Google. Consulta con tu gimnasio.</p>
+            </ion-text>
+          }
+        } @else if (status() === 'joining') {
+          <div class="join-status">
+            <ion-spinner name="crescent"></ion-spinner>
+            <p>Verificando tu cuenta con Google...</p>
+          </div>
+        } @else if (status() === 'welcome') {
+          <div class="join-welcome">
+            <ion-icon name="sparkles-outline" aria-hidden="true"></ion-icon>
+            @if (isNewMember()) {
+              <h2>¡Estamos creando tu cuenta en {{ gym()!.name }}!</h2>
+              <p>Ya casi puedes reservar tu primera clase.</p>
+            } @else {
+              <h2>¡Qué bueno verte de nuevo!</h2>
+              <p>Estamos abriendo tu portal en {{ gym()!.name }}.</p>
+            }
+          </div>
+        }
+
+        @if (errorMessage()) {
+          <ion-text color="danger">
+            <p>{{ errorMessage() }}</p>
           </ion-text>
         }
-      } @else if (status() === 'joining') {
-        <div class="join-status">
-          <ion-spinner name="crescent"></ion-spinner>
-          <p>Verificando tu cuenta con Google...</p>
-        </div>
-      } @else if (status() === 'welcome') {
-        <div class="join-welcome">
-          <ion-icon name="sparkles-outline" aria-hidden="true"></ion-icon>
-          @if (isNewMember()) {
-            <h2>¡Estamos creando tu cuenta en {{ gym()!.name }}!</h2>
-            <p>Ya casi puedes reservar tu primera clase.</p>
-          } @else {
-            <h2>¡Qué bueno verte de nuevo!</h2>
-            <p>Estamos abriendo tu portal en {{ gym()!.name }}.</p>
-          }
-        </div>
-      }
-
-      @if (errorMessage()) {
-        <ion-text color="danger">
-          <p>{{ errorMessage() }}</p>
-        </ion-text>
-      }
-
-      @if (instagramUrl() || whatsappLink()) {
-        <div class="join-contact">
-          @if (instagramUrl()) {
-            <a [href]="instagramUrl()" target="_blank" rel="noopener">
-              <ion-icon name="logo-instagram" aria-hidden="true"></ion-icon>
-              Instagram
-            </a>
-          }
-          @if (whatsappLink()) {
-            <a [href]="whatsappLink()" target="_blank" rel="noopener">
-              <ion-icon name="logo-whatsapp" aria-hidden="true"></ion-icon>
-              WhatsApp
-            </a>
-          }
-        </div>
-      }
+      </div>
     </div>
   </ion-content>
 }
