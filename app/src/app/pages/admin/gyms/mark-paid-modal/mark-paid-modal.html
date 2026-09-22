@@ -1,0 +1,48 @@
+<div class="ion-page">
+<ion-header>
+  <ion-toolbar>
+    <ion-title>
+      <ion-icon name="card-outline" aria-hidden="true"></ion-icon>
+      Marcar pago — {{ memberName }}
+    </ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="cancel()">Cerrar</ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <p class="mark-paid-plans__label">Planes disponibles</p>
+  <div class="mark-paid-plans__grid">
+    @for (plan of plansList(); track plan.id) {
+      <button
+        type="button"
+        class="mark-paid-plan-card"
+        [class.mark-paid-plan-card--selected]="selectedPlanId() === plan.id"
+        (click)="selectPlan(plan)"
+      >
+        @if (selectedPlanId() === plan.id) {
+          <ion-icon class="mark-paid-plan-card__check" name="checkmark-circle" aria-hidden="true"></ion-icon>
+        }
+        <h3>{{ plan.name }}</h3>
+        <p class="mark-paid-plan-card__price">{{ formatClp(plan.priceClp) }}<span> / mes</span></p>
+        <p class="mark-paid-plan-card__quota">{{ quotaLabel(plan) }}</p>
+      </button>
+    }
+  </div>
+  <p class="item-hint">Queda registrado igual que un pago real de Flow.cl.</p>
+</ion-content>
+
+<ion-footer>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-button (click)="cancel()">Cancelar</ion-button>
+    </ion-buttons>
+    <ion-buttons slot="end">
+      <ion-button strong [disabled]="!canConfirm()" (click)="confirm()">
+        {{ isSaving() ? 'Guardando...' : 'Confirmar' }}
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-footer>
+</div>

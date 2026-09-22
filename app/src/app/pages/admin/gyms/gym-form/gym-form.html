@@ -806,6 +806,25 @@
         </ion-list>
       </ion-card-content>
     </ion-card>
+
+    <ion-modal
+      [isOpen]="markPaidMember() !== null"
+      (didDismiss)="closeMarkPaidModal()"
+      [style.--ion-color-primary]="themeColor()"
+      [style.--ion-color-primary-contrast]="themeContrast()"
+      [style.--brand-accent]="themeColor()"
+      [style.--brand-accent-contrast]="themeContrast()"
+    >
+      <ng-template>
+        <app-mark-paid-modal
+          [memberName]="markPaidMember()?.name ?? ''"
+          [plans]="plans()"
+          [saving]="markingPaidId() === markPaidMember()?.id"
+          (confirmed)="confirmMarkPaid($event)"
+          (dismiss)="closeMarkPaidModal()"
+        />
+      </ng-template>
+    </ion-modal>
     } @else if (section() === 'branding') {
     <ion-card>
       <ion-card-header class="card-header-row">

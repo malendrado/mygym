@@ -1,0 +1,80 @@
+// Mismo lenguaje visual que .join-plans/.join-plan-card (join.scss) — el usuario pidió
+// explícitamente que el picker de "Marcar pago" se vea como el bloque "Planes disponibles"
+// que ya ve el socio antes de unirse, no como una lista de radios con calugas ion-badge.
+// Diferencia real: acá SÍ hay que elegir un plan (join.html es solo informativo), así que se
+// agrega estado seleccionable (borde + ion-icon check) y grid con wrap en vez de scroll
+// horizontal — no hace falta ahorrar espacio dentro de un modal centrado.
+.mark-paid-plans__label {
+  margin: 0.25rem 0 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--brand-text-dim);
+}
+
+.mark-paid-plans__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.6rem;
+  margin-bottom: 0.75rem;
+}
+
+.mark-paid-plan-card {
+  position: relative;
+  text-align: left;
+  border: 1px solid var(--brand-ink-surface-2);
+  border-radius: 14px;
+  padding: 0.75rem;
+  background: var(--brand-ink-surface);
+  color: var(--brand-text);
+  font-family: var(--brand-font-display);
+  cursor: pointer;
+  min-height: 44px;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+
+  &:hover {
+    border-color: var(--ion-color-primary, var(--brand-accent));
+  }
+
+  &--selected {
+    border-color: var(--ion-color-primary, var(--brand-accent));
+    background: color-mix(in srgb, var(--ion-color-primary, var(--brand-accent)) 14%, var(--brand-ink-surface));
+  }
+
+  h3 {
+    margin: 0 0 0.25rem;
+    font-size: 0.9rem;
+    font-family: var(--brand-font-heading);
+    padding-right: 1.25rem;
+  }
+}
+
+.mark-paid-plan-card__check {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+  font-size: 1.1rem;
+  color: var(--ion-color-primary, var(--brand-accent));
+}
+
+.mark-paid-plan-card__price {
+  margin: 0;
+  font-family: var(--brand-font-mono);
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--brand-accent-text-safe, var(--brand-accent));
+
+  span {
+    font-family: var(--brand-font-display);
+    font-size: 0.65rem;
+    font-weight: 400;
+    color: var(--brand-text-dim);
+  }
+}
+
+.mark-paid-plan-card__quota {
+  margin: 0.2rem 0 0;
+  font-size: 0.72rem;
+  color: var(--brand-text-dim);
+}

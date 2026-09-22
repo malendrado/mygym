@@ -85,6 +85,7 @@ import { Attendee, InviteStatus, Member, MembershipStatus } from '../../../../co
 import { BloqueFormModal, DAYS } from '../bloque-form-modal/bloque-form-modal';
 import { BloqueSeriesModal } from '../bloque-series-modal/bloque-series-modal';
 import { PlanFormModal } from '../plan-form-modal/plan-form-modal';
+import { MarkPaidModal } from '../mark-paid-modal/mark-paid-modal';
 import { QuantityStepper } from '../../../../core/components/quantity-stepper/quantity-stepper';
 import { registerClassCategoryIcons, resolveClassCategoryIcon } from '../../../../core/utils/class-category';
 import {
@@ -320,6 +321,7 @@ const THEMED_ROOT_PROPERTIES = [
     BloqueFormModal,
     BloqueSeriesModal,
     PlanFormModal,
+    MarkPaidModal,
     QuantityStepper,
   ],
   templateUrl: './gym-form.html',
@@ -1210,38 +1212,35 @@ export class GymForm implements OnDestroy {
   // Registro manual para dinero que no pasó por Flow.cl (efectivo/transferencia) — el
   // super-admin elige el plan que el socio pagó y queda persistido de verdad
   // (GymService.simulatePlanPayment).
-  protected async markMemberPaid(member: Member): Promise<void> {
-    const id = this.gymId();
-    if (id === null) {
-      return;
-    }
-    const plans = this.plans();
-    if (plans.length === 0) {
+  // Reemplaza el ion-alert de radios planas: el admin necesita ver el mismo detalle de
+  // precio/cupo (las "calugas") que el socio ve antes de pagar en /member — un ion-alert no
+  // admite HTML/ion-badge dentro de sus inputs, así que se usa un ion-modal con
+  // app-mark-paid-modal (mismo componente compartido que gym-admin.ts).
+  protected readonly markPaidMember = signal<Member | null>(null);
+
+  protected markMemberPaid(member: Member): void {
+    if (this.plans().length === 0) {
       this.showToast('Primero crea un plan en la pestaña Planes.', 'danger');
       return;
     }
-    const alert = await this.alertController.create({
-      header: `Marcar pago — ${member.name}`,
-      inputs: plans.map((plan, index) => ({
-        type: 'radio' as const,
-        label: plan.name,
-        value: plan.id,
-        checked: index === 0,
-      })),
-      buttons: [
-        { text: 'Cancelar', role: 'cancel' },
-        { text: 'Confirmar', role: 'confirm' },
-      ],
-    });
-    await alert.present();
-    const { role, data } = await alert.onDidDismiss();
-    if (role !== 'confirm' || !data?.values) {
+    this.markPaidMember.set(member);
+  }
+
+  protected closeMarkPaidModal(): void {
+    this.markPaidMember.set(null);
+  }
+
+  protected confirmMarkPaid(planId: number): void {
+    const id = this.gymId();
+    const member = this.markPaidMember();
+    if (id === null || !member) {
       return;
     }
     this.markingPaidId.set(member.id);
-    this.memberService.markPaidForGym(id, member.id, { planId: data.values }).subscribe({
+    this.memberService.markPaidForGym(id, member.id, { planId }).subscribe({
       next: () => {
         this.markingPaidId.set(null);
+        this.markPaidMember.set(null);
         this.showToast(`Pago registrado para ${member.name}.`);
         this.loadMembers(id);
       },
