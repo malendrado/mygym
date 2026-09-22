@@ -756,7 +756,7 @@
   }
 
   @media (min-width: 760px) {
-    .security-grid { grid-template-columns: repeat(3, 1fr); }
+    .security-grid { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
   }
 
   .security-card {
@@ -942,6 +942,7 @@
       <div class="hero-trust">
         <span>🔐 <b>Row Level Security</b> real por gimnasio</span>
         <span>📅 Reservas <b>en tiempo real</b></span>
+        <span>💳 Pagos con <b>Flow</b> o transferencia</span>
         <span>✉️ Emails <b>automáticos</b></span>
       </div>
     </div>
@@ -1093,6 +1094,21 @@
         <div class="accordion-item">
           <button class="accordion-trigger">
             <span class="accordion-trigger__title">
+              <span class="accordion-trigger__icon">🔍</span>
+              <b>Control diario de tus socios</b>
+            </span>
+            <svg class="accordion-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+          <div class="accordion-panel"><div><div class="accordion-body">
+            Busca a cualquier socio por nombre o email, márcale el pago si te transfirió, o quítale el plan
+            si dejó de entrenar — todo en un clic. Tu panel además te avisa qué te falta configurar
+            (planes, horarios, marca, cobro) y te deja copiar tu link de alta al toque para compartirlo.
+            <span class="accordion-benefit">✓ Todo el día a día — y el arranque — resuelto desde un solo panel</span>
+          </div></div></div>
+        </div>
+        <div class="accordion-item">
+          <button class="accordion-trigger">
+            <span class="accordion-trigger__title">
               <span class="accordion-trigger__icon">🏷️</span>
               <b>Planes y precios</b>
             </span>
@@ -1101,6 +1117,21 @@
           <div class="accordion-panel"><div><div class="accordion-body">
             Tus propios planes, precios y cupos mensuales — se cambian desde el panel, sin pedirle nada a nadie.
             <span class="accordion-benefit">✓ Los precios se ajustan el mismo día que se decide subirlos</span>
+          </div></div></div>
+        </div>
+        <div class="accordion-item">
+          <button class="accordion-trigger">
+            <span class="accordion-trigger__title">
+              <span class="accordion-trigger__icon">💳</span>
+              <b>Cobro de membresías</b>
+            </span>
+            <svg class="accordion-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+          <div class="accordion-panel"><div><div class="accordion-body">
+            Tus socios pagan con Flow (tarjeta, Webpay y más medios) o transfieren directo a la cuenta
+            que configures — el pago con Flow se confirma solo, apenas se hace, sin que nadie tenga que
+            revisarlo a mano. La comisión de la pasarela se ve clara antes de pagar, nunca es una sorpresa.
+            <span class="accordion-benefit">✓ Dejas de perseguir transferencias a mano — y cuando sí llegan, las confirmas con un clic</span>
           </div></div></div>
         </div>
         <div class="accordion-item">
@@ -1311,6 +1342,12 @@
         <div class="security-card__icon">🔐</div>
         <h3>Sin contraseñas propias</h3>
         <p>Autenticación con Google (OAuth) — mygym nunca guarda ni gestiona contraseñas de nadie.</p>
+      </div>
+      <div class="security-card">
+        <div class="security-card__icon">🧹</div>
+        <h3>Borrado total cuando corresponde</h3>
+        <p>Si un socio pide eliminar su registro, se borra por completo — reservas, historial y pagos
+          incluidos, sin dejar nada suelto en ninguna tabla.</p>
       </div>
     </div>
   </section>
