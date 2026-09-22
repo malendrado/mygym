@@ -156,9 +156,15 @@
   }
 }
 
-// Vista previa de planes antes del alta — fila con scroll horizontal (mismo
-// patrón de densidad mobile-first que el resto de la app) en vez de tarjetas
-// apiladas, para no empujar el botón de Google fuera de la pantalla.
+// Vista previa de planes antes del alta. Antes era una fila con scroll
+// horizontal (para no empujar el botón de Google fuera de la pantalla) —
+// pedido explícito del usuario de sacarla: el scroll lateral esconde planes
+// (nadie los descubre todos) y el patrón oculta que hay más de un plan real,
+// dos anti-patrones para lo que tiene que ser la parte más persuasiva de la
+// página. Reemplazado por una grilla que envuelve (auto-fit, mismo patrón que
+// ya usa .plan-grid en member.ts) — crece hacia abajo en vez de a los lados,
+// nunca genera scroll lateral, y el botón de Google simplemente queda más
+// abajo (scroll vertical normal, no un problema real).
 .join-plans {
   margin: 0 0 1.5rem;
   text-align: left;
@@ -174,16 +180,15 @@
 }
 
 .join-plans__grid {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 0.6rem;
-  overflow-x: auto;
-  scroll-snap-type: x proximity;
-  padding-bottom: 0.25rem;
   margin-bottom: 0.5rem;
-  scrollbar-width: none;
 
-  &::-webkit-scrollbar {
-    display: none;
+  // En desktop, minmax(140px, 1fr) estira cada tarjeta a cientos de px —
+  // mismo tope que .plan-grid en member.ts, para que no se vean "vacías".
+  @media (min-width: 640px) {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 200px));
   }
 }
 
@@ -210,19 +215,44 @@
 }
 
 .join-plan-card {
-  flex: 0 0 auto;
-  scroll-snap-align: start;
-  width: 148px;
+  position: relative;
   border: 1px solid var(--brand-ink-surface-2);
   border-radius: 14px;
-  padding: 0.75rem;
+  padding: 0.85rem 0.75rem 0.75rem;
+  text-align: center;
   // Antes usaba --brand-ink (el token global fijo) en vez de --join-card como el resto de
   // las superficies de esta página — daba igual mientras --brand-ink siempre fuera oscuro,
   // pero desincroniza esta tarjeta del resto en un join claro. Mismo fallback que --join-bg.
   background: var(--join-card, var(--brand-ink-surface-2));
 
+  // Mismo patrón que .plan-card--highlight en member.ts — el plan de precio
+  // intermedio se destaca con el acento del propio gym, para guiar la
+  // elección en vez de dejar 3-5 opciones con el mismo peso visual.
+  &--highlight {
+    border-color: var(--brand-accent);
+  }
+
+  &__badge {
+    position: absolute;
+    top: -0.6rem;
+    left: 50%;
+    transform: translateX(-50%);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: var(--brand-accent);
+    color: var(--brand-accent-contrast);
+    border-radius: 999px;
+    padding: 0.15rem 0.55rem;
+    font-size: 0.62rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+  }
+
   h3 {
-    margin: 0 0 0.25rem;
+    margin: 0.3rem 0 0.25rem;
     font-size: 0.9rem;
     font-family: var(--brand-font-heading);
   }

@@ -71,6 +71,19 @@ export class Join {
   protected readonly accentTextSafe = computed(() =>
     ensureMinContrastColor(this.gym()?.themeColor ?? '#c6ff3d', this.themeSurface().card),
   );
+  // Mismo criterio que member.ts (withHighlight): con 3+ planes, el de precio
+  // intermedio se marca "Recomendado" — heurística visual pura, no una señal
+  // del admin. Con 1-2 planes no hay "intermedio" real, así que no se destaca
+  // ninguno (evita un badge arbitrario en un plan único o en el más caro).
+  protected readonly highlightedPlanId = computed<number | null>(() => {
+    const list = this.plans();
+    if (list.length < 3) {
+      return null;
+    }
+    const sorted = [...list].sort((a, b) => a.priceClp - b.priceClp);
+    return sorted[Math.floor(sorted.length / 2)].id;
+  });
+
   protected readonly isRasterLogo = computed(() => (this.gym()?.logoSvg ?? '').startsWith('data:image'));
   protected readonly safeLogo = computed(() => {
     const svg = this.gym()?.logoSvg;
