@@ -640,6 +640,116 @@ ion-segment-button.segment-button-checked {
   }
 }
 
+// Pedido explícito del usuario: General quedaba casi vacío debajo de las
+// calugas de socios ("no muestra casi nada"). Consultada ui-ux-pro-max:
+// llenar con acción real, nunca relleno decorativo — compartir el link de
+// alta es la acción de mayor valor real que puede hacer un dueño de gym acá.
+.share-link-card {
+  border: 1px solid var(--brand-ink-surface-2);
+  border-radius: 14px;
+  padding: 0.9rem 1rem;
+  background: var(--gym-panel-card, var(--brand-ink-surface-2));
+  margin-bottom: 1rem;
+}
+
+.share-link-card__title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0.3rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+
+  ion-icon {
+    color: var(--brand-accent);
+    font-size: 1.1rem;
+  }
+}
+
+.share-link-card__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+  flex-wrap: wrap;
+
+  code {
+    font-family: var(--brand-font-mono);
+    font-size: 0.85rem;
+    color: var(--brand-text);
+    background: var(--brand-ink-surface-2);
+    padding: 0.35rem 0.6rem;
+    border-radius: 8px;
+    overflow-wrap: anywhere;
+  }
+
+  ion-button {
+    margin: 0;
+    flex-shrink: 0;
+  }
+}
+
+// Checklist de "próximos pasos" — desaparece solo apenas se completan los 4
+// puntos (setupPending() queda vacío), nunca un tutorial pegado para siempre.
+.setup-checklist {
+  border: 1px solid var(--brand-ink-surface-2);
+  border-radius: 14px;
+  padding: 0.9rem 1rem;
+  background: var(--gym-panel-card, var(--brand-ink-surface-2));
+}
+
+.setup-checklist__title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+
+  ion-icon {
+    color: var(--brand-accent);
+    font-size: 1.1rem;
+  }
+}
+
+.setup-checklist__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+
+  button {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    min-height: 44px;
+    background: none;
+    border: none;
+    padding: 0.4rem 0.2rem;
+    color: var(--brand-text);
+    font-size: 0.85rem;
+    text-align: left;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: background-color 0.15s ease;
+
+    &:hover,
+    &:focus-visible {
+      background: var(--brand-ink-surface-2);
+    }
+
+    ion-icon {
+      flex-shrink: 0;
+      font-size: 1rem;
+      color: var(--brand-text-dim);
+    }
+  }
+}
+
 .member-stat__value {
   margin: 0 0 0.15rem;
   font-family: var(--brand-font-mono);

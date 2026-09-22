@@ -171,6 +171,40 @@
         <p class="member-stat__label">Invitados registrados</p>
       </div>
     </div>
+
+    <div class="share-link-card">
+      <p class="share-link-card__title">
+        <ion-icon name="link-outline" aria-hidden="true"></ion-icon>
+        Comparte tu link de alta
+      </p>
+      <p class="item-hint">Envíaselo a tus futuros socios para que se registren directo, sin pasar por ti.</p>
+      <div class="share-link-card__row">
+        <code>{{ joinUrl() }}</code>
+        <ion-button fill="clear" size="small" (click)="copyJoinLink()">
+          <ion-icon name="copy-outline" slot="start" aria-hidden="true"></ion-icon>
+          Copiar
+        </ion-button>
+      </div>
+    </div>
+
+    @if (setupPending().length > 0) {
+      <div class="setup-checklist">
+        <p class="setup-checklist__title">
+          <ion-icon name="rocket-outline" aria-hidden="true"></ion-icon>
+          Completa la configuración de tu gimnasio
+        </p>
+        <ul class="setup-checklist__list">
+          @for (item of setupPending(); track item.key) {
+            <li>
+              <button type="button" (click)="setSection(item.section)">
+                <ion-icon name="ellipse-outline" aria-hidden="true"></ion-icon>
+                {{ item.label }}
+              </button>
+            </li>
+          }
+        </ul>
+      </div>
+    }
   } @else if (section() === 'blocks') {
     <ion-card>
       <ion-card-header class="card-header-row">

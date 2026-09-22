@@ -45,10 +45,13 @@ import {
   closeCircleOutline,
   cloudUploadOutline,
   colorPaletteOutline,
+  copyOutline,
   createOutline,
+  ellipseOutline,
   helpCircleOutline,
   hourglassOutline,
   imagesOutline,
+  linkOutline,
   logOutOutline,
   logoGoogle,
   megaphoneOutline,
@@ -60,6 +63,7 @@ import {
   pricetagOutline,
   refreshOutline,
   removeCircleOutline,
+  rocketOutline,
   searchOutline,
   settingsOutline,
   timeOutline,
@@ -135,6 +139,10 @@ addIcons({
   'close-circle-outline': closeCircleOutline,
   'help-circle-outline': helpCircleOutline,
   'person-outline': personOutline,
+  'rocket-outline': rocketOutline,
+  'ellipse-outline': ellipseOutline,
+  'link-outline': linkOutline,
+  'copy-outline': copyOutline,
   'logo-google': logoGoogle,
   'barbell-outline': barbellOutline,
 });
@@ -374,6 +382,33 @@ export class GymAdmin implements OnDestroy {
   protected readonly gymName = signal('');
   protected readonly gymSlug = signal<string | null>(null);
   protected readonly gymLoaded = signal(false);
+
+  // Checklist de "Próximos pasos" en General — pedido explícito del usuario tras ver que la
+  // pestaña quedaba casi vacía debajo de las calugas de socios ("no muestra casi nada").
+  // Consultada la skill ui-ux-pro-max: nunca dejar un dashboard con espacio muerto, mostrar
+  // acción concreta en vez de relleno decorativo. Cada item apunta a la pestaña donde se
+  // resuelve; la lista entera desaparece sola apenas los 4 items están completos (no queda
+  // como "tutorial" pegado para siempre).
+  protected readonly hasActivePlan = computed(() => this.plans().some((p) => p.active));
+  protected readonly hasSchedule = computed(() => this.blocks().length > 0);
+  protected readonly hasBranding = computed(() => !!this.gym()?.logoSvg);
+  protected readonly hasBankTransfer = computed(() => {
+    const g = this.gym();
+    return !!(g?.bankName && g.bankAccountType && g.bankAccountNumber && g.bankHolderRut && g.bankHolderName);
+  });
+  protected readonly setupChecklist = computed(() => [
+    { key: 'plans', label: 'Crea al menos un plan de membresía', done: this.hasActivePlan(), section: 'plans' as Section },
+    { key: 'schedule', label: 'Configura tus horarios de clases', done: this.hasSchedule(), section: 'blocks' as Section },
+    { key: 'branding', label: 'Sube el logo de tu gimnasio', done: this.hasBranding(), section: 'branding' as Section },
+    {
+      key: 'bank',
+      label: 'Carga tus datos bancarios (transferencia)',
+      done: this.hasBankTransfer(),
+      section: 'branding' as Section,
+    },
+  ]);
+  protected readonly setupPending = computed(() => this.setupChecklist().filter((item) => !item.done));
+
   protected readonly blocks = signal<GymBlock[]>([]);
   // Antes se mostraban TODOS los bloques en una sola lista larga — con varios
   // días configurados, el scroll se volvía interminable (reportado por el
@@ -1429,6 +1464,24 @@ export class GymAdmin implements OnDestroy {
     await this.authService.logout();
     const slug = this.gymSlug();
     this.router.navigate([slug ? `/j/${slug}` : '/login']);
+  }
+
+  protected readonly joinUrl = computed(() => {
+    const slug = this.gymSlug();
+    return slug ? `mygym.cl/j/${slug}` : '';
+  });
+
+  protected async copyJoinLink(): Promise<void> {
+    const slug = this.gymSlug();
+    if (!slug) {
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(`https://www.mygym.cl/j/${slug}`);
+      this.showToast('Link copiado.');
+    } catch {
+      this.showToast('No pudimos copiar el link. Cópialo a mano.', 'danger');
+    }
   }
 
   private loadGym(): void {
