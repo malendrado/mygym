@@ -14,6 +14,9 @@ public interface AppUserRepository extends JpaRepository<AppUser, Long> {
 
     List<AppUser> findByGymIdAndRole(Long gymId, Role role);
 
+    /** Buscador por nombre para el admin (cancelar la reserva de un socio puntual). */
+    List<AppUser> findByGymIdAndRoleAndNameContainingIgnoreCase(Long gymId, Role role, String name);
+
     Optional<AppUser> findByIdAndGymId(Long id, Long gymId);
 
     /** Usado por MembershipReminderJob — solo socios que alguna vez pagaron. */

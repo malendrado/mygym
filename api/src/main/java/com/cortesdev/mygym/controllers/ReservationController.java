@@ -1,10 +1,10 @@
 package com.cortesdev.mygym.controllers;
 
-import com.cortesdev.mygym.models.AppUser;
 import com.cortesdev.mygym.models.dto.AttendeeSummaryResponse;
 import com.cortesdev.mygym.models.dto.GymBlockOccurrenceResponse;
 import com.cortesdev.mygym.models.dto.GymPhotoResponse;
 import com.cortesdev.mygym.models.dto.MemberPlanResponse;
+import com.cortesdev.mygym.models.dto.MemberReservation;
 import com.cortesdev.mygym.models.dto.MemberResponse;
 import com.cortesdev.mygym.models.dto.PublicGymResponse;
 import com.cortesdev.mygym.models.dto.ReservationCreateRequest;
@@ -90,9 +90,10 @@ public class ReservationController {
                 .toList();
     }
 
-    private AttendeeSummaryResponse toAttendeeSummary(AppUser user) {
-        String firstName = user.getName() == null ? "Socio" : user.getName().split(" ")[0];
-        return new AttendeeSummaryResponse(firstName, user.getPhotoUrl());
+    private AttendeeSummaryResponse toAttendeeSummary(MemberReservation mr) {
+        String name = mr.member().getName();
+        String firstName = name == null ? "Socio" : name.split(" ")[0];
+        return new AttendeeSummaryResponse(firstName, mr.member().getPhotoUrl());
     }
 
     @GetMapping("/gym-blocks")

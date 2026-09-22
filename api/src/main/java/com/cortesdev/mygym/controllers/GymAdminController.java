@@ -1,9 +1,9 @@
 package com.cortesdev.mygym.controllers;
 
-import com.cortesdev.mygym.models.AppUser;
 import com.cortesdev.mygym.models.dto.AttendeeResponse;
 import com.cortesdev.mygym.models.dto.BlockCreateRequest;
 import com.cortesdev.mygym.models.dto.BlockOccurrenceAttendeesResponse;
+import com.cortesdev.mygym.models.dto.MemberReservation;
 import com.cortesdev.mygym.models.dto.OccurrenceAttendees;
 import com.cortesdev.mygym.models.dto.BlockResponse;
 import com.cortesdev.mygym.models.dto.BlockUpdateRequest;
@@ -68,8 +68,9 @@ public class GymAdminController {
                 .toList();
     }
 
-    private AttendeeResponse toAttendeeResponse(AppUser user) {
-        return new AttendeeResponse(user.getId(), user.getName(), user.getEmail(), user.getPhotoUrl());
+    private AttendeeResponse toAttendeeResponse(MemberReservation mr) {
+        return new AttendeeResponse(
+                mr.member().getId(), mr.member().getName(), mr.member().getEmail(), mr.member().getPhotoUrl(), mr.reservationId());
     }
 
     // Batch para la pestaña Historial — una sola llamada por semana en vez de una por cada
@@ -91,6 +92,28 @@ public class GymAdminController {
                 occurrence.gymBlockId(),
                 occurrence.classDate(),
                 occurrence.attendees().stream().map(this::toAttendeeResponse).toList());
+    }
+
+    // Buscador de reservas futuras por nombre de socio — pedido explícito del usuario para no
+    // tener que recorrer bloque por bloque/semana por semana. Reusa la misma forma de
+    // respuesta que history-attendees (BlockOccurrenceAttendeesResponse).
+    @GetMapping("/reservations/search")
+    public List<BlockOccurrenceAttendeesResponse> searchMyReservations(
+            @AuthenticationPrincipal Jwt jwt, @RequestParam String q) {
+        Long gymId = AuthenticatedUser.from(jwt).gymId();
+        return reservationService.searchUpcomingReservations(gymId, q).stream()
+                .map(this::toBatchResponse)
+                .toList();
+    }
+
+    // Vía de urgencia para el admin: cancela la reserva de CUALQUIER socio del gym, sin la
+    // ventana de horas que le aplica a la auto-cancelación del socio (ver
+    // ReservationService.cancelAsAdmin).
+    @DeleteMapping("/reservations/{reservationId}")
+    public ResponseEntity<Void> cancelMyGymReservation(@AuthenticationPrincipal Jwt jwt, @PathVariable Long reservationId) {
+        Long gymId = AuthenticatedUser.from(jwt).gymId();
+        reservationService.cancelAsAdmin(gymId, reservationId);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/blocks")

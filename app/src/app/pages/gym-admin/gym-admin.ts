@@ -58,6 +58,7 @@ import {
   pricetagOutline,
   refreshOutline,
   removeCircleOutline,
+  searchOutline,
   settingsOutline,
   timeOutline,
   trashOutline,
@@ -69,6 +70,7 @@ import { GymService } from '../../core/services/gym.service';
 import { Gym } from '../../core/models/gym.model';
 import { MemberService } from '../../core/services/member.service';
 import {
+  BlockOccurrenceAttendees,
   CreateGymBlockRequest,
   CreateGymPhotoRequest,
   CreateGymPlanRequest,
@@ -113,6 +115,7 @@ addIcons({
   'pricetag-outline': pricetagOutline,
   'refresh-outline': refreshOutline,
   'remove-circle-outline': removeCircleOutline,
+  'search-outline': searchOutline,
   'business-outline': businessOutline,
   'cloud-upload-outline': cloudUploadOutline,
   'create-outline': createOutline,
@@ -175,8 +178,12 @@ function pad2(n: number): string {
   return n.toString().padStart(2, '0');
 }
 
+function todayIsoDate(): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Santiago' }).format(new Date());
+}
+
 function nextOccurrenceDate(dayOfWeek: DayOfWeek): string {
-  const todayIso = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Santiago' }).format(new Date());
+  const todayIso = todayIsoDate();
   const [y, m, d] = todayIso.split('-').map(Number);
   const today = new Date(y, m - 1, d);
   const diff = (DAY_OF_WEEK_INDEX[dayOfWeek] - today.getDay() + 7) % 7;
@@ -436,6 +443,34 @@ export class GymAdmin implements OnDestroy {
   protected readonly historyWeekHasBookings = computed(() =>
     this.historyWeekSummary().some((day) => day.blocks.length > 0),
   );
+
+  // Buscador de reservas futuras por nombre de socio — pedido explícito del usuario para no
+  // tener que recorrer bloque por bloque/semana por semana buscando a alguien puntual. No es
+  // un filtro client-side: los rosters no están cargados completos en memoria (Horarios solo
+  // trae la próxima ocurrencia de cada bloque, Historial solo la semana visible), así que un
+  // buscador real necesita pedirle al backend (ver ReservationService.searchUpcomingReservations).
+  // Mientras hay una búsqueda activa (≥2 caracteres), reemplaza la vista semanal normal de
+  // Historial por la lista de coincidencias.
+  protected readonly reservationSearchQuery = signal('');
+  protected readonly reservationSearchResults = signal<BlockOccurrenceAttendees[] | null>(null);
+  protected readonly reservationSearchLoading = signal(false);
+  private reservationSearchTimeout: ReturnType<typeof setTimeout> | null = null;
+
+  protected readonly reservationSearchBlocks = computed(() => {
+    const results = this.reservationSearchResults();
+    if (!results) {
+      return null;
+    }
+    const blocksById = new Map(this.blocks().map((b) => [b.id, b]));
+    return results
+      .map((occurrence) => {
+        const block = blocksById.get(occurrence.gymBlockId);
+        return block ? { block, date: occurrence.classDate, attendees: occurrence.attendees } : null;
+      })
+      .filter((entry): entry is { block: GymBlock; date: string; attendees: Attendee[] } => entry !== null)
+      .sort((a, b) => a.date.localeCompare(b.date) || a.block.startTime.localeCompare(b.block.startTime));
+  });
+
   protected readonly plans = signal<GymPlan[]>([]);
   protected readonly members = signal<Member[]>([]);
   protected readonly activeMembers = computed(() => this.members().filter((m) => m.membershipStatus === 'ACTIVE').length);
@@ -720,6 +755,12 @@ export class GymAdmin implements OnDestroy {
     return this.isAttendeesLoading(block.id, nextOccurrenceDate(block.dayOfWeek));
   }
 
+  // Necesaria en la plantilla para pasarle la fecha exacta a cancelReservation() —
+  // toggleAttendees/attendeesFor la calculan internamente pero no la exponen.
+  protected blockOccurrenceDate(block: GymBlock): string {
+    return nextOccurrenceDate(block.dayOfWeek);
+  }
+
   // A diferencia de Horarios (siempre "hoy o la próxima ocurrencia"), acá
   // conviven 7 fechas distintas a la vez en pantalla — cada wrapper recibe
   // la fecha del día puntual que el admin está mirando.
@@ -787,6 +828,76 @@ export class GymAdmin implements OnDestroy {
         this.historyLoading.set(false);
       },
       error: () => this.historyLoading.set(false),
+    });
+  }
+
+  protected onReservationSearchInput(value: string): void {
+    this.reservationSearchQuery.set(value);
+    if (this.reservationSearchTimeout) {
+      clearTimeout(this.reservationSearchTimeout);
+    }
+    const trimmed = value.trim();
+    if (trimmed.length < 2) {
+      this.reservationSearchResults.set(null);
+      this.reservationSearchLoading.set(false);
+      return;
+    }
+    // Debounce manual — no hace falta rxjs-interop para un solo input, se sigue el estilo
+    // pragmático (signals + subscribe directo) ya usado en todo este archivo.
+    this.reservationSearchTimeout = setTimeout(() => this.runReservationSearch(trimmed), 300);
+  }
+
+  private runReservationSearch(query: string): void {
+    this.reservationSearchLoading.set(true);
+    this.gymService.searchMyReservations(query).subscribe({
+      next: (results) => {
+        this.reservationSearchResults.set(results);
+        this.reservationSearchLoading.set(false);
+      },
+      error: () => this.reservationSearchLoading.set(false),
+    });
+  }
+
+  // El botón "Cancelar" de admin solo tiene sentido para clases que todavía no pasaron —
+  // cancelar algo que ya ocurrió reescribiría historial (mismo criterio que ya valida el
+  // backend en ReservationService.cancelAsAdmin).
+  protected canCancelOccurrence(date: string): boolean {
+    return date >= todayIsoDate();
+  }
+
+  // Vía de urgencia pedida explícitamente por el usuario: cancela la reserva de CUALQUIER
+  // socio, sin la ventana de horas que le aplica a la auto-cancelación del socio — para cuando
+  // llama al admin porque no llega a cancelar solo y no quiere que la clase le cuente como usada.
+  protected async cancelReservation(attendee: Attendee, blockId: number, date: string): Promise<void> {
+    const confirmed = await this.confirmAction(
+      'Cancelar reserva',
+      `¿Cancelar la reserva de ${attendee.name} para esta clase? Se libera el cupo.`,
+      'Cancelar reserva',
+    );
+    if (!confirmed) {
+      return;
+    }
+    this.gymService.cancelReservation(attendee.reservationId).subscribe({
+      next: () => {
+        const key = this.attendeesKey(blockId, date);
+        this.attendeesByKey.update((map) => ({
+          ...map,
+          [key]: (map[key] ?? []).filter((a) => a.reservationId !== attendee.reservationId),
+        }));
+        this.reservationSearchResults.update((results) =>
+          results
+            ? results
+                .map((occurrence) =>
+                  occurrence.gymBlockId === blockId && occurrence.classDate === date
+                    ? { ...occurrence, attendees: occurrence.attendees.filter((a) => a.reservationId !== attendee.reservationId) }
+                    : occurrence,
+                )
+                .filter((occurrence) => occurrence.attendees.length > 0)
+            : results,
+        );
+        this.showToast('Reserva cancelada.');
+      },
+      error: () => this.showToast('No pudimos cancelar la reserva. Intenta nuevamente.', 'danger'),
     });
   }
 

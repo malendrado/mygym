@@ -493,6 +493,17 @@
                           </span>
                         }
                         {{ attendee.name }}
+                        @if (canCancelOccurrence(blockOccurrenceDate(block))) {
+                          <ion-button
+                            fill="clear"
+                            size="small"
+                            color="danger"
+                            [attr.aria-label]="'Cancelar reserva de ' + attendee.name"
+                            (click)="cancelReservation(attendee, block.id, blockOccurrenceDate(block))"
+                          >
+                            <ion-icon name="close-circle-outline" slot="icon-only" aria-hidden="true"></ion-icon>
+                          </ion-button>
+                        }
                       </span>
                     } @empty {
                       <span class="item-hint">Nadie reservado todavía.</span>
@@ -991,6 +1002,15 @@
         </ion-card-title>
       </ion-card-header>
       <ion-card-content>
+        <ion-item lines="none" class="history-search-item">
+          <ion-icon name="search-outline" slot="start" aria-hidden="true"></ion-icon>
+          <ion-input
+            placeholder="Buscar socio por nombre..."
+            [value]="reservationSearchQuery()"
+            (ionInput)="onReservationSearchInput($any($event.detail).value ?? '')"
+          ></ion-input>
+        </ion-item>
+        @if (reservationSearchBlocks() === null) {
         <ion-item lines="none" class="history-date-item">
           <ion-label position="stacked">Semana de</ion-label>
           <input
@@ -1076,6 +1096,17 @@
                                   </span>
                                 }
                                 {{ attendee.name }}
+                                @if (canCancelOccurrence(day.date)) {
+                                  <ion-button
+                                    fill="clear"
+                                    size="small"
+                                    color="danger"
+                                    [attr.aria-label]="'Cancelar reserva de ' + attendee.name"
+                                    (click)="cancelReservation(attendee, block.id, day.date)"
+                                  >
+                                    <ion-icon name="close-circle-outline" slot="icon-only" aria-hidden="true"></ion-icon>
+                                  </ion-button>
+                                }
                               </span>
                             } @empty {
                               <span class="item-hint">Nadie reservado ese día.</span>
@@ -1092,6 +1123,53 @@
         </div>
         @if (!historyLoading() && !historyWeekHasBookings()) {
           <p class="item-hint">Nadie reservó ninguna clase esta semana.</p>
+        }
+        } @else {
+        @if (reservationSearchLoading()) {
+          <div class="ion-text-center">
+            <ion-spinner name="crescent"></ion-spinner>
+          </div>
+        }
+        <div class="block-grid">
+          @for (entry of reservationSearchBlocks(); track entry.block.id + '_' + entry.date) {
+            <div class="block-card">
+              <div class="block-card__header">
+                <h3>
+                  <ion-icon [name]="categoryIcon(entry.block.category)" aria-hidden="true"></ion-icon>
+                  {{ entry.block.label }}
+                </h3>
+              </div>
+              <p class="block-card__time">{{ entry.date }} · {{ entry.block.startTime }}-{{ entry.block.endTime }}</p>
+              <div class="attendees-list">
+                @for (attendee of entry.attendees; track attendee.id) {
+                  <span class="attendees-list__item" [title]="attendee.email">
+                    @if (attendee.photoUrl) {
+                      <img [src]="attendee.photoUrl" alt="" class="attendees-list__avatar" />
+                    } @else {
+                      <span class="attendees-list__avatar attendees-list__avatar--placeholder">
+                        {{ attendee.name.charAt(0) }}
+                      </span>
+                    }
+                    {{ attendee.name }}
+                    <ion-button
+                      fill="clear"
+                      size="small"
+                      color="danger"
+                      [attr.aria-label]="'Cancelar reserva de ' + attendee.name"
+                      (click)="cancelReservation(attendee, entry.block.id, entry.date)"
+                    >
+                      <ion-icon name="close-circle-outline" slot="icon-only" aria-hidden="true"></ion-icon>
+                    </ion-button>
+                  </span>
+                }
+              </div>
+            </div>
+          } @empty {
+            @if (!reservationSearchLoading()) {
+              <p class="item-hint">No encontramos reservas futuras para "{{ reservationSearchQuery() }}".</p>
+            }
+          }
+        </div>
         }
       </ion-card-content>
     </ion-card>

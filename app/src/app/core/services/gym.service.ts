@@ -113,6 +113,28 @@ export class GymService {
     return this.http.get<BlockOccurrenceAttendees[]>(`${this.base}/${gymId}/history-attendees`, { params: { from, to } });
   }
 
+  /** Buscador de reservas futuras por nombre de socio (dueño del gym) — mismo formato de
+   *  respuesta que getMyHistoryAttendees, ver ReservationService.searchUpcomingReservations. */
+  searchMyReservations(query: string): Observable<BlockOccurrenceAttendees[]> {
+    return this.http.get<BlockOccurrenceAttendees[]>(`${this.myGymBase}/reservations/search`, { params: { q: query } });
+  }
+
+  /** Contraparte SUPER_ADMIN de searchMyReservations — mismo backend, gymId por path. */
+  searchReservations(gymId: number, query: string): Observable<BlockOccurrenceAttendees[]> {
+    return this.http.get<BlockOccurrenceAttendees[]>(`${this.base}/${gymId}/reservations/search`, { params: { q: query } });
+  }
+
+  /** Vía de urgencia del admin: cancela la reserva de CUALQUIER socio del gym, sin la ventana
+   *  de horas que le aplica a la auto-cancelación del socio. */
+  cancelReservation(reservationId: number): Observable<void> {
+    return this.http.delete<void>(`${this.myGymBase}/reservations/${reservationId}`);
+  }
+
+  /** Contraparte SUPER_ADMIN de cancelReservation — mismo backend, gymId por path. */
+  cancelReservationForGym(gymId: number, reservationId: number): Observable<void> {
+    return this.http.delete<void>(`${this.base}/${gymId}/reservations/${reservationId}`);
+  }
+
   /**
    * Arranca el pago real con Flow.cl — pago manual mes a mes, sin tarjeta
    * guardada ni cobro automático (mygym no se hace cargo de guardar

@@ -5,7 +5,9 @@ import com.cortesdev.mygym.models.Gym;
 import com.cortesdev.mygym.models.GymBlock;
 import com.cortesdev.mygym.models.Reservation;
 import com.cortesdev.mygym.models.ReservationStatus;
+import com.cortesdev.mygym.models.Role;
 import com.cortesdev.mygym.models.dto.GymBlockOccurrenceResponse;
+import com.cortesdev.mygym.models.dto.MemberReservation;
 import com.cortesdev.mygym.models.dto.OccurrenceAttendees;
 import com.cortesdev.mygym.models.dto.ReservationCreateRequest;
 import com.cortesdev.mygym.models.dto.ReservationResponse;
@@ -115,19 +117,23 @@ public class ReservationService {
     // Quiénes están reservados en una clase puntual — pedido explícito del
     // usuario (admin y socios). El filtrado de qué campos exponer (email
     // solo para admins, nunca para otros socios) queda a cargo del llamador
-    // (controller), no de este método: acá se devuelve el AppUser completo.
+    // (controller), no de este método: acá se devuelve el AppUser completo,
+    // emparejado con el id de SU reserva (necesario para poder cancelarla puntualmente).
     @Transactional(readOnly = true)
-    public List<AppUser> getOccurrenceAttendees(Long gymId, Long gymBlockId, LocalDate classDate) {
+    public List<MemberReservation> getOccurrenceAttendees(Long gymId, Long gymBlockId, LocalDate classDate) {
         gymBlockRepository
                 .findByIdAndGymId(gymBlockId, gymId)
                 .orElseThrow(() -> new GymBlockNotFoundException(gymBlockId, gymId));
-        List<Long> memberIds = reservationRepository
-                .findByGymBlockIdAndClassDateAndStatus(gymBlockId, classDate, ReservationStatus.BOOKED)
+        List<Reservation> reservations = reservationRepository.findByGymBlockIdAndClassDateAndStatus(
+                gymBlockId, classDate, ReservationStatus.BOOKED);
+        Map<Long, AppUser> membersById = appUserRepository
+                .findAllById(reservations.stream().map(Reservation::getMemberId).collect(Collectors.toSet()))
                 .stream()
-                .map(Reservation::getMemberId)
-                .toList();
-        return appUserRepository.findAllById(memberIds).stream()
-                .sorted(Comparator.comparing(AppUser::getName))
+                .collect(Collectors.toMap(AppUser::getId, member -> member));
+        return reservations.stream()
+                .map(r -> new MemberReservation(membersById.get(r.getMemberId()), r.getId()))
+                .filter(mr -> mr.member() != null)
+                .sorted(Comparator.comparing(mr -> mr.member().getName()))
                 .toList();
     }
 
@@ -148,30 +154,55 @@ public class ReservationService {
                 ? List.of()
                 : reservationRepository.findByGymBlockIdInAndClassDateBetweenAndStatus(
                         blockIds, from, to, ReservationStatus.BOOKED);
+        return groupByOccurrence(bookedInRange);
+    }
 
+    // Buscador de reservas futuras por nombre de socio — pedido explícito del usuario para no
+    // tener que recorrer bloque por bloque/semana por semana buscando a alguien puntual (ver
+    // SKILL.md). Solo reservas classDate >= hoy: el caso de uso real es urgencia con una clase
+    // próxima, no gestionar historial (eso ya lo cubre Historial aparte).
+    @Transactional(readOnly = true)
+    public List<OccurrenceAttendees> searchUpcomingReservations(Long gymId, String query) {
+        List<AppUser> matches =
+                appUserRepository.findByGymIdAndRoleAndNameContainingIgnoreCase(gymId, Role.MEMBER, query);
+        if (matches.isEmpty()) {
+            return List.of();
+        }
+        List<Long> memberIds = matches.stream().map(AppUser::getId).toList();
+        List<Reservation> upcoming = reservationRepository.findByMemberIdInAndStatusAndClassDateGreaterThanEqual(
+                memberIds, ReservationStatus.BOOKED, LocalDate.now(GYM_ZONE));
+        return groupByOccurrence(upcoming);
+    }
+
+    // Compartido por getOccurrenceAttendeesForRange (rango de fechas) y
+    // searchUpcomingReservations (coincidencia de nombre) — mismo agrupamiento por
+    // (gymBlockId, classDate), solo cambia de dónde sale la lista de reservas de entrada.
+    private List<OccurrenceAttendees> groupByOccurrence(List<Reservation> reservations) {
         Map<Long, AppUser> membersById = appUserRepository
-                .findAllById(bookedInRange.stream().map(Reservation::getMemberId).collect(Collectors.toSet()))
+                .findAllById(reservations.stream().map(Reservation::getMemberId).collect(Collectors.toSet()))
                 .stream()
                 .collect(Collectors.toMap(AppUser::getId, member -> member));
 
-        Map<OccurrenceGroupKey, List<AppUser>> attendeesByOccurrence = new LinkedHashMap<>();
-        for (Reservation reservation : bookedInRange) {
-            AppUser member = membersById.get(reservation.getMemberId());
-            if (member == null) {
+        Map<OccurrenceGroupKey, List<Reservation>> reservationsByOccurrence = new LinkedHashMap<>();
+        for (Reservation reservation : reservations) {
+            if (!membersById.containsKey(reservation.getMemberId())) {
                 continue;
             }
-            attendeesByOccurrence
+            reservationsByOccurrence
                     .computeIfAbsent(
                             new OccurrenceGroupKey(reservation.getGymBlockId(), reservation.getClassDate()),
                             key -> new ArrayList<>())
-                    .add(member);
+                    .add(reservation);
         }
 
-        return attendeesByOccurrence.entrySet().stream()
+        return reservationsByOccurrence.entrySet().stream()
                 .map(entry -> new OccurrenceAttendees(
                         entry.getKey().gymBlockId(),
                         entry.getKey().classDate(),
-                        entry.getValue().stream().sorted(Comparator.comparing(AppUser::getName)).toList()))
+                        entry.getValue().stream()
+                                .map(r -> new MemberReservation(membersById.get(r.getMemberId()), r.getId()))
+                                .sorted(Comparator.comparing(mr -> mr.member().getName()))
+                                .toList()))
                 .toList();
     }
 
@@ -230,6 +261,29 @@ public class ReservationService {
                 .orElseThrow(() -> new ReservationNotFoundException(reservationId));
         int cancellationWindowHours = findGymOrThrow(block.getGymId()).getCancellationWindowHours();
         requireWithinBookingWindow(cancellationWindowHours, reservation.getClassDate(), block.getStartTime());
+        reservation.setStatus(ReservationStatus.CANCELLED);
+        reservationRepository.save(reservation);
+    }
+
+    // Vía de urgencia pedida explícitamente por el usuario: el socio llama al admin porque no
+    // llega a cancelar solo (bloqueado por requireWithinBookingWindow) y no quiere que esa
+    // clase le cuente como usada. A propósito NO llama requireWithinBookingWindow — esa es
+    // justo la ventana que el admin necesita poder saltarse. Sí valida que la reserva sea de
+    // su propio gym (nunca filtrar que existe en otro) y que la clase no haya pasado ya
+    // (cancelar algo que ya ocurrió no tiene sentido y reescribiría historial).
+    public void cancelAsAdmin(Long gymId, Long reservationId) {
+        Reservation reservation = reservationRepository
+                .findById(reservationId)
+                .orElseThrow(() -> new ReservationNotFoundException(reservationId));
+        GymBlock block = gymBlockRepository
+                .findById(reservation.getGymBlockId())
+                .orElseThrow(() -> new ReservationNotFoundException(reservationId));
+        if (!block.getGymId().equals(gymId)) {
+            throw new ReservationNotFoundException(reservationId);
+        }
+        if (reservation.getClassDate().isBefore(LocalDate.now(GYM_ZONE))) {
+            throw new BookingWindowClosedException("No puedes cancelar una clase que ya pasó");
+        }
         reservation.setStatus(ReservationStatus.CANCELLED);
         reservationRepository.save(reservation);
     }

@@ -40,12 +40,17 @@ export interface MarkPaidRequest {
   planId: number;
 }
 
-/** Vista completa de un socio reservado en una clase — solo para admins. */
+/**
+ * Vista completa de un socio reservado en una clase — solo para admins.
+ * reservationId identifica la reserva puntual (no el socio) — lo necesita el admin para
+ * poder cancelarla (ver GymService.cancelReservation/cancelReservationForGym).
+ */
 export interface Attendee {
   id: number;
   name: string;
   email: string;
   photoUrl: string | null;
+  reservationId: number;
 }
 
 /** Vista reducida para otros socios — nunca email ni apellido. */

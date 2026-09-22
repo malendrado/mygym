@@ -1,6 +1,5 @@
 package com.cortesdev.mygym.controllers;
 
-import com.cortesdev.mygym.models.AppUser;
 import com.cortesdev.mygym.models.dto.AdminCreateRequest;
 import com.cortesdev.mygym.models.dto.AdminResponse;
 import com.cortesdev.mygym.models.dto.AdminStatusUpdateRequest;
@@ -19,6 +18,7 @@ import com.cortesdev.mygym.models.dto.GymPhotoResponse;
 import com.cortesdev.mygym.models.dto.GymResponse;
 import com.cortesdev.mygym.models.dto.MarkPaidRequest;
 import com.cortesdev.mygym.models.dto.MemberCreateRequest;
+import com.cortesdev.mygym.models.dto.MemberReservation;
 import com.cortesdev.mygym.models.dto.MemberResponse;
 import com.cortesdev.mygym.models.dto.OccurrenceAttendees;
 import com.cortesdev.mygym.models.dto.PlanCreateRequest;
@@ -117,8 +117,9 @@ public class GymController {
                 .toList();
     }
 
-    private AttendeeResponse toAttendeeResponse(AppUser user) {
-        return new AttendeeResponse(user.getId(), user.getName(), user.getEmail(), user.getPhotoUrl());
+    private AttendeeResponse toAttendeeResponse(MemberReservation mr) {
+        return new AttendeeResponse(
+                mr.member().getId(), mr.member().getName(), mr.member().getEmail(), mr.member().getPhotoUrl(), mr.reservationId());
     }
 
     // Contraparte SUPER_ADMIN de GymAdminController.myHistoryAttendees — mismo backend, gymId por path.
@@ -137,6 +138,21 @@ public class GymController {
                 occurrence.gymBlockId(),
                 occurrence.classDate(),
                 occurrence.attendees().stream().map(this::toAttendeeResponse).toList());
+    }
+
+    // Contraparte SUPER_ADMIN de GymAdminController.searchMyReservations — mismo backend, gymId por path.
+    @GetMapping("/{id}/reservations/search")
+    public List<BlockOccurrenceAttendeesResponse> searchReservations(@PathVariable Long id, @RequestParam String q) {
+        return reservationService.searchUpcomingReservations(id, q).stream()
+                .map(this::toBatchResponse)
+                .toList();
+    }
+
+    // Contraparte SUPER_ADMIN de GymAdminController.cancelMyGymReservation — mismo backend, gymId por path.
+    @DeleteMapping("/{id}/reservations/{reservationId}")
+    public ResponseEntity<Void> cancelReservation(@PathVariable Long id, @PathVariable Long reservationId) {
+        reservationService.cancelAsAdmin(id, reservationId);
+        return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("/{id}/blocks/{blockId}")
