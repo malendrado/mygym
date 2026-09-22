@@ -46,4 +46,10 @@ export class MemberService {
   revokePlanForGym(gymId: number, memberId: number): Observable<void> {
     return this.http.post<void>(`${this.gymsBase}/${gymId}/members/${memberId}/revoke-plan`, {});
   }
+
+  /** Borrado permanente de un socio — solo SUPER_ADMIN, no hay contraparte de gym-admin.
+   *  Borra también todas sus reservas e historial de pagos (cascada en el backend). Irreversible. */
+  deleteMemberForGym(gymId: number, memberId: number): Observable<void> {
+    return this.http.delete<void>(`${this.gymsBase}/${gymId}/members/${memberId}`);
+  }
 }

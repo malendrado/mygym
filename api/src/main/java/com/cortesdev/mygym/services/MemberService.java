@@ -74,6 +74,20 @@ public class MemberService {
                 .toList();
     }
 
+    // Borrado permanente — a diferencia de revokePlan (solo le saca el plan), esto elimina
+    // la fila del socio por completo. reservation y payment tienen ON DELETE CASCADE sobre
+    // member_id (reservation desde siempre, payment desde V18), así que el borrado de la fila
+    // ya se lleva puesto su historial de reservas y de pagos sin borrarlos a mano acá. Solo
+    // super-admin puede hacerlo (GymController), nunca el propio gym-admin — y solo aplica a
+    // un MEMBER real, nunca a un GYM_ADMIN/SUPER_ADMIN (evita borrar por error al dueño del gym).
+    public void deleteMember(Long gymId, Long memberId) {
+        AppUser member = appUserRepository
+                .findByIdAndGymId(memberId, gymId)
+                .filter(u -> u.getRole() == Role.MEMBER)
+                .orElseThrow(() -> new MemberNotFoundException(memberId));
+        appUserRepository.delete(member);
+    }
+
     // Antes /member (autoservicio del socio) nunca leía de vuelta su propio
     // plan/paidAt reales — el signal `membership` del frontend arrancaba
     // siempre en "none" sin importar lo que un admin ya hubiera marcado
