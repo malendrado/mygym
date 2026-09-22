@@ -68,7 +68,9 @@
       <p class="price-preview">{{ formatClp(form.controls.priceClp.value) }} / mes</p>
     }
     @if (form.controls.priceClp.invalid && (form.controls.priceClp.dirty || form.controls.priceClp.touched)) {
-      <ion-note color="danger">Ingresa un precio mayor a 0.</ion-note>
+      <ion-note color="danger">
+        {{ form.controls.priceClp.hasError('min') ? 'El precio mínimo es $350 (Flow no procesa pagos por menos).' : 'Ingresa un precio.' }}
+      </ion-note>
     }
 
     <p class="section-label">Clases incluidas por mes</p>

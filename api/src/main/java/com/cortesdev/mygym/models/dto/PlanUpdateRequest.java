@@ -6,10 +6,11 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
+// Ver comentario en PlanCreateRequest — mismo mínimo, misma razón (límite real de Flow).
 public record PlanUpdateRequest(
         @NotBlank @Size(max = 80) String name,
         @Size(max = 280) String description,
         @Size(max = 30) String category,
-        @NotNull @Min(0) Integer priceClp,
+        @NotNull @Min(value = 350, message = "El precio mínimo es $350 (Flow no procesa pagos por menos)") Integer priceClp,
         @Positive Integer monthlyClasses,
         @NotNull Boolean active) {}

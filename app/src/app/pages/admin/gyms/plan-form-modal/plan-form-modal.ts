@@ -155,7 +155,11 @@ export class PlanFormModal {
     // que un valor válido, así que un admin que se salta este campo terminaría
     // guardando un plan gratis sin darse cuenta. null lo bloquea de verdad, y
     // el input queda vacío (con el placeholder visible) en vez de mostrar "0".
-    priceClp: new FormControl<number | null>(null, { validators: [Validators.required, Validators.min(1)] }),
+    // Flow rechaza cualquier pago menor a 350 CLP ("The minimum amount is 350 CLP") — mismo
+    // mínimo que valida el backend (PlanCreateRequest/PlanUpdateRequest), acá solo para dar
+    // feedback inmediato sin esperar el round-trip. Incidente real: un plan a $10 nunca pudo
+    // cobrarse de verdad.
+    priceClp: new FormControl<number | null>(null, { validators: [Validators.required, Validators.min(350)] }),
     monthlyClasses: new FormControl(8, { nonNullable: true, validators: [Validators.min(1), Validators.max(500)] }),
   });
 
