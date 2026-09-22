@@ -4,6 +4,7 @@ import com.cortesdev.mygym.models.dto.AdminCreateRequest;
 import com.cortesdev.mygym.models.dto.AdminResponse;
 import com.cortesdev.mygym.models.dto.AdminStatusUpdateRequest;
 import com.cortesdev.mygym.models.dto.AttendeeResponse;
+import com.cortesdev.mygym.models.dto.BankTransferUpdateRequest;
 import com.cortesdev.mygym.models.dto.BlockCreateRequest;
 import com.cortesdev.mygym.models.dto.BlockOccurrenceAttendeesResponse;
 import com.cortesdev.mygym.models.dto.BlockResponse;
@@ -215,6 +216,13 @@ public class GymController {
         return gymService.getGym(id);
     }
 
+    @PutMapping("/{id}/bank-transfer")
+    public GymResponse updateBankTransfer(
+            @PathVariable Long id, @Valid @RequestBody BankTransferUpdateRequest request) {
+        gymService.updateBankTransfer(id, request);
+        return gymService.getGym(id);
+    }
+
     @GetMapping("/{id}/photos")
     public List<GymPhotoResponse> listPhotos(@PathVariable Long id) {
         return gymService.listPhotos(id);
@@ -257,6 +265,15 @@ public class GymController {
     @PostMapping("/{id}/members/{memberId}/revoke-plan")
     public ResponseEntity<Void> revokeMemberPlan(@PathVariable Long id, @PathVariable Long memberId) {
         gymService.revokePlan(id, memberId);
+        return ResponseEntity.noContent().build();
+    }
+
+    /** Borrado permanente de un socio (solo SUPER_ADMIN, no existe contraparte para el
+     *  gym-admin) — borra también todas sus reservas e historial de pagos, ver
+     *  MemberService.deleteMember. Irreversible. */
+    @DeleteMapping("/{id}/members/{memberId}")
+    public ResponseEntity<Void> deleteMember(@PathVariable Long id, @PathVariable Long memberId) {
+        memberService.deleteMember(id, memberId);
         return ResponseEntity.noContent().build();
     }
 }

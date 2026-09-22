@@ -726,6 +726,14 @@
         }
       </ion-card-header>
       <ion-card-content>
+        <ion-item lines="none" class="history-search-item">
+          <ion-icon name="search-outline" slot="start" aria-hidden="true"></ion-icon>
+          <ion-input
+            placeholder="Buscar socio por nombre o email..."
+            [value]="memberSearch()"
+            (ionInput)="onMemberSearchInput($any($event.detail).value ?? '')"
+          ></ion-input>
+        </ion-item>
         <ion-list lines="full">
           @for (member of filteredMembers(); track member.id) {
             <ion-item>
@@ -802,13 +810,28 @@
                   Quitar plan
                 </ion-button>
               }
+              <ion-button
+                fill="clear"
+                size="small"
+                color="danger"
+                class="member-action-btn"
+                [disabled]="deletingMemberId() === member.id"
+                (click)="deleteMember(member)"
+                aria-label="Eliminar socio permanentemente"
+              >
+                @if (deletingMemberId() === member.id) {
+                  <ion-spinner name="crescent" slot="icon-only"></ion-spinner>
+                } @else {
+                  <ion-icon name="trash-outline" slot="icon-only" aria-hidden="true"></ion-icon>
+                }
+              </ion-button>
             </ion-item>
           } @empty {
             <ion-item lines="none">
               <ion-label>
                 {{
-                  memberStatusFilter() || memberInviteFilter()
-                    ? 'No hay socios en este filtro.'
+                  memberStatusFilter() || memberInviteFilter() || memberSearch()
+                    ? 'No hay socios que calcen con este filtro/búsqueda.'
                     : 'Todavía no hay socios cargados.'
                 }}
               </ion-label>
@@ -951,6 +974,63 @@
           />
           <ion-button type="submit" [disabled]="identityForm.invalid || identitySaving()" class="ion-margin-top">
             {{ identitySaving() ? 'Guardando...' : 'Guardar identidad' }}
+          </ion-button>
+        </form>
+      </ion-card-content>
+    </ion-card>
+
+    <ion-card>
+      <ion-card-header>
+        <ion-card-title>Transferencia bancaria</ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <p class="item-hint">
+          Si los completas, los socios podrán pagar transfiriendo directo a esta cuenta en vez de usar Flow. El admin
+          del gym confirma el pago a mano desde la pestaña Socios, igual que hoy.
+        </p>
+        <form [formGroup]="bankTransferForm" (ngSubmit)="saveBankTransfer()">
+          <ion-item>
+            <ion-select label="Banco" formControlName="bankName" placeholder="Selecciona el banco">
+              @for (bank of chileBanks; track bank) {
+                <ion-select-option [value]="bank">{{ bank }}</ion-select-option>
+              }
+            </ion-select>
+          </ion-item>
+          @if (bankTransferForm.controls.bankName.value === 'Otro') {
+            <ion-item>
+              <ion-input label="Nombre del banco" formControlName="bankNameOther" placeholder="Nombre del banco" />
+            </ion-item>
+          }
+          <ion-item>
+            <ion-select label="Tipo de cuenta" formControlName="accountType" placeholder="Selecciona el tipo">
+              @for (type of bankAccountTypes; track type) {
+                <ion-select-option [value]="type">{{ type }}</ion-select-option>
+              }
+            </ion-select>
+          </ion-item>
+          <ion-item>
+            <ion-input label="Número de cuenta" formControlName="accountNumber" placeholder="Ej: 00012345678" />
+          </ion-item>
+          <ion-item>
+            <ion-input label="RUT titular" formControlName="holderRut" placeholder="Ej: 12.345.678-9" />
+          </ion-item>
+          <ion-item>
+            <ion-input label="Nombre titular" formControlName="holderName" placeholder="Nombre completo o razón social" />
+          </ion-item>
+          <ion-item>
+            <ion-input
+              label="Email para enviar comprobante"
+              type="email"
+              formControlName="confirmationEmail"
+              placeholder="pagos@elgym.cl"
+            />
+          </ion-item>
+          <ion-button
+            type="submit"
+            [disabled]="bankTransferForm.invalid || bankTransferSaving()"
+            class="ion-margin-top"
+          >
+            {{ bankTransferSaving() ? 'Guardando...' : 'Guardar datos bancarios' }}
           </ion-button>
         </form>
       </ion-card-content>

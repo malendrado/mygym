@@ -21,6 +21,8 @@ import {
   IonModal,
   IonSegment,
   IonSegmentButton,
+  IonSelect,
+  IonSelectOption,
   IonSpinner,
   IonText,
   IonTextarea,
@@ -70,7 +72,10 @@ import { GymService } from '../../core/services/gym.service';
 import { Gym } from '../../core/models/gym.model';
 import { MemberService } from '../../core/services/member.service';
 import {
+  BANK_ACCOUNT_TYPES,
+  BankTransferUpdateRequest,
   BlockOccurrenceAttendees,
+  CHILE_BANKS,
   CreateGymBlockRequest,
   CreateGymPhotoRequest,
   CreateGymPlanRequest,
@@ -337,6 +342,8 @@ const THEMED_ROOT_PROPERTIES = [
     IonModal,
     IonSegment,
     IonSegmentButton,
+    IonSelect,
+    IonSelectOption,
     IonText,
     IonTextarea,
     BloqueFormModal,
@@ -548,6 +555,19 @@ export class GymAdmin implements OnDestroy {
     }),
   });
   protected readonly identitySaving = signal(false);
+
+  protected readonly chileBanks = CHILE_BANKS;
+  protected readonly bankAccountTypes = BANK_ACCOUNT_TYPES;
+  protected readonly bankTransferForm = new FormGroup({
+    bankName: new FormControl('', { nonNullable: true }),
+    bankNameOther: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(60)] }),
+    accountType: new FormControl('', { nonNullable: true }),
+    accountNumber: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(40)] }),
+    holderRut: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(20)] }),
+    holderName: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(120)] }),
+    confirmationEmail: new FormControl('', { nonNullable: true, validators: [Validators.email, Validators.maxLength(160)] }),
+  });
+  protected readonly bankTransferSaving = signal(false);
 
   protected readonly photos = signal<GymPhoto[]>([]);
   protected readonly photoUploading = signal(false);
@@ -993,6 +1013,33 @@ export class GymAdmin implements OnDestroy {
       });
   }
 
+  protected saveBankTransfer(): void {
+    if (this.bankTransferForm.invalid) {
+      return;
+    }
+    const raw = this.bankTransferForm.getRawValue();
+    const bankName = raw.bankName === 'Otro' ? raw.bankNameOther : raw.bankName;
+    const payload: BankTransferUpdateRequest = {
+      bankName: bankName || null,
+      accountType: raw.accountType || null,
+      accountNumber: raw.accountNumber || null,
+      holderRut: raw.holderRut || null,
+      holderName: raw.holderName || null,
+      confirmationEmail: raw.confirmationEmail || null,
+    };
+    this.bankTransferSaving.set(true);
+    this.gymService.updateMyBankTransfer(payload).subscribe({
+      next: () => {
+        this.bankTransferSaving.set(false);
+        this.showToast('Datos bancarios actualizados.');
+      },
+      error: () => {
+        this.bankTransferSaving.set(false);
+        this.showToast('No pudimos guardar los datos bancarios. Intenta nuevamente.', 'danger');
+      },
+    });
+  }
+
   protected async onLogoFileSelected(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0] ?? null;
@@ -1401,6 +1448,16 @@ export class GymAdmin implements OnDestroy {
           instagramUrl: gym.instagramUrl ?? '',
           whatsappNumber: gym.whatsappNumber ?? '',
           cancellationWindowHours: gym.cancellationWindowHours,
+        });
+        const knownBank = gym.bankName && (this.chileBanks as readonly string[]).includes(gym.bankName);
+        this.bankTransferForm.patchValue({
+          bankName: gym.bankName ? (knownBank ? gym.bankName : 'Otro') : '',
+          bankNameOther: gym.bankName && !knownBank ? gym.bankName : '',
+          accountType: gym.bankAccountType ?? '',
+          accountNumber: gym.bankAccountNumber ?? '',
+          holderRut: gym.bankHolderRut ?? '',
+          holderName: gym.bankHolderName ?? '',
+          confirmationEmail: gym.bankConfirmationEmail ?? '',
         });
         this.gymLoaded.set(true);
       },

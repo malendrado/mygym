@@ -66,6 +66,21 @@ public class Gym {
 
     private int cancellationWindowHours;
 
+    // Datos bancarios para que un socio transfiera directo (alternativa a Flow) —
+    // todo nullable, se considera "configurado" solo si los 4 campos clave están
+    // completos (ver GymService.getBankTransferInfo).
+    private String bankName;
+
+    private String bankAccountType;
+
+    private String bankAccountNumber;
+
+    private String bankHolderRut;
+
+    private String bankHolderName;
+
+    private String bankConfirmationEmail;
+
     private Instant createdAt;
 
     private Instant updatedAt;

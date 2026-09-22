@@ -14,6 +14,8 @@ import com.cortesdev.mygym.models.dto.BlockResponse;
 import com.cortesdev.mygym.models.dto.BlockUpdateRequest;
 import com.cortesdev.mygym.models.dto.GymConfigUpdateRequest;
 import com.cortesdev.mygym.models.dto.GymCreateRequest;
+import com.cortesdev.mygym.models.dto.BankTransferInfoResponse;
+import com.cortesdev.mygym.models.dto.BankTransferUpdateRequest;
 import com.cortesdev.mygym.models.dto.GymIdentityUpdateRequest;
 import com.cortesdev.mygym.models.dto.GymPhotoCreateRequest;
 import com.cortesdev.mygym.models.dto.GymPhotoResponse;
@@ -185,6 +187,45 @@ public class GymService {
         gym.setWhatsappNumber(request.whatsappNumber());
         gym.setCancellationWindowHours(request.cancellationWindowHours());
         gymRepository.save(gym);
+    }
+
+    public void updateBankTransfer(Long gymId, BankTransferUpdateRequest request) {
+        Gym gym = findGymOrThrow(gymId);
+        gym.setBankName(blankToNull(request.bankName()));
+        gym.setBankAccountType(blankToNull(request.accountType()));
+        gym.setBankAccountNumber(blankToNull(request.accountNumber()));
+        gym.setBankHolderRut(blankToNull(request.holderRut()));
+        gym.setBankHolderName(blankToNull(request.holderName()));
+        gym.setBankConfirmationEmail(blankToNull(request.confirmationEmail()));
+        gymRepository.save(gym);
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value;
+    }
+
+    /** Vista del socio de los datos bancarios de SU gym — "configurado" exige los 4 campos
+     *  clave (banco, tipo de cuenta, número, titular); sin eso, /member oculta la opción de
+     *  transferencia en vez de mostrar un desglose incompleto. */
+    @Transactional(readOnly = true)
+    public BankTransferInfoResponse getBankTransferInfo(Long gymId) {
+        Gym gym = findGymOrThrow(gymId);
+        boolean configured = gym.getBankName() != null
+                && gym.getBankAccountType() != null
+                && gym.getBankAccountNumber() != null
+                && gym.getBankHolderRut() != null
+                && gym.getBankHolderName() != null;
+        if (!configured) {
+            return new BankTransferInfoResponse(false, null, null, null, null, null, null);
+        }
+        return new BankTransferInfoResponse(
+                true,
+                gym.getBankName(),
+                gym.getBankAccountType(),
+                gym.getBankAccountNumber(),
+                gym.getBankHolderRut(),
+                gym.getBankHolderName(),
+                gym.getBankConfirmationEmail());
     }
 
     private static final List<String> ALLOWED_LOGO_IMAGE_MIME_TYPES =
@@ -506,6 +547,12 @@ public class GymService {
                 gym.getInstagramUrl(),
                 gym.getWhatsappNumber(),
                 gym.getCancellationWindowHours(),
+                gym.getBankName(),
+                gym.getBankAccountType(),
+                gym.getBankAccountNumber(),
+                gym.getBankHolderRut(),
+                gym.getBankHolderName(),
+                gym.getBankConfirmationEmail(),
                 gym.getCreatedAt(),
                 gym.getUpdatedAt());
     }

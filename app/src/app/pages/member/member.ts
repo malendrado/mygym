@@ -37,7 +37,7 @@ import { AuthService } from '../../core/services/auth.service';
 import { GymService } from '../../core/services/gym.service';
 import { ReservationService } from '../../core/services/reservation.service';
 import { GymBlockOccurrence, Reservation } from '../../core/models/reservation.model';
-import { GymPhoto, MemberPlan, PublicGym } from '../../core/models/gym.model';
+import { BankTransferInfo, GymPhoto, MemberPlan, PublicGym } from '../../core/models/gym.model';
 import { AttendeeSummary } from '../../core/models/member.model';
 import { deriveSurfaceTint, ensureMinContrastColor, syncThemeOverrides } from '../../core/utils/gym-theme';
 import { registerClassCategoryIcons, resolveClassCategoryIcon } from '../../core/utils/class-category';
@@ -45,6 +45,12 @@ import { registerClassCategoryIcons, resolveClassCategoryIcon } from '../../core
 registerClassCategoryIcons();
 
 const FALLBACK_HERO_PHOTO = 'https://images.unsplash.com/photo-1637430308606-86576d8fef3c?q=75&w=1600&h=900&fit=crop&auto=format';
+
+// Comisión de Flow por link de pago (2,89% + IVA), traspasada al socio como recargo aparte
+// sobre el precio del plan — mismo cálculo que FlowPaymentService.GATEWAY_COMMISSION_RATE en
+// el backend, acá solo para mostrar el desglose antes de pagar (el backend es la fuente de
+// verdad del monto realmente cobrado).
+const GATEWAY_COMMISSION_RATE = 0.0289 * 1.19;
 
 addIcons({
   'flash-outline': flashOutline,
@@ -285,6 +291,13 @@ export class MemberPage {
 
   protected readonly plans = signal<MembershipPlan[]>([]);
   protected readonly plansLoaded = signal(false);
+  // Plan elegido, esperando a que el socio decida CÓMO pagar (Flow o
+  // transferencia) — null mientras se muestra la grilla de planes.
+  protected readonly paymentChoicePlan = signal<MembershipPlan | null>(null);
+  protected readonly bankTransfer = signal<BankTransferInfo | null>(null);
+  // false hasta que el admin del gym cargue los 4 campos clave — sin eso, la
+  // opción de transferencia queda oculta en vez de mostrar un desglose vacío.
+  protected readonly bankTransferConfigured = computed(() => this.bankTransfer()?.configured ?? false);
   protected readonly membership = signal<Membership>({
     status: 'none',
     plan: null,
@@ -578,6 +591,7 @@ export class MemberPage {
     this.loadGym();
     this.loadPlans();
     this.loadMembership();
+    this.loadBankTransfer();
     this.loadPhotos();
     this.loadOccurrences();
     this.loadMyReservations();
@@ -688,12 +702,34 @@ export class MemberPage {
     });
   }
 
+  // Primer paso al elegir un plan: no se paga todavía, solo se muestra cómo
+  // pagar (Flow o transferencia) — el plan queda "guardado" en
+  // paymentChoicePlan hasta que el socio confirma un método.
+  protected choosePaymentMethod(plan: MembershipPlan): void {
+    this.paymentChoicePlan.set(plan);
+  }
+
+  protected cancelPaymentChoice(): void {
+    this.paymentChoicePlan.set(null);
+  }
+
+  // Comisión de Flow por link de pago, traspasada al socio — ver
+  // GATEWAY_COMMISSION_RATE arriba. Solo para mostrar el desglose: el monto
+  // que realmente se cobra lo calcula FlowPaymentService en el backend.
+  protected commissionFor(plan: MembershipPlan): number {
+    return Math.round(plan.priceClp * GATEWAY_COMMISSION_RATE);
+  }
+
+  protected totalWithCommission(plan: MembershipPlan): number {
+    return plan.priceClp + this.commissionFor(plan);
+  }
+
   // Pago real con Flow.cl — el navegador sale del dominio de mygym por
   // completo (primer uso de este patrón en la app) y vuelve recién cuando
   // Flow termina el registro de tarjeta, a /member?checkout=return (ver
   // constructor). El estado "pending" acá es solo mientras se arma la URL
   // de checkout, no simula ningún pago.
-  protected selectPlan(plan: MembershipPlan): void {
+  protected payWithFlow(plan: MembershipPlan): void {
     this.membership.update((m) => ({ ...m, status: 'pending' }));
     this.gymService.startCheckout(plan.id).subscribe({
       next: (res) => {
@@ -783,6 +819,15 @@ export class MemberPage {
       error: () => {
         // Best-effort: sin datos reales, se queda en "none" (el estado por
         // defecto) — el socio puede seguir viendo la pantalla de elegir plan.
+      },
+    });
+  }
+
+  private loadBankTransfer(): void {
+    this.gymService.getMyBankTransferInfo().subscribe({
+      next: (info) => this.bankTransfer.set(info),
+      error: () => {
+        // Best-effort: sin datos, la opción de transferencia se queda oculta.
       },
     });
   }

@@ -85,30 +85,75 @@
           <p>Confirmando tu pago con Flow.cl...</p>
         </div>
       } @else if (membership().status === 'none') {
-        <h2>Elige tu plan</h2>
-        @if (plansLoaded() && plans().length === 0) {
-          <p class="item-hint">Tu gimnasio todavía no tiene planes configurados. Pregúntale al equipo cuándo estarán disponibles.</p>
-        }
-        <div class="plan-grid">
-          @for (plan of plans(); track plan.id) {
-            <article class="plan-card" [class.plan-card--highlight]="plan.highlight">
-              @if (plan.highlight) {
-                <span class="plan-card__badge">
-                  <ion-icon name="sparkles-outline" aria-hidden="true"></ion-icon>
-                  Recomendado
-                </span>
-              }
-              <h3>{{ plan.name }}</h3>
-              <p class="plan-card__price">${{ formatClp(plan.priceClp) }}<span> / mes</span></p>
-              <p class="plan-card__quota">
-                {{ plan.monthlyClasses === null ? 'Clases ilimitadas' : plan.monthlyClasses + ' clases al mes' }}
+        @if (paymentChoicePlan(); as choicePlan) {
+          <div class="payment-choice">
+            <button type="button" class="payment-choice__back" (click)="cancelPaymentChoice()">
+              <ion-icon name="chevron-back-outline" aria-hidden="true"></ion-icon>
+              Volver a los planes
+            </button>
+            <h2>¿Cómo quieres pagar?</h2>
+            <p class="item-hint">{{ choicePlan.name }} — ${{ formatClp(choicePlan.priceClp) }} / mes</p>
+
+            <article class="payment-option">
+              <h3>Pagar con Flow</h3>
+              <p class="payment-option__row">
+                <span>Plan</span><span>${{ formatClp(choicePlan.priceClp) }}</span>
               </p>
-              <ion-button expand="block" [fill]="plan.highlight ? 'solid' : 'outline'" (click)="selectPlan(plan)">
-                Elegir plan
-              </ion-button>
+              <p class="payment-option__row">
+                <span>Comisión pasarela (2,89% + IVA)</span><span>${{ formatClp(commissionFor(choicePlan)) }}</span>
+              </p>
+              <p class="payment-option__row payment-option__row--total">
+                <span>Total</span><span>${{ formatClp(totalWithCommission(choicePlan)) }}</span>
+              </p>
+              <ion-button expand="block" (click)="payWithFlow(choicePlan)">Pagar con Flow</ion-button>
             </article>
+
+            @if (bankTransferConfigured()) {
+              <article class="payment-option">
+                <h3>Transferencia bancaria</h3>
+                <p class="item-hint">
+                  Transfiere ${{ formatClp(choicePlan.priceClp) }} y avisa al gimnasio — ellos confirman tu pago apenas
+                  lo reciban.
+                </p>
+                <dl class="bank-details">
+                  <div><dt>Banco</dt><dd>{{ bankTransfer()?.bankName }}</dd></div>
+                  <div><dt>Tipo de cuenta</dt><dd>{{ bankTransfer()?.accountType }}</dd></div>
+                  <div><dt>Número de cuenta</dt><dd>{{ bankTransfer()?.accountNumber }}</dd></div>
+                  <div><dt>RUT titular</dt><dd>{{ bankTransfer()?.holderRut }}</dd></div>
+                  <div><dt>Nombre titular</dt><dd>{{ bankTransfer()?.holderName }}</dd></div>
+                  @if (bankTransfer()?.confirmationEmail) {
+                    <div><dt>Envía tu comprobante a</dt><dd>{{ bankTransfer()?.confirmationEmail }}</dd></div>
+                  }
+                </dl>
+              </article>
+            }
+          </div>
+        } @else {
+          <h2>Elige tu plan</h2>
+          @if (plansLoaded() && plans().length === 0) {
+            <p class="item-hint">Tu gimnasio todavía no tiene planes configurados. Pregúntale al equipo cuándo estarán disponibles.</p>
           }
-        </div>
+          <div class="plan-grid">
+            @for (plan of plans(); track plan.id) {
+              <article class="plan-card" [class.plan-card--highlight]="plan.highlight">
+                @if (plan.highlight) {
+                  <span class="plan-card__badge">
+                    <ion-icon name="sparkles-outline" aria-hidden="true"></ion-icon>
+                    Recomendado
+                  </span>
+                }
+                <h3>{{ plan.name }}</h3>
+                <p class="plan-card__price">${{ formatClp(plan.priceClp) }}<span> / mes</span></p>
+                <p class="plan-card__quota">
+                  {{ plan.monthlyClasses === null ? 'Clases ilimitadas' : plan.monthlyClasses + ' clases al mes' }}
+                </p>
+                <ion-button expand="block" [fill]="plan.highlight ? 'solid' : 'outline'" (click)="choosePaymentMethod(plan)">
+                  Elegir plan
+                </ion-button>
+              </article>
+            }
+          </div>
+        }
       } @else if (membership().status === 'pending') {
         <div class="membership-status membership-status--pending">
           <ion-spinner name="crescent"></ion-spinner>

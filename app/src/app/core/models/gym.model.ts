@@ -27,6 +27,12 @@ export interface Gym {
   cancellationWindowHours: number;
   /** 'DARK' (acento libre) o 'LIGHT' (limitado a las 4 paletas curadas — ver LIGHT_PALETTES). */
   themeMode: 'DARK' | 'LIGHT';
+  bankName: string | null;
+  bankAccountType: string | null;
+  bankAccountNumber: string | null;
+  bankHolderRut: string | null;
+  bankHolderName: string | null;
+  bankConfirmationEmail: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -59,6 +65,50 @@ export interface GymIdentityUpdateRequest {
   instagramUrl: string | null;
   whatsappNumber: string | null;
   cancellationWindowHours: number;
+}
+
+/** PUT .../bank-transfer (gym-admin y super-admin comparten el mismo shape). */
+export interface BankTransferUpdateRequest {
+  bankName: string | null;
+  accountType: string | null;
+  accountNumber: string | null;
+  holderRut: string | null;
+  holderName: string | null;
+  confirmationEmail: string | null;
+}
+
+/** Bancos que operan en Chile — "Otro" abre un campo de texto libre en el formulario. */
+export const CHILE_BANKS = [
+  'Banco de Chile',
+  'Banco Estado',
+  'Banco Santander',
+  'Banco de Crédito e Inversiones (BCI)',
+  'Scotiabank Chile',
+  'Banco Itaú Chile',
+  'Banco Falabella',
+  'Banco Security',
+  'Banco BICE',
+  'Banco Consorcio',
+  'HSBC Bank Chile',
+  'Banco Ripley',
+  'Banco Internacional',
+  'Coopeuch',
+  'Otro',
+] as const;
+
+export const BANK_ACCOUNT_TYPES = ['Cuenta Corriente', 'Cuenta Vista', 'Cuenta de Ahorro', 'Cuenta RUT'] as const;
+
+/** Vista del socio de los datos bancarios de SU gym (GET /api/me/gym/bank-transfer) — si
+ *  `configured` es false, el resto de los campos viene en null y la opción de transferencia
+ *  debe ocultarse (el admin todavía no cargó los 4 campos clave). */
+export interface BankTransferInfo {
+  configured: boolean;
+  bankName: string | null;
+  accountType: string | null;
+  accountNumber: string | null;
+  holderRut: string | null;
+  holderName: string | null;
+  confirmationEmail: string | null;
 }
 
 export interface GymPhoto {

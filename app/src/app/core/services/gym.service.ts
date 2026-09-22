@@ -5,6 +5,8 @@ import { environment } from '../../../environments/environment';
 import {
   Admin,
   AnalyticsSummary,
+  BankTransferInfo,
+  BankTransferUpdateRequest,
   BlockOccurrenceAttendees,
   BrandingSuggestion,
   CheckoutResponse,
@@ -85,6 +87,12 @@ export class GymService {
   /** Plan/pago real del socio logueado (planId/paidAt ya persistidos, no el mock local de member.ts). */
   getMyMembership(): Observable<Member> {
     return this.http.get<Member>(`${this.meBase}/membership`);
+  }
+
+  /** Datos bancarios de SU gym para pagar por transferencia (alternativa a Flow) — nunca
+   *  expuestos en la página pública de alta, solo acá para el socio autenticado. */
+  getMyBankTransferInfo(): Observable<BankTransferInfo> {
+    return this.http.get<BankTransferInfo>(`${this.meBase}/gym/bank-transfer`);
   }
 
   /** Quién más reservó una clase puntual — vista reducida (sin email) para el propio socio. */
@@ -224,6 +232,10 @@ export class GymService {
     return this.http.put<Gym>(`${this.base}/${gymId}/identity`, payload);
   }
 
+  updateBankTransfer(gymId: number, payload: BankTransferUpdateRequest): Observable<Gym> {
+    return this.http.put<Gym>(`${this.base}/${gymId}/bank-transfer`, payload);
+  }
+
   listPhotos(gymId: number): Observable<GymPhoto[]> {
     return this.http.get<GymPhoto[]>(`${this.base}/${gymId}/photos`);
   }
@@ -283,6 +295,10 @@ export class GymService {
 
   updateMyIdentity(payload: GymIdentityUpdateRequest): Observable<Gym> {
     return this.http.put<Gym>(`${this.myGymBase}/identity`, payload);
+  }
+
+  updateMyBankTransfer(payload: BankTransferUpdateRequest): Observable<Gym> {
+    return this.http.put<Gym>(`${this.myGymBase}/bank-transfer`, payload);
   }
 
   listMyPhotos(): Observable<GymPhoto[]> {

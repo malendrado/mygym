@@ -23,6 +23,8 @@ import {
   IonNote,
   IonSegment,
   IonSegmentButton,
+  IonSelect,
+  IonSelectOption,
   IonSpinner,
   IonText,
   IonTextarea,
@@ -69,8 +71,11 @@ import { GymService } from '../../../../core/services/gym.service';
 import { MemberService } from '../../../../core/services/member.service';
 import {
   Admin,
+  BANK_ACCOUNT_TYPES,
+  BankTransferUpdateRequest,
   BlockOccurrenceAttendees,
   BrandingSuggestion,
+  CHILE_BANKS,
   CreateGymBlockRequest,
   CreateGymPhotoRequest,
   CreateGymPlanRequest,
@@ -324,6 +329,8 @@ const THEMED_ROOT_PROPERTIES = [
     IonModal,
     IonSegment,
     IonSegmentButton,
+    IonSelect,
+    IonSelectOption,
     IonSpinner,
     BloqueFormModal,
     BloqueSeriesModal,
@@ -462,12 +469,18 @@ export class GymForm implements OnDestroy {
     () => this.members().filter((m) => m.inviteStatus === 'REGISTERED').length,
   );
   protected readonly memberInviteFilter = signal<InviteStatus>(null);
+  // Buscador libre por nombre/email — independiente de las calugas de estado/invitación,
+  // se combinan todos con AND (mismo criterio que ya usa reservationSearchQuery en Historial).
+  protected readonly memberSearch = signal('');
   protected readonly filteredMembers = computed(() => {
     const statusFilter = this.memberStatusFilter();
     const inviteFilter = this.memberInviteFilter();
+    const query = this.memberSearch().trim().toLowerCase();
     return this.members().filter(
       (m) =>
-        (!statusFilter || m.membershipStatus === statusFilter) && (!inviteFilter || m.inviteStatus === inviteFilter),
+        (!statusFilter || m.membershipStatus === statusFilter) &&
+        (!inviteFilter || m.inviteStatus === inviteFilter) &&
+        (!query || m.name.toLowerCase().includes(query) || m.email.toLowerCase().includes(query)),
     );
   });
   protected readonly memberForm = new FormGroup({
@@ -507,6 +520,19 @@ export class GymForm implements OnDestroy {
     }),
   });
   protected readonly identitySaving = signal(false);
+
+  protected readonly chileBanks = CHILE_BANKS;
+  protected readonly bankAccountTypes = BANK_ACCOUNT_TYPES;
+  protected readonly bankTransferForm = new FormGroup({
+    bankName: new FormControl('', { nonNullable: true }),
+    bankNameOther: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(60)] }),
+    accountType: new FormControl('', { nonNullable: true }),
+    accountNumber: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(40)] }),
+    holderRut: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(20)] }),
+    holderName: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(120)] }),
+    confirmationEmail: new FormControl('', { nonNullable: true, validators: [Validators.email, Validators.maxLength(160)] }),
+  });
+  protected readonly bankTransferSaving = signal(false);
 
   protected readonly photos = signal<GymPhoto[]>([]);
   protected readonly photoUploading = signal(false);
@@ -665,6 +691,16 @@ export class GymForm implements OnDestroy {
           instagramUrl: gym.instagramUrl ?? '',
           whatsappNumber: gym.whatsappNumber ?? '',
           cancellationWindowHours: gym.cancellationWindowHours,
+        });
+        const knownBank = gym.bankName && (this.chileBanks as readonly string[]).includes(gym.bankName);
+        this.bankTransferForm.patchValue({
+          bankName: gym.bankName ? (knownBank ? gym.bankName : 'Otro') : '',
+          bankNameOther: gym.bankName && !knownBank ? gym.bankName : '',
+          accountType: gym.bankAccountType ?? '',
+          accountNumber: gym.bankAccountNumber ?? '',
+          holderRut: gym.bankHolderRut ?? '',
+          holderName: gym.bankHolderName ?? '',
+          confirmationEmail: gym.bankConfirmationEmail ?? '',
         });
         this.status.set('idle');
         this.gymLoaded.set(true);
@@ -1019,6 +1055,10 @@ export class GymForm implements OnDestroy {
     });
   }
 
+  protected onMemberSearchInput(value: string): void {
+    this.memberSearch.set(value);
+  }
+
   protected onReservationSearchInput(value: string): void {
     this.reservationSearchQuery.set(value);
     if (this.reservationSearchTimeout) {
@@ -1322,6 +1362,7 @@ export class GymForm implements OnDestroy {
   // deshabilitar y mostrar spinner solo en ese botón mientras se espera la respuesta.
   protected readonly markingPaidId = signal<number | null>(null);
   protected readonly revokingPlanId = signal<number | null>(null);
+  protected readonly deletingMemberId = signal<number | null>(null);
 
   // Registro manual para dinero que no pasó por Flow.cl (efectivo/transferencia) — el
   // super-admin elige el plan que el socio pagó y queda persistido de verdad
@@ -1390,6 +1431,36 @@ export class GymForm implements OnDestroy {
       error: () => {
         this.revokingPlanId.set(null);
         this.showToast('No pudimos quitar el plan. Intenta nuevamente.', 'danger');
+      },
+    });
+  }
+
+  // Borrado permanente, solo super-admin — pensado para cuando el dueño del gym quiere
+  // expulsar a un socio y borrar todo rastro suyo (reservas, historial, pagos), no solo
+  // quitarle el plan. Confirmación explícita porque es irreversible.
+  protected async deleteMember(member: Member): Promise<void> {
+    const id = this.gymId();
+    if (id === null) {
+      return;
+    }
+    const confirmed = await this.confirmAction(
+      'Eliminar socio permanentemente',
+      `¿Eliminar a ${member.name} (${member.email})? Esto borra TODO su registro: reservas, historial de clases y pagos. No se puede deshacer.`,
+      'Eliminar para siempre',
+    );
+    if (!confirmed) {
+      return;
+    }
+    this.deletingMemberId.set(member.id);
+    this.memberService.deleteMemberForGym(id, member.id).subscribe({
+      next: () => {
+        this.deletingMemberId.set(null);
+        this.members.update((list) => list.filter((m) => m.id !== member.id));
+        this.showToast(`${member.name} fue eliminado permanentemente.`);
+      },
+      error: () => {
+        this.deletingMemberId.set(null);
+        this.showToast('No pudimos eliminar al socio. Intenta nuevamente.', 'danger');
       },
     });
   }
@@ -1467,6 +1538,34 @@ export class GymForm implements OnDestroy {
           this.showToast('No pudimos guardar los cambios. Intenta nuevamente.', 'danger');
         },
       });
+  }
+
+  protected saveBankTransfer(): void {
+    const id = this.gymId();
+    if (id === null || this.bankTransferForm.invalid) {
+      return;
+    }
+    const raw = this.bankTransferForm.getRawValue();
+    const bankName = raw.bankName === 'Otro' ? raw.bankNameOther : raw.bankName;
+    const payload: BankTransferUpdateRequest = {
+      bankName: bankName || null,
+      accountType: raw.accountType || null,
+      accountNumber: raw.accountNumber || null,
+      holderRut: raw.holderRut || null,
+      holderName: raw.holderName || null,
+      confirmationEmail: raw.confirmationEmail || null,
+    };
+    this.bankTransferSaving.set(true);
+    this.gymService.updateBankTransfer(id, payload).subscribe({
+      next: () => {
+        this.bankTransferSaving.set(false);
+        this.showToast('Datos bancarios actualizados.');
+      },
+      error: () => {
+        this.bankTransferSaving.set(false);
+        this.showToast('No pudimos guardar los datos bancarios. Intenta nuevamente.', 'danger');
+      },
+    });
   }
 
   protected async onPhotoFileSelected(event: Event): Promise<void> {

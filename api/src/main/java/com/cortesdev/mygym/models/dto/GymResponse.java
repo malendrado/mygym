@@ -18,5 +18,11 @@ public record GymResponse(
         String instagramUrl,
         String whatsappNumber,
         int cancellationWindowHours,
+        String bankName,
+        String bankAccountType,
+        String bankAccountNumber,
+        String bankHolderRut,
+        String bankHolderName,
+        String bankConfirmationEmail,
         Instant createdAt,
         Instant updatedAt) {}

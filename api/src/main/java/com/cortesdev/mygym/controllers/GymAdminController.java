@@ -7,6 +7,7 @@ import com.cortesdev.mygym.models.dto.MemberReservation;
 import com.cortesdev.mygym.models.dto.OccurrenceAttendees;
 import com.cortesdev.mygym.models.dto.BlockResponse;
 import com.cortesdev.mygym.models.dto.BlockUpdateRequest;
+import com.cortesdev.mygym.models.dto.BankTransferUpdateRequest;
 import com.cortesdev.mygym.models.dto.GymIdentityUpdateRequest;
 import com.cortesdev.mygym.models.dto.GymLogoUpdateRequest;
 import com.cortesdev.mygym.models.dto.GymPhotoCreateRequest;
@@ -185,6 +186,14 @@ public class GymAdminController {
             @AuthenticationPrincipal Jwt jwt, @Valid @RequestBody GymIdentityUpdateRequest request) {
         Long gymId = AuthenticatedUser.from(jwt).gymId();
         gymService.updateIdentity(gymId, request);
+        return gymService.getGym(gymId);
+    }
+
+    @PutMapping("/bank-transfer")
+    public GymResponse updateMyBankTransfer(
+            @AuthenticationPrincipal Jwt jwt, @Valid @RequestBody BankTransferUpdateRequest request) {
+        Long gymId = AuthenticatedUser.from(jwt).gymId();
+        gymService.updateBankTransfer(gymId, request);
         return gymService.getGym(gymId);
     }
 

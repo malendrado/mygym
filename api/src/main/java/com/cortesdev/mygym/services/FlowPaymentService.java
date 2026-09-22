@@ -42,6 +42,15 @@ public class FlowPaymentService {
 
     private static final Logger log = LoggerFactory.getLogger(FlowPaymentService.class);
 
+    /** Comisión de Flow por link de pago (2,89% + IVA) — se traspasa al socio como recargo
+     *  aparte sobre el precio del plan, no la absorbe el gym. Recargo simple (no gross-up):
+     *  el gym puede recibir levemente menos que el precio de lista, porque Flow cobra su
+     *  comisión sobre el MONTO TOTAL (plan + recargo), no solo sobre el plan. Decisión
+     *  explícita del usuario, ver conversación de la feature. Mismo cálculo replicado en el
+     *  frontend (member.ts) solo para mostrar el desglose antes de pagar — la fuente de
+     *  verdad del monto realmente cobrado es este método. */
+    private static final double GATEWAY_COMMISSION_RATE = 0.0289 * 1.19;
+
     private final FlowApiClient flowApiClient;
     private final AppUserRepository appUserRepository;
     private final GymPlanRepository gymPlanRepository;
@@ -82,10 +91,13 @@ public class FlowPaymentService {
                 .findByIdAndGymId(memberId, gymId)
                 .orElseThrow(() -> new MemberNotFoundException(memberId));
 
+        long commission = Math.round(plan.getPriceClp() * GATEWAY_COMMISSION_RATE);
+        long totalAmount = plan.getPriceClp() + commission;
+
         Payment payment = paymentRepository.save(Payment.builder()
                 .memberId(member.getId())
                 .planId(plan.getId())
-                .amountClp(plan.getPriceClp())
+                .amountClp((int) totalAmount)
                 .status("PENDING")
                 .build());
         String commerceOrder = "mygym-" + payment.getId();
@@ -96,7 +108,7 @@ public class FlowPaymentService {
         params.put("commerceOrder", commerceOrder);
         params.put("subject", gym.getName() + " — " + plan.getName());
         params.put("currency", "CLP");
-        params.put("amount", String.valueOf(plan.getPriceClp()));
+        params.put("amount", String.valueOf(totalAmount));
         params.put("email", member.getEmail());
         params.put("urlConfirmation", webhookUrl);
         params.put("urlReturn", returnUrl);

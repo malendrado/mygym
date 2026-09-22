@@ -1,6 +1,7 @@
 package com.cortesdev.mygym.controllers;
 
 import com.cortesdev.mygym.models.dto.AttendeeSummaryResponse;
+import com.cortesdev.mygym.models.dto.BankTransferInfoResponse;
 import com.cortesdev.mygym.models.dto.GymBlockOccurrenceResponse;
 import com.cortesdev.mygym.models.dto.GymPhotoResponse;
 import com.cortesdev.mygym.models.dto.MemberPlanResponse;
@@ -56,6 +57,13 @@ public class ReservationController {
     @GetMapping("/plans")
     public List<MemberPlanResponse> myPlans(@AuthenticationPrincipal Jwt jwt) {
         return gymService.listActivePlans(AuthenticatedUser.from(jwt).gymId());
+    }
+
+    // Datos bancarios de SU gym para pagar por transferencia (alternativa a Flow) —
+    // nunca expuestos en la página pública de alta, solo acá, al socio autenticado.
+    @GetMapping("/gym/bank-transfer")
+    public BankTransferInfoResponse myGymBankTransfer(@AuthenticationPrincipal Jwt jwt) {
+        return gymService.getBankTransferInfo(AuthenticatedUser.from(jwt).gymId());
     }
 
     // Arranca el pago real con Flow.cl (manual, un mes por vez — reemplaza al
