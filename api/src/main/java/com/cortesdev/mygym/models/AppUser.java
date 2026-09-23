@@ -68,6 +68,11 @@ public class AppUser {
 
     private Instant updatedAt;
 
+    /** Seteado en CADA login real con Google (AuthService.updateGoogleProfile) — a diferencia de
+     *  updatedAt, que solo se toca cuando algo cambia (googleSub la primera vez, o si cambió la
+     *  foto de Google), así que updatedAt no sirve para saber "cuándo entró por última vez". */
+    private Instant lastLoginAt;
+
     @PrePersist
     void onCreate() {
         Instant now = Instant.now();

@@ -12,6 +12,7 @@ import com.cortesdev.mygym.security.JwtService;
 import com.cortesdev.mygym.services.exception.DemoAccessExpiredException;
 import com.cortesdev.mygym.services.exception.GymNotFoundException;
 import com.cortesdev.mygym.services.exception.UnauthorizedGoogleLoginException;
+import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 import lombok.RequiredArgsConstructor;
@@ -57,22 +58,18 @@ public class AuthService {
                 user.getPhotoUrl());
     }
 
-    // Se re-guarda en CADA login (no solo la primera vez, a diferencia de
-    // googleSub que es inmutable) porque la foto de perfil de Google sí
-    // puede cambiar — así se refresca sola sin que nadie tenga que pedirlo.
+    // lastLoginAt se setea SIEMPRE (por eso ya no hace falta el flag `changed`: con eso solo,
+    // este método ya guarda en cada login) — a diferencia de googleSub (inmutable, solo la
+    // primera vez) y photoUrl (solo si Google mandó una distinta a la guardada).
     private void updateGoogleProfile(AppUser user, GoogleTokenVerifier.GoogleIdentity identity) {
-        boolean changed = false;
         if (user.getGoogleSub() == null) {
             user.setGoogleSub(identity.googleSub());
-            changed = true;
         }
         if (!Objects.equals(user.getPhotoUrl(), identity.pictureUrl())) {
             user.setPhotoUrl(identity.pictureUrl());
-            changed = true;
         }
-        if (changed) {
-            appUserRepository.save(user);
-        }
+        user.setLastLoginAt(Instant.now());
+        appUserRepository.save(user);
     }
 
     /**

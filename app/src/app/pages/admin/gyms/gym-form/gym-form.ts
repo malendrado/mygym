@@ -827,6 +827,43 @@ export class GymForm implements OnDestroy {
     return (first + last).toUpperCase();
   }
 
+  // Mismas 48h que DemoAccessService.DEMO_ACCESS_TTL (backend) — se calcula acá en vez de que
+  // el backend mande un expiresAt porque createdAt ya alcanza y evita duplicar la constante en
+  // dos lugares con el riesgo de que se desincronicen.
+  private static readonly DEMO_ACCESS_HOURS = 48;
+
+  protected demoStatusLabel(admin: Admin): string {
+    return admin.lastLoginAt ? 'Ya entró' : 'Invitado';
+  }
+
+  protected demoExpiryLabel(admin: Admin): string {
+    const expiresAt = new Date(admin.createdAt).getTime() + GymForm.DEMO_ACCESS_HOURS * 60 * 60 * 1000;
+    const remainingMs = expiresAt - Date.now();
+    if (remainingMs <= 0) {
+      return 'Vencido';
+    }
+    return `Vence en ${this.durationLabel(remainingMs)}`;
+  }
+
+  protected lastLoginLabel(admin: Admin): string {
+    if (!admin.lastLoginAt) {
+      return 'Nunca entró';
+    }
+    return `Entró hace ${this.durationLabel(Date.now() - new Date(admin.lastLoginAt).getTime())}`;
+  }
+
+  private durationLabel(ms: number): string {
+    const hours = Math.round(ms / (60 * 60 * 1000));
+    if (hours < 1) {
+      return 'menos de 1h';
+    }
+    if (hours < 24) {
+      return `${hours}h`;
+    }
+    const days = Math.round(hours / 24);
+    return `${days} día${days === 1 ? '' : 's'}`;
+  }
+
   protected submitAdmin(): void {
     const id = this.gymId();
     if (id === null || this.adminForm.invalid) {

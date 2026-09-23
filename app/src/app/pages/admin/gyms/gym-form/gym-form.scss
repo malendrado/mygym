@@ -660,6 +660,19 @@ ion-segment-button.segment-button-checked {
   }
 }
 
+.demo-admin-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.3rem;
+}
+
+.demo-admin-detail {
+  font-size: 0.72rem;
+  color: var(--brand-text-dim);
+}
+
 // Ver comentario largo en gym-admin.scss.
 .member-invite-badge {
   display: inline-flex;

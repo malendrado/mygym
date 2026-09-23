@@ -332,6 +332,17 @@
               <ion-label>
                 {{ admin.name }}
                 <p>{{ admin.email }}</p>
+                <p class="demo-admin-meta">
+                  <span class="member-invite-badge" [class.member-invite-badge--registered]="admin.lastLoginAt">
+                    <ion-icon
+                      [name]="admin.lastLoginAt ? 'checkmark-circle-outline' : 'paper-plane-outline'"
+                      aria-hidden="true"
+                    ></ion-icon>
+                    {{ demoStatusLabel(admin) }}
+                  </span>
+                  <span class="demo-admin-detail">{{ lastLoginLabel(admin) }}</span>
+                  <span class="demo-admin-detail">{{ demoExpiryLabel(admin) }}</span>
+                </p>
               </ion-label>
               <ion-button
                 fill="clear"

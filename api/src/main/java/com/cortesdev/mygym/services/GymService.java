@@ -608,7 +608,14 @@ public class GymService {
     }
 
     private AdminResponse toResponse(AppUser admin) {
-        return new AdminResponse(admin.getId(), admin.getName(), admin.getEmail(), admin.isActive(), admin.getPhotoUrl());
+        return new AdminResponse(
+                admin.getId(),
+                admin.getName(),
+                admin.getEmail(),
+                admin.isActive(),
+                admin.getPhotoUrl(),
+                admin.getCreatedAt(),
+                admin.getLastLoginAt());
     }
 
     private BlockResponse toResponse(GymBlock block) {
