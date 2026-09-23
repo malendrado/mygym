@@ -316,7 +316,11 @@
     </svg>
     <h2>Comienza a dejar la planilla de lado</h2>
     <button class="button button--primary" type="button" (click)="openContact()">Pedir demo</button>
-    <p class="footer__meta">www.mygym.cl Powered by cortesdev.cl ft G.</p>
+    <nav class="footer__links">
+      <a routerLink="/faq">Preguntas frecuentes</a>
+      <a routerLink="/privacidad">Privacidad</a>
+    </nav>
+    <p class="footer__meta">www.mygym.cl Powered by G. ft <a href="https://cortesdev.cl/" target="_blank" rel="noopener">cortesdev.cl</a></p>
   </footer>
 
   @if (isContactOpen()) {

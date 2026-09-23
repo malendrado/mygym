@@ -883,6 +883,13 @@
   .footer-brand { display: flex; align-items: center; gap: 0.5rem; }
   .footer-brand svg { width: 20px; height: 20px; }
 
+  .footer-links { display: flex; flex-wrap: wrap; gap: 1.25rem; }
+  .footer-links a { color: var(--text-dim); text-decoration: none; }
+  .footer-links a:hover { color: var(--accent); text-decoration: underline; }
+
+  footer .container > span a { color: inherit; }
+  footer .container > span a:hover { color: var(--accent); }
+
   [hidden] { display: none !important; }
 
   @media (prefers-reduced-motion: reduce) {
@@ -1428,8 +1435,12 @@
       </svg>
       <span>mygym</span>
     </div>
-    <span>© 2026 mygym. G. ft cortesdev.cl</span>
-    <a href="/">Volver al sitio</a>
+    <span>© 2026 mygym. G. ft <a href="https://cortesdev.cl/" target="_blank" rel="noopener">cortesdev.cl</a></span>
+    <nav class="footer-links">
+      <a href="/">Volver al sitio</a>
+      <a href="/faq">Preguntas frecuentes</a>
+      <a href="/privacidad">Privacidad</a>
+    </nav>
   </div>
 </footer>
 

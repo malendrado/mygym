@@ -1014,10 +1014,36 @@ button:focus-visible {
     margin: 0;
   }
 
+  &__links {
+    display: flex;
+    gap: 1.25rem;
+    flex-wrap: wrap;
+    justify-content: center;
+
+    a {
+      color: var(--brand-text-dim);
+      font-size: 0.85rem;
+      text-decoration: none;
+
+      &:hover {
+        color: var(--brand-accent);
+        text-decoration: underline;
+      }
+    }
+  }
+
   &__meta {
     color: var(--brand-text-dim);
     font-size: 0.85rem;
     margin: 0;
+
+    a {
+      color: inherit;
+
+      &:hover {
+        color: var(--brand-accent);
+      }
+    }
   }
 }
 

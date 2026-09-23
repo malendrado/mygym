@@ -13,6 +13,7 @@ import {
   IonText,
   IonTitle,
   IonToolbar,
+  ViewWillEnter,
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import {
@@ -63,7 +64,7 @@ type Status = 'idle' | 'loading' | 'loaded' | 'error';
   templateUrl: './gym-list.html',
   styleUrl: './gym-list.scss',
 })
-export class GymList {
+export class GymList implements ViewWillEnter {
   private readonly gymService = inject(GymService);
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
@@ -91,7 +92,13 @@ export class GymList {
 
   protected readonly adminFirstName = computed(() => this.authService.currentUser()?.name?.split(' ')[0] ?? 'admin');
 
-  constructor() {
+  // Ionic cachea las páginas (provideIonicAngular usa IonicRouteStrategy por defecto, para las
+  // animaciones de transición) — volver acá desde gym-form reusa esta MISMA instancia en vez de
+  // recrearla, así que cargar los datos solo en el constructor los deja pegados para siempre
+  // (ej. un gym recién desvinculado seguía apareciendo hasta un F5 manual, bug real reportado
+  // por el usuario 2026-09-23). ionViewWillEnter sí dispara cada vez que la página se vuelve a
+  // mostrar, esté cacheada o no — reemplaza al constructor como punto de carga.
+  ionViewWillEnter(): void {
     this.load();
     this.loadAnalytics();
   }
