@@ -77,7 +77,7 @@ public class GymService {
         if (gymRepository.existsBySlug(request.slug())) {
             throw new DuplicateSlugException(request.slug());
         }
-        if (appUserRepository.existsByEmail(request.ownerEmail())) {
+        if (appUserRepository.existsByEmail(AppUser.normalizeEmail(request.ownerEmail()))) {
             throw new DuplicateOwnerEmailException(request.ownerEmail());
         }
         Gym gym = Gym.builder()
@@ -317,7 +317,7 @@ public class GymService {
 
     public AdminResponse addAdmin(Long gymId, AdminCreateRequest request) {
         Gym gym = findGymOrThrow(gymId);
-        if (appUserRepository.existsByEmail(request.email())) {
+        if (appUserRepository.existsByEmail(AppUser.normalizeEmail(request.email()))) {
             throw new DuplicateOwnerEmailException(request.email());
         }
         AppUser admin = AppUser.builder()
@@ -336,6 +336,34 @@ public class GymService {
         AppUser admin = findAdminOrThrow(gymId, userId);
         admin.setActive(request.active());
         return toResponse(appUserRepository.save(admin));
+    }
+
+    // Acceso de solo-lectura a la demo comercial (ver Role.DEMO_ADMIN / SecurityConfig). Reusa
+    // el mismo AppUser + email de invitación que un admin real, pero con otro rol y otra copia de
+    // email — nunca se debe confundir con addAdmin, que da acceso de escritura real a un gym real.
+    @Transactional(readOnly = true)
+    public List<AdminResponse> listDemoAdmins(Long gymId) {
+        findGymOrThrow(gymId);
+        return appUserRepository.findByGymIdAndRole(gymId, Role.DEMO_ADMIN).stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    public AdminResponse addDemoAdmin(Long gymId, AdminCreateRequest request) {
+        Gym gym = findGymOrThrow(gymId);
+        if (appUserRepository.existsByEmail(AppUser.normalizeEmail(request.email()))) {
+            throw new DuplicateOwnerEmailException(request.email());
+        }
+        AppUser demoAdmin = AppUser.builder()
+                .email(request.email())
+                .name(request.name())
+                .role(Role.DEMO_ADMIN)
+                .gymId(gymId)
+                .active(true)
+                .build();
+        demoAdmin = appUserRepository.save(demoAdmin);
+        adminInviteEmailService.sendDemoInvite(gym, demoAdmin);
+        return toResponse(demoAdmin);
     }
 
     public BlockResponse addBlock(Long gymId, BlockCreateRequest request) {
@@ -524,7 +552,10 @@ public class GymService {
         AppUser admin = appUserRepository
                 .findByIdAndGymId(userId, gymId)
                 .orElseThrow(() -> new AdminNotFoundException(gymId, userId));
-        if (admin.getRole() != Role.GYM_ADMIN) {
+        // Reusado por updateAdminStatus tanto para GYM_ADMIN real como para DEMO_ADMIN (activar/
+        // desactivar acceso a la demo comercial) — ambos son "administradores" de este gym en
+        // sentido amplio, la diferencia de permisos la hace SecurityConfig, no esta validación.
+        if (admin.getRole() != Role.GYM_ADMIN && admin.getRole() != Role.DEMO_ADMIN) {
             throw new AdminNotFoundException(gymId, userId);
         }
         return admin;

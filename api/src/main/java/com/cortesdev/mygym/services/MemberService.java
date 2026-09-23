@@ -39,7 +39,7 @@ public class MemberService {
     private final MemberLifecycleEmailService memberLifecycleEmailService;
 
     public MemberResponse createMember(Long gymId, MemberCreateRequest request) {
-        if (appUserRepository.existsByEmail(request.email())) {
+        if (appUserRepository.existsByEmail(AppUser.normalizeEmail(request.email()))) {
             throw new DuplicateMemberEmailException(request.email());
         }
         AppUser member = appUserRepository.save(AppUser.builder()

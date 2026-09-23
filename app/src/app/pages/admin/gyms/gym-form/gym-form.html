@@ -242,18 +242,6 @@
         <p class="member-stat__value">{{ invitedPendingMembers() }}</p>
         <p class="member-stat__label">Invitados</p>
       </div>
-      <div
-        class="member-stat member-stat--registered"
-        role="button"
-        tabindex="0"
-        aria-label="Ver invitados registrados"
-        (click)="viewMembersByInvite('REGISTERED')"
-        (keydown.enter)="viewMembersByInvite('REGISTERED')"
-      >
-        <ion-icon name="logo-google" aria-hidden="true"></ion-icon>
-        <p class="member-stat__value">{{ invitedRegisteredMembers() }}</p>
-        <p class="member-stat__label">Invitados registrados</p>
-      </div>
     </div>
 
     <div class="gym-detail-columns">
@@ -311,6 +299,70 @@
             Agregar administrador
           </ion-button>
           @if (adminError(); as error) {
+            <ion-note color="danger">{{ error }}</ion-note>
+          }
+        </form>
+      </ion-card-content>
+    </ion-card>
+
+    <ion-card>
+      <ion-card-header class="card-header-row">
+        <ion-card-title>
+          <ion-icon name="eye-outline" aria-hidden="true"></ion-icon>
+          Acceso a la demo
+        </ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <p class="item-hint">
+          Acceso de solo lectura para prospectos — pueden recorrer el panel de administración y
+          "ver como socio" de este gym, pero no pueden modificar ni guardar nada.
+        </p>
+        <ion-list lines="full">
+          @for (admin of demoAdmins(); track admin.id) {
+            <ion-item>
+              @if (admin.photoUrl) {
+                <img [src]="admin.photoUrl" alt="" slot="start" class="member-avatar" />
+              } @else {
+                <div class="admin-avatar" slot="start" [class.admin-avatar--inactive]="!admin.active">
+                  {{ initials(admin.name) }}
+                </div>
+              }
+              <ion-label>
+                {{ admin.name }}
+                <p>{{ admin.email }}</p>
+              </ion-label>
+              <ion-badge slot="end" [color]="admin.active ? 'success' : 'medium'">
+                {{ admin.active ? 'Activo' : 'Inactivo' }}
+              </ion-badge>
+              <ion-button
+                fill="clear"
+                [color]="admin.active ? 'danger' : 'success'"
+                [disabled]="togglingDemoAdminId() === admin.id"
+                (click)="toggleDemoAdminStatus(admin)"
+              >
+                {{ togglingDemoAdminId() === admin.id ? (admin.active ? 'Quitando...' : 'Reactivando...') : (admin.active ? 'Quitar acceso' : 'Reactivar') }}
+              </ion-button>
+            </ion-item>
+          } @empty {
+            <div class="admins-empty">
+              <ion-icon name="eye-outline" aria-hidden="true"></ion-icon>
+              <p>Todavía no le diste acceso a la demo a nadie.</p>
+            </div>
+          }
+        </ion-list>
+
+        <form [formGroup]="demoAdminForm" (ngSubmit)="submitDemoAdmin()" class="ion-margin-top">
+          <ion-item>
+            <ion-input label="Nombre *" formControlName="name" placeholder="Ej: Javiera Pulgar" />
+          </ion-item>
+          <ion-item lines="none">
+            <ion-input label="Email *" type="email" autocomplete="email" formControlName="email" placeholder="Ej: javiera@mail.com" />
+          </ion-item>
+          <p class="item-hint">Va a poder entrar a la demo iniciando sesión con Google usando este email.</p>
+          <ion-button type="submit" fill="outline" [disabled]="demoAdminForm.invalid || status() === 'saving'" class="ion-margin-top">
+            Dar acceso a la demo
+          </ion-button>
+          @if (demoAdminError(); as error) {
             <ion-note color="danger">{{ error }}</ion-note>
           }
         </form>
@@ -668,18 +720,6 @@
         <ion-icon name="paper-plane-outline" aria-hidden="true"></ion-icon>
         <p class="member-stat__value">{{ invitedPendingMembers() }}</p>
         <p class="member-stat__label">Invitados</p>
-      </div>
-      <div
-        class="member-stat member-stat--registered"
-        role="button"
-        tabindex="0"
-        aria-label="Ver invitados registrados"
-        (click)="viewMembersByInvite('REGISTERED')"
-        (keydown.enter)="viewMembersByInvite('REGISTERED')"
-      >
-        <ion-icon name="logo-google" aria-hidden="true"></ion-icon>
-        <p class="member-stat__value">{{ invitedRegisteredMembers() }}</p>
-        <p class="member-stat__label">Invitados registrados</p>
       </div>
     </div>
 

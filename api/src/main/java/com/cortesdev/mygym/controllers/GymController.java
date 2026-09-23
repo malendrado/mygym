@@ -181,6 +181,21 @@ public class GymController {
         return gymService.updateAdminStatus(id, userId, request);
     }
 
+    // Acceso de solo-lectura a la demo comercial (Role.DEMO_ADMIN) — desactivar/reactivar
+    // reusa el mismo PUT .../admins/{userId} de arriba, ver GymService.findAdminOrThrow.
+    @GetMapping("/{id}/demo-admins")
+    public List<AdminResponse> listDemoAdmins(@PathVariable Long id) {
+        return gymService.listDemoAdmins(id);
+    }
+
+    @PostMapping("/{id}/demo-admins")
+    public ResponseEntity<AdminResponse> addDemoAdmin(
+            @PathVariable Long id, @Valid @RequestBody AdminCreateRequest request) {
+        AdminResponse admin = gymService.addDemoAdmin(id, request);
+        return ResponseEntity.created(URI.create("/api/gyms/" + id + "/demo-admins/" + admin.id()))
+                .body(admin);
+    }
+
     @GetMapping("/{id}/plans")
     public List<PlanResponse> listPlans(@PathVariable Long id) {
         return gymService.listPlans(id);

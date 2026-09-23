@@ -5,6 +5,7 @@ import com.cortesdev.mygym.services.exception.BookingWindowClosedException;
 import com.cortesdev.mygym.services.exception.BrandingSuggestionException;
 import com.cortesdev.mygym.services.exception.CapacityExceededException;
 import com.cortesdev.mygym.services.exception.DuplicateMemberEmailException;
+import com.cortesdev.mygym.services.exception.DemoSampleMemberMissingException;
 import com.cortesdev.mygym.services.exception.DuplicateOwnerEmailException;
 import com.cortesdev.mygym.services.exception.DuplicateSlugException;
 import com.cortesdev.mygym.services.exception.ForbiddenGymAccessException;
@@ -217,6 +218,14 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     public ResponseEntity<ProblemDetail> handleTooManyGymPhotos(TooManyGymPhotosException ex) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
         problem.setTitle("Demasiadas fotos");
+        problem.setProperty("timestamp", Instant.now());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(problem);
+    }
+
+    @ExceptionHandler(DemoSampleMemberMissingException.class)
+    public ResponseEntity<ProblemDetail> handleDemoSampleMemberMissing(DemoSampleMemberMissingException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+        problem.setTitle("Demo sin sembrar");
         problem.setProperty("timestamp", Instant.now());
         return ResponseEntity.status(HttpStatus.CONFLICT).body(problem);
     }

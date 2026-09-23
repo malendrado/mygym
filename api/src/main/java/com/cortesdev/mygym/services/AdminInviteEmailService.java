@@ -32,6 +32,7 @@ public class AdminInviteEmailService {
     private final String apiKey;
     private final String from;
     private final String template;
+    private final String demoTemplate;
 
     public AdminInviteEmailService(
             RestClient.Builder restClientBuilder,
@@ -40,20 +41,31 @@ public class AdminInviteEmailService {
         this.restClient = restClientBuilder.baseUrl("https://api.resend.com").build();
         this.apiKey = apiKey;
         this.from = from;
-        this.template = loadTemplate();
+        this.template = loadTemplate("templates/email/admin-invite.html");
+        this.demoTemplate = loadTemplate("templates/email/demo-invite.html");
     }
 
     public void sendAdminInvite(Gym gym, AppUser admin) {
+        send(template, "Ya tienes acceso a administrar " + gym.getName(), gym, admin);
+    }
+
+    // Misma mecánica que sendAdminInvite pero con la plantilla/copy de demo-invite.html — nunca
+    // confundir los dos: este es un DEMO_ADMIN de solo-lectura, no un GYM_ADMIN real.
+    public void sendDemoInvite(Gym gym, AppUser demoAdmin) {
+        send(demoTemplate, "Tu demo de mygym está lista", gym, demoAdmin);
+    }
+
+    private void send(String htmlTemplate, String subject, Gym gym, AppUser admin) {
         if (apiKey == null || apiKey.isBlank()) {
             log.warn("RESEND_API_KEY no configurada — se omite el email de invitación para {}", admin.getEmail());
             return;
         }
         try {
-            String html = renderHtml(gym, admin);
+            String html = renderHtml(htmlTemplate, gym, admin);
             Map<String, Object> body = Map.of(
                     "from", from,
                     "to", java.util.List.of(admin.getEmail()),
-                    "subject", "Ya tienes acceso a administrar " + gym.getName(),
+                    "subject", subject,
                     "html", html);
             restClient
                     .post()
@@ -69,11 +81,11 @@ public class AdminInviteEmailService {
         }
     }
 
-    private String renderHtml(Gym gym, AppUser admin) {
+    private String renderHtml(String htmlTemplate, Gym gym, AppUser admin) {
         String themeColor = gym.getThemeColor() != null ? gym.getThemeColor() : GymPalette.defaultHex();
         String contrast = GymPalette.contrastFor(themeColor);
 
-        return template
+        return htmlTemplate
                 .replace("{{GYM_NAME}}", escapeHtml(gym.getName()))
                 .replace("{{ADMIN_NAME}}", escapeHtml(admin.getName()))
                 .replace("{{ADMIN_EMAIL}}", escapeHtml(admin.getEmail()))
@@ -116,13 +128,13 @@ public class AdminInviteEmailService {
                 .replace("'", "&#39;");
     }
 
-    private String loadTemplate() {
+    private String loadTemplate(String classpathLocation) {
         try {
-            byte[] bytes = StreamUtils.copyToByteArray(
-                    new ClassPathResource("templates/email/admin-invite.html").getInputStream());
+            byte[] bytes =
+                    StreamUtils.copyToByteArray(new ClassPathResource(classpathLocation).getInputStream());
             return new String(bytes, StandardCharsets.UTF_8);
         } catch (IOException e) {
-            throw new UncheckedIOException("No se pudo cargar la plantilla de email admin-invite.html", e);
+            throw new UncheckedIOException("No se pudo cargar la plantilla de email " + classpathLocation, e);
         }
     }
 }

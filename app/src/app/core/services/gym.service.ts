@@ -207,6 +207,16 @@ export class GymService {
     return this.http.put<Admin>(`${this.base}/${gymId}/admins/${userId}`, { active });
   }
 
+  // Acceso de solo-lectura a la demo comercial (Role.DEMO_ADMIN) — activar/desactivar reusa
+  // updateAdminStatus de arriba (mismo endpoint sirve para ambos tipos de admin en el backend).
+  listDemoAdmins(gymId: number): Observable<Admin[]> {
+    return this.http.get<Admin[]>(`${this.base}/${gymId}/demo-admins`);
+  }
+
+  addDemoAdmin(gymId: number, payload: CreateAdminRequest): Observable<Admin> {
+    return this.http.post<Admin>(`${this.base}/${gymId}/demo-admins`, payload);
+  }
+
   /** Contraparte SUPER_ADMIN de listMyPlans/createMyPlan/etc. — mismo backend, gymId por path en vez de por JWT. */
   listPlans(gymId: number): Observable<GymPlan[]> {
     return this.http.get<GymPlan[]>(`${this.base}/${gymId}/plans`);

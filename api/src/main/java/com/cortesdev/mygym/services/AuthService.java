@@ -31,7 +31,7 @@ public class AuthService {
     public LoginResponse loginWithGoogle(GoogleLoginRequest request) {
         GoogleTokenVerifier.GoogleIdentity identity = googleTokenVerifier.verify(request.idToken());
         AppUser user = appUserRepository
-                .findByEmail(identity.email())
+                .findByEmail(AppUser.normalizeEmail(identity.email()))
                 .orElseThrow(() -> new UnauthorizedGoogleLoginException(identity.email()));
         if (!user.isActive()) {
             throw new UnauthorizedGoogleLoginException(identity.email());
@@ -83,7 +83,7 @@ public class AuthService {
             throw new GymNotFoundException(gymSlug);
         }
 
-        var existingUser = appUserRepository.findByEmail(identity.email());
+        var existingUser = appUserRepository.findByEmail(AppUser.normalizeEmail(identity.email()));
         boolean isNewMember = existingUser.isEmpty();
         AppUser user = existingUser.orElseGet(() -> appUserRepository.save(
                 AppUser.builder()

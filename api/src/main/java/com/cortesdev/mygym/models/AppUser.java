@@ -10,6 +10,7 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.util.Locale;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -65,10 +66,26 @@ public class AppUser {
         Instant now = Instant.now();
         createdAt = now;
         updatedAt = now;
+        email = normalizeEmail(email);
     }
 
     @PreUpdate
     void onUpdate() {
         updatedAt = Instant.now();
+        email = normalizeEmail(email);
+    }
+
+    /**
+     * Bug real en prod: Google siempre devuelve el email en minúscula, pero un admin puede
+     * tipear un email con mayúsculas al invitar — findByEmail/existsByEmail hacen match exacto,
+     * así que "Nombre@mail.com" (invitado) y "nombre@mail.com" (login real de Google) generaban
+     * DOS filas para la misma persona (el invitado quedaba pegado en PENDING para siempre, el
+     * login real creaba una cuenta nueva sin el invitedAt). Normalizar acá garantiza que TODO lo
+     * que se guarda queda en minúscula sin importar por dónde entre — pero los call sites de
+     * findByEmail/existsByEmail igual tienen que normalizar el email de búsqueda (ver
+     * AuthService/GymService/MemberService), esto solo cubre la escritura.
+     */
+    public static String normalizeEmail(String email) {
+        return email == null ? null : email.trim().toLowerCase(Locale.ROOT);
     }
 }

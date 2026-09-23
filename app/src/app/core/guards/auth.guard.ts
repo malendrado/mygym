@@ -9,7 +9,7 @@ export const authGuard: CanActivateFn = () => {
   return authService.currentUser() !== null || router.parseUrl('/login');
 };
 
-export function roleGuard(role: Role): CanActivateFn {
+export function roleGuard(...roles: Role[]): CanActivateFn {
   return () => {
     const authService = inject(AuthService);
     const router = inject(Router);
@@ -17,6 +17,6 @@ export function roleGuard(role: Role): CanActivateFn {
     if (user === null) {
       return router.parseUrl('/login');
     }
-    return user.role === role || router.parseUrl('/');
+    return roles.includes(user.role) || router.parseUrl('/');
   };
 }

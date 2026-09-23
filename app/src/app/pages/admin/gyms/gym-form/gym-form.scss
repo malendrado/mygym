@@ -742,10 +742,6 @@ ion-segment-button.segment-button-checked {
     color: var(--ion-color-tertiary, #8b5cf6);
   }
 
-  &--registered ion-icon {
-    color: var(--brand-accent);
-  }
-
   &--soon &__value {
     color: var(--ion-color-warning);
   }
@@ -760,10 +756,6 @@ ion-segment-button.segment-button-checked {
 
   &--invited &__value {
     color: var(--ion-color-tertiary, #8b5cf6);
-  }
-
-  &--registered &__value {
-    color: var(--brand-accent);
   }
 }
 

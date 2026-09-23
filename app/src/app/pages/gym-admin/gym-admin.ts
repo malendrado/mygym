@@ -48,6 +48,7 @@ import {
   copyOutline,
   createOutline,
   ellipseOutline,
+  eyeOutline,
   helpCircleOutline,
   hourglassOutline,
   imagesOutline,
@@ -110,6 +111,7 @@ import {
 } from '../../core/utils/gym-theme';
 
 addIcons({
+  'eye-outline': eyeOutline,
   'time-outline': timeOutline,
   'calendar-outline': calendarOutline,
   'chevron-back-outline': chevronBackOutline,
@@ -377,6 +379,10 @@ export class GymAdmin implements OnDestroy {
   protected readonly section = signal<Section>('general');
   protected readonly sectionLabel = computed(() => SECTION_LABELS[this.section()]);
   protected readonly adminFirstName = computed(() => this.authService.currentUser()?.name?.split(' ')[0] ?? 'admin');
+  // Acceso de solo-lectura a la demo comercial (ver Role.DEMO_ADMIN / SecurityConfig en el
+  // backend) — el bloqueo real de escritura ya está en el backend, esto solo maneja el toggle
+  // "ver como socio" y el difuminado de la sección de Marca (ver template).
+  protected readonly isDemoAdmin = computed(() => this.authService.currentUser()?.role === 'DEMO_ADMIN');
   protected readonly tip = ADMIN_TIPS[Math.floor(Math.random() * ADMIN_TIPS.length)];
   protected readonly gym = signal<Gym | null>(null);
   protected readonly gymName = signal('');
@@ -524,10 +530,12 @@ export class GymAdmin implements OnDestroy {
   // combinaban con AND (podían dar 0 socios sin que se viera obvio por qué) — las 6 calugas
   // se ven como un único grupo de filtro, así que ahora click en cualquiera reemplaza
   // cualquier filtro activo del otro eje, nunca se suman. Ver viewMembersByStatus/ByInvite.
+  // "Invitados registrados" (contador/filtro propio) se retiró a pedido explícito del usuario:
+  // alguien invitado que ya se registró pero no pagó ya cuenta como "Sin pago" (eje de pago,
+  // independiente) — tener un tercer bucket separado para lo mismo era ruido. El badge por
+  // fila (inviteStatusLabel) se mantiene SIEMPRE, incluso ya activo — es información histórica
+  // ("este socio lo invité yo"), no un estado que compita con el de pago.
   protected readonly invitedPendingMembers = computed(() => this.members().filter((m) => m.inviteStatus === 'PENDING').length);
-  protected readonly invitedRegisteredMembers = computed(
-    () => this.members().filter((m) => m.inviteStatus === 'REGISTERED').length,
-  );
   protected readonly memberInviteFilter = signal<InviteStatus>(null);
   protected readonly filteredMembers = computed(() => {
     const statusFilter = this.memberStatusFilter();
@@ -1460,6 +1468,10 @@ export class GymAdmin implements OnDestroy {
   // (no al /login genérico de mygym) — más contextual, y esa página ya sabe
   // re-loguearlo si vuelve a tocar "Continuar con Google" (el backend de
   // /join detecta que el email ya existe y solo lo loguea, sin re-provisionar).
+  protected goToDemoPreview(): void {
+    this.router.navigate(['/gym-admin/demo-preview']);
+  }
+
   protected async logout(): Promise<void> {
     await this.authService.logout();
     const slug = this.gymSlug();

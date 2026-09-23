@@ -615,10 +615,6 @@ ion-segment-button.segment-button-checked {
     color: var(--ion-color-tertiary, #8b5cf6);
   }
 
-  &--registered ion-icon {
-    color: var(--brand-accent);
-  }
-
   &--soon &__value {
     color: var(--ion-color-warning);
   }
@@ -633,10 +629,6 @@ ion-segment-button.segment-button-checked {
 
   &--invited &__value {
     color: var(--ion-color-tertiary, #8b5cf6);
-  }
-
-  &--registered &__value {
-    color: var(--brand-accent);
   }
 }
 
@@ -963,4 +955,63 @@ ion-segment-button.segment-button-checked {
   font-weight: 600;
   font-size: 0.8rem;
   transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+// Acceso de solo-lectura a la demo comercial (Role.DEMO_ADMIN) — el bloqueo real de escritura
+// vive en el backend (SecurityConfig); esto es solo la señal visual de que se está en modo demo.
+.demo-readonly-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1rem;
+  background: color-mix(in srgb, var(--brand-accent) 16%, transparent);
+  color: var(--brand-text);
+  font-size: 0.8rem;
+  font-weight: 500;
+
+  ion-icon {
+    flex-shrink: 0;
+    color: var(--brand-accent-text-safe, var(--brand-accent));
+    font-size: 1rem;
+  }
+}
+
+// Difumina una sección para que no sea replicable con solo ver la demo (pedido explícito del
+// usuario, ver conversación) — hoy solo se aplica a la sugerencia de marca con IA en Marca.
+// El overlay explica por qué está borroso en vez de dejar que parezca un bug.
+.demo-obscured {
+  position: relative;
+
+  &__content {
+    filter: blur(7px);
+    pointer-events: none;
+    user-select: none;
+  }
+
+  &__overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    text-align: center;
+    padding: 1rem;
+    background: color-mix(in srgb, var(--brand-ink) 55%, transparent);
+    border-radius: 14px;
+
+    ion-icon {
+      font-size: 1.6rem;
+      color: var(--brand-accent-text-safe, var(--brand-accent));
+    }
+
+    p {
+      margin: 0;
+      max-width: 260px;
+      font-size: 0.85rem;
+      color: var(--brand-text);
+    }
+  }
 }

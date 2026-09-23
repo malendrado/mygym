@@ -46,7 +46,11 @@ export class Login {
           this.showWelcome.set(true);
           setTimeout(() => {
             const destination =
-              response.role === 'SUPER_ADMIN' ? '/admin/gyms' : response.role === 'GYM_ADMIN' ? '/gym-admin' : '/member';
+              response.role === 'SUPER_ADMIN'
+                ? '/admin/gyms'
+                : response.role === 'GYM_ADMIN' || response.role === 'DEMO_ADMIN'
+                  ? '/gym-admin'
+                  : '/member';
             this.router.navigate([destination]);
           }, WELCOME_PAUSE_MS);
         },

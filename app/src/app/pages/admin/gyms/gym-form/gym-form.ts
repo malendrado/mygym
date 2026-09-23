@@ -48,6 +48,7 @@ import {
   cloudUploadOutline,
   colorPaletteOutline,
   createOutline,
+  eyeOutline,
   helpCircleOutline,
   hourglassOutline,
   imagesOutline,
@@ -117,6 +118,7 @@ addIcons({
   'chevron-up-outline': chevronUpOutline,
   'chevron-down-outline': chevronDownOutline,
   'people-outline': peopleOutline,
+  'eye-outline': eyeOutline,
   'paper-plane-outline': paperPlaneOutline,
   'sparkles-outline': sparklesOutline,
   'person-outline': personOutline,
@@ -380,6 +382,11 @@ export class GymForm implements OnDestroy {
   protected readonly admins = signal<Admin[]>([]);
   protected readonly adminError = signal<string | null>(null);
 
+  // Acceso de solo-lectura a la demo comercial (Role.DEMO_ADMIN) — ver DemoPreviewController/
+  // SecurityConfig en el backend. Espejo exacto del bloque de admins de arriba.
+  protected readonly demoAdmins = signal<Admin[]>([]);
+  protected readonly demoAdminError = signal<string | null>(null);
+
   // Planes (pestaña Planes) — misma lógica que gym-admin.ts, pero con gymId
   // explícito (el de la ruta) en vez de tomarlo del JWT del gym-admin logueado.
   // Clave de cache con fecha incluida — ver comentario largo en gym-admin.ts.
@@ -464,10 +471,9 @@ export class GymForm implements OnDestroy {
   protected readonly memberStatusFilter = signal<MembershipStatus | null>(null);
   // Ver comentario largo en gym-admin.ts: las 6 calugas son un único grupo de filtro
   // mutuamente excluyente — click en cualquiera reemplaza cualquier filtro activo del otro eje.
+  // "Invitados registrados" se retiró como bucket/filtro propio (mismo criterio que gym-admin.ts)
+  // — el badge por fila se mantiene siempre, incluso ya activo, como info histórica.
   protected readonly invitedPendingMembers = computed(() => this.members().filter((m) => m.inviteStatus === 'PENDING').length);
-  protected readonly invitedRegisteredMembers = computed(
-    () => this.members().filter((m) => m.inviteStatus === 'REGISTERED').length,
-  );
   protected readonly memberInviteFilter = signal<InviteStatus>(null);
   // Buscador libre por nombre/email — independiente de las calugas de estado/invitación,
   // se combinan todos con AND (mismo criterio que ya usa reservationSearchQuery en Historial).
@@ -564,6 +570,11 @@ export class GymForm implements OnDestroy {
   });
 
   protected readonly adminForm = new FormGroup({
+    name: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.minLength(2), Validators.maxLength(150)] }),
+    email: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.email] }),
+  });
+
+  protected readonly demoAdminForm = new FormGroup({
     name: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.minLength(2), Validators.maxLength(150)] }),
     email: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.email] }),
   });
@@ -706,6 +717,7 @@ export class GymForm implements OnDestroy {
         this.gymLoaded.set(true);
         this.loadBlocks(id);
         this.loadAdmins(id);
+        this.loadDemoAdmins(id);
         this.loadPlans(id);
         this.loadMembers(id);
         this.loadPhotos(id);
@@ -727,6 +739,13 @@ export class GymForm implements OnDestroy {
   private loadAdmins(id: number): void {
     this.gymService.listAdmins(id).subscribe({
       next: (admins) => this.admins.set(admins),
+      error: () => this.status.set('error'),
+    });
+  }
+
+  private loadDemoAdmins(id: number): void {
+    this.gymService.listDemoAdmins(id).subscribe({
+      next: (demoAdmins) => this.demoAdmins.set(demoAdmins),
       error: () => this.status.set('error'),
     });
   }
@@ -816,6 +835,57 @@ export class GymForm implements OnDestroy {
       error: (err: Error) => {
         this.status.set('idle');
         this.adminError.set(err.message || 'No pudimos agregar al administrador. Intenta nuevamente.');
+      },
+    });
+  }
+
+  protected submitDemoAdmin(): void {
+    const id = this.gymId();
+    if (id === null || this.demoAdminForm.invalid) {
+      return;
+    }
+    this.status.set('saving');
+    this.demoAdminError.set(null);
+    this.gymService.addDemoAdmin(id, this.demoAdminForm.getRawValue()).subscribe({
+      next: (admin) => {
+        this.demoAdminForm.reset({ name: '', email: '' });
+        this.status.set('idle');
+        this.loadDemoAdmins(id);
+        this.showToast(`Acceso a la demo otorgado. Le enviamos un email a ${admin.email}.`);
+      },
+      error: (err: Error) => {
+        this.status.set('idle');
+        this.demoAdminError.set(err.message || 'No pudimos otorgar el acceso a la demo. Intenta nuevamente.');
+      },
+    });
+  }
+
+  protected readonly togglingDemoAdminId = signal<number | null>(null);
+
+  protected async toggleDemoAdminStatus(admin: Admin): Promise<void> {
+    const id = this.gymId();
+    if (id === null || this.togglingDemoAdminId() !== null) {
+      return;
+    }
+    if (admin.active) {
+      const confirmed = await this.confirmAction(
+        'Quitar acceso a la demo',
+        `¿Quitarle el acceso a la demo a ${admin.name}? Va a poder recuperarlo más tarde con "Reactivar".`,
+        'Quitar acceso',
+      );
+      if (!confirmed) {
+        return;
+      }
+    }
+    this.togglingDemoAdminId.set(admin.id);
+    this.gymService.updateAdminStatus(id, admin.id, !admin.active).subscribe({
+      next: () => {
+        this.togglingDemoAdminId.set(null);
+        this.loadDemoAdmins(id);
+      },
+      error: () => {
+        this.togglingDemoAdminId.set(null);
+        this.status.set('error');
       },
     });
   }

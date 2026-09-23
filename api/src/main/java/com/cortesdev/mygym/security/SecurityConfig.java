@@ -4,6 +4,7 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
@@ -41,6 +42,14 @@ public class SecurityConfig {
                         .permitAll()
                         .requestMatchers("/api/gyms/**")
                         .hasRole("SUPER_ADMIN")
+                        // DEMO_ADMIN es de solo-lectura: el matcher de GET tiene que ir ANTES del
+                        // genérico de abajo (Spring Security usa el PRIMER matcher que hace match,
+                        // mismo gotcha ya documentado para CORS más abajo en este archivo) — así,
+                        // un DEMO_ADMIN que intente POST/PUT/DELETE cae al matcher genérico
+                        // siguiente (solo GYM_ADMIN) y recibe 403 real, no solo un botón
+                        // deshabilitado en el frontend.
+                        .requestMatchers(HttpMethod.GET, "/api/gym-admin/**")
+                        .hasAnyRole("GYM_ADMIN", "DEMO_ADMIN")
                         .requestMatchers("/api/gym-admin/**")
                         .hasRole("GYM_ADMIN")
                         .requestMatchers("/api/me/**")
