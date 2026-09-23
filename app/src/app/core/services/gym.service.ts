@@ -18,6 +18,8 @@ import {
   Gym,
   GymBlock,
   GymConfigUpdateRequest,
+  GymDeletionAudit,
+  GymDisconnectRequest,
   GymIdentityUpdateRequest,
   GymPhoto,
   GymPlan,
@@ -262,6 +264,15 @@ export class GymService {
 
   deletePhoto(gymId: number, photoId: number): Observable<void> {
     return this.http.delete<void>(`${this.base}/${gymId}/photos/${photoId}`);
+  }
+
+  /** Desvinculación permanente — borra TODO el gym (ver GymDisconnectionService). Irreversible. */
+  disconnectGym(gymId: number, payload: GymDisconnectRequest): Observable<GymDeletionAudit> {
+    return this.http.post<GymDeletionAudit>(`${this.base}/${gymId}/disconnect`, payload);
+  }
+
+  listDeletionAudits(): Observable<GymDeletionAudit[]> {
+    return this.http.get<GymDeletionAudit[]>(`${this.base}/deletion-audits`);
   }
 
   /** Scoped to the logged-in gym owner's own gym (GYM_ADMIN) — gymId comes from their JWT, not the URL. */

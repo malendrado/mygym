@@ -184,6 +184,27 @@ export interface CreateAdminRequest {
   email: string;
 }
 
+export interface GymDisconnectRequest {
+  confirmGymName: string;
+}
+
+/** Resumen permanente de una desvinculación — deliberadamente sin datos personales de socios,
+ *  ver GymDisconnectionService en el backend. */
+export interface GymDeletionAudit {
+  id: number;
+  gymName: string;
+  gymSlug: string;
+  adminEmails: string;
+  memberCount: number;
+  reservationCount: number;
+  paymentCount: number;
+  blockCount: number;
+  planCount: number;
+  photoCount: number;
+  executedBy: string;
+  executedAt: string;
+}
+
 export interface GymConfigUpdateRequest {
   active: boolean;
   maxUsers: number;

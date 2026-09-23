@@ -14,6 +14,11 @@ public interface AppUserRepository extends JpaRepository<AppUser, Long> {
 
     List<AppUser> findByGymIdAndRole(Long gymId, Role role);
 
+    /** Cualquier rol (admin, socio, demo) — usado por GymDisconnectionService para auditar y
+     *  notificar antes de borrar; no reemplaza a findByGymIdAndRole, que sigue siendo más
+     *  preciso para el resto de los usos. */
+    List<AppUser> findByGymId(Long gymId);
+
     /** Buscador por nombre para el admin (cancelar la reserva de un socio puntual). */
     List<AppUser> findByGymIdAndRoleAndNameContainingIgnoreCase(Long gymId, Role role, String name);
 

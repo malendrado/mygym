@@ -2,6 +2,10 @@
   <ion-toolbar>
     <ion-title><img src="favicon.svg" class="brand-icon" alt="" /> mygym</ion-title>
     <ion-buttons slot="end">
+      <ion-button routerLink="/admin/gyms/deletion-audits">
+        <ion-icon name="document-text-outline" slot="start" aria-hidden="true"></ion-icon>
+        Desvinculaciones
+      </ion-button>
       <ion-button (click)="logout()">
         <ion-icon name="log-out-outline" slot="start" aria-hidden="true"></ion-icon>
         Salir

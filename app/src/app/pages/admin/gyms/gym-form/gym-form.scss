@@ -43,6 +43,35 @@
   }
 }
 
+// Zona de peligro — pedido explícito del usuario para la desvinculación permanente de un
+// gimnasio (borra socios, reservas, pagos, todo). Ocupa el ancho completo de la grilla
+// aunque las otras tarjetas de esta sección vayan de a 2, para que no se lea como "una
+// tarjeta más" entre Administradores/Configuración.
+.danger-zone {
+  border: 1px solid var(--ion-color-danger, #eb445a);
+
+  @media (min-width: 900px) {
+    grid-column: 1 / -1;
+  }
+
+  ion-card-title {
+    color: var(--ion-color-danger, #eb445a);
+  }
+}
+
+.danger-modal {
+  --width: min(480px, 92vw);
+  --height: auto;
+  --border-radius: 16px;
+
+  &__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 1.25rem;
+  }
+}
+
 // Reemplaza el header plano (h1 + slug suelto) por un mini-hero con el logo/
 // color del propio gimnasio, mismo lenguaje visual que la tarjeta de
 // gym-list (badge + nombre + estado), pero en formato "detalle" en vez de

@@ -7,6 +7,8 @@ import com.cortesdev.mygym.services.exception.CapacityExceededException;
 import com.cortesdev.mygym.services.exception.DuplicateMemberEmailException;
 import com.cortesdev.mygym.services.exception.DemoAccessExpiredException;
 import com.cortesdev.mygym.services.exception.DemoSampleMemberMissingException;
+import com.cortesdev.mygym.services.exception.GymDisconnectionEmailFailedException;
+import com.cortesdev.mygym.services.exception.GymNameMismatchException;
 import com.cortesdev.mygym.services.exception.DuplicateOwnerEmailException;
 import com.cortesdev.mygym.services.exception.DuplicateSlugException;
 import com.cortesdev.mygym.services.exception.ForbiddenGymAccessException;
@@ -225,6 +227,22 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
     // 410 (no 401/403): un status propio para que el frontend distinga "tu demo venció, te
     // mandamos al contacto" de un error de auth genérico sin tener que parsear el texto.
+    @ExceptionHandler(GymNameMismatchException.class)
+    public ResponseEntity<ProblemDetail> handleGymNameMismatch(GymNameMismatchException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+        problem.setTitle("Nombre no coincide");
+        problem.setProperty("timestamp", Instant.now());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(problem);
+    }
+
+    @ExceptionHandler(GymDisconnectionEmailFailedException.class)
+    public ResponseEntity<ProblemDetail> handleGymDisconnectionEmailFailed(GymDisconnectionEmailFailedException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_GATEWAY, ex.getMessage());
+        problem.setTitle("No se pudo notificar al administrador");
+        problem.setProperty("timestamp", Instant.now());
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(problem);
+    }
+
     @ExceptionHandler(DemoAccessExpiredException.class)
     public ResponseEntity<ProblemDetail> handleDemoAccessExpired(DemoAccessExpiredException ex) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.GONE, ex.getMessage());

@@ -47,6 +47,11 @@ export const webRoutes: Routes = [
         loadComponent: () => import('./pages/admin/gyms/gym-form/gym-form').then((m) => m.GymForm),
       },
       {
+        path: 'deletion-audits',
+        loadComponent: () =>
+          import('./pages/admin/gyms/deletion-audits/deletion-audits').then((m) => m.DeletionAudits),
+      },
+      {
         path: ':publicId',
         loadComponent: () => import('./pages/admin/gyms/gym-form/gym-form').then((m) => m.GymForm),
       },

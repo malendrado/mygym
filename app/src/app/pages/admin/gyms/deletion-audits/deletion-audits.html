@@ -1,0 +1,54 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/admin/gyms" text="Gimnasios" />
+    </ion-buttons>
+    <ion-title>Desvinculaciones</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="audits-content">
+  <p class="audits-intro">
+    Registro permanente de gimnasios desvinculados de mygym. Solo conteos — sin nombres,
+    emails ni datos de socios: esa información se envió por correo a cada administrador y
+    nunca quedó guardada acá.
+  </p>
+
+  @if (status() === 'loading') {
+    <div class="audits-loading"><ion-spinner name="crescent"></ion-spinner></div>
+  } @else if (status() === 'error') {
+    <ion-text color="danger"><p>No pudimos cargar el historial. Intenta nuevamente.</p></ion-text>
+  } @else if (audits().length === 0) {
+    <div class="audits-empty">
+      <ion-icon name="document-text-outline" aria-hidden="true"></ion-icon>
+      <h3>Todavía no hay desvinculaciones</h3>
+      <p>Cuando un gimnasio se desvincule para siempre, va a quedar registrado acá.</p>
+    </div>
+  } @else {
+    <div class="audit-list">
+      @for (audit of audits(); track audit.id) {
+        <div class="audit-card">
+          <div class="audit-card__header">
+            <p class="audit-card__name">{{ audit.gymName }}</p>
+            <span class="audit-card__date">{{ formatDate(audit.executedAt) }}</span>
+          </div>
+          <p class="audit-card__meta">{{ audit.gymSlug }} · ejecutado por {{ audit.executedBy }}</p>
+          @if (audit.adminEmails) {
+            <p class="audit-card__admins">
+              <ion-icon name="mail-outline" aria-hidden="true"></ion-icon>
+              {{ audit.adminEmails }}
+            </p>
+          }
+          <div class="audit-card__counts">
+            <span><strong>{{ audit.memberCount }}</strong> socios</span>
+            <span><strong>{{ audit.reservationCount }}</strong> reservas</span>
+            <span><strong>{{ audit.paymentCount }}</strong> pagos</span>
+            <span><strong>{{ audit.blockCount }}</strong> bloques</span>
+            <span><strong>{{ audit.planCount }}</strong> planes</span>
+            <span><strong>{{ audit.photoCount }}</strong> fotos</span>
+          </div>
+        </div>
+      }
+    </div>
+  }
+</ion-content>

@@ -66,6 +66,7 @@ import {
   sparklesOutline,
   timeOutline,
   trashOutline,
+  warningOutline,
 } from 'ionicons/icons';
 import { firstValueFrom } from 'rxjs';
 import { GymService } from '../../../../core/services/gym.service';
@@ -89,6 +90,7 @@ import {
   UpdateGymPlanRequest,
   sortBlocksBySchedule,
 } from '../../../../core/models/gym.model';
+import { HttpErrorResponse } from '@angular/common/http';
 import { Attendee, InviteStatus, Member, MembershipStatus } from '../../../../core/models/member.model';
 import { BloqueFormModal, DAYS } from '../bloque-form-modal/bloque-form-modal';
 import { BloqueSeriesModal } from '../bloque-series-modal/bloque-series-modal';
@@ -139,6 +141,7 @@ addIcons({
   'images-outline': imagesOutline,
   'megaphone-outline': megaphoneOutline,
   'person-circle-outline': personCircleOutline,
+  'warning-outline': warningOutline,
 });
 
 type Status = 'idle' | 'loading' | 'saving' | 'error';
@@ -1774,6 +1777,63 @@ export class GymForm implements OnDestroy {
     this.gymService.listPhotos(id).subscribe({
       next: (photos) => this.photos.set(photos),
       error: () => this.status.set('error'),
+    });
+  }
+
+  // ---- Zona de peligro: desvinculación permanente ----
+  // Confirmación por texto (no el confirmAction() de OK/Cancel que se usa para el resto de
+  // los borrados) — pedido explícito del usuario para una acción que borra TODO el gimnasio
+  // de una vez, ver GymDisconnectionService en el backend.
+  protected readonly isDisconnectModalOpen = signal(false);
+  protected readonly disconnectConfirmName = signal('');
+  protected readonly disconnecting = signal(false);
+  protected readonly disconnectError = signal<string | null>(null);
+  protected readonly disconnectNameMatches = computed(
+    () => this.disconnectConfirmName().trim() === this.gymName(),
+  );
+
+  protected openDisconnectModal(): void {
+    this.disconnectConfirmName.set('');
+    this.disconnectError.set(null);
+    this.isDisconnectModalOpen.set(true);
+  }
+
+  protected closeDisconnectModal(): void {
+    if (this.disconnecting()) {
+      return;
+    }
+    this.isDisconnectModalOpen.set(false);
+  }
+
+  protected onDisconnectConfirmInput(value: string): void {
+    this.disconnectConfirmName.set(value);
+  }
+
+  protected confirmDisconnect(): void {
+    const id = this.gymId();
+    if (id === null || !this.disconnectNameMatches() || this.disconnecting()) {
+      return;
+    }
+    this.disconnecting.set(true);
+    this.disconnectError.set(null);
+    this.gymService.disconnectGym(id, { confirmGymName: this.disconnectConfirmName().trim() }).subscribe({
+      next: () => {
+        this.disconnecting.set(false);
+        this.isDisconnectModalOpen.set(false);
+        this.router.navigate(['/admin/gyms']);
+      },
+      error: (err: HttpErrorResponse) => {
+        this.disconnecting.set(false);
+        if (err.status === 409) {
+          this.disconnectError.set('El nombre no coincide exactamente. Revísalo e intenta de nuevo.');
+        } else if (err.status === 502) {
+          // No se pudo enviar el email con el detalle de los socios a algún admin — el backend
+          // no borró nada (ver GymDisconnectionService), el mensaje ya viene listo para mostrar.
+          this.disconnectError.set(err.error?.detail || 'No pudimos notificar a un administrador. Intenta nuevamente.');
+        } else {
+          this.disconnectError.set('No pudimos desvincular el gimnasio. Intenta nuevamente.');
+        }
+      },
     });
   }
 }

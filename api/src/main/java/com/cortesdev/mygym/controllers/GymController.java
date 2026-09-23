@@ -12,6 +12,8 @@ import com.cortesdev.mygym.models.dto.BlockUpdateRequest;
 import com.cortesdev.mygym.models.dto.BrandingSuggestionRequest;
 import com.cortesdev.mygym.models.dto.BrandingSuggestionResponse;
 import com.cortesdev.mygym.models.dto.GymConfigUpdateRequest;
+import com.cortesdev.mygym.models.dto.GymDeletionAuditResponse;
+import com.cortesdev.mygym.models.dto.GymDisconnectRequest;
 import com.cortesdev.mygym.models.dto.GymCreateRequest;
 import com.cortesdev.mygym.models.dto.GymIdentityUpdateRequest;
 import com.cortesdev.mygym.models.dto.GymPhotoCreateRequest;
@@ -26,7 +28,9 @@ import com.cortesdev.mygym.models.dto.PlanCreateRequest;
 import com.cortesdev.mygym.models.dto.PlanResponse;
 import com.cortesdev.mygym.models.dto.PlanUpdateRequest;
 import com.cortesdev.mygym.models.dto.ThemeUpdateRequest;
+import com.cortesdev.mygym.security.AuthenticatedUser;
 import com.cortesdev.mygym.services.BrandingSuggestionService;
+import com.cortesdev.mygym.services.GymDisconnectionService;
 import com.cortesdev.mygym.services.GymService;
 import com.cortesdev.mygym.services.MemberService;
 import com.cortesdev.mygym.services.ReservationService;
@@ -37,6 +41,8 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -56,6 +62,7 @@ public class GymController {
     private final MemberService memberService;
     private final BrandingSuggestionService brandingSuggestionService;
     private final ReservationService reservationService;
+    private final GymDisconnectionService gymDisconnectionService;
 
     @PostMapping("/suggest-branding")
     public BrandingSuggestionResponse suggestBranding(@Valid @RequestBody BrandingSuggestionRequest request) {
@@ -297,5 +304,19 @@ public class GymController {
     public ResponseEntity<Void> deleteMember(@PathVariable Long id, @PathVariable Long memberId) {
         memberService.deleteMember(id, memberId);
         return ResponseEntity.noContent().build();
+    }
+
+    /** Desvinculación permanente de un gimnasio — irreversible, ver GymDisconnectionService
+     *  para el detalle completo de qué se manda por email antes de borrar. */
+    @PostMapping("/{id}/disconnect")
+    public GymDeletionAuditResponse disconnectGym(
+            @PathVariable Long id, @Valid @RequestBody GymDisconnectRequest request, @AuthenticationPrincipal Jwt jwt) {
+        String executedBy = AuthenticatedUser.from(jwt).email();
+        return gymDisconnectionService.disconnect(id, request, executedBy);
+    }
+
+    @GetMapping("/deletion-audits")
+    public List<GymDeletionAuditResponse> listDeletionAudits() {
+        return gymDisconnectionService.listAudits();
     }
 }

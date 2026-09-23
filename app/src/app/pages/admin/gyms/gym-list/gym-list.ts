@@ -20,6 +20,7 @@ import {
   barbellOutline,
   businessOutline,
   checkmarkCircleOutline,
+  documentTextOutline,
   eyeOutline,
   logOutOutline,
   peopleOutline,
@@ -38,6 +39,7 @@ addIcons({
   'people-outline': peopleOutline,
   'sparkles-outline': sparklesOutline,
   'eye-outline': eyeOutline,
+  'document-text-outline': documentTextOutline,
 });
 
 type Status = 'idle' | 'loading' | 'loaded' | 'error';

@@ -443,6 +443,76 @@
         </form>
       </ion-card-content>
     </ion-card>
+
+    <ion-card class="danger-zone">
+      <ion-card-header>
+        <ion-card-title>
+          <ion-icon name="warning-outline" aria-hidden="true"></ion-icon>
+          Zona de peligro
+        </ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <p class="item-hint">
+          Desvincula este gimnasio de mygym para siempre: borra todos sus socios, reservas,
+          pagos, planes, horarios y fotos. Antes de borrar, le enviamos a cada administrador
+          un correo con el detalle completo de sus socios y pagos en CSV (es su única copia),
+          y a mygym un resumen sin datos personales. Esta acción no se puede deshacer.
+        </p>
+        <ion-button color="danger" fill="outline" (click)="openDisconnectModal()">
+          <ion-icon name="trash-outline" slot="start" aria-hidden="true"></ion-icon>
+          Desvincular gimnasio
+        </ion-button>
+      </ion-card-content>
+    </ion-card>
+
+    <ion-modal class="danger-modal" [isOpen]="isDisconnectModalOpen()" (didDismiss)="closeDisconnectModal()">
+      <ng-template>
+        <ion-header>
+          <ion-toolbar>
+            <ion-title>Desvincular {{ gymName() }}</ion-title>
+          </ion-toolbar>
+        </ion-header>
+        <ion-content class="ion-padding">
+          <p>
+            Esto borra <strong>para siempre</strong> a todos los socios, reservas, pagos, planes,
+            horarios y fotos de <strong>{{ gymName() }}</strong>. No se puede deshacer.
+          </p>
+          <p>
+            Para confirmar, escribe el nombre exacto del gimnasio:
+            <strong>{{ gymName() }}</strong>
+          </p>
+          <ion-item lines="none">
+            <ion-input
+              label="Nombre del gimnasio"
+              labelPlacement="stacked"
+              [value]="disconnectConfirmName()"
+              (ionInput)="onDisconnectConfirmInput($any($event.detail.value))"
+              [disabled]="disconnecting()"
+              placeholder="{{ gymName() }}"
+            />
+          </ion-item>
+          @if (disconnectError(); as error) {
+            <ion-note color="danger">{{ error }}</ion-note>
+          }
+          <div class="danger-modal__actions">
+            <ion-button fill="clear" color="medium" [disabled]="disconnecting()" (click)="closeDisconnectModal()">
+              Cancelar
+            </ion-button>
+            <ion-button
+              color="danger"
+              [disabled]="!disconnectNameMatches() || disconnecting()"
+              (click)="confirmDisconnect()"
+            >
+              @if (disconnecting()) {
+                <ion-spinner name="crescent" slot="icon-only"></ion-spinner>
+              } @else {
+                Desvincular para siempre
+              }
+            </ion-button>
+          </div>
+        </ion-content>
+      </ng-template>
+    </ion-modal>
     </div>
     } @else if (section() === 'blocks') {
     <ion-card>

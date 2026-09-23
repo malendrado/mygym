@@ -1,0 +1,107 @@
+.audits-content {
+  --background: var(--brand-ink);
+  --padding-start: 1.25rem;
+  --padding-end: 1.25rem;
+  --padding-top: 1.5rem;
+  --padding-bottom: 3rem;
+}
+
+.audits-intro {
+  margin: 0 0 1.5rem;
+  color: var(--brand-text-dim);
+  max-width: 60ch;
+}
+
+.audits-loading {
+  display: flex;
+  justify-content: center;
+  padding: 3rem 0;
+}
+
+.audits-empty {
+  text-align: center;
+  padding: 3rem 1.5rem;
+  border: 1px dashed var(--brand-ink-surface-2);
+  border-radius: 16px;
+
+  ion-icon {
+    font-size: 2.5rem;
+    color: var(--brand-text-dim);
+  }
+
+  h3 {
+    margin: 0.75rem 0 0.35rem;
+    font-family: var(--brand-font-heading);
+  }
+
+  p {
+    margin: 0;
+    color: var(--brand-text-dim);
+  }
+}
+
+.audit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.audit-card {
+  border: 1px solid var(--brand-ink-surface-2);
+  border-radius: 14px;
+  padding: 1rem 1.1rem;
+  background: var(--brand-ink-surface);
+
+  &__header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  &__name {
+    margin: 0;
+    font-weight: 600;
+    font-size: 1.05rem;
+  }
+
+  &__date {
+    font-size: 0.78rem;
+    color: var(--brand-text-dim);
+    font-family: var(--brand-font-mono);
+  }
+
+  &__meta {
+    margin: 0.2rem 0 0;
+    font-size: 0.8rem;
+    color: var(--brand-text-dim);
+  }
+
+  &__admins {
+    margin: 0.35rem 0 0;
+    font-size: 0.8rem;
+    color: var(--brand-text-dim);
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+
+    ion-icon {
+      flex-shrink: 0;
+    }
+  }
+
+  &__counts {
+    margin-top: 0.65rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    font-size: 0.82rem;
+    color: var(--brand-text-dim);
+
+    strong {
+      color: var(--brand-text);
+      font-family: var(--brand-font-mono);
+    }
+  }
+}
