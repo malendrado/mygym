@@ -19,12 +19,6 @@
   <ion-toolbar>
     <ion-title>{{ gymName() }}</ion-title>
     <ion-buttons slot="end">
-      @if (isDemoAdmin()) {
-        <ion-button (click)="goToDemoPreview()">
-          <ion-icon name="eye-outline" slot="start" aria-hidden="true"></ion-icon>
-          Ver como socio
-        </ion-button>
-      }
       <ion-button (click)="logout()">
         <ion-icon name="log-out-outline" slot="start" aria-hidden="true"></ion-icon>
         Salir
@@ -34,7 +28,13 @@
   @if (isDemoAdmin()) {
     <div class="demo-readonly-banner">
       <ion-icon name="eye-outline" aria-hidden="true"></ion-icon>
-      Estás viendo una demo de solo lectura — nada de lo que cambies acá se guarda.
+      <span class="demo-readonly-banner__text">
+        Estás viendo una demo de solo lectura — nada de lo que cambies acá se guarda.
+      </span>
+      <ion-button size="small" fill="outline" (click)="goToDemoPreview()">
+        <ion-icon name="eye-outline" slot="start" aria-hidden="true"></ion-icon>
+        Ver como socio
+      </ion-button>
     </div>
   }
   <div class="admin-identity-bar">{{ adminFirstName() }} · {{ sectionLabel() }}</div>

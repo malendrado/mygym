@@ -959,20 +959,35 @@ ion-segment-button.segment-button-checked {
 
 // Acceso de solo-lectura a la demo comercial (Role.DEMO_ADMIN) — el bloqueo real de escritura
 // vive en el backend (SecurityConfig); esto es solo la señal visual de que se está en modo demo.
+// El botón "Ver como socio" vivía en el ion-toolbar, al lado de "Salir" — en mobile angosto el
+// ion-title de Ionic (centrado con posición absoluta, ver comentario de Ionic sobre esto) queda
+// ENCIMA de cualquier botón ancho en slot="end", no solo apretado: texto literalmente superpuesto
+// e ilegible (bug real reportado con captura). Se movió acá, a un div plano con flex-wrap normal,
+// que nunca puede superponerse — en el peor caso el botón baja a su propia línea.
 .demo-readonly-banner {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.5rem;
   padding: 0.5rem 1rem;
   background: color-mix(in srgb, var(--brand-accent) 16%, transparent);
   color: var(--brand-text);
   font-size: 0.8rem;
   font-weight: 500;
 
-  ion-icon {
+  > ion-icon {
     flex-shrink: 0;
     color: var(--brand-accent-text-safe, var(--brand-accent));
     font-size: 1rem;
+  }
+
+  &__text {
+    flex: 1 1 200px;
+  }
+
+  ion-button {
+    flex-shrink: 0;
+    margin: 0;
   }
 }
 
