@@ -1,14 +1,14 @@
-// Páginas legales/comerciales (FAQ, privacidad) — texto puro, sin ion-header/ion-content:
-// no necesitan navegación ni chrome de la app, solo un layout legible en el tema de marca.
-:host {
-  display: block;
-  background: var(--brand-ink);
-  min-height: 100vh;
-  color: var(--brand-text);
-}
-
+// Páginas legales/comerciales (FAQ, privacidad) — usan ion-content (no un div plano) porque
+// ion-app tiene overflow:hidden y espera que el scroll lo maneje ion-content; un div suelto
+// se corta sin poder scrollear (bug real, reportado por el usuario 2026-09-23).
 .legal-page {
-  padding: 2rem 1.25rem 4rem;
+  --background: var(--brand-ink);
+  --color: var(--brand-text);
+  --padding-top: 2rem;
+  --padding-bottom: 4rem;
+  --padding-start: 1.25rem;
+  --padding-end: 1.25rem;
+  color: var(--brand-text);
 
   &__inner {
     max-width: 760px;

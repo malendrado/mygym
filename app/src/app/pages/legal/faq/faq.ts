@@ -1,5 +1,6 @@
 import { Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { IonContent } from '@ionic/angular';
 
 interface FaqSection {
   title: string;
@@ -8,7 +9,7 @@ interface FaqSection {
 
 @Component({
   selector: 'app-legal-faq',
-  imports: [RouterLink],
+  imports: [RouterLink, IonContent],
   templateUrl: './faq.html',
   styleUrl: '../legal-page.scss',
 })
