@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet" />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    width: 3240px;
+    height: 2160px;
+    background: #0f1a1c;
+    font-family: 'Barlow', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    color: #eaf6f7;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .noise {
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNjAiIGhlaWdodD0iMTYwIj48ZmlsdGVyIGlkPSJuIj48ZmVUdXJidWxlbmNlIHR5cGU9ImZyYWN0YWxOb2lzZSIgYmFzZUZyZXF1ZW5jeT0iMC44IiBudW1PY3RhdmVzPSIyIiBzdGl0Y2hUaWxlcz0ic3RpdGNoIi8+PGZlQ29sb3JNYXRyaXggdHlwZT0ibWF0cml4IiB2YWx1ZXM9IjAgMCAwIDAgMSAwIDAgMCAwIDEgMCAwIDAgMCAxIDAgMCAwIDAuMDYgMCIvPjwvZmlsdGVyPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbHRlcj0idXJsKCNuKSIvPjwvc3ZnPg==");
+    mix-blend-mode: overlay;
+    z-index: 5;
+  }
+
+  /* --- Aurora mesh: fluid vivid blobs, blurred, layered behind everything --- */
+  .aurora { position: absolute; border-radius: 50%; filter: blur(180px); }
+  .aurora.lime    { width: 1700px; height: 1700px; left: -400px;  top: -400px;  background: radial-gradient(circle, rgba(198,255,61,0.55) 0%, rgba(198,255,61,0) 70%); }
+  .aurora.cyan    { width: 1800px; height: 1800px; right: -450px; top: -300px;  background: radial-gradient(circle, rgba(34,211,238,0.45) 0%, rgba(34,211,238,0) 70%); }
+  .aurora.violet  { width: 1700px; height: 1700px; left: 300px;   bottom: -450px; background: radial-gradient(circle, rgba(167,139,250,0.40) 0%, rgba(167,139,250,0) 70%); }
+  .aurora.magenta { width: 1500px; height: 1500px; right: -300px; bottom: -400px; background: radial-gradient(circle, rgba(244,63,178,0.35) 0%, rgba(244,63,178,0) 70%); }
+
+  .wave {
+    position: absolute;
+    inset: 0;
+    opacity: 0.5;
+    z-index: 1;
+  }
+
+  .mark-giant {
+    position: absolute;
+    width: 1500px;
+    height: 1500px;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    filter: drop-shadow(0 0 90px rgba(198,255,61,0.45));
+    z-index: 3;
+  }
+
+  /* --- Feature icon chips: glassmorphism, each fully inside one grid tile --- */
+  .chip {
+    position: absolute;
+    width: 320px;
+    height: 320px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.07);
+    border: 3px solid rgba(255,255,255,0.22);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.25);
+    z-index: 4;
+  }
+  .chip svg { width: 150px; height: 150px; }
+
+  .chip.tl { left: 280px;  top: 280px; }
+  .chip.tr { right: 280px; top: 280px; }
+  .chip.bl { left: 280px;  bottom: 280px; }
+  .chip.br { right: 280px; bottom: 280px; }
+
+  .brand-lockup {
+    position: absolute;
+    top: 220px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    z-index: 4;
+  }
+  .brand-lockup svg { width: 76px; height: 76px; }
+  .brand-lockup span {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 52px;
+    letter-spacing: 0.01em;
+  }
+
+  .url-pill {
+    position: absolute;
+    bottom: 220px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 40px;
+    letter-spacing: 0.02em;
+    color: #1a2b00;
+    background: #c6ff3d;
+    padding: 24px 56px;
+    border-radius: 999px;
+    box-shadow: 0 20px 50px rgba(198,255,61,0.35);
+    z-index: 4;
+    white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+  <div class="aurora lime"></div>
+  <div class="aurora cyan"></div>
+  <div class="aurora violet"></div>
+  <div class="aurora magenta"></div>
+
+  <svg class="wave" viewBox="0 0 3240 2160" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path d="M0,667 C700,567 900,767 1620,667 C2340,567 2540,767 3240,667" fill="none" stroke="#c6ff3d" stroke-opacity="0.18" stroke-width="6"/>
+    <path d="M0,1494 C700,1394 900,1594 1620,1494 C2340,1394 2540,1594 3240,1494" fill="none" stroke="#22d3ee" stroke-opacity="0.16" stroke-width="6"/>
+  </svg>
+
+  <svg class="mark-giant" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path fill="#c6ff3d" fill-rule="evenodd" d="M128,40 H384 A88,88 0 0 1 472,128 V384 A88,88 0 0 1 384,472 H128 A88,88 0 0 1 40,384 V128 A88,88 0 0 1 128,40 Z M128,72 H384 A56,56 0 0 1 440,128 V384 A56,56 0 0 1 384,440 H128 A56,56 0 0 1 72,384 V128 A56,56 0 0 1 128,72 Z"/>
+    <g transform="translate(256,256) scale(0.72) translate(-256,-256)">
+      <path d="M120,360 L120,90 L256,260 L392,90 L392,360" fill="none" stroke="#c6ff3d" stroke-width="84" stroke-linecap="round" stroke-linejoin="round"/>
+      <path fill="#c6ff3d" fill-rule="evenodd" d="M224,360 L172,450.07 L68,450.07 L16,360 L68,269.93 L172,269.93 Z M148,360 A28,28 0 1 0 92,360 A28,28 0 1 0 148,360 Z"/>
+      <path fill="#c6ff3d" fill-rule="evenodd" d="M496,360 L444,450.07 L340,450.07 L288,360 L340,269.93 L444,269.93 Z M420,360 A28,28 0 1 0 364,360 A28,28 0 1 0 420,360 Z"/>
+    </g>
+  </svg>
+
+  <div class="brand-lockup">
+    <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path fill="#c6ff3d" fill-rule="evenodd" d="M128,40 H384 A88,88 0 0 1 472,128 V384 A88,88 0 0 1 384,472 H128 A88,88 0 0 1 40,384 V128 A88,88 0 0 1 128,40 Z M128,72 H384 A56,56 0 0 1 440,128 V384 A56,56 0 0 1 384,440 H128 A56,56 0 0 1 72,384 V128 A56,56 0 0 1 128,72 Z"/>
+      <g transform="translate(256,256) scale(0.72) translate(-256,-256)">
+        <path d="M120,360 L120,90 L256,260 L392,90 L392,360" fill="none" stroke="#c6ff3d" stroke-width="84" stroke-linecap="round" stroke-linejoin="round"/>
+        <path fill="#c6ff3d" fill-rule="evenodd" d="M224,360 L172,450.07 L68,450.07 L16,360 L68,269.93 L172,269.93 Z M148,360 A28,28 0 1 0 92,360 A28,28 0 1 0 148,360 Z"/>
+        <path fill="#c6ff3d" fill-rule="evenodd" d="M496,360 L444,450.07 L340,450.07 L288,360 L340,269.93 L444,269.93 Z M420,360 A28,28 0 1 0 364,360 A28,28 0 1 0 420,360 Z"/>
+      </g>
+    </svg>
+    <span>mygym</span>
+  </div>
+
+  <span class="url-pill">mygym.cl</span>
+
+  <!-- Reservas: calendario -->
+  <div class="chip tl">
+    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="6" y="9" width="36" height="33" rx="5" stroke="#c6ff3d" stroke-width="3"/>
+      <path d="M6 18H42" stroke="#c6ff3d" stroke-width="3"/>
+      <path d="M14 5V12" stroke="#c6ff3d" stroke-width="3" stroke-linecap="round"/>
+      <path d="M34 5V12" stroke="#c6ff3d" stroke-width="3" stroke-linecap="round"/>
+      <rect x="13" y="24" width="6" height="6" rx="1.5" fill="#c6ff3d"/>
+      <rect x="21" y="24" width="6" height="6" rx="1.5" fill="#c6ff3d" opacity="0.45"/>
+      <rect x="29" y="24" width="6" height="6" rx="1.5" fill="#c6ff3d" opacity="0.45"/>
+    </svg>
+  </div>
+
+  <!-- Pagos: tarjeta -->
+  <div class="chip tr">
+    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="5" y="11" width="38" height="26" rx="5" stroke="#22d3ee" stroke-width="3"/>
+      <path d="M5 19H43" stroke="#22d3ee" stroke-width="3"/>
+      <rect x="12" y="27" width="12" height="4" rx="2" fill="#22d3ee"/>
+    </svg>
+  </div>
+
+  <!-- Socios: personas -->
+  <div class="chip bl">
+    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="18" cy="16" r="6" stroke="#c6ff3d" stroke-width="3"/>
+      <path d="M6 40C6 32.8 11.4 27 18 27C24.6 27 30 32.8 30 40" stroke="#c6ff3d" stroke-width="3" stroke-linecap="round"/>
+      <circle cx="33" cy="14" r="5" stroke="#c6ff3d" stroke-width="3" opacity="0.55"/>
+      <path d="M31 27C37.2 27.6 42 32.9 42 39.5" stroke="#c6ff3d" stroke-width="3" stroke-linecap="round" opacity="0.55"/>
+    </svg>
+  </div>
+
+  <!-- Estadísticas: gráfico de barras -->
+  <div class="chip br">
+    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M6 42H42" stroke="#22d3ee" stroke-width="3" stroke-linecap="round"/>
+      <rect x="10" y="26" width="7" height="16" rx="2" fill="#22d3ee" opacity="0.55"/>
+      <rect x="21" y="16" width="7" height="26" rx="2" fill="#22d3ee"/>
+      <rect x="32" y="8" width="7" height="34" rx="2" fill="#22d3ee" opacity="0.8"/>
+    </svg>
+  </div>
+
+  <div class="noise"></div>
+</body>
+</html>
