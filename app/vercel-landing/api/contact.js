@@ -1,5 +1,5 @@
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const CONTACT_TO = 'contacto@cortesdev.cl';
+const CONTACT_TO = 'contacto@mygym.cl';
 const CONTACT_FROM = 'mygym <notificaciones@cortesdev.cl>';
 
 export default async function handler(req, res) {
