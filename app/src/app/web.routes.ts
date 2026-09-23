@@ -68,4 +68,11 @@ export const webRoutes: Routes = [
       },
     ],
   },
+  // Comodín — sin esto, cualquier URL que no matchee ninguna ruta de arriba (ej. una escrita
+  // mal a mano) tira NG04002 sin capturar y deja la app entera en blanco en vez de mostrar
+  // algo. Bug real reportado por el usuario (2026-09-23), reproducido con chrome-devtools MCP.
+  {
+    path: '**',
+    redirectTo: '',
+  },
 ];

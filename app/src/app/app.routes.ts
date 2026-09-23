@@ -20,4 +20,9 @@ export const routes: Routes = [
     canActivate: [authGuard, roleGuard('MEMBER')],
     loadComponent: () => import('./pages/member/member').then((m) => m.MemberPage),
   },
+  // Mismo fix que web.routes.ts — sin comodín, una URL sin match deja la app en blanco.
+  {
+    path: '**',
+    redirectTo: 'login',
+  },
 ];

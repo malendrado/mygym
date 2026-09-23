@@ -1824,7 +1824,14 @@ export class GymForm implements OnDestroy {
       next: () => {
         this.disconnecting.set(false);
         this.isDisconnectModalOpen.set(false);
-        this.router.navigate(['/admin/gyms']);
+        // El gym ya no existe en el backend — se limpia el estado local ACÁ, no solo se confía
+        // en que la navegación a /admin/gyms desmonte este componente a tiempo. Bug real
+        // reportado por el usuario (2026-09-23): sin esto, quedaba viéndose el gym borrado
+        // hasta un F5 manual.
+        this.gym.set(null);
+        this.gymLoaded.set(false);
+        this.showToast('Gimnasio desvinculado y borrado para siempre.');
+        this.router.navigateByUrl('/admin/gyms', { replaceUrl: true });
       },
       error: (err: HttpErrorResponse) => {
         this.disconnecting.set(false);
