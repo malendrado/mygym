@@ -1014,6 +1014,62 @@ button:focus-visible {
     margin: 0;
   }
 
+  // Ícono de Instagram — pedido explícito del usuario: "algo entretenido jugando con el logo
+  // de insta y el logo de mygym". En reposo es el glyph clásico de Instagram (reconocible,
+  // apagado como el resto de los links del footer); al hover/focus, el puntito de "flash" de
+  // la cámara se transforma en el mark propio de mygym (mismo badge que el ícono grande de
+  // arriba) con un pop elástico — nunca se distorsiona la silueta de Instagram en sí, solo el
+  // detalle chico, así se mantiene reconocible mientras se mezcla con la marca.
+  &__social {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 1.5px solid var(--brand-ink-surface-2);
+    color: var(--brand-text-dim);
+    transition: color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+
+    &-ig {
+      width: 22px;
+      height: 22px;
+    }
+
+    &-ig-dot {
+      transition: opacity 0.15s ease;
+    }
+
+    &-badge {
+      position: absolute;
+      right: 3px;
+      bottom: 3px;
+      width: 16px;
+      height: 16px;
+      color: var(--brand-accent);
+      opacity: 0;
+      transform: scale(0.4) rotate(-15deg);
+      transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    &:hover,
+    &:focus-visible {
+      color: var(--brand-accent);
+      border-color: var(--brand-accent);
+      transform: translateY(-2px);
+
+      .footer__social-ig-dot {
+        opacity: 0;
+      }
+
+      .footer__social-badge {
+        opacity: 1;
+        transform: scale(1) rotate(0deg);
+      }
+    }
+  }
+
   &__links {
     display: flex;
     gap: 1.25rem;
@@ -1195,7 +1251,10 @@ button:focus-visible {
   .states__card,
   .steps__card,
   .faq__item,
-  .bento__cell {
+  .bento__cell,
+  .footer__social,
+  .footer__social-badge,
+  .footer__social-ig-dot {
     transform: none;
     transition: none;
   }
