@@ -872,7 +872,7 @@ export class GymForm implements OnDestroy {
     }
     const confirmed = await this.confirmAction(
       'Quitar acceso a la demo',
-      `¿Quitarle el acceso a la demo a ${admin.name}? Se borra por completo — si más adelante querés darle acceso de nuevo (a la demo o como admin real), vas a poder hacerlo sin problema.`,
+      `¿Quitarle el acceso a la demo a ${admin.name}? Se borra por completo — si más adelante quieres darle acceso de nuevo (a la demo o como admin real), vas a poder hacerlo sin problema.`,
       'Quitar acceso',
     );
     if (!confirmed) {
