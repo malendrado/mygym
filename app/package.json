@@ -26,7 +26,8 @@
     "@ionic/angular": "^9.0.2",
     "ionicons": "^8.1.0",
     "rxjs": "~7.8.0",
-    "tslib": "^2.3.0"
+    "tslib": "^2.3.0",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-latest/xlsx-latest.tgz"
   },
   "devDependencies": {
     "@angular/build": "^22.1.7",

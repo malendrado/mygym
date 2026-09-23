@@ -2,6 +2,8 @@ package com.cortesdev.mygym.controllers;
 
 import com.cortesdev.mygym.models.dto.MarkPaidRequest;
 import com.cortesdev.mygym.models.dto.MemberCreateRequest;
+import com.cortesdev.mygym.models.dto.MemberImportRequest;
+import com.cortesdev.mygym.models.dto.MemberImportRowResult;
 import com.cortesdev.mygym.models.dto.MemberResponse;
 import com.cortesdev.mygym.security.AuthenticatedUser;
 import com.cortesdev.mygym.services.GymService;
@@ -39,6 +41,14 @@ public class MemberController {
     @GetMapping
     public List<MemberResponse> listMembers(@AuthenticationPrincipal Jwt jwt) {
         return memberService.listMembers(AuthenticatedUser.from(jwt).gymId());
+    }
+
+    /** Carga masiva desde Excel — ver MemberService.importMembers para el detalle de qué pasa por
+     *  fila. El frontend manda esto en bloques de ~20 filas, nunca el archivo entero de una vez. */
+    @PostMapping("/import")
+    public List<MemberImportRowResult> importMembers(
+            @AuthenticationPrincipal Jwt jwt, @Valid @RequestBody MemberImportRequest request) {
+        return memberService.importMembers(AuthenticatedUser.from(jwt).gymId(), request.rows());
     }
 
     /** El admin registra a mano que un socio pagó — ver GymService.simulatePlanPayment. */

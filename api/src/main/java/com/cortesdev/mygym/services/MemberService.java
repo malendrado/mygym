@@ -1,24 +1,33 @@
 package com.cortesdev.mygym.services;
 
 import com.cortesdev.mygym.models.AppUser;
+import com.cortesdev.mygym.models.Gym;
 import com.cortesdev.mygym.models.GymPlan;
 import com.cortesdev.mygym.models.ReservationStatus;
 import com.cortesdev.mygym.models.Role;
 import com.cortesdev.mygym.models.dto.MemberCreateRequest;
+import com.cortesdev.mygym.models.dto.MemberImportRow;
+import com.cortesdev.mygym.models.dto.MemberImportRowResult;
 import com.cortesdev.mygym.models.dto.MemberResponse;
 import com.cortesdev.mygym.repositories.AppUserRepository;
 import com.cortesdev.mygym.repositories.GymPlanRepository;
 import com.cortesdev.mygym.repositories.GymRepository;
 import com.cortesdev.mygym.repositories.ReservationRepository;
 import com.cortesdev.mygym.services.exception.DuplicateMemberEmailException;
+import com.cortesdev.mygym.services.exception.GymNotFoundException;
 import com.cortesdev.mygym.services.exception.MemberNotFoundException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,11 +41,18 @@ public class MemberService {
     // porque paidAt ya se persiste de verdad (ver GymService.simulatePlanPayment).
     private static final ZoneId GYM_ZONE = ZoneId.of("America/Santiago");
 
+    private static final Logger log = LoggerFactory.getLogger(MemberService.class);
+
+    // Tope defensivo por request — el frontend ya manda el Excel en bloques de ~20 filas (ver
+    // ImportMembersModal), esto es solo una red de seguridad contra un bug del cliente.
+    private static final int MAX_IMPORT_ROWS = 100;
+
     private final AppUserRepository appUserRepository;
     private final GymPlanRepository gymPlanRepository;
     private final ReservationRepository reservationRepository;
     private final GymRepository gymRepository;
     private final MemberLifecycleEmailService memberLifecycleEmailService;
+    private final MemberImportRowService memberImportRowService;
 
     public MemberResponse createMember(Long gymId, MemberCreateRequest request) {
         if (appUserRepository.existsByEmail(AppUser.normalizeEmail(request.email()))) {
@@ -65,6 +81,38 @@ public class MemberService {
         });
 
         return toResponse(member);
+    }
+
+    // Carga masiva desde el Excel del admin (ver ImportMembersModal en el frontend) — cada fila
+    // se procesa de forma INDEPENDIENTE (try/catch propio), nunca aborta el resto del lote si una
+    // fila falla. El frontend manda esto en bloques de ~20 filas, no el archivo entero de una vez.
+    public List<MemberImportRowResult> importMembers(Long gymId, List<MemberImportRow> rows) {
+        if (rows.size() > MAX_IMPORT_ROWS) {
+            throw new IllegalArgumentException("No se pueden importar más de " + MAX_IMPORT_ROWS + " filas por vez.");
+        }
+        Gym gym = gymRepository.findById(gymId).orElseThrow(() -> new GymNotFoundException(gymId));
+        List<GymPlan> activeGymPlans =
+                gymPlanRepository.findByGymId(gymId).stream().filter(GymPlan::isActive).toList();
+        List<GymPlan> activePlansForInvite = activeGymPlans.stream()
+                .sorted(Comparator.comparing(GymPlan::getPriceClp, Comparator.nullsLast(Comparator.reverseOrder())))
+                .toList();
+        // Solo planes ACTIVOS — un planId de un plan desactivado se rechaza igual que uno
+        // inexistente (ver MemberImportRowService.importRow), nunca se acepta a medias.
+        Map<Long, GymPlan> plansById = activeGymPlans.stream().collect(Collectors.toMap(GymPlan::getId, p -> p));
+
+        List<MemberImportRowResult> results = new ArrayList<>();
+        for (MemberImportRow row : rows) {
+            try {
+                // REQUIRES_NEW en MemberImportRowService — cada fila corre en su propia
+                // transacción, así un error real de Postgres a mitad de un bloque nunca deja
+                // "abortada" la transacción para las filas siguientes del mismo bloque.
+                results.add(memberImportRowService.importRow(gymId, gym, row, activePlansForInvite, plansById));
+            } catch (Exception e) {
+                log.error("Fila de importación falló para {}: {}", row.email(), e.getMessage(), e);
+                results.add(new MemberImportRowResult(row.email(), false, "Error inesperado al importar esta fila."));
+            }
+        }
+        return results;
     }
 
     @Transactional(readOnly = true)
@@ -162,7 +210,8 @@ public class MemberService {
                 if (monthlyClasses != null) {
                     int used = reservationRepository.countByMemberIdAndStatusAndClassDateBetween(
                             user.getId(), ReservationStatus.BOOKED, periodStart.toLocalDate(), periodEnd.toLocalDate());
-                    sessionsRemaining = Math.max(0, monthlyClasses - used);
+                    int usedAtImport = user.getUsedSessionsAtImport() != null ? user.getUsedSessionsAtImport() : 0;
+                    sessionsRemaining = Math.max(0, monthlyClasses - used - usedAtImport);
                 }
             }
         }

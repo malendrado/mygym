@@ -169,6 +169,9 @@ public class FlowPaymentService {
 
         member.setPlanId(plan.getId());
         member.setPaidAt(Instant.now());
+        // Renovación real — cualquier "ya venía usando N clases" que traía de una importación
+        // por Excel quedó atrás con el período anterior, no se arrastra (ver AppUser.usedSessionsAtImport).
+        member.setUsedSessionsAtImport(null);
         appUserRepository.save(member);
 
         Gym gym = gymRepository.findById(member.getGymId()).orElse(null);

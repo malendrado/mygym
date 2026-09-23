@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { CreateMemberRequest, MarkPaidRequest, Member } from '../models/member.model';
+import { CreateMemberRequest, MarkPaidRequest, Member, MemberImportRow, MemberImportRowResult } from '../models/member.model';
 
 @Injectable({ providedIn: 'root' })
 export class MemberService {
@@ -16,6 +16,12 @@ export class MemberService {
 
   create(payload: CreateMemberRequest): Observable<Member> {
     return this.http.post<Member>(this.base, payload);
+  }
+
+  /** Un bloque del Excel de importación masiva — ver ImportMembersModal, que llama esto varias
+   *  veces en secuencia (uno por bloque de ~20 filas), nunca el archivo entero de una sola vez. */
+  importBatch(rows: MemberImportRow[]): Observable<MemberImportRowResult[]> {
+    return this.http.post<MemberImportRowResult[]>(`${this.base}/import`, { rows });
   }
 
   /** Contraparte SUPER_ADMIN de list()/create() — mismo backend, gymId por path en vez de por JWT. */

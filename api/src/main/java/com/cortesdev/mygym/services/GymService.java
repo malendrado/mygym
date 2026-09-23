@@ -504,6 +504,9 @@ public class GymService {
                 .orElseThrow(() -> new MemberNotFoundException(memberId));
         member.setPlanId(planId);
         member.setPaidAt(Instant.now());
+        // Renovación real — cualquier "ya venía usando N clases" que traía de una importación
+        // por Excel quedó atrás con el período anterior, no se arrastra (ver AppUser.usedSessionsAtImport).
+        member.setUsedSessionsAtImport(null);
         appUserRepository.save(member);
         List<String> adminEmails = appUserRepository.findByGymIdAndRole(gymId, Role.GYM_ADMIN).stream()
                 .map(AppUser::getEmail)
@@ -532,6 +535,7 @@ public class GymService {
                 .orElseThrow(() -> new MemberNotFoundException(memberId));
         member.setPlanId(null);
         member.setPaidAt(null);
+        member.setUsedSessionsAtImport(null);
         appUserRepository.save(member);
 
         LocalDate today = LocalDate.now(GYM_ZONE);

@@ -97,6 +97,7 @@ import { BloqueFormModal, DAYS } from '../admin/gyms/bloque-form-modal/bloque-fo
 import { BloqueSeriesModal } from '../admin/gyms/bloque-series-modal/bloque-series-modal';
 import { PlanFormModal } from '../admin/gyms/plan-form-modal/plan-form-modal';
 import { MarkPaidModal } from '../admin/gyms/mark-paid-modal/mark-paid-modal';
+import { ImportMembersModal } from '../admin/gyms/import-members-modal/import-members-modal';
 import { registerClassCategoryIcons, resolveClassCategoryIcon } from '../../core/utils/class-category';
 
 registerClassCategoryIcons();
@@ -360,6 +361,7 @@ const THEMED_ROOT_PROPERTIES = [
     BloqueSeriesModal,
     PlanFormModal,
     MarkPaidModal,
+    ImportMembersModal,
     QuantityStepper,
     IonSpinner,
   ],
@@ -521,6 +523,8 @@ export class GymAdmin implements OnDestroy {
 
   protected readonly plans = signal<GymPlan[]>([]);
   protected readonly members = signal<Member[]>([]);
+  protected readonly memberEmails = computed(() => this.members().map((m) => m.email));
+  protected readonly isImportModalOpen = signal(false);
   protected readonly activeMembers = computed(() => this.members().filter((m) => m.membershipStatus === 'ACTIVE').length);
   protected readonly expiringSoonMembers = computed(() => this.members().filter((m) => m.membershipStatus === 'EXPIRING_SOON').length);
   protected readonly expiredMembers = computed(() => this.members().filter((m) => m.membershipStatus === 'EXPIRED').length);
@@ -960,7 +964,7 @@ export class GymAdmin implements OnDestroy {
         );
         this.showToast('Reserva cancelada.');
       },
-      error: () => this.showToast('No pudimos cancelar la reserva. Intenta nuevamente.', 'danger'),
+      error: () => this.handleWriteError(() => this.showToast('No pudimos cancelar la reserva. Intenta nuevamente.', 'danger')),
     });
   }
 
@@ -1025,7 +1029,7 @@ export class GymAdmin implements OnDestroy {
         this.themeColor.set(previousColor);
         this.themeMode.set(previousMode);
         this.themeSaving.set(false);
-        this.showToast('No pudimos guardar el color. Intenta nuevamente.', 'danger');
+        this.handleWriteError(() => this.showToast('No pudimos guardar el color. Intenta nuevamente.', 'danger'));
       },
     });
   }
@@ -1051,7 +1055,7 @@ export class GymAdmin implements OnDestroy {
         },
         error: () => {
           this.identitySaving.set(false);
-          this.showToast('No pudimos guardar los cambios. Intenta nuevamente.', 'danger');
+          this.handleWriteError(() => this.showToast('No pudimos guardar los cambios. Intenta nuevamente.', 'danger'));
         },
       });
   }
@@ -1078,7 +1082,7 @@ export class GymAdmin implements OnDestroy {
       },
       error: () => {
         this.bankTransferSaving.set(false);
-        this.showToast('No pudimos guardar los datos bancarios. Intenta nuevamente.', 'danger');
+        this.handleWriteError(() => this.showToast('No pudimos guardar los datos bancarios. Intenta nuevamente.', 'danger'));
       },
     });
   }
@@ -1141,7 +1145,7 @@ export class GymAdmin implements OnDestroy {
       next: () => this.showToast('Logo actualizado.'),
       error: () => {
         this.logoSvg.set(previous);
-        this.showToast('No pudimos guardar el logo. Intenta con otra imagen.', 'danger');
+        this.handleWriteError(() => this.showToast('No pudimos guardar el logo. Intenta con otra imagen.', 'danger'));
       },
     });
   }
@@ -1168,7 +1172,7 @@ export class GymAdmin implements OnDestroy {
       const photo = await firstValueFrom(this.gymService.createMyPhoto(payload));
       this.photos.update((list) => [...list, photo]);
     } catch {
-      this.showToast('No pudimos subir esa foto. Intenta con otra.', 'danger');
+      this.handleWriteError(() => this.showToast('No pudimos subir esa foto. Intenta con otra.', 'danger'));
     } finally {
       this.photoUploading.set(false);
     }
@@ -1181,7 +1185,7 @@ export class GymAdmin implements OnDestroy {
     }
     this.gymService.deleteMyPhoto(photo.id).subscribe({
       next: () => this.photos.update((list) => list.filter((p) => p.id !== photo.id)),
-      error: () => this.showToast('No pudimos eliminar esa foto.', 'danger'),
+      error: () => this.handleWriteError(() => this.showToast('No pudimos eliminar esa foto.', 'danger')),
     });
   }
 
@@ -1237,6 +1241,12 @@ export class GymAdmin implements OnDestroy {
 
   protected async confirmSeries(drafts: CreateGymBlockRequest[]): Promise<void> {
     this.isSeriesModalOpen.set(false);
+    // Mismo criterio que ImportMembersModal.confirmImport — un DEMO_ADMIN nunca puede crear
+    // bloques, así que no tiene sentido intentar N requests que van a fallar todas igual.
+    if (this.isDemoAdmin()) {
+      this.showToast('Estás en una cuenta demo — esta acción está deshabilitada a propósito.', 'warning');
+      return;
+    }
     this.seriesCreating.set(true);
     let created = 0;
     let failed = 0;
@@ -1269,7 +1279,10 @@ export class GymAdmin implements OnDestroy {
         this.isModalOpen.set(false);
         this.loadBlocks();
       },
-      error: () => this.status.set('error'),
+      error: () => {
+        this.status.set('idle');
+        this.handleWriteError(() => this.status.set('error'));
+      },
     });
   }
 
@@ -1283,7 +1296,7 @@ export class GymAdmin implements OnDestroy {
     }
     this.gymService.deleteMyBlock(block.id).subscribe({
       next: () => this.loadBlocks(),
-      error: () => this.status.set('error'),
+      error: () => this.handleWriteError(() => this.status.set('error')),
     });
   }
 
@@ -1314,7 +1327,10 @@ export class GymAdmin implements OnDestroy {
         this.isPlanModalOpen.set(false);
         this.loadPlans();
       },
-      error: () => this.status.set('error'),
+      error: () => {
+        this.status.set('idle');
+        this.handleWriteError(() => this.status.set('error'));
+      },
     });
   }
 
@@ -1325,7 +1341,7 @@ export class GymAdmin implements OnDestroy {
     }
     this.gymService.deleteMyPlan(plan.id).subscribe({
       next: () => this.loadPlans(),
-      error: () => this.status.set('error'),
+      error: () => this.handleWriteError(() => this.status.set('error')),
     });
   }
 
@@ -1355,8 +1371,23 @@ export class GymAdmin implements OnDestroy {
         this.loadMembers();
         this.showToast(`Socio agregado: ${member.name}. Le enviamos un correo para activar su cuenta y elegir un plan.`);
       },
-      error: () => this.status.set('error'),
+      error: () => {
+        this.status.set('idle');
+        this.handleWriteError(() => this.status.set('error'));
+      },
     });
+  }
+
+  protected openImportModal(): void {
+    this.isImportModalOpen.set(true);
+  }
+
+  protected closeImportModal(): void {
+    this.isImportModalOpen.set(false);
+  }
+
+  protected onMembersImported(): void {
+    this.loadMembers();
   }
 
   protected statusLabel(status: MembershipStatus): string {
@@ -1424,7 +1455,7 @@ export class GymAdmin implements OnDestroy {
       },
       error: () => {
         this.markingPaidId.set(null);
-        this.showToast('No pudimos registrar el pago. Intenta nuevamente.', 'danger');
+        this.handleWriteError(() => this.showToast('No pudimos registrar el pago. Intenta nuevamente.', 'danger'));
       },
     });
   }
@@ -1449,12 +1480,12 @@ export class GymAdmin implements OnDestroy {
       },
       error: () => {
         this.revokingPlanId.set(null);
-        this.showToast('No pudimos quitar el plan. Intenta nuevamente.', 'danger');
+        this.handleWriteError(() => this.showToast('No pudimos quitar el plan. Intenta nuevamente.', 'danger'));
       },
     });
   }
 
-  private async showToast(message: string, color: 'success' | 'danger' = 'success'): Promise<void> {
+  private async showToast(message: string, color: 'success' | 'danger' | 'warning' = 'success'): Promise<void> {
     const toast = await this.toastController.create({
       message,
       duration: 4000,
@@ -1462,6 +1493,19 @@ export class GymAdmin implements OnDestroy {
       color,
     });
     await toast.present();
+  }
+
+  // Cualquier escritura de un DEMO_ADMIN falla con un 403 real del backend (ver SecurityConfig
+  // — ningún endpoint bajo /api/gym-admin/** que no sea GET admite ese rol), nunca por un
+  // problema real del sistema. En vez de mostrarle "Ocurrió un error, intenta nuevamente" (sugiere
+  // que algo se rompió), se le recuerda que está en una demo de solo lectura. `onRealError` corre
+  // sin cambios para cualquier otro admin — mismo comportamiento de siempre para un error real.
+  private handleWriteError(onRealError: () => void): void {
+    if (this.isDemoAdmin()) {
+      this.showToast('Estás en una cuenta demo — esta acción está deshabilitada a propósito.', 'warning');
+      return;
+    }
+    onRealError();
   }
 
   // Al salir, un admin de gimnasio vuelve a la página propia de SU gimnasio

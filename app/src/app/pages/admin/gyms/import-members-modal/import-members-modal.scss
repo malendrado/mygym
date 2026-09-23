@@ -1,0 +1,252 @@
+.import-intro {
+  margin: 0 0 0.75rem;
+  color: var(--brand-text-dim);
+  font-size: 0.9rem;
+}
+
+.import-columns {
+  border: 1px solid var(--brand-ink-surface-2);
+  border-radius: 14px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  background: var(--brand-ink-surface);
+
+  &__title {
+    margin: 0 0 0.4rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--brand-text-dim);
+  }
+
+  ul {
+    margin: 0;
+    padding-left: 1.1rem;
+    font-size: 0.85rem;
+    color: var(--brand-text);
+
+    li + li {
+      margin-top: 0.4rem;
+    }
+  }
+}
+
+.import-file-picker {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: center;
+  margin-top: 0.75rem;
+  padding: 1rem;
+  border: 1px dashed var(--brand-ink-surface-2);
+  border-radius: 14px;
+  color: var(--brand-text);
+  font-size: 0.85rem;
+  cursor: pointer;
+  min-height: 44px;
+
+  input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+
+  &--busy {
+    opacity: 0.6;
+    pointer-events: none;
+  }
+}
+
+.import-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  margin-top: 0.75rem;
+  color: var(--ion-color-danger);
+  font-size: 0.85rem;
+
+  ion-icon {
+    flex-shrink: 0;
+    margin-top: 0.1rem;
+  }
+}
+
+.import-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.85rem;
+
+  &__ok {
+    color: var(--ion-color-success, #2de6a0);
+    font-weight: 600;
+  }
+
+  &__warning {
+    color: var(--ion-color-warning, #ffb23d);
+    font-weight: 600;
+  }
+
+  &__error {
+    color: var(--ion-color-danger);
+    font-weight: 600;
+  }
+
+  &__total {
+    color: var(--brand-text-dim);
+  }
+}
+
+.import-rows {
+  list-style: none;
+  margin: 0 0 0.75rem;
+  padding: 0;
+  max-height: 48vh;
+  overflow-y: auto;
+  border: 1px solid var(--brand-ink-surface-2);
+  border-radius: 14px;
+}
+
+.import-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid var(--brand-ink-surface-2);
+  font-size: 0.82rem;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &--warning {
+    background: color-mix(in srgb, var(--ion-color-warning, #ffb23d) 10%, transparent);
+  }
+
+  &--error {
+    background: color-mix(in srgb, var(--ion-color-danger) 8%, transparent);
+  }
+
+  &__check {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    min-width: 24px;
+    min-height: 24px;
+
+    input {
+      width: 18px;
+      height: 18px;
+    }
+  }
+
+  &__body {
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__name {
+    margin: 0;
+    font-weight: 600;
+    color: var(--brand-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__email {
+    margin: 0;
+    color: var(--brand-text-dim);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__status {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    flex-shrink: 0;
+    max-width: 45%;
+    text-align: right;
+    font-size: 0.78rem;
+
+    &--ok {
+      color: var(--ion-color-success, #2de6a0);
+    }
+
+    &--warning {
+      color: var(--ion-color-warning, #ffb23d);
+    }
+
+    &--error {
+      color: var(--ion-color-danger);
+    }
+  }
+}
+
+.import-progress-label {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+  color: var(--brand-text);
+}
+
+.import-progress-count {
+  margin: 0.5rem 0 0;
+  font-size: 0.8rem;
+  color: var(--brand-text-dim);
+}
+
+.import-progress-hint {
+  margin-top: 1rem;
+  font-size: 0.8rem;
+  color: var(--brand-text-dim);
+}
+
+.import-demo-notice {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  padding: 0.85rem 1rem;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--brand-accent) 12%, var(--brand-ink-surface));
+  border: 1px solid color-mix(in srgb, var(--brand-accent) 35%, transparent);
+
+  ion-icon {
+    flex-shrink: 0;
+    margin-top: 0.15rem;
+    font-size: 1.2rem;
+    color: var(--brand-accent);
+  }
+
+  p {
+    margin: 0;
+    font-size: 0.88rem;
+    color: var(--brand-text);
+
+    strong {
+      color: var(--brand-accent-text-safe, var(--brand-accent));
+    }
+  }
+}
+
+.import-done-summary {
+  margin-bottom: 0.75rem;
+
+  &__ok {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--ion-color-success, #2de6a0);
+  }
+
+  &__error {
+    margin: 0.25rem 0 0;
+    color: var(--ion-color-danger);
+    font-size: 0.85rem;
+  }
+}

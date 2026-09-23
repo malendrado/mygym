@@ -6,6 +6,9 @@ import com.cortesdev.mygym.models.GymPlan;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +37,8 @@ public class MemberLifecycleEmailService {
 
     private static final Logger log = LoggerFactory.getLogger(MemberLifecycleEmailService.class);
     private static final String LOGIN_URL = "https://www.mygym.cl/login";
+    private static final ZoneId GYM_ZONE = ZoneId.of("America/Santiago");
+    private static final DateTimeFormatter IMPORT_DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     private final RestClient restClient;
     private final String apiKey;
@@ -170,6 +175,52 @@ public class MemberLifecycleEmailService {
                     LOGIN_URL,
                     "Recibiste este correo porque administras " + escapeHtml(gym.getName()) + " en mygym.");
         }
+    }
+
+    // Contraparte de sendPaymentConfirmedMember para socios cargados por Excel (ver
+    // MemberImportRowService) — a diferencia del pago real vía Flow/simulatePlanPayment, acá el
+    // socio NUNCA se logueó todavía (mismo estado que sendMemberInviteWithPlans), así que hace
+    // falta: 1) saludarlo por nombre (el genérico "Pago confirmado" del otro método no lo hace
+    // porque ahí el socio ya sabe quién es — recién pagó), 2) decir la fecha de vencimiento que
+    // el admin cargó a mano (el otro método nunca la dice porque paidAt siempre es "ahora", el
+    // vencimiento siempre está a un mes en el futuro), y 3) avisar explícitamente si ese
+    // vencimiento YA PASÓ — reportado por el usuario tras recibir un "¡Pago confirmado! Ya
+    // tienes tu plan activo" para un socio que, según la fecha que él mismo cargó, ya estaba
+    // vencido.
+    public void sendMemberImportedWithPlan(
+            Gym gym, AppUser member, GymPlan plan, ZonedDateTime periodEnd, Integer usedSessions) {
+        String name = firstName(member);
+        String dateLabel = IMPORT_DATE_FORMAT.format(periodEnd);
+        boolean expired = periodEnd.isBefore(ZonedDateTime.now(GYM_ZONE));
+        String quota = plan.getMonthlyClasses() == null
+                ? "clases ilimitadas dentro de los cupos disponibles"
+                : plan.getMonthlyClasses() + " clases al mes";
+        // Solo tiene sentido para un plan con cupo limitado — un plan libre no tiene "usadas de cuántas".
+        String usedNote = (!expired && usedSessions != null && plan.getMonthlyClasses() != null)
+                ? " Ya llevas <strong style=\"color:#eaf6f7;\">" + usedSessions + " de " + plan.getMonthlyClasses()
+                        + "</strong> clases usadas este mes."
+                : "";
+        String headline = expired ? "Tu plan " + plan.getName() + " está vencido" : "¡" + name + ", ya tienes " + plan.getName() + "!";
+        String body = expired
+                ? "<p style=\"margin:0 0 12px;\">" + escapeHtml(gym.getName()) + " te cargó el plan <strong style=\"color:#eaf6f7;\">"
+                        + escapeHtml(plan.getName()) + "</strong>, vigente hasta el " + dateLabel
+                        + " — esa fecha ya pasó, así que para reservar clases vas a necesitar renovarlo.</p>"
+                        + "<p style=\"margin:0;\">Activa tu cuenta con Google para ver el detalle y renovar cuando quieras.</p>"
+                : "<p style=\"margin:0 0 12px;\">" + escapeHtml(gym.getName()) + " activó tu plan <strong style=\"color:#eaf6f7;\">"
+                        + escapeHtml(plan.getName()) + "</strong>, con " + quota + ", vigente hasta el " + dateLabel + "."
+                        + usedNote + "</p>"
+                        + "<p style=\"margin:0;\">Activa tu cuenta con Google para reservar tu primera clase.</p>";
+        send(
+                gym,
+                member.getEmail(),
+                (expired ? "Tu plan " : "Pago confirmado — ") + plan.getName() + (expired ? " está vencido" : ""),
+                expired ? "Plan vencido" : "Pago confirmado",
+                headline,
+                body,
+                "Activar mi cuenta",
+                LOGIN_URL,
+                "Recibiste este correo porque " + escapeHtml(gym.getName()) + " te cargó el plan "
+                        + escapeHtml(plan.getName()) + " en mygym.");
     }
 
     public void sendPaymentConfirmedMember(Gym gym, AppUser member, GymPlan plan) {

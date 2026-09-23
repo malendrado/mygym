@@ -51,6 +51,13 @@ public class AppUser {
 
     private Instant paidAt;
 
+    /** Solo aplica a MEMBER con plan de cupo limitado, cargado por el Excel de importación
+     *  masiva (ver MemberImportRowService) — clases que ya venía usando en el sistema anterior
+     *  del gym ese mismo mes. Se resta aparte al calcular sessionsRemaining (MemberService.
+     *  toResponse) y se resetea a null apenas el plan se renueva o se le quita (GymService.
+     *  simulatePlanPayment/revokePlan, FlowPaymentService) — nunca se arrastra a otro período. */
+    private Integer usedSessionsAtImport;
+
     /** Seteado solo cuando un admin agrega este socio a mano (MemberService.createMember) — null si se
      *  auto-registró vía /j/{slug}. Junto con googleSub permite distinguir "invitado pendiente" (todavía
      *  no entró) de "invitado registrado" (ya entró al menos una vez), sin depender del email para nada

@@ -41,6 +41,27 @@ export interface MarkPaidRequest {
 }
 
 /**
+ * Una fila del Excel de importación masiva (ver ImportMembersModal). planId/amountClp/expiresAt van
+ * los tres juntos o los tres vacíos — el backend revalida esto igual (MemberService.importRow).
+ */
+export interface MemberImportRow {
+  name: string;
+  email: string;
+  planId: number | null;
+  amountClp: number | null;
+  /** ISO 8601 (instant) — el admin lo ve como "Fecha de vencimiento" en el Excel, ver ImportMembersModal. */
+  expiresAt: string | null;
+  /** Solo aplica si el plan tiene cupo limitado — clases que ya venía usando ese mes. */
+  usedSessions: number | null;
+}
+
+export interface MemberImportRowResult {
+  email: string;
+  success: boolean;
+  error: string | null;
+}
+
+/**
  * Vista completa de un socio reservado en una clase — solo para admins.
  * reservationId identifica la reserva puntual (no el socio) — lo necesita el admin para
  * poder cancelarla (ver GymService.cancelReservation/cancelReservationForGym).
