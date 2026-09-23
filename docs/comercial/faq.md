@@ -1,6 +1,6 @@
 # Preguntas frecuentes — mygym.cl
 
-> Borrador para revisión. Pensado para dueños de gimnasios que están evaluando contratar mygym o que ya lo usan. Falta un dato marcado como `[PENDIENTE]` — ver el final del documento.
+> Pensado para dueños de gimnasios que están evaluando contratar mygym o que ya lo usan.
 
 ## Sobre mygym
 
@@ -24,8 +24,14 @@ Cuando Flow.cl consolida (liquida) los pagos recibidos, mygym te transfiere el m
 **¿Qué pasa si un socio quiere que le devuelvan su pago?**
 Los reembolsos a tus socios los gestionas tú directamente como dueño del gimnasio — mygym no interviene en esa devolución. Te recomendamos tener tu propia política de reembolso clara para tus socios.
 
-**¿mygym cobra alguna comisión?**
-`[PENDIENTE: definir estructura de precio/comisión de mygym hacia el dueño del gimnasio — plan mensual fijo, % por transacción, etc. No inventar un número acá hasta confirmarlo.]`
+**¿mygym cobra alguna comisión sobre lo que pagan mis socios?**
+No. mygym no cobra comisión por socio ni por transacción — pagas un valor fijo mensual según el plan que corresponda a la cantidad de socios activos de tu gimnasio:
+
+- **Empieza** — hasta 100 socios activos: $39.990/mes.
+- **Crece** — hasta 400 socios activos: $69.990/mes.
+- **Escala** — más de 400 socios activos: precio a medida.
+
+Puedes subir o bajar de plan cuando lo necesites.
 
 ## Contrato y cancelación
 
@@ -47,15 +53,9 @@ Antes de cerrar tu gimnasio definitivamente, te enviamos por correo el detalle c
 No. Solo queda un registro interno con conteos (cuántos socios, pagos, reservas, etc.) como prueba de que el borrado ocurrió — sin ningún dato personal de tus socios.
 
 **¿Y si el envío de ese correo falla?**
-No se borra nada. Si por cualquier motivo no podemos confirmarte que recibiste el detalle de tus socios, la desvinculación no se ejecuta — se reintenta hasta que la recibas.
+No se borra nada. Si por cualquier motivo no podemos confirmarte que recibiste el detalle de tus socios, la desvinculación no se ejecuta — se puede volver a intentar cuando el envío funcione.
 
 ## Soporte
 
 **¿Cómo los contacto si tengo un problema?**
 Escríbenos a [contacto@mygym.cl](mailto:contacto@mygym.cl).
-
----
-
-## Pendientes antes de publicar
-
-- **Precio/comisión de mygym hacia el dueño del gimnasio** — no está definido en ningún lugar de la conversación hasta ahora. Sin este dato, la sección de "Pagos y dinero" queda incompleta para un prospecto real.

@@ -15,6 +15,17 @@ export const webRoutes: Routes = [
     loadComponent: () => import('./pages/join/join').then((m) => m.Join),
   },
   {
+    // Públicas, sin link desde la landing ni el brochure todavía — pedido explícito del
+    // usuario (2026-09-23): subirlas a una ruta real para poder compartirlas, sin agregarlas
+    // a la navegación hasta que decida publicarlas.
+    path: 'faq',
+    loadComponent: () => import('./pages/legal/faq/faq').then((m) => m.LegalFaq),
+  },
+  {
+    path: 'privacidad',
+    loadComponent: () => import('./pages/legal/privacidad/privacidad').then((m) => m.LegalPrivacidad),
+  },
+  {
     path: 'member',
     canActivate: [authGuard, roleGuard('MEMBER')],
     loadComponent: () => import('./pages/member/member').then((m) => m.MemberPage),

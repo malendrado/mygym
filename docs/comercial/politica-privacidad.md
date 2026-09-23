@@ -1,6 +1,6 @@
 # Política de privacidad y condiciones comerciales — mygym.cl
 
-> Borrador para revisión legal/comercial antes de publicar. No reemplaza una revisión por un abogado — cubre el contenido de negocio que ya está definido, pero conviene que un profesional revise la redacción final antes de publicarla como política vigente. Falta un dato marcado como `[PENDIENTE]`.
+> Borrador para revisión legal/comercial antes de publicar. No reemplaza una revisión por un abogado — cubre el contenido de negocio que ya está definido, pero conviene que un profesional revise la redacción final antes de publicarla como política vigente.
 
 **Última actualización:** [fecha de publicación]
 
@@ -38,7 +38,7 @@ Los socios pagan sus planes de membresía en línea a través de Flow.cl, mes a 
 
 Los reembolsos a los socios son responsabilidad exclusiva del administrador de cada gimnasio — mygym no gestiona ni interviene en esas devoluciones.
 
-`[PENDIENTE: incorporar acá la estructura de precio/comisión que mygym cobra al administrador del gimnasio por el uso de la plataforma, una vez definida.]`
+mygym no cobra comisión por socio ni por transacción. El administrador paga un valor fijo mensual, según el plan que corresponda a la cantidad de socios activos de su gimnasio (Empieza, Crece o Escala — ver mygym.cl/#precios), y puede subir o bajar de plan cuando lo necesite.
 
 ## 6. Duración del contrato y término
 
@@ -70,7 +70,6 @@ Para consultas sobre esta política o sobre tus datos, escríbenos a [contacto@m
 
 ---
 
-## Pendientes antes de publicar
+## Pendiente antes de publicar
 
-- **Precio/comisión de mygym hacia el administrador del gimnasio** — mismo dato pendiente que en el FAQ.
 - **Revisión legal formal** — este documento cubre el contenido de negocio ya definido, pero conviene que lo revise un abogado antes de publicarlo como política vigente, especialmente la sección 9.
