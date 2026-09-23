@@ -587,6 +587,10 @@ export class GymForm implements OnDestroy {
   protected readonly gym = signal<Gym | null>(null);
   protected readonly gymName = computed(() => this.gym()?.name ?? '');
   protected readonly gymSlug = computed(() => this.gym()?.slug ?? '');
+  // "Acceso a la demo" es solo para el/los gym de demo comercial (nombre con "Demo" explícito,
+  // ej. "mygym Demo") — pedido explícito del usuario: se coló mostrada para TODOS los gyms
+  // (2026-09-23), incluido uno de prueba real "QA Payment Flow" sin ninguna relación con la demo.
+  protected readonly isDemoGym = computed(() => this.gymName().toLowerCase().includes('demo'));
   protected readonly isGymLogoRaster = computed(() => (this.gym()?.logoSvg ?? '').startsWith('data:image'));
   protected readonly safeGymLogo = computed(() => {
     const logo = this.gym()?.logoSvg;
