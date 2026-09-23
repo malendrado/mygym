@@ -25,6 +25,7 @@ import {
   checkmarkOutline,
   chevronBackOutline,
   chevronForwardOutline,
+  eyeOutline,
   flashOutline,
   lockClosedOutline,
   logOutOutline,
@@ -34,6 +35,7 @@ import {
   trendingUpOutline,
 } from 'ionicons/icons';
 import { AuthService } from '../../core/services/auth.service';
+import { DemoPreviewService } from '../../core/services/demo-preview.service';
 import { GymService } from '../../core/services/gym.service';
 import { ReservationService } from '../../core/services/reservation.service';
 import { GymBlockOccurrence, Reservation } from '../../core/models/reservation.model';
@@ -53,6 +55,7 @@ const FALLBACK_HERO_PHOTO = 'https://images.unsplash.com/photo-1637430308606-865
 const GATEWAY_COMMISSION_RATE = 0.0289 * 1.19;
 
 addIcons({
+  'eye-outline': eyeOutline,
   'flash-outline': flashOutline,
   'calendar-outline': calendarOutline,
   'trending-up-outline': trendingUpOutline,
@@ -227,6 +230,15 @@ export class MemberPage {
   private readonly sanitizer = inject(DomSanitizer);
   private readonly toastController = inject(ToastController);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly demoPreviewService = inject(DemoPreviewService);
+
+  // Modo "ver como socio" de la demo comercial (ruta /gym-admin/demo-preview, ver web.routes.ts):
+  // ESTA misma pantalla, con los mismos datos y la misma UI que ve un socio real, pero leyendo
+  // del socio de muestra del gym demo (/api/gym-admin/demo-preview/**) y sin poder escribir nada.
+  // Se reusa la página real a propósito: una pantalla "parecida" hecha aparte no sirve para
+  // mostrarle a un prospecto cómo se ve de verdad el producto.
+  protected readonly isDemoPreview = this.route.snapshot.data['demoPreview'] === true;
+  protected readonly demoMemberName = signal<string | null>(null);
 
   protected readonly section = signal<'reservar' | 'reservas'>('reservar');
 
@@ -411,7 +423,12 @@ export class MemberPage {
     return this.checkoutPending() || status === 'none' || status === 'past_due' || status === 'pending';
   });
 
-  protected readonly firstName = computed(() => this.authService.currentUser()?.name?.split(' ')[0] ?? 'socio');
+  // En la demo el saludo es el del socio de muestra, no el del prospecto logueado (que es un
+  // DEMO_ADMIN, no un socio) — si no, diría "Hola, <nombre del prospecto>" sobre datos ajenos.
+  protected readonly firstName = computed(() => {
+    const name = this.isDemoPreview ? this.demoMemberName() : this.authService.currentUser()?.name;
+    return name?.split(' ')[0] ?? 'socio';
+  });
   // Only derive a surface tint from a real gym color — falling back to the lime
   // *accent* here (like the header does) would treat lime's hue as a background
   // color source and paint an off-brand olive surface. No gym color yet means
@@ -537,7 +554,10 @@ export class MemberPage {
       return;
     }
     this.loadingAttendeesKey.set(key);
-    this.gymService.getMyBlockAttendees(occurrence.gymBlockId, occurrence.classDate).subscribe({
+    (this.isDemoPreview
+      ? this.demoPreviewService.getBlockAttendees(occurrence.gymBlockId, occurrence.classDate)
+      : this.gymService.getMyBlockAttendees(occurrence.gymBlockId, occurrence.classDate)
+    ).subscribe({
       next: (attendees) => {
         this.attendeesByOccurrence.update((map) => ({ ...map, [key]: attendees }));
         this.loadingAttendeesKey.set(null);
@@ -667,6 +687,9 @@ export class MemberPage {
   }
 
   protected book(occurrence: GymBlockOccurrence): void {
+    if (this.blockedInDemo()) {
+      return;
+    }
     this.bookingId.set(occurrence.gymBlockId);
     this.reservationService
       .book({ gymBlockId: occurrence.gymBlockId, classDate: occurrence.classDate })
@@ -686,6 +709,9 @@ export class MemberPage {
   }
 
   protected cancel(reservationId: number): void {
+    if (this.blockedInDemo()) {
+      return;
+    }
     this.cancelingId.set(reservationId);
     this.reservationService.cancel(reservationId).subscribe({
       next: () => {
@@ -730,6 +756,9 @@ export class MemberPage {
   // constructor). El estado "pending" acá es solo mientras se arma la URL
   // de checkout, no simula ningún pago.
   protected payWithFlow(plan: MembershipPlan): void {
+    if (this.blockedInDemo()) {
+      return;
+    }
     this.membership.update((m) => ({ ...m, status: 'pending' }));
     this.gymService.startCheckout(plan.id).subscribe({
       next: (res) => {
@@ -764,9 +793,25 @@ export class MemberPage {
     return amount.toLocaleString('es-CL');
   }
 
+  // En la demo no hay nada que escribir (los endpoints de /demo-preview son solo GET, y
+  // SecurityConfig igual bloquearía cualquier POST de un DEMO_ADMIN) — se corta acá con un
+  // aviso claro en vez de dejar que el botón falle con un error genérico.
+  private blockedInDemo(): boolean {
+    if (!this.isDemoPreview) {
+      return false;
+    }
+    this.showToast('Esta es una demostración: así se vería la acción, pero no se guarda nada.');
+    return true;
+  }
+
   // Mismo criterio que gym-admin.ts: un socio que sale vuelve a la página
-  // propia de SU gimnasio, no al /login genérico.
+  // propia de SU gimnasio, no al /login genérico. En la demo no se cierra sesión:
+  // "salir" es volver al panel de administración que el prospecto estaba mirando.
   protected async logout(): Promise<void> {
+    if (this.isDemoPreview) {
+      this.router.navigate(['/gym-admin']);
+      return;
+    }
     await this.authService.logout();
     const slug = this.gym()?.slug;
     this.router.navigate([slug ? `/j/${slug}` : '/login']);
@@ -778,7 +823,7 @@ export class MemberPage {
   }
 
   private loadPlans(): void {
-    this.gymService.getMyMemberPlans().subscribe({
+    (this.isDemoPreview ? this.demoPreviewService.getPlans() : this.gymService.getMyMemberPlans()).subscribe({
       next: (plans) => {
         this.plans.set(withHighlight(plans));
         this.plansLoaded.set(true);
@@ -794,8 +839,11 @@ export class MemberPage {
   // había marcado como Activo. Reportado por el usuario probando con una
   // cuenta real.
   private loadMembership(): void {
-    this.gymService.getMyMembership().subscribe({
+    (this.isDemoPreview ? this.demoPreviewService.getMembership() : this.gymService.getMyMembership()).subscribe({
       next: (member) => {
+        if (this.isDemoPreview) {
+          this.demoMemberName.set(member.name);
+        }
         if (!member.planId || !member.paidAt) {
           return;
         }
@@ -824,7 +872,10 @@ export class MemberPage {
   }
 
   private loadBankTransfer(): void {
-    this.gymService.getMyBankTransferInfo().subscribe({
+    (this.isDemoPreview
+      ? this.demoPreviewService.getBankTransferInfo()
+      : this.gymService.getMyBankTransferInfo()
+    ).subscribe({
       next: (info) => this.bankTransfer.set(info),
       error: () => {
         // Best-effort: sin datos, la opción de transferencia se queda oculta.
@@ -833,7 +884,7 @@ export class MemberPage {
   }
 
   private loadPhotos(): void {
-    this.gymService.getMyMemberPhotos().subscribe({
+    (this.isDemoPreview ? this.demoPreviewService.getPhotos() : this.gymService.getMyMemberPhotos()).subscribe({
       next: (photos) => this.photos.set(photos),
       error: () => {
         // Best-effort: sin fotos, el hero cae al fondo genérico.
@@ -842,7 +893,7 @@ export class MemberPage {
   }
 
   private loadGym(): void {
-    this.gymService.getMyMemberGym().subscribe({
+    (this.isDemoPreview ? this.demoPreviewService.getGym() : this.gymService.getMyMemberGym()).subscribe({
       next: (gym) => {
         this.gym.set(gym);
         this.gymLoaded.set(true);
@@ -853,7 +904,10 @@ export class MemberPage {
 
   private loadOccurrences(): void {
     this.status.set('loading');
-    this.reservationService.listOccurrences(this.monthRange.from, this.monthRange.to).subscribe({
+    (this.isDemoPreview
+      ? this.demoPreviewService.listOccurrences(this.monthRange.from, this.monthRange.to)
+      : this.reservationService.listOccurrences(this.monthRange.from, this.monthRange.to)
+    ).subscribe({
       next: (occurrences) => {
         this.occurrences.set(occurrences);
         this.status.set('idle');
@@ -863,7 +917,10 @@ export class MemberPage {
   }
 
   private loadMyReservations(): void {
-    this.reservationService.myReservations().subscribe({
+    (this.isDemoPreview
+      ? this.demoPreviewService.listReservations()
+      : this.reservationService.myReservations()
+    ).subscribe({
       next: (reservations) => this.myReservations.set(reservations),
       error: () => this.status.set('error'),
     });

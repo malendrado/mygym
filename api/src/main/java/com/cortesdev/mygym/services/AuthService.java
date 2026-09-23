@@ -9,6 +9,7 @@ import com.cortesdev.mygym.repositories.AppUserRepository;
 import com.cortesdev.mygym.repositories.GymRepository;
 import com.cortesdev.mygym.security.GoogleTokenVerifier;
 import com.cortesdev.mygym.security.JwtService;
+import com.cortesdev.mygym.services.exception.DemoAccessExpiredException;
 import com.cortesdev.mygym.services.exception.GymNotFoundException;
 import com.cortesdev.mygym.services.exception.UnauthorizedGoogleLoginException;
 import java.util.List;
@@ -27,12 +28,19 @@ public class AuthService {
     private final GoogleTokenVerifier googleTokenVerifier;
     private final JwtService jwtService;
     private final MemberLifecycleEmailService memberLifecycleEmailService;
+    private final DemoAccessService demoAccessService;
 
     public LoginResponse loginWithGoogle(GoogleLoginRequest request) {
         GoogleTokenVerifier.GoogleIdentity identity = googleTokenVerifier.verify(request.idToken());
         AppUser user = appUserRepository
                 .findByEmail(AppUser.normalizeEmail(identity.email()))
                 .orElseThrow(() -> new UnauthorizedGoogleLoginException(identity.email()));
+        // Chequear ANTES que el guard genérico de abajo: un acceso demo vencido tiene su propia
+        // excepción (410, ver DemoAccessExpiredException) para que el frontend mande al
+        // formulario de contacto en vez de mostrar "cuenta no registrada" a secas.
+        if (demoAccessService.expireIfNeeded(user)) {
+            throw new DemoAccessExpiredException();
+        }
         if (!user.isActive()) {
             throw new UnauthorizedGoogleLoginException(identity.email());
         }

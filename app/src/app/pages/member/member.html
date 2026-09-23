@@ -30,10 +30,16 @@
       <ion-buttons slot="end">
         <ion-button (click)="logout()">
           <ion-icon name="log-out-outline" slot="start" aria-hidden="true"></ion-icon>
-          Salir
+          {{ isDemoPreview ? 'Volver al panel' : 'Salir' }}
         </ion-button>
       </ion-buttons>
     </ion-toolbar>
+    @if (isDemoPreview) {
+      <div class="demo-preview-banner">
+        <ion-icon name="eye-outline" aria-hidden="true"></ion-icon>
+        Así ve la app un socio de tu gimnasio — datos de ejemplo, solo lectura.
+      </div>
+    }
     @if (photoStrip().length) {
       <div class="gym-photo-strip" aria-hidden="true">
         <div class="gym-photo-strip__track">

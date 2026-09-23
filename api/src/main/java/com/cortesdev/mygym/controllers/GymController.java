@@ -196,6 +196,13 @@ public class GymController {
                 .body(admin);
     }
 
+    // Borrado real (no desactivar) — ver comentario en GymService.removeDemoAdmin.
+    @DeleteMapping("/{id}/demo-admins/{userId}")
+    public ResponseEntity<Void> removeDemoAdmin(@PathVariable Long id, @PathVariable Long userId) {
+        gymService.removeDemoAdmin(id, userId);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/{id}/plans")
     public List<PlanResponse> listPlans(@PathVariable Long id) {
         return gymService.listPlans(id);

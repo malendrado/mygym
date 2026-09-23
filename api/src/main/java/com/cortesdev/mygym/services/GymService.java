@@ -366,6 +366,21 @@ public class GymService {
         return toResponse(demoAdmin);
     }
 
+    // Borrado real, no desactivar (a diferencia de updateAdminStatus para un GYM_ADMIN real):
+    // el email de un acceso demo revocado tiene que quedar completamente libre para que esa
+    // misma persona pueda convertirse en un admin real más adelante (bug real: dejaba el email
+    // "ocupado" para siempre por existsByEmail, bloqueando la invitación real). Nunca borra
+    // reservas/pagos porque un DEMO_ADMIN nunca los tiene — no es un socio.
+    public void removeDemoAdmin(Long gymId, Long userId) {
+        AppUser demoAdmin = appUserRepository
+                .findByIdAndGymId(userId, gymId)
+                .orElseThrow(() -> new AdminNotFoundException(gymId, userId));
+        if (demoAdmin.getRole() != Role.DEMO_ADMIN) {
+            throw new AdminNotFoundException(gymId, userId);
+        }
+        appUserRepository.delete(demoAdmin);
+    }
+
     public BlockResponse addBlock(Long gymId, BlockCreateRequest request) {
         findGymOrThrow(gymId);
         validateSchedule(request.startTime(), request.endTime());

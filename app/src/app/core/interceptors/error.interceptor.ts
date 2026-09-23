@@ -1,9 +1,26 @@
 import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
-import { catchError, throwError } from 'rxjs';
+import { inject } from '@angular/core';
+import { Router } from '@angular/router';
+import { EMPTY, catchError, throwError } from 'rxjs';
+import { AuthService } from '../services/auth.service';
 
-export const errorInterceptor: HttpInterceptorFn = (req, next) =>
-  next(req).pipe(
+export const errorInterceptor: HttpInterceptorFn = (req, next) => {
+  const router = inject(Router);
+  const authService = inject(AuthService);
+  return next(req).pipe(
     catchError((err: HttpErrorResponse) => {
+      // 410: el acceso a la demo (Role.DEMO_ADMIN) venció — ver DemoAccessService/
+      // DemoAccessExpiryFilter en el backend. Pasa tanto en el primer login después de las 48h
+      // como a mitad de una sesión ya abierta (el JWT en sí dura 30 días). Nunca dejamos que
+      // esto siga como un error más: se limpia la sesión acá mismo y se manda al formulario de
+      // contacto — swallow total (EMPTY) para que ningún subscriber downstream compita
+      // mostrando su propio mensaje de error mientras ya estamos redirigiendo.
+      if (err.status === 410) {
+        void authService.logout().finally(() => {
+          router.navigate(['/'], { queryParams: { contacto: 'demo-vencida' } });
+        });
+        return EMPTY;
+      }
       // 403 en un método que no es GET casi siempre es DEMO_ADMIN chocando contra el bloqueo
       // real de solo-lectura en SecurityConfig (no llega al @RestControllerAdvice, así que
       // err.error no trae detail/title) — mensaje específico en vez del genérico de abajo.
@@ -15,3 +32,4 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) =>
       return throwError(() => new Error(message));
     }),
   );
+};

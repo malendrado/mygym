@@ -217,6 +217,12 @@ export class GymService {
     return this.http.post<Admin>(`${this.base}/${gymId}/demo-admins`, payload);
   }
 
+  // Borrado real (no desactivar) — libera el email para que esa persona pueda
+  // convertirse en un admin real más adelante sin quedar bloqueada.
+  removeDemoAdmin(gymId: number, userId: number): Observable<void> {
+    return this.http.delete<void>(`${this.base}/${gymId}/demo-admins/${userId}`);
+  }
+
   /** Contraparte SUPER_ADMIN de listMyPlans/createMyPlan/etc. — mismo backend, gymId por path en vez de por JWT. */
   listPlans(gymId: number): Observable<GymPlan[]> {
     return this.http.get<GymPlan[]>(`${this.base}/${gymId}/plans`);

@@ -315,7 +315,8 @@
       <ion-card-content>
         <p class="item-hint">
           Acceso de solo lectura para prospectos — pueden recorrer el panel de administración y
-          "ver como socio" de este gym, pero no pueden modificar ni guardar nada.
+          "ver como socio" de este gym, pero no pueden modificar ni guardar nada. Dura 48 horas: pasado
+          ese plazo se borra solo y, si intenta entrar de nuevo, lo mandamos al formulario de contacto.
         </p>
         <ion-list lines="full">
           @for (admin of demoAdmins(); track admin.id) {
@@ -323,7 +324,7 @@
               @if (admin.photoUrl) {
                 <img [src]="admin.photoUrl" alt="" slot="start" class="member-avatar" />
               } @else {
-                <div class="admin-avatar" slot="start" [class.admin-avatar--inactive]="!admin.active">
+                <div class="admin-avatar" slot="start">
                   {{ initials(admin.name) }}
                 </div>
               }
@@ -331,16 +332,13 @@
                 {{ admin.name }}
                 <p>{{ admin.email }}</p>
               </ion-label>
-              <ion-badge slot="end" [color]="admin.active ? 'success' : 'medium'">
-                {{ admin.active ? 'Activo' : 'Inactivo' }}
-              </ion-badge>
               <ion-button
                 fill="clear"
-                [color]="admin.active ? 'danger' : 'success'"
-                [disabled]="togglingDemoAdminId() === admin.id"
-                (click)="toggleDemoAdminStatus(admin)"
+                color="danger"
+                [disabled]="removingDemoAdminId() === admin.id"
+                (click)="removeDemoAdmin(admin)"
               >
-                {{ togglingDemoAdminId() === admin.id ? (admin.active ? 'Quitando...' : 'Reactivando...') : (admin.active ? 'Quitar acceso' : 'Reactivar') }}
+                <ion-icon name="trash-outline" slot="icon-only" aria-hidden="true"></ion-icon>
               </ion-button>
             </ion-item>
           } @empty {

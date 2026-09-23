@@ -5,6 +5,7 @@ import com.cortesdev.mygym.services.exception.BookingWindowClosedException;
 import com.cortesdev.mygym.services.exception.BrandingSuggestionException;
 import com.cortesdev.mygym.services.exception.CapacityExceededException;
 import com.cortesdev.mygym.services.exception.DuplicateMemberEmailException;
+import com.cortesdev.mygym.services.exception.DemoAccessExpiredException;
 import com.cortesdev.mygym.services.exception.DemoSampleMemberMissingException;
 import com.cortesdev.mygym.services.exception.DuplicateOwnerEmailException;
 import com.cortesdev.mygym.services.exception.DuplicateSlugException;
@@ -220,6 +221,16 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
         problem.setTitle("Demasiadas fotos");
         problem.setProperty("timestamp", Instant.now());
         return ResponseEntity.status(HttpStatus.CONFLICT).body(problem);
+    }
+
+    // 410 (no 401/403): un status propio para que el frontend distinga "tu demo venció, te
+    // mandamos al contacto" de un error de auth genérico sin tener que parsear el texto.
+    @ExceptionHandler(DemoAccessExpiredException.class)
+    public ResponseEntity<ProblemDetail> handleDemoAccessExpired(DemoAccessExpiredException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.GONE, ex.getMessage());
+        problem.setTitle("Demo vencida");
+        problem.setProperty("timestamp", Instant.now());
+        return ResponseEntity.status(HttpStatus.GONE).body(problem);
     }
 
     @ExceptionHandler(DemoSampleMemberMissingException.class)

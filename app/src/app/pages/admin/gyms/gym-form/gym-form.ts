@@ -860,31 +860,32 @@ export class GymForm implements OnDestroy {
     });
   }
 
-  protected readonly togglingDemoAdminId = signal<number | null>(null);
+  protected readonly removingDemoAdminId = signal<number | null>(null);
 
-  protected async toggleDemoAdminStatus(admin: Admin): Promise<void> {
+  // Borrado real, no un toggle activar/desactivar (a diferencia de un admin real abajo): un
+  // acceso demo revocado tiene que liberar el email por completo, para que esa misma persona
+  // pueda convertirse en admin real más adelante sin quedar bloqueada por "email duplicado".
+  protected async removeDemoAdmin(admin: Admin): Promise<void> {
     const id = this.gymId();
-    if (id === null || this.togglingDemoAdminId() !== null) {
+    if (id === null || this.removingDemoAdminId() !== null) {
       return;
     }
-    if (admin.active) {
-      const confirmed = await this.confirmAction(
-        'Quitar acceso a la demo',
-        `¿Quitarle el acceso a la demo a ${admin.name}? Va a poder recuperarlo más tarde con "Reactivar".`,
-        'Quitar acceso',
-      );
-      if (!confirmed) {
-        return;
-      }
+    const confirmed = await this.confirmAction(
+      'Quitar acceso a la demo',
+      `¿Quitarle el acceso a la demo a ${admin.name}? Se borra por completo — si más adelante querés darle acceso de nuevo (a la demo o como admin real), vas a poder hacerlo sin problema.`,
+      'Quitar acceso',
+    );
+    if (!confirmed) {
+      return;
     }
-    this.togglingDemoAdminId.set(admin.id);
-    this.gymService.updateAdminStatus(id, admin.id, !admin.active).subscribe({
+    this.removingDemoAdminId.set(admin.id);
+    this.gymService.removeDemoAdmin(id, admin.id).subscribe({
       next: () => {
-        this.togglingDemoAdminId.set(null);
+        this.removingDemoAdminId.set(null);
         this.loadDemoAdmins(id);
       },
       error: () => {
-        this.togglingDemoAdminId.set(null);
+        this.removingDemoAdminId.set(null);
         this.status.set('error');
       },
     });

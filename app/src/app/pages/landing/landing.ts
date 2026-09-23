@@ -11,7 +11,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { GymService } from '../../core/services/gym.service';
 import { IonContent, IonIcon } from '@ionic/angular';
 import { addIcons } from 'ionicons';
@@ -97,6 +97,7 @@ interface MemberBenefit {
 })
 export class Landing implements OnInit, AfterViewInit, OnDestroy {
   private readonly gymService = inject(GymService);
+  private readonly route = inject(ActivatedRoute);
 
   @ViewChildren('reveal') protected revealEls!: QueryList<ElementRef<HTMLElement>>;
   @ViewChild('modalCloseButton') protected modalCloseButtonRef?: ElementRef<HTMLElement>;
@@ -269,14 +270,18 @@ export class Landing implements OnInit, AfterViewInit, OnDestroy {
   protected readonly isSubmitted = signal(false);
   protected readonly isSending = signal(false);
   protected readonly submitError = signal<string | null>(null);
+  // Precarga del mensaje cuando llegamos acá redirigidos desde un acceso de demo vencido (ver
+  // error.interceptor.ts) — el prospecto no tiene que reexplicar por qué está escribiendo.
+  protected readonly prefilledMessage = signal('');
 
-  protected openContact(): void {
+  protected openContact(message = ''): void {
     this.lastFocusedElement = document.activeElement as HTMLElement | null;
     this.nameError.set(null);
     this.emailError.set(null);
     this.isSubmitted.set(false);
     this.isSending.set(false);
     this.submitError.set(null);
+    this.prefilledMessage.set(message);
     this.isContactOpen.set(true);
     setTimeout(() => this.modalCloseButtonRef?.nativeElement.focus());
   }
@@ -379,6 +384,9 @@ export class Landing implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnInit(): void {
     this.gymService.recordVisit('LANDING');
+    if (this.route.snapshot.queryParamMap.get('contacto') === 'demo-vencida') {
+      this.openContact('Mi acceso a la demo de mygym venció, me gustaría agendar una reunión.');
+    }
   }
 
   ngAfterViewInit(): void {

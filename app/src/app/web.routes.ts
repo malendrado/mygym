@@ -25,9 +25,14 @@ export const webRoutes: Routes = [
     loadComponent: () => import('./pages/gym-admin/gym-admin').then((m) => m.GymAdmin),
   },
   {
+    // "Ver como socio" de la demo comercial: es LA MISMA pantalla que ve un socio real
+    // (/member), con la misma UI y el mismo flujo — solo cambia de dónde lee los datos y que
+    // no puede escribir (ver isDemoPreview en member.ts). Tener una pantalla "parecida" hecha
+    // aparte no servía: la demo tiene que mostrar el producto real, no una maqueta.
     path: 'gym-admin/demo-preview',
     canActivate: [authGuard, roleGuard('DEMO_ADMIN')],
-    loadComponent: () => import('./pages/demo-preview/demo-preview').then((m) => m.DemoPreview),
+    data: { demoPreview: true },
+    loadComponent: () => import('./pages/member/member').then((m) => m.MemberPage),
   },
   {
     path: 'admin/gyms',

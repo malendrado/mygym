@@ -393,7 +393,7 @@
             </label>
             <label>
               Mensaje
-              <textarea #messageInput name="message" rows="3" placeholder="Cuéntanos de tu gimnasio (opcional)"></textarea>
+              <textarea #messageInput name="message" rows="3" placeholder="Cuéntanos de tu gimnasio (opcional)">{{ prefilledMessage() }}</textarea>
             </label>
             <button class="button button--primary contact-modal__submit" type="submit" [disabled]="isSending()">
               {{ isSending() ? 'Enviando…' : 'Enviar' }}

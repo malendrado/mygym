@@ -2,8 +2,8 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { MemberPlan, PublicGym } from '../models/gym.model';
-import { Member } from '../models/member.model';
+import { BankTransferInfo, GymPhoto, MemberPlan, PublicGym } from '../models/gym.model';
+import { AttendeeSummary, Member } from '../models/member.model';
 import { GymBlockOccurrence, Reservation } from '../models/reservation.model';
 
 /**
@@ -35,5 +35,17 @@ export class DemoPreviewService {
 
   listReservations(): Observable<Reservation[]> {
     return this.http.get<Reservation[]>(`${this.base}/reservations`);
+  }
+
+  getPhotos(): Observable<GymPhoto[]> {
+    return this.http.get<GymPhoto[]>(`${this.base}/gym/photos`);
+  }
+
+  getBankTransferInfo(): Observable<BankTransferInfo> {
+    return this.http.get<BankTransferInfo>(`${this.base}/gym/bank-transfer`);
+  }
+
+  getBlockAttendees(blockId: number, classDate: string): Observable<AttendeeSummary[]> {
+    return this.http.get<AttendeeSummary[]>(`${this.base}/gym-blocks/${blockId}/occurrences/${classDate}/attendees`);
   }
 }

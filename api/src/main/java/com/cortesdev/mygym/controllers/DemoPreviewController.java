@@ -2,7 +2,10 @@ package com.cortesdev.mygym.controllers;
 
 import com.cortesdev.mygym.models.AppUser;
 import com.cortesdev.mygym.models.Role;
+import com.cortesdev.mygym.models.dto.AttendeeSummaryResponse;
+import com.cortesdev.mygym.models.dto.BankTransferInfoResponse;
 import com.cortesdev.mygym.models.dto.GymBlockOccurrenceResponse;
+import com.cortesdev.mygym.models.dto.GymPhotoResponse;
 import com.cortesdev.mygym.models.dto.MemberPlanResponse;
 import com.cortesdev.mygym.models.dto.MemberResponse;
 import com.cortesdev.mygym.models.dto.PublicGymResponse;
@@ -20,6 +23,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -56,6 +60,33 @@ public class DemoPreviewController {
     @GetMapping("/plans")
     public List<MemberPlanResponse> plans(@AuthenticationPrincipal Jwt jwt) {
         return gymService.listActivePlans(gymId(jwt));
+    }
+
+    @GetMapping("/gym/photos")
+    public List<GymPhotoResponse> photos(@AuthenticationPrincipal Jwt jwt) {
+        return gymService.listPhotos(gymId(jwt));
+    }
+
+    @GetMapping("/gym/bank-transfer")
+    public BankTransferInfoResponse bankTransfer(@AuthenticationPrincipal Jwt jwt) {
+        return gymService.getBankTransferInfo(gymId(jwt));
+    }
+
+    // Mismo recorte de privacidad que ReservationController.myBlockAttendees: solo nombre de pila
+    // y foto, nunca email — aunque acá sean socios ficticios, la demo tiene que mostrar
+    // exactamente lo que vería un socio real, ni más ni menos.
+    @GetMapping("/gym-blocks/{blockId}/occurrences/{classDate}/attendees")
+    public List<AttendeeSummaryResponse> attendees(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long blockId,
+            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate classDate) {
+        return reservationService.getOccurrenceAttendees(gymId(jwt), blockId, classDate).stream()
+                .map(mr -> {
+                    String name = mr.member().getName();
+                    String firstName = name == null ? "Socio" : name.split(" ")[0];
+                    return new AttendeeSummaryResponse(firstName, mr.member().getPhotoUrl());
+                })
+                .toList();
     }
 
     @GetMapping("/gym-blocks")

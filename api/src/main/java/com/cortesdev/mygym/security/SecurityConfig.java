@@ -10,6 +10,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.intercept.AuthorizationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -19,12 +20,15 @@ public class SecurityConfig {
 
     private final JwtService jwtService;
     private final List<String> allowedOrigins;
+    private final DemoAccessExpiryFilter demoAccessExpiryFilter;
 
     public SecurityConfig(
             JwtService jwtService,
-            @Value("${app.cors.allowed-origins}") List<String> allowedOrigins) {
+            @Value("${app.cors.allowed-origins}") List<String> allowedOrigins,
+            DemoAccessExpiryFilter demoAccessExpiryFilter) {
         this.jwtService = jwtService;
         this.allowedOrigins = allowedOrigins;
+        this.demoAccessExpiryFilter = demoAccessExpiryFilter;
     }
 
     @Bean
@@ -57,7 +61,12 @@ public class SecurityConfig {
                         .anyRequest()
                         .authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(
-                        jwt -> jwt.decoder(jwtService.jwtDecoder()).jwtAuthenticationConverter(jwtAuthenticationConverter())));
+                        jwt -> jwt.decoder(jwtService.jwtDecoder()).jwtAuthenticationConverter(jwtAuthenticationConverter())))
+                // ANTES de AuthorizationFilter: si el acceso demo ya venció, corta acá con 410
+                // sin llegar siquiera a evaluar los matchers de arriba (ver DemoAccessExpiryFilter
+                // — el JWT en sí sigue siendo válido por 30 días, este filtro es el único lugar
+                // que de verdad hace cumplir el límite de 48h en una sesión ya logueada).
+                .addFilterBefore(demoAccessExpiryFilter, AuthorizationFilter.class);
         return http.build();
     }
 

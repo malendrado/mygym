@@ -1099,3 +1099,22 @@ ion-segment-button.segment-button-checked {
     }
   }
 }
+
+// Banda del modo "ver como socio" de la demo comercial (ver isDemoPreview en member.ts) —
+// deja claro que lo que se está mirando es una demostración, no la cuenta del prospecto.
+.demo-preview-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1rem;
+  background: color-mix(in srgb, var(--brand-accent) 16%, transparent);
+  color: var(--brand-text);
+  font-size: 0.8rem;
+  font-weight: 500;
+
+  ion-icon {
+    flex-shrink: 0;
+    color: var(--brand-accent-text-safe, var(--brand-accent));
+    font-size: 1rem;
+  }
+}
