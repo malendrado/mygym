@@ -337,32 +337,16 @@ public class MemberLifecycleEmailService {
                 .replace("{{FOOTER_TEXT}}", footerText);
     }
 
-    // Bug real reportado: un gym con logo RASTER (PNG/JPEG subido desde Marca, no SVG generado)
-    // mostraba el círculo vacío en el email — este método solo sabía manejar SVG crudo o "sin
-    // logo", así que un data:image/... caía al mismo branch del SVG y quedaba como texto crudo
-    // sin renderizar dentro del <div>. gym.logoSvg guarda AMBOS formatos en la misma columna
-    // (ver GymService.updateLogo) desde que se agregó la subida de imagen, este método nunca se
-    // actualizó para el caso raster. Mismo trade-off ya aceptado para el SVG: en Outlook de
-    // escritorio (motor Word) puede no soportar data URI en <img> tampoco — el peor caso sigue
-    // siendo el círculo de color liso, un fallback aceptable, no un error visible.
-
-    // Segundo bug real, más grave, reportado después: un gym CON logo SVG genuino (ej. Fortis)
-    // seguía mostrando el círculo vacío. No era un problema de detección de formato — el <svg>
-    // inline simplemente no se pinta en Gmail (soporte parcial/inconsistente) ni en Outlook
-    // (motor Word, cero soporte), solo Apple Mail lo renderiza de forma confiable. El comentario
-    // original de admin-invite.html que asumía que Gmail lo soportaba estaba mal. Rasterizar el
-    // SVG a PNG en el backend requeriría sumar una librería nueva (se decidió explícitamente
-    // evitar ese peso), así que para email se usa el mismo fallback de inicial que "sin logo" —
-    // el SVG real se sigue viendo en la web/app, donde sí se renderiza bien.
+    // Se probaron dos formatos de gym.logoSvg como <img>/<svg> inline en el email — ninguno
+    // funciona en Gmail: el <svg> crudo (ej. Fortis) no lo renderiza casi ningún cliente (solo
+    // Apple Mail), y un <img src="data:..."> tampoco: Gmail directamente no muestra imágenes
+    // data: (base64) embebidas, sea cual sea el formato (confirmado con un envío real, no solo
+    // en teoría — un gym con logo PNG subido por archivo seguía mostrando el círculo vacío).
+    // Mostrar el logo real en el email requeriría mandarlo como adjunto embebido (content-id) en
+    // vez de data URI — se dejó afuera a propósito (decisión explícita del usuario) por el
+    // trabajo/riesgo extra. Se usa siempre el mismo fallback de inicial acá — el logo real se
+    // sigue viendo en la web/app, donde sí se renderiza bien.
     private String logoBadgeInner(Gym gym) {
-        String logoSvg = gym.getLogoSvg();
-        if (logoSvg == null || logoSvg.isBlank()) {
-            return escapeHtml(GymPalette.initialOf(gym.getName()));
-        }
-        if (logoSvg.startsWith("data:image")) {
-            return "<img src=\"" + logoSvg
-                    + "\" width=\"64\" height=\"64\" alt=\"\" style=\"width:64px;height:64px;border-radius:32px;display:block;object-fit:cover;\" />";
-        }
         return escapeHtml(GymPalette.initialOf(gym.getName()));
     }
 

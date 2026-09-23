@@ -96,24 +96,15 @@ public class AdminInviteEmailService {
                 .replace("{{LOGO_BADGE_INNER}}", logoBadgeInner(gym));
     }
 
-    // Ver el mismo fix/comentario en MemberLifecycleEmailService — gym.logoSvg guarda tanto SVG
-    // crudo como data:image/... (raster subido desde Marca) en la misma columna; sin este branch,
-    // un logo raster caía como texto sin renderizar dentro del <div> y solo se veía el círculo
-    // de color liso.
-    //
-    // El <svg> inline (rama de abajo, ahora eliminada) tampoco servía: Gmail y Outlook no
-    // renderizan SVG embebido en el HTML del email de forma confiable (solo Apple Mail sí) —
-    // rasterizarlo a PNG en el backend requeriría sumar una librería nueva, así que para email
-    // se usa el mismo fallback de inicial que "sin logo"; el SVG real se sigue viendo en la web.
+    // Ver el mismo comentario/fix en MemberLifecycleEmailService. Se probaron dos formatos de
+    // gym.logoSvg como <img>/<svg> inline en el email — ninguno funciona en Gmail: el <svg> crudo
+    // no lo renderiza casi ningún cliente (solo Apple Mail), y un <img src="data:..."> tampoco:
+    // Gmail directamente no muestra imágenes data: (base64) embebidas, sea cual sea el formato
+    // (confirmado con un envío real, no solo en teoría). Mostrar el logo real en el email
+    // requeriría mandarlo como adjunto embebido (content-id) en vez de data URI — se dejó afuera
+    // a propósito (decisión explícita del usuario, ver conversación) por el trabajo/riesgo extra.
+    // Se usa siempre el mismo fallback de inicial acá — el logo real se sigue viendo en la web/app.
     private String logoBadgeInner(Gym gym) {
-        String logoSvg = gym.getLogoSvg();
-        if (logoSvg == null || logoSvg.isBlank()) {
-            return escapeHtml(GymPalette.initialOf(gym.getName()));
-        }
-        if (logoSvg.startsWith("data:image")) {
-            return "<img src=\"" + logoSvg
-                    + "\" width=\"64\" height=\"64\" alt=\"\" style=\"width:64px;height:64px;border-radius:32px;display:block;object-fit:cover;\" />";
-        }
         return escapeHtml(GymPalette.initialOf(gym.getName()));
     }
 
