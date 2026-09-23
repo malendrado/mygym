@@ -281,6 +281,8 @@ function randomSample<T>(items: T[], count: number): T[] {
 const MAX_PHOTO_DIMENSION = 1600;
 const ACCEPTED_PHOTO_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 const MAX_PHOTOS = 8;
+const MAX_LOGO_DIMENSION = 256;
+const ACCEPTED_LOGO_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'];
 
 /** Contraste WCAG simple para colores fuera de las 12 paletas curadas (color libre). */
 function computeContrast(hex: string): string {
@@ -1636,6 +1638,63 @@ export class GymForm implements OnDestroy {
         this.bankTransferSaving.set(false);
         this.showToast('No pudimos guardar los datos bancarios. Intenta nuevamente.', 'danger');
       },
+    });
+  }
+
+  protected readonly logoUploading = signal(false);
+
+  // Mismo patrón que gym-admin.ts (onLogoFileSelected) — el super-admin no tenía forma de subir
+  // un archivo acá, solo pegar SVG/data-URI a mano en el textarea. SVG se guarda tal cual (texto),
+  // una imagen rasterizada se redimensiona antes (mismo tope de 256px que usa el dueño del gym).
+  protected async onLogoFileSelected(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0] ?? null;
+    input.value = '';
+    if (!file) {
+      return;
+    }
+    if (!ACCEPTED_LOGO_TYPES.includes(file.type)) {
+      this.showToast('Formato no soportado. Usa PNG, JPG, WEBP o SVG.', 'danger');
+      return;
+    }
+    this.logoUploading.set(true);
+    try {
+      const logo = file.type === 'image/svg+xml' ? await file.text() : await this.resizeLogoFile(file);
+      this.configForm.controls.logoSvg.setValue(logo);
+      this.submitConfig();
+    } catch {
+      this.showToast('No pudimos leer esa imagen. Intenta con otra.', 'danger');
+    } finally {
+      this.logoUploading.set(false);
+    }
+  }
+
+  private resizeLogoFile(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('file read error'));
+      reader.onload = () => {
+        const img = new Image();
+        img.onerror = () => reject(new Error('image decode error'));
+        img.onload = () => {
+          const scale = Math.min(MAX_LOGO_DIMENSION / img.width, MAX_LOGO_DIMENSION / img.height, 1);
+          const width = Math.max(1, Math.round(img.width * scale));
+          const height = Math.max(1, Math.round(img.height * scale));
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error('canvas not supported'));
+            return;
+          }
+          ctx.clearRect(0, 0, width, height);
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/png'));
+        };
+        img.src = reader.result as string;
+      };
+      reader.readAsDataURL(file);
     });
   }
 

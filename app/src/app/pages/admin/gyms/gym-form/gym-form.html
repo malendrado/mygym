@@ -405,7 +405,25 @@
               placeholder="Pega aquí el markup SVG del logo generado para este gimnasio"
             />
           </ion-item>
-          <p class="item-hint">Se genera aparte (skill de logos) según el nombre del gimnasio, y se pega acá una vez listo.</p>
+          <ion-button
+            type="button"
+            size="small"
+            fill="outline"
+            class="ion-margin-top"
+            (click)="logoFileInput.click()"
+            [disabled]="logoUploading()"
+          >
+            <ion-icon name="cloud-upload-outline" slot="start" aria-hidden="true"></ion-icon>
+            {{ logoUploading() ? 'Subiendo...' : 'Subir archivo' }}
+          </ion-button>
+          <input
+            #logoFileInput
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/svg+xml"
+            hidden
+            (change)="onLogoFileSelected($event)"
+          />
+          <p class="item-hint">Se genera aparte (skill de logos) según el nombre del gimnasio, y se pega acá una vez listo — o subí directamente un archivo PNG, JPG, WEBP o SVG.</p>
           @if (configForm.controls.logoSvg.value.trim()) {
             <div class="logo-preview">
               <div class="logo-preview__badge">
