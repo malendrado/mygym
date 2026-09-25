@@ -1,21 +1,98 @@
-<ng-template #avatarStack let-attendees let-max="max">
-  <div class="tv-avatar-stack">
-    @for (a of attendees.slice(0, max); track a.firstName + $index) {
-      <span class="tv-avatar-stack__item">
-        <span class="tv-avatar-stack__circle" [style.border-color]="a.planId != null ? planColor(a.planId) : 'transparent'">
+<!-- Roster medido: TvFitDirective mide el espacio real y elige el tamaño de chip más grande en el
+     que entran todos los asistentes; si ni el más chico alcanza, pagina (carrusel sincronizado con
+     el reloj compartido) con un indicador de página en la última celda. Nunca corta ni esconde. -->
+<ng-template #roster let-attendees let-align="align">
+  <div
+    class="tv-roster-fit"
+    [tvFit]="attendees.length"
+    [tvFitTiers]="rosterTiers"
+    [tvFitAlign]="align ?? 'center'"
+    [tvFitPage]="pageTick()"
+    #fit="tvFit"
+  >
+    <!-- Clave por persona: al cambiar de página son otras personas → los chips se recrean y entran con fundido. -->
+    @for (a of attendees.slice(fit.layout().start, fit.layout().start + fit.layout().visible); track a.firstName + ' ' + a.lastName + $index) {
+      <div class="tv-chip" [style.--plan]="a.planId != null ? planColor(a.planId) : null">
+        <span class="tv-chip__avatar">
           @if (a.photoUrl) {
             <img [src]="a.photoUrl" alt="" />
           } @else {
-            <span class="tv-avatar-stack__initial">{{ a.firstName.charAt(0) }}</span>
+            <span class="tv-chip__initial">{{ a.firstName.charAt(0) }}</span>
           }
         </span>
-        <span class="tv-avatar-stack__name">{{ a.firstName }}{{ lastInitial(a) }}</span>
-      </span>
+        <span class="tv-chip__text">
+          <span class="tv-chip__name">{{ chipName(a, fit.layout().tier.name) }}</span>
+          @if (a.planName && fit.layout().tier.name !== 's') {
+            <span class="tv-chip__plan" [style.background]="planColor(a.planId)" [style.color]="planTextColor(a.planId)">
+              {{ a.planName }}
+            </span>
+          }
+        </span>
+      </div>
     }
-    @if (attendees.length > max) {
-      <span class="tv-avatar-stack__more">+{{ attendees.length - max }}</span>
+    @if (fit.layout().pages > 1) {
+      <div class="tv-chip tv-chip--more tv-chip--pager" [attr.aria-label]="'Página ' + (fit.layout().page + 1) + ' de ' + fit.layout().pages">
+        <ng-container [ngTemplateOutlet]="pager" [ngTemplateOutletContext]="{ $implicit: fit.layout().pages, index: fit.layout().page }"></ng-container>
+      </div>
     }
   </div>
+</ng-template>
+
+<!-- Indicador de página de un carrusel: puntitos (el actual, alargado) + "2/3" en cifras para
+     leerlo de lejos. Se muestra siempre que haya más de una página, así se nota que hay más. -->
+<ng-template #pager let-count let-index="index">
+  <span class="tv-pager">
+    <span class="tv-pager__dots" aria-hidden="true">
+      @for (d of pagerDots(count); track $index) {
+        <span class="tv-pager__dot" [class.tv-pager__dot--on]="$index === index"></span>
+      }
+    </span>
+    <span class="tv-pager__num">{{ index + 1 }}/{{ count }}</span>
+  </span>
+</ng-template>
+
+<!-- Encabezado compacto de las tarjetas laterales: 2 líneas (hora + clase / instructor + cupo)
+     en vez de 4 — la columna lateral es angosta y cada línea menos es alto para los asistentes.
+     bookable = se puede reservar todavía (próxima) → ahí sí van "¡Últimos cupos!"/"Cupo lleno". -->
+<ng-template #miniHead let-occ let-bookable="bookable">
+  <div class="tv-mini-card__head">
+    <div class="tv-mini-card__line">
+      <span class="tv-mini-card__time">{{ timeRangeLabel(occ) }}</span>
+      <span class="tv-mini-card__title">{{ occ.label }}</span>
+      @if (dayLabel(occ) !== 'Hoy') {
+        <span class="tv-mini-card__day">{{ dayLabel(occ) }}</span>
+      }
+    </div>
+    <div class="tv-mini-card__line tv-mini-card__line--meta">
+      <span class="tv-mini-card__sub">
+        {{ occ.category }}{{ occ.category && occ.instructorName ? ' · ' : '' }}{{ occ.instructorName }}
+      </span>
+      <span class="tv-mini-card__capacity">
+        {{ capacityLabel(occ) }}
+        @if (isFull(occ)) {
+          <span class="tv-tag">Cupo lleno</span>
+        } @else if (bookable && isLowCapacity(occ)) {
+          <span class="tv-tag tv-tag--low">¡Últimos cupos!</span>
+        }
+      </span>
+    </div>
+  </div>
+</ng-template>
+
+<ng-template #subline let-occ>
+  @if (occ.category || occ.instructorName) {
+    <p class="tv-sub">
+      @if (occ.category) {
+        {{ occ.category }}
+      }
+      @if (occ.category && occ.instructorName) {
+        <span>·</span>
+      }
+      @if (occ.instructorName) {
+        {{ occ.instructorName }}
+      }
+    </p>
+  }
 </ng-template>
 
 <ion-content class="tv-content" [fullscreen]="true" [scrollY]="false">
@@ -28,8 +105,8 @@
           @if (pairingCode(); as code) {
             <div class="tv-pairing__code">{{ code }}</div>
             <p class="tv-pairing__hint">
-              Entrá a tu panel en <strong>mygym.cl</strong> → tu gimnasio → <strong>Pantallas</strong> y escribí
-              este código. Se renueva solo si tarda demasiado.
+              Entra a tu panel en <strong>mygym.cl</strong> → tu gimnasio → <strong>Pantallas</strong> y escribe
+              este código. Se renueva solo si pasa mucho rato.
             </p>
           } @else {
             <div class="tv-pairing__code tv-pairing__code--loading">······</div>
@@ -79,121 +156,81 @@
               </div>
             </header>
 
-            @if (photoStrip().length && showPhotoStrip()) {
-              <div class="tv-photo-strip" aria-hidden="true">
-                <div class="tv-photo-strip__track">
-                  @for (photo of photoStrip(); track $index) {
-                    <img [src]="photo.data" alt="" class="tv-photo-strip__img" />
-                  }
-                </div>
-              </div>
-            }
-
             <main class="tv-main">
               <div class="tv-schedule-grid" [class.tv-schedule-grid--no-sidebar]="!showSidebar()">
                 <section class="tv-now-panel">
+                  <!-- La tira de fotos vive en la columna izquierda (no a todo el ancho): así la
+                       columna lateral arranca bajo el header y usa ese alto para mostrar más gente. -->
+                  @if (photoStrip().length) {
+                    <div class="tv-photo-strip" aria-hidden="true">
+                      <div class="tv-photo-strip__track">
+                        @for (photo of photoStrip(); track $index) {
+                          <img [src]="photo.data" alt="" class="tv-photo-strip__img" />
+                        }
+                      </div>
+                    </div>
+                  }
                   <p class="tv-main__label">
                     {{ heroLabel() }}
-                    @if (heroOverflowCount() > 0) {
-                      <span class="tv-main__label-extra">+{{ heroOverflowCount() }} más</span>
+                    @if (heroPageCount() > 1) {
+                      <ng-container [ngTemplateOutlet]="pager" [ngTemplateOutletContext]="{ $implicit: heroPageCount(), index: heroPageIndex() }"></ng-container>
                     }
                   </p>
                   @if (heroBlocks().length > 0) {
-                    <div class="tv-slides" [class.tv-slides--single]="heroBlocks().length === 1" [class.tv-slides--compact]="isCompactDensity()">
+                    <div class="tv-slides">
                       @for (occ of heroBlocks(); track occ.blockId) {
-                        <article class="tv-slide" [class.tv-slide--compact]="isCompactDensity()" [class.tv-slide--full]="isFull(occ)">
-                          <div class="tv-slide__meta">
-                            <span class="tv-slide__time">{{ timeRangeLabel(occ) }}</span>
-                            @if (dayLabel(occ) !== 'Hoy') {
-                              <span class="tv-slide__day">{{ dayLabel(occ) }}</span>
-                            }
-                            @if (isHeroLive()) {
-                              <span class="tv-slide__countdown">{{ remainingLabel(occ) }}</span>
-                            } @else if (dayLabel(occ) === 'Hoy') {
-                              <!-- Si no es hoy, el día+hora de arriba ya dice todo — repetir un
-                                   "Lunes 07:00" acá era redundante. -->
-                              <span class="tv-slide__countdown tv-slide__countdown--upcoming">{{ startsInLabel(occ) }}</span>
-                            }
-                          </div>
-                          <h2 class="tv-slide__title">{{ occ.label }}</h2>
-                          @if (isHeroLive()) {
-                            <div class="tv-slide__progress">
-                              <div class="tv-slide__progress-fill" [style.width.%]="progressPercent(occ)"></div>
-                            </div>
-                          }
-                          @if (occ.category || occ.instructorName) {
-                            <div class="tv-slide__instructor">
-                              @if (occ.instructorPhoto && !isCompactDensity()) {
-                                <img [src]="occ.instructorPhoto" alt="" class="tv-slide__instructor-photo" />
+                        <article class="tv-slide" [class.tv-slide--full]="isFull(occ)">
+                          <div class="tv-slide__head">
+                            <div class="tv-slide__meta">
+                              <span class="tv-slide__time">{{ timeRangeLabel(occ) }}</span>
+                              @if (dayLabel(occ) !== 'Hoy') {
+                                <span class="tv-slide__day">{{ dayLabel(occ) }}</span>
                               }
-                              <p class="tv-slide__sub">
-                                @if (occ.category) {
-                                  {{ occ.category }}
-                                }
-                                @if (occ.category && occ.instructorName) {
-                                  <span>·</span>
-                                }
-                                @if (occ.instructorName) {
-                                  {{ occ.instructorName }}
-                                }
-                              </p>
+                              @if (isHeroLive()) {
+                                <span class="tv-slide__countdown">{{ remainingLabel(occ) }}</span>
+                              } @else if (dayLabel(occ) === 'Hoy') {
+                                <span class="tv-slide__countdown tv-slide__countdown--upcoming">{{ startsInLabel(occ) }}</span>
+                              }
                             </div>
-                          }
-                          <!-- "Últimos cupos" solo si la tarjeta grande vino de "próxima" (no
-                               está en vivo) — es la única situación donde esa urgencia es
-                               accionable, las inscripciones de una clase EN CURSO ya cerraron
-                               hace rato. "Cupo lleno" siempre se deja: es un dato, no un
-                               llamado a la acción. -->
-                          <div class="tv-slide__capacity" [class.tv-slide__capacity--low]="!isHeroLive() && isLowCapacity(occ)">
-                            <span>{{ capacityLabel(occ) }}</span>
-                            @if (isFull(occ)) {
-                              <span class="tv-slide__full-badge">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                  <path
-                                    d="M12 2c1 3-1 4-1 6 0 1.5 1 2 2 2 1.5 0 2.5-1.2 2.5-2.7 2 1.7 3.5 4.4 3.5 7.2 0 4.1-3.1 7.5-7 7.5s-7-3.4-7-7.5c0-3.6 2.2-5.9 3.6-7.8.6-.8 1.7-2.1 3.4-4.7Z"
-                                  />
-                                </svg>
-                                Cupo lleno
-                              </span>
-                            } @else if (!isHeroLive() && isLowCapacity(occ)) {
-                              <span class="tv-slide__low-badge">¡Últimos cupos!</span>
+                            <h2 class="tv-slide__title">{{ occ.label }}</h2>
+                            @if (isHeroLive()) {
+                              <div class="tv-slide__progress">
+                                <div class="tv-slide__progress-fill" [style.width.%]="progressPercent(occ)"></div>
+                              </div>
                             }
+                            @if (occ.category || occ.instructorName) {
+                              <div class="tv-slide__instructor">
+                                @if (occ.instructorPhoto) {
+                                  <img [src]="occ.instructorPhoto" alt="" class="tv-slide__instructor-photo" />
+                                }
+                                <ng-container [ngTemplateOutlet]="subline" [ngTemplateOutletContext]="{ $implicit: occ }"></ng-container>
+                              </div>
+                            }
+                            <!-- "Últimos cupos" solo si la clase todavía no empieza (se puede reservar);
+                                 "Cupo lleno" siempre, es un dato y no un llamado a la acción. -->
+                            <div class="tv-slide__capacity" [class.tv-slide__capacity--low]="!isHeroLive() && isLowCapacity(occ)">
+                              <span>{{ capacityLabel(occ) }}</span>
+                              @if (isFull(occ)) {
+                                <span class="tv-slide__full-badge">
+                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path
+                                      d="M12 2c1 3-1 4-1 6 0 1.5 1 2 2 2 1.5 0 2.5-1.2 2.5-2.7 2 1.7 3.5 4.4 3.5 7.2 0 4.1-3.1 7.5-7 7.5s-7-3.4-7-7.5c0-3.6 2.2-5.9 3.6-7.8.6-.8 1.7-2.1 3.4-4.7Z"
+                                    />
+                                  </svg>
+                                  Cupo lleno
+                                </span>
+                              } @else if (!isHeroLive() && isLowCapacity(occ)) {
+                                <span class="tv-slide__low-badge">¡Últimos cupos!</span>
+                              }
+                            </div>
                           </div>
-                          @if (occ.attendees.length === 0) {
-                            <p class="tv-roster__empty">Todavía nadie se anotó</p>
-                          } @else if (isCompactDensity()) {
+                          @if (occ.attendees.length > 0) {
                             <ng-container
-                              [ngTemplateOutlet]="avatarStack"
-                              [ngTemplateOutletContext]="{ $implicit: occ.attendees, max: rosterMax() }"
+                              [ngTemplateOutlet]="roster"
+                              [ngTemplateOutletContext]="{ $implicit: occ.attendees }"
                             ></ng-container>
                           } @else {
-                            <div class="tv-roster">
-                              @for (a of visibleAttendees(occ, rosterMax()); track a.firstName + $index) {
-                                <div class="tv-roster__chip">
-                                  @if (a.photoUrl) {
-                                    <img [src]="a.photoUrl" alt="" class="tv-roster__photo" />
-                                  } @else {
-                                    <span class="tv-roster__initial">{{ a.firstName.charAt(0) }}</span>
-                                  }
-                                  <span class="tv-roster__name">{{ a.firstName }}{{ a.lastName ? ' ' + a.lastName : '' }}</span>
-                                  @if (a.planName) {
-                                    <span
-                                      class="tv-roster__plan"
-                                      [style.background]="planColor(a.planId)"
-                                      [style.color]="planTextColor(a.planId)"
-                                    >
-                                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <path d="M12 2 3 7v6c0 5 4 8.5 9 9 5-.5 9-4 9-9V7z" />
-                                      </svg>
-                                      {{ a.planName }}
-                                    </span>
-                                  }
-                                </div>
-                              }
-                              @if (attendeesOverflow(occ, rosterMax()) > 0) {
-                                <div class="tv-roster__chip tv-roster__chip--more">+{{ attendeesOverflow(occ, rosterMax()) }} más</div>
-                              }
-                            </div>
+                            <p class="tv-roster-empty">Todavía nadie se anotó</p>
                           }
                         </article>
                       }
@@ -207,86 +244,101 @@
 
                 @if (showSidebar()) {
                   <aside class="tv-mini-stack">
-                    <article class="tv-mini-card">
-                      <p class="tv-mini-card__label">Clase anterior</p>
-                      @if (previousBlock(); as occ) {
-                        <div class="tv-mini-card__body">
-                          <span class="tv-mini-card__time">{{ timeRangeLabel(occ) }}</span>
-                          <h3 class="tv-mini-card__title">{{ occ.label }}</h3>
-                          @if (occ.category || occ.instructorName) {
-                            <p class="tv-mini-card__sub">
-                              @if (occ.category) {
-                                {{ occ.category }}
-                              }
-                              @if (occ.category && occ.instructorName) {
-                                <span>·</span>
-                              }
-                              @if (occ.instructorName) {
-                                {{ occ.instructorName }}
-                              }
-                            </p>
-                          }
-                          <span class="tv-mini-card__capacity">{{ capacityLabel(occ) }}</span>
-                          @if (occ.attendees.length > 0) {
-                            <ng-container
-                              [ngTemplateOutlet]="avatarStack"
-                              [ngTemplateOutletContext]="{ $implicit: occ.attendees, max: miniRosterMax }"
-                            ></ng-container>
-                          }
-                        </div>
-                      } @else {
-                        <p class="tv-mini-card__empty">Sin clases anteriores hoy</p>
-                      }
-                    </article>
+                    @if (previousBlock(); as occ) {
+                      <article class="tv-mini-card" [style.flex-grow]="occurrenceWeight(occ)">
+                        <p class="tv-mini-card__label">Clase anterior</p>
+                        <ng-container
+                          [ngTemplateOutlet]="miniHead"
+                          [ngTemplateOutletContext]="{ $implicit: occ, bookable: false }"
+                        ></ng-container>
+                        @if (occ.attendees.length > 0) {
+                          <ng-container [ngTemplateOutlet]="roster" [ngTemplateOutletContext]="{ $implicit: occ.attendees }"></ng-container>
+                        }
+                      </article>
+                    }
 
-                    @if (showNextMiniCard()) {
-                      <article class="tv-mini-card">
+                    @if (sidebarNextBlocks().length > 0) {
+                      <article class="tv-mini-card" [style.flex-grow]="sidebarNextWeight()">
                         <p class="tv-mini-card__label">
-                          Próxima clase
-                          @if (nextOverflowCount() > 0) {
-                            <span class="tv-mini-card__label-extra">+{{ nextOverflowCount() }} más</span>
+                          {{ sidebarNextCount() > 1 ? 'Próximas clases' : 'Próxima clase' }}
+                          @if (sidebarNextCount() > 1) {
+                            <ng-container [ngTemplateOutlet]="pager" [ngTemplateOutletContext]="{ $implicit: sidebarNextCount(), index: sidebarNextIndex() }"></ng-container>
                           }
                         </p>
-                        @if (nextBlocks().length > 0) {
-                          @for (occ of nextBlocks(); track occ.blockId) {
-                            <div class="tv-mini-card__body">
-                              <span class="tv-mini-card__time">{{ timeRangeLabel(occ) }}</span>
-                              @if (dayLabel(occ) !== 'Hoy') {
-                                <span class="tv-mini-card__day">{{ dayLabel(occ) }}</span>
-                              }
-                              <h3 class="tv-mini-card__title">{{ occ.label }}</h3>
-                              @if (occ.category || occ.instructorName) {
-                                <p class="tv-mini-card__sub">
-                                  @if (occ.category) {
-                                    {{ occ.category }}
-                                  }
-                                  @if (occ.category && occ.instructorName) {
-                                    <span>·</span>
-                                  }
-                                  @if (occ.instructorName) {
-                                    {{ occ.instructorName }}
-                                  }
-                                </p>
-                              }
-                              <span class="tv-mini-card__capacity">
-                                {{ capacityLabel(occ) }}
-                                @if (isFull(occ)) {
-                                  <span class="tv-mini-card__capacity-tag">Cupo lleno</span>
-                                } @else if (isLowCapacity(occ)) {
-                                  <span class="tv-mini-card__capacity-tag tv-mini-card__capacity-tag--low">¡Últimos cupos!</span>
+                        @for (occ of sidebarNextBlocks(); track occ.blockId) {
+                          <div class="tv-mini-entry" [style.flex-grow]="occurrenceWeight(occ)">
+                            <ng-container
+                              [ngTemplateOutlet]="miniHead"
+                              [ngTemplateOutletContext]="{ $implicit: occ, bookable: true }"
+                            ></ng-container>
+                            @if (occ.attendees.length > 0) {
+                              <ng-container [ngTemplateOutlet]="roster" [ngTemplateOutletContext]="{ $implicit: occ.attendees }"></ng-container>
+                            } @else {
+                              <p class="tv-roster-empty tv-roster-empty--small">Todavía nadie se anotó</p>
+                            }
+                          </div>
+                        }
+                      </article>
+                    }
+
+                    @if (laterItems().length > 0) {
+                      <article class="tv-mini-card tv-mini-card--agenda" [style.flex-grow]="laterWeight()" [style.--agenda-max]="laterMaxRem() + 'rem'">
+                        <div
+                          class="tv-agenda"
+                          [tvFit]="laterItems().length"
+                          [tvFitTiers]="agendaTiers"
+                          [tvFitReserveSlot]="false"
+                          [style.min-height.rem]="laterMinRem()"
+                          [tvFitPage]="pageTick()"
+                          #agenda="tvFit"
+                        >
+                          @for (occ of laterItems().slice(agenda.layout().start, agenda.layout().start + agenda.layout().visible); track occ.blockId) {
+                            <div class="tv-agenda__row">
+                              <span class="tv-agenda__time">{{ timeRangeLabel(occ) }}</span>
+                              <span class="tv-agenda__title">
+                                {{ occ.label }}
+                                @if (occ.instructorName && agenda.layout().tier.name !== 'row-xl') {
+                                  <span class="tv-agenda__sub">· {{ occ.instructorName }}</span>
                                 }
                               </span>
-                              @if (occ.attendees.length > 0) {
-                                <ng-container
-                                  [ngTemplateOutlet]="avatarStack"
-                                  [ngTemplateOutletContext]="{ $implicit: occ.attendees, max: nextRosterMax() }"
-                                ></ng-container>
+                              @if (agenda.layout().tier.name === 'row-xl') {
+                                <span class="tv-agenda__detail">
+                                  <span class="tv-agenda__sub">
+                                    {{ occ.category }}{{ occ.category && occ.instructorName ? ' · ' : '' }}{{ occ.instructorName }}
+                                  </span>
+                                  <span class="tv-agenda__faces" aria-hidden="true">
+                                    @for (a of agendaFaces(occ); track $index) {
+                                      <span class="tv-chip__avatar" [style.--plan]="a.planId != null ? planColor(a.planId) : null">
+                                        @if (a.photoUrl) {
+                                          <img [src]="a.photoUrl" alt="" />
+                                        } @else {
+                                          <span class="tv-chip__initial">{{ a.firstName.charAt(0) }}</span>
+                                        }
+                                      </span>
+                                    }
+                                  </span>
+                                </span>
                               }
+                              <span class="tv-agenda__cap">
+                                {{ capacityLabel(occ) }}
+                                @if (isFull(occ)) {
+                                  <span class="tv-tag">Lleno</span>
+                                } @else if (isLowCapacity(occ)) {
+                                  <span class="tv-tag tv-tag--low">Últimos</span>
+                                }
+                              </span>
                             </div>
                           }
-                        } @else {
-                          <p class="tv-mini-card__empty">Sin próximas clases</p>
-                        }
+                        </div>
+                        <!-- Va DESPUÉS de la agenda en el DOM (y arriba visualmente con order: -1)
+                             porque lee agenda.layout(): Angular evalúa en orden de documento y,
+                             antes de la agenda, la directiva todavía no tiene sus valores. -->
+                        <p class="tv-mini-card__label tv-mini-card__label--first">
+                          {{ laterLabel() }}
+                          @if (agenda.layout().pages > 1) {
+                            <ng-container [ngTemplateOutlet]="pager" [ngTemplateOutletContext]="{ $implicit: agenda.layout().pages, index: agenda.layout().page }"></ng-container>
+                          }
+                        </p>
                       </article>
                     }
                   </aside>

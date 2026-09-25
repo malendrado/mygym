@@ -65,6 +65,10 @@ public class TvScreenService {
     private static final int CODE_LENGTH = 6;
     private static final SecureRandom RANDOM = new SecureRandom();
 
+    // Tope de la agenda "más tarde" — el frontend igual muestra solo las filas que entran
+    // medidas en pantalla, con un "+N" si sobran.
+    private static final int LATER_LIMIT = 8;
+
 
     private final TvPairingCodeRepository pairingCodeRepository;
     private final TvScreenRepository tvScreenRepository;
@@ -172,7 +176,10 @@ public class TvScreenService {
                         ? List.of()
                         : next.blocks().stream().map(b -> toOccurrence(gym.getId(), b, next.date(), plansById)).toList(),
                 next == null ? null : next.date(),
-                previousBlock == null ? null : toOccurrence(gym.getId(), previousBlock, nowZoned.toLocalDate(), plansById));
+                previousBlock == null ? null : toOccurrence(gym.getId(), previousBlock, nowZoned.toLocalDate(), plansById),
+                next == null
+                        ? List.of()
+                        : next.later().stream().map(b -> toOccurrence(gym.getId(), b, next.date(), plansById)).toList());
     }
 
     private boolean isActive(TvScreen screen) {
@@ -180,7 +187,10 @@ public class TvScreenService {
         return reference.isAfter(Instant.now().minus(SCREEN_INACTIVITY_TTL));
     }
 
-    private record NextOccurrence(LocalDate date, List<GymBlock> blocks) {}
+    // later: el resto de las clases de ESE mismo día después del horario de "próxima" — la
+    // agenda "más tarde" de la pantalla (práctica estándar de señalética de gimnasios: mostrar
+    // las próximas horas, no solo la siguiente clase).
+    private record NextOccurrence(LocalDate date, List<GymBlock> blocks, List<GymBlock> later) {}
 
     // Busca, desde hoy y hasta 7 días hacia adelante, el/los bloque(s) con el startTime más
     // próximo que todavía no arrancó — puede haber más de uno si hay clases simultáneas (mismo
@@ -198,7 +208,11 @@ public class TvScreenService {
                 var earliest = dayBlocks.get(0).getStartTime();
                 List<GymBlock> simultaneous =
                         dayBlocks.stream().filter(b -> b.getStartTime().equals(earliest)).toList();
-                return new NextOccurrence(candidateDate, simultaneous);
+                List<GymBlock> later = dayBlocks.stream()
+                        .filter(b -> b.getStartTime().isAfter(earliest))
+                        .limit(LATER_LIMIT)
+                        .toList();
+                return new NextOccurrence(candidateDate, simultaneous, later);
             }
         }
         return null;

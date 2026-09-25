@@ -48,7 +48,9 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 interface Feature {
   title: string;
   body: string;
-  span: 'large' | 'small';
+  // 'full' evita dejar columnas vacías cuando una tarjeta queda sola en la última fila
+  // (grilla de 4 columnas): en vez de "small" (1 col, deja 3 huecas), ocupa el ancho completo.
+  span: 'large' | 'small' | 'full';
   tint: 'accent' | 'surface' | 'surface-2';
 }
 
@@ -143,6 +145,12 @@ export class Landing implements OnInit, AfterViewInit, OnDestroy {
       body: 'Reservan su clase, ven su plan y pagan desde el celular, sin llamarte a ti.',
       span: 'small',
       tint: 'surface',
+    },
+    {
+      title: 'Pantalla de TV',
+      body: 'La clase de ahora, quién se anotó y qué viene después, siempre visible en la recepción. Se empareja con un código, nada más.',
+      span: 'full',
+      tint: 'accent',
     },
   ];
 

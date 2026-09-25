@@ -1649,7 +1649,7 @@ export class GymAdmin implements OnDestroy {
         this.handleWriteError(() =>
           this.tvScreenError.set(
             err?.status === 404
-              ? 'Ese código no existe o ya venció — pedile a la TV que muestre uno nuevo.'
+              ? 'Ese código no existe o ya venció — recarga la pantalla de la TV para que muestre uno nuevo.'
               : 'No pudimos vincular la pantalla. Intenta nuevamente.',
           ),
         );

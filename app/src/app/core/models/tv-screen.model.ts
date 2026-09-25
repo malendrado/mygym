@@ -79,4 +79,7 @@ export interface TvSchedule {
   nextDate: string | null;
   /** La clase de HOY que terminó más recientemente, null si todavía no terminó ninguna. */
   previous: TvBlockOccurrence | null;
+  /** Resto de las clases del mismo día que nextDate, después del horario de "next" — agenda
+   *  "más tarde". */
+  later: TvBlockOccurrence[];
 }

@@ -7,9 +7,9 @@ import java.util.List;
 /** serverTime es la hora real del servidor (UTC) al momento de la respuesta — la TV la usa como
  *  referencia para no depender 100% del reloj propio del televisor, que puede estar mal
  *  configurado. nextDate es null si el gym no tiene ningún bloque activo. previous es la clase
- *  de HOY que terminó más recientemente (null si todavía no terminó ninguna) — layout fijo:
- *  un solo casillero "anterior", no una lista rotativa. photos es la misma galería que ya ve el
- *  socio en /member (GymPhoto), reusada tal cual. */
+ *  de HOY que terminó más recientemente (null si todavía no terminó ninguna). later son las
+ *  clases de ese mismo día (nextDate) posteriores al horario de "next", para la agenda "más
+ *  tarde". photos es la misma galería que ya ve el socio en /member (GymPhoto). */
 public record TvScheduleResponse(
         String gymName,
         String logoSvg,
@@ -21,4 +21,5 @@ public record TvScheduleResponse(
         List<TvBlockOccurrenceResponse> current,
         List<TvBlockOccurrenceResponse> next,
         LocalDate nextDate,
-        TvBlockOccurrenceResponse previous) {}
+        TvBlockOccurrenceResponse previous,
+        List<TvBlockOccurrenceResponse> later) {}

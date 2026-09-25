@@ -544,6 +544,14 @@ button:focus-visible {
       grid-column: span 1;
     }
 
+    &--full {
+      grid-column: span 1;
+
+      @media (min-width: 768px) {
+        grid-column: 1 / -1;
+      }
+    }
+
     &--surface {
       background: var(--brand-ink-surface);
     }

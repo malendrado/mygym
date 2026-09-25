@@ -178,6 +178,7 @@
 // Mismo patrón de scroll infinito CSS-only que member.scss (.gym-photo-strip), escalado para
 // verse a distancia de TV en vez de como thumbnail de mobile.
 .tv-photo-strip {
+  flex-shrink: 0;
   overflow: hidden;
   mask-image: linear-gradient(to right, transparent, black 6%, black 94%, transparent);
   -webkit-mask-image: linear-gradient(to right, transparent, black 6%, black 94%, transparent);
@@ -238,35 +239,33 @@
   opacity: 0.75;
 }
 
+
+// --- Horario ---------------------------------------------------------------------------
+// Principio (investigación de señalética de gimnasios + skill ui-ux-pro-max): zona principal +
+// zonas de apoyo, sin scroll, y el contenido se AJUSTA al espacio medido (TvFitDirective) en vez
+// de que cada tarjeta tome el alto de su contenido. Todo contenedor que reparte alto usa
+// flex/grid con base 0 y min-height: 0, así su alto sale del layout y nunca de lo que tiene
+// adentro — es lo que permite medir sin cortar ni dejar huecos.
+
 .tv-main {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: clamp(1rem, 2vw, 1.75rem);
   min-height: 0;
 }
 
-// Layout fijo: "ahora" grande a la izquierda, "anterior"/"próxima" chicas apiladas a la
-// derecha — decisión explícita del usuario, nada rota ni se turna. Una TV no tiene scroll: el
-// grid y sus hijos directos SIEMPRE llevan overflow:hidden como red de seguridad — los topes
-// duros en tv-screen.ts (MAX_SIMULTANEOUS_*, roster capado) hacen que en la práctica nunca haga
-// falta recortar nada, pero si algún dato futuro rompe esa suposición, se corta en vez de
-// desbordar la página entera (que en una TV real significa contenido invisible para siempre).
 .tv-schedule-grid {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(16rem, 1fr);
+  grid-template-columns: minmax(0, 2fr) minmax(18rem, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   gap: clamp(1rem, 2vw, 1.75rem);
-  overflow: hidden;
 }
 
-// Sin clase en curso, "próxima clase" pasa a ocupar el lugar grande (ver heroBlocks/isIdle en
-// tv-screen.ts) — ya no hace falta repartir el espacio entre un aviso vacío y una columna
-// angosta. Esto solo cubre el caso residual sin NINGÚN dato (ni ahora, ni antes, ni después):
-// ahí no tiene sentido reservar una columna lateral vacía, la tarjeta grande toma todo el ancho.
+// Sin ningún contenido lateral, la tarjeta grande toma todo el ancho.
 .tv-schedule-grid--no-sidebar {
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .tv-now-panel {
@@ -275,7 +274,6 @@
   display: flex;
   flex-direction: column;
   gap: clamp(0.75rem, 1.5vw, 1.25rem);
-  overflow: hidden;
 }
 
 .tv-main__label {
@@ -301,10 +299,8 @@
 .tv-idle {
   flex: 1;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.75rem;
   text-align: center;
 }
 
@@ -315,43 +311,29 @@
   opacity: 0.7;
 }
 
+// --- Tarjeta grande ("Ahora" o "Próxima clase" promovida) -----------------------------
+
 .tv-slides {
-  flex: 1;
+  flex: 1 1 0;
   min-height: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 30rem), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr));
+  grid-auto-rows: minmax(0, 1fr);
   gap: clamp(1rem, 2vw, 2rem);
-  overflow: hidden;
-}
-
-.tv-slides--single {
-  grid-template-columns: 1fr;
-}
-
-// 3+ clases simultáneas: columnas más angostas para que quepan varias por fila en vez de
-// apilar filas de más (cada fila extra es alto que la TV no tiene).
-.tv-slides--compact {
-  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
-  gap: clamp(0.6rem, 1.2vw, 1rem);
 }
 
 .tv-slide {
+  min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.85rem;
+  gap: 1rem;
   padding: clamp(1.5rem, 2.4vw, 2.5rem);
   border-radius: 1.5rem;
   background: var(--tv-card, var(--brand-ink-surface));
   border: 1px solid color-mix(in srgb, var(--tv-accent-text, var(--brand-accent)) 18%, transparent);
-  animation: tv-enter 480ms cubic-bezier(0.16, 1, 0.3, 1) both;
-  min-height: 0;
+  animation: tv-fade 600ms ease-out both;
   overflow: hidden;
-}
-
-.tv-slide--compact {
-  gap: 0.5rem;
-  padding: clamp(0.85rem, 1.4vw, 1.25rem);
-  border-radius: 1rem;
 }
 
 .tv-slide--full {
@@ -359,20 +341,17 @@
   box-shadow: 0 0 0 1px var(--tv-accent, var(--brand-accent)) inset;
 }
 
-@keyframes tv-enter {
-  from {
-    opacity: 0;
-    transform: translateY(1.25rem);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.tv-slide__head {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
 .tv-slide__meta {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.75rem;
   font-family: var(--brand-font-mono);
 }
@@ -399,28 +378,11 @@
   color: var(--tv-accent-solid-text, var(--brand-accent-contrast));
 }
 
-// "Empieza en X min" (hero promovido desde "próxima", todavía no arrancó) — outline en vez de
-// sólido, para distinguirlo de un vistazo del countdown "en vivo" de una clase que ya empezó.
+// "Empieza en X min": outline en vez de sólido, para distinguirlo del countdown en vivo.
 .tv-slide__countdown--upcoming {
   background: transparent;
   border: 1px solid var(--tv-accent, var(--brand-accent));
   color: var(--tv-accent-text, var(--brand-accent));
-}
-
-.tv-slide__capacity--low {
-  color: var(--tv-accent-text, var(--brand-accent));
-  opacity: 1;
-  font-weight: 700;
-}
-
-.tv-slide__low-badge {
-  padding: 0.25rem 0.7rem;
-  border-radius: 999px;
-  border: 1px solid var(--tv-accent-text, var(--brand-accent));
-  color: var(--tv-accent-text, var(--brand-accent));
-  font-family: var(--brand-font-display);
-  font-weight: 600;
-  font-size: 0.95rem;
 }
 
 .tv-slide__title {
@@ -431,20 +393,6 @@
   font-size: clamp(2rem, 3.6vw, 3.25rem);
 }
 
-.tv-slide--compact .tv-slide__title {
-  font-size: clamp(1.15rem, 1.8vw, 1.5rem);
-}
-
-.tv-slide--compact .tv-slide__time {
-  font-size: clamp(1.05rem, 1.5vw, 1.3rem);
-}
-
-.tv-slide--compact .tv-slide__sub {
-  font-size: clamp(0.85rem, 1.1vw, 1rem);
-}
-
-// Cuánto tiempo transcurrió de la clase en curso — refuerzo visual del countdown en texto,
-// se nota "viva" de un vistazo sin tener que leer el número.
 .tv-slide__progress {
   height: 0.4rem;
   border-radius: 999px;
@@ -472,13 +420,18 @@
   flex-shrink: 0;
 }
 
-.tv-slide__sub {
+.tv-sub {
   margin: 0;
   display: flex;
   gap: 0.5ch;
   flex-wrap: wrap;
   font-size: clamp(1.05rem, 1.5vw, 1.3rem);
   opacity: 0.8;
+}
+
+.tv-mini-card .tv-sub {
+  font-size: clamp(0.85rem, 1.1vw, 1rem);
+  opacity: 0.7;
 }
 
 .tv-slide__capacity {
@@ -488,6 +441,22 @@
   font-family: var(--brand-font-mono);
   font-size: clamp(1.05rem, 1.5vw, 1.3rem);
   opacity: 0.9;
+}
+
+.tv-slide__capacity--low {
+  color: var(--tv-accent-text, var(--brand-accent));
+  opacity: 1;
+  font-weight: 700;
+}
+
+.tv-slide__low-badge {
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid var(--tv-accent-text, var(--brand-accent));
+  color: var(--tv-accent-text, var(--brand-accent));
+  font-family: var(--brand-font-display);
+  font-weight: 600;
+  font-size: 0.95rem;
 }
 
 .tv-slide__full-badge {
@@ -519,83 +488,61 @@
   }
 }
 
-.tv-roster {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.6rem;
-  overflow: hidden;
-  max-height: 100%;
+// --- Roster medido (chips de asistente) -----------------------------------------------
+// El contenedor recibe su alto del layout (flex: 1 1 0) y TvFitDirective elige el tamaño de
+// chip (data-tier) que hace entrar a todos; cada tamaño escala avatar, nombre y píldora.
+
+// contain: size → la zona medida no aporta alto propio a su tarjeta: el encabezado toma su
+// alto natural primero y la zona recibe solo lo que sobra (sin esto el alto de la tarjeta
+// dependería de cuántos chips hay adentro, y la medición sería circular).
+.tv-roster-fit {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  contain: size;
 }
 
-.tv-roster__chip {
+// En las tarjetas laterales, siempre al menos una fila de chips chicos visible.
+.tv-mini-card .tv-roster-fit {
+  min-height: 2.3rem;
+}
+
+.tv-roster-empty {
+  margin: 0;
+  flex: 1 1 0;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.35rem 0.75rem 0.35rem 0.35rem;
+  opacity: 0.55;
+  font-size: clamp(1rem, 1.4vw, 1.25rem);
+}
+
+.tv-roster-empty--small {
+  flex: 0 0 auto;
+  font-size: clamp(0.85rem, 1.1vw, 1rem);
+}
+
+.tv-chip {
+  --avatar: 2.5rem;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0 0.9rem 0 0.35rem;
   border-radius: 999px;
   background: color-mix(in srgb, var(--tv-accent-text, var(--brand-text)) 8%, transparent);
-  font-size: clamp(0.95rem, 1.2vw, 1.1rem);
-}
-
-.tv-roster__photo {
-  width: 2rem;
-  height: 2rem;
-  border-radius: 50%;
-  object-fit: cover;
-}
-
-.tv-roster__initial {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 2rem;
-  height: 2rem;
-  border-radius: 50%;
-  background: var(--tv-accent, var(--brand-accent));
-  color: var(--tv-accent-solid-text, var(--brand-accent-contrast));
-  font-weight: 700;
-  font-size: 0.95rem;
-}
-
-.tv-roster__empty {
-  margin: 0;
-  opacity: 0.55;
-  font-size: clamp(0.95rem, 1.2vw, 1.1rem);
-}
-
-.tv-roster__chip--more {
-  opacity: 0.6;
-  font-weight: 600;
-  padding: 0.35rem 0.85rem;
-}
-
-// Versión compacta del roster (3+ clases simultáneas, o tarjetas chicas de anterior/próxima):
-// solo avatares con un anillo del color del plan — mismo principio de "diferenciar de un
-// vistazo" que el badge completo, sin el texto que no entra en el espacio disponible.
-// Avatar + nombre (no solo el círculo) — hay espacio de sobra incluso en modo compacto, y un
-// nombre en texto se lee mejor de lejos que solo una inicial en un círculo.
-.tv-avatar-stack {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.tv-avatar-stack__item {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  flex-shrink: 0;
-}
-
-.tv-avatar-stack__circle {
-  width: 2rem;
-  height: 2rem;
-  border-radius: 50%;
-  border: 0.15rem solid transparent;
   overflow: hidden;
+}
+
+.tv-chip__avatar {
+  width: var(--avatar);
+  height: var(--avatar);
   flex-shrink: 0;
   display: flex;
+  border-radius: 50%;
+  overflow: hidden;
+  // Anillo del color del plan: en el tamaño chico es la única señal del plan (sin píldora).
+  box-shadow: 0 0 0 0.16rem var(--plan, transparent);
 
   img {
     width: 100%;
@@ -604,81 +551,138 @@
   }
 }
 
-.tv-avatar-stack__initial {
+.tv-chip__initial {
+  width: 100%;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
-  height: 100%;
-  background: color-mix(in srgb, var(--tv-accent-text, var(--brand-text)) 15%, transparent);
+  background: var(--tv-accent, var(--brand-accent));
+  color: var(--tv-accent-solid-text, var(--brand-accent-contrast));
   font-weight: 700;
-  font-size: 0.85rem;
+  font-size: calc(var(--avatar) * 0.42);
 }
 
-.tv-avatar-stack__name {
-  font-size: 0.85rem;
+.tv-chip__text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.tv-chip__name {
+  overflow: hidden;
   white-space: nowrap;
+  text-overflow: ellipsis;
+  line-height: 1.2;
 }
 
-.tv-avatar-stack__more {
-  font-family: var(--brand-font-mono);
-  font-size: 0.85rem;
-  opacity: 0.65;
-}
-
-// Identificador visual del plan del socio dentro de su chip del roster — pedido explícito del
-// usuario, con un color propio por plan (asignado en tv-screen.ts vía [style.background]/
-// [style.color]) para que se distingan entre sí a simple vista y a distancia; el ícono es
-// genérico porque no existe un ícono por plan en el modelo de datos.
-.tv-roster__plan {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  padding: 0.15rem 0.55rem;
+.tv-chip__plan {
+  align-self: flex-start;
+  max-width: 100%;
+  padding: 0.08rem 0.55rem;
   border-radius: 999px;
-  font-size: 0.8em;
-  font-weight: 600;
+  overflow: hidden;
   white-space: nowrap;
+  text-overflow: ellipsis;
+  font-weight: 600;
+  line-height: 1.25;
+}
 
-  svg {
-    width: 0.85em;
-    height: 0.85em;
-    flex-shrink: 0;
+.tv-chip--more {
+  justify-content: center;
+  padding: 0 0.9rem;
+  font-family: var(--brand-font-mono);
+  font-weight: 700;
+  opacity: 0.75;
+}
+
+.tv-roster-fit[data-tier='xl'] .tv-chip {
+  --avatar: 3.8rem;
+  gap: 0.85rem;
+  .tv-chip__name {
+    font-size: 1.4rem;
+  }
+  .tv-chip__plan {
+    font-size: 0.9rem;
   }
 }
 
-// --- Tarjetas chicas: clase anterior / próxima ------------------------------------------
+.tv-roster-fit[data-tier='l'] .tv-chip {
+  --avatar: 3.1rem;
+  gap: 0.75rem;
+  .tv-chip__name {
+    font-size: 1.2rem;
+  }
+  .tv-chip__plan {
+    font-size: 0.8rem;
+  }
+}
+
+.tv-roster-fit[data-tier='m'] .tv-chip {
+  --avatar: 2.5rem;
+  .tv-chip__name {
+    font-size: 1rem;
+  }
+  .tv-chip__plan {
+    font-size: 0.72rem;
+  }
+}
+
+.tv-roster-fit[data-tier='s'] .tv-chip {
+  --avatar: 1.7rem;
+  gap: 0.45rem;
+  padding: 0 0.7rem 0 0.25rem;
+  .tv-chip__name {
+    font-size: 0.88rem;
+  }
+}
+
+.tv-roster-fit[data-tier='xl'] .tv-chip--more {
+  font-size: 1.4rem;
+}
+
+.tv-roster-fit[data-tier='l'] .tv-chip--more {
+  font-size: 1.2rem;
+}
+
+// --- Columna lateral: anterior / próxima / agenda --------------------------------------
 
 .tv-mini-stack {
+  min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: clamp(0.75rem, 1.5vw, 1.25rem);
-  overflow: hidden;
+  gap: clamp(0.75rem, 1.2vw, 1rem);
 }
 
+// flex-basis auto = alto natural del encabezado (las zonas medidas no suman, ver contain: size);
+// flex-grow viene inline desde tv-screen.ts (occurrenceWeight / sidebarNextWeight /
+// laterWeight = alto extra que pide cada zona medida, en rem), así solo el sobrante se reparte.
 .tv-mini-card {
-  // "auto" (no "0%") como base: cada tarjeta parte de su alto de contenido real y solo ahí se
-  // reparte lo que sobra o se achica lo que falta — así "anterior" (siempre 1 clase) no fuerza
-  // un 50/50 con "próxima" (puede tener 2 clases con roster), que es la que más espacio necesita.
   flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  padding: clamp(1.1rem, 1.8vw, 1.5rem);
+  gap: 0.6rem;
+  padding: clamp(0.9rem, 1.2vw, 1.15rem) clamp(1rem, 1.4vw, 1.3rem);
   border-radius: 1.25rem;
   background: var(--tv-card, var(--brand-ink-surface));
   border: 1px solid color-mix(in srgb, var(--tv-accent-text, var(--brand-accent)) 14%, transparent);
   overflow: hidden;
 }
 
+// Tope de alto = filas de la agenda (--agenda-max, desde tv-screen.ts) + el cromo de la tarjeta
+// (mismo padding que .tv-mini-card + título + gap). Al llegar al tope, flexbox le pasa el
+// sobrante a las demás tarjetas en vez de dejar filas vacías acá.
+.tv-mini-card--agenda {
+  max-height: calc(var(--agenda-max, 100rem) + 2 * clamp(0.9rem, 1.2vw, 1.15rem) + 2rem);
+}
+
 .tv-mini-card__label {
   margin: 0;
-  display: flex;
-  align-items: baseline;
-  gap: 0.5rem;
+  flex: 0 0 auto;
   font-family: var(--brand-font-heading);
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -686,33 +690,69 @@
   opacity: 0.65;
 }
 
+.tv-mini-card__label--first {
+  order: -1;
+}
+
 .tv-mini-card__label-extra {
+  margin-left: 0.4rem;
   font-family: var(--brand-font-mono);
   letter-spacing: normal;
   text-transform: none;
   opacity: 0.85;
 }
 
-.tv-mini-card__body {
+.tv-mini-card__head {
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 0.25rem;
+}
+
+.tv-mini-card__line {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+}
+
+.tv-mini-card__line--meta {
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tv-mini-card__sub {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: clamp(0.85rem, 1.1vw, 1rem);
+  opacity: 0.7;
+}
+
+.tv-mini-entry {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
 
   & + & {
-    margin-top: 0.75rem;
     padding-top: 0.75rem;
     border-top: 1px solid color-mix(in srgb, var(--tv-accent-text, var(--brand-text)) 12%, transparent);
   }
 }
 
 .tv-mini-card__time {
+  flex-shrink: 0;
   font-family: var(--brand-font-mono);
   font-weight: 700;
-  font-size: clamp(1.15rem, 1.6vw, 1.4rem);
+  font-size: clamp(1.05rem, 1.4vw, 1.25rem);
 }
 
 .tv-mini-card__day {
-  margin-left: 0.5rem;
+  flex-shrink: 0;
+  font-family: var(--brand-font-display);
   text-transform: uppercase;
   font-size: 0.8rem;
   letter-spacing: 0.06em;
@@ -720,62 +760,144 @@
 }
 
 .tv-mini-card__title {
-  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
   font-family: var(--brand-font-heading);
   font-weight: 700;
-  font-size: clamp(1.15rem, 1.8vw, 1.5rem);
-}
-
-.tv-mini-card__sub {
-  margin: 0;
-  font-size: clamp(0.85rem, 1.1vw, 1rem);
-  opacity: 0.7;
+  font-size: clamp(1.15rem, 1.7vw, 1.45rem);
+  line-height: 1.15;
 }
 
 .tv-mini-card__capacity {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 0.5rem;
   font-family: var(--brand-font-mono);
   font-size: clamp(0.85rem, 1.1vw, 1rem);
-  opacity: 0.7;
+  opacity: 0.85;
 }
 
-// "Últimos cupos" tiene sentido acá (próxima clase, todavía reservable) — a diferencia de la
-// clase en curso, donde las inscripciones ya cerraron y ese aviso no era accionable.
-.tv-mini-card__capacity-tag {
-  padding: 0.1rem 0.5rem;
+.tv-tag {
+  padding: 0.08rem 0.5rem;
   border-radius: 999px;
+  border: 1px solid currentColor;
   font-family: var(--brand-font-display);
   font-weight: 600;
   font-size: 0.75rem;
-  opacity: 0.85;
-  border: 1px solid currentColor;
+  white-space: nowrap;
 }
 
-.tv-mini-card__capacity-tag--low {
+.tv-tag--low {
   color: var(--tv-accent-text, var(--brand-accent));
-  opacity: 1;
 }
 
-.tv-mini-card__body .tv-avatar-stack {
-  margin-top: 0.3rem;
+// Agenda "más tarde": filas de alto fijo medidas por TvFitDirective ("+N clases más" si no
+// entran todas).
+.tv-agenda {
+  flex: 1 1 0;
+  min-height: 0;
+  contain: size;
 }
 
-.tv-mini-card__body .tv-avatar-stack__circle {
-  width: 1.6rem;
-  height: 1.6rem;
+.tv-agenda__row {
+  min-width: 0;
+  height: 100%;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0 0.9rem;
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--tv-accent-text, var(--brand-text)) 6%, transparent);
+  font-size: 1rem;
 }
 
-.tv-mini-card__body .tv-avatar-stack__name {
-  font-size: 0.8rem;
+.tv-agenda[data-tier='row-l'] .tv-agenda__row {
+  font-size: 1.15rem;
 }
 
-.tv-mini-card__empty {
-  margin: auto 0;
-  opacity: 0.5;
-  font-size: clamp(0.9rem, 1.2vw, 1.05rem);
+// row-xl: 2 líneas — hora a la izquierda ocupando ambas; arriba clase + cupo, abajo
+// categoría/instructor + caras de quienes reservaron.
+.tv-agenda[data-tier='row-xl'] .tv-agenda__row {
+  grid-template-rows: auto auto;
+  align-content: center;
+  row-gap: 0.35rem;
+  font-size: 1.2rem;
+
+  .tv-agenda__time {
+    grid-row: 1 / span 2;
+  }
+  .tv-agenda__title {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .tv-agenda__cap {
+    grid-column: 3;
+    grid-row: 1;
+    justify-self: end;
+  }
 }
+
+.tv-agenda__detail {
+  grid-column: 2 / span 2;
+  grid-row: 2;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.85em;
+}
+
+.tv-agenda__detail .tv-agenda__sub {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.tv-agenda__faces {
+  --avatar: 1.65rem;
+  flex-shrink: 0;
+  display: flex;
+
+  .tv-chip__avatar + .tv-chip__avatar {
+    margin-left: -0.35rem;
+  }
+}
+
+.tv-agenda__time {
+  font-family: var(--brand-font-mono);
+  font-weight: 700;
+}
+
+.tv-agenda__title {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-family: var(--brand-font-heading);
+  font-weight: 700;
+}
+
+.tv-agenda__sub {
+  font-family: var(--brand-font-display);
+  font-weight: 400;
+  opacity: 0.7;
+}
+
+.tv-agenda__cap {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--brand-font-mono);
+  opacity: 0.85;
+}
+
+
+// --- Pie ------------------------------------------------------------------------------
 
 .tv-footer {
   text-align: center;
@@ -789,11 +911,75 @@
   opacity: 0.8;
 }
 
+// Carruseles: cada página nueva entra con un fundido suave (sin deslizamiento — en una pantalla
+// grande vista de lejos, el movimiento lateral distrae más de lo que informa).
+@keyframes tv-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.tv-chip,
+.tv-mini-entry,
+.tv-agenda__row {
+  animation: tv-fade 600ms ease-out both;
+}
+
+.tv-pager {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--brand-font-mono);
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.tv-pager__dots {
+  display: inline-flex;
+  gap: 0.3rem;
+}
+
+.tv-pager__dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.35;
+  transition: width 300ms ease, opacity 300ms ease;
+}
+
+.tv-pager__dot--on {
+  width: 1.1rem;
+  opacity: 1;
+}
+
+.tv-pager__num {
+  font-size: 0.85em;
+  opacity: 0.8;
+}
+
+.tv-main__label .tv-pager,
+.tv-mini-card__label .tv-pager {
+  margin-left: 0.6rem;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .tv-chip,
+  .tv-mini-entry,
+  .tv-agenda__row,
+  .tv-pager__dot,
   .tv-pairing__code,
   .tv-slide,
   .tv-slide__full-badge,
-  .tv-loading__spinner {
+  .tv-loading__spinner,
+  .tv-header__reconnecting {
     animation: none;
+  }
+
+  .tv-pager__dot {
+    transition: none;
   }
 }
