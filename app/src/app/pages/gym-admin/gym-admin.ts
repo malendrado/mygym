@@ -19,6 +19,7 @@ import {
   IonLabel,
   IonList,
   IonModal,
+  IonNote,
   IonSegment,
   IonSegmentButton,
   IonSelect,
@@ -69,6 +70,7 @@ import {
   settingsOutline,
   timeOutline,
   trashOutline,
+  tvOutline,
 } from 'ionicons/icons';
 import { QuantityStepper } from '../../core/components/quantity-stepper/quantity-stepper';
 import { firstValueFrom } from 'rxjs';
@@ -76,6 +78,8 @@ import { AuthService } from '../../core/services/auth.service';
 import { GymService } from '../../core/services/gym.service';
 import { Gym } from '../../core/models/gym.model';
 import { MemberService } from '../../core/services/member.service';
+import { TvScreenService } from '../../core/services/tv-screen.service';
+import { TvScreen } from '../../core/models/tv-screen.model';
 import {
   BANK_ACCOUNT_TYPES,
   BankTransferUpdateRequest,
@@ -148,10 +152,11 @@ addIcons({
   'copy-outline': copyOutline,
   'logo-google': logoGoogle,
   'barbell-outline': barbellOutline,
+  'tv-outline': tvOutline,
 });
 
 type Status = 'idle' | 'loading' | 'saving' | 'error';
-type Section = 'general' | 'blocks' | 'plans' | 'members' | 'branding' | 'history';
+type Section = 'general' | 'blocks' | 'plans' | 'members' | 'branding' | 'screens' | 'history';
 
 // Segundo eje de filtro para la grilla de horarios (además del día) —
 // pedido del usuario tras encontrar la fusión de bloques consecutivos poco
@@ -213,6 +218,7 @@ const SECTION_LABELS: Record<Section, string> = {
   plans: 'Planes',
   members: 'Socios',
   branding: 'Marca',
+  screens: 'Pantallas',
   history: 'Historial',
 };
 
@@ -351,6 +357,7 @@ const THEMED_ROOT_PROPERTIES = [
     IonBadge,
     IonChip,
     IonModal,
+    IonNote,
     IonSegment,
     IonSegmentButton,
     IonSelect,
@@ -372,6 +379,7 @@ export class GymAdmin implements OnDestroy {
   private readonly authService = inject(AuthService);
   private readonly gymService = inject(GymService);
   private readonly memberService = inject(MemberService);
+  private readonly tvScreenService = inject(TvScreenService);
   private readonly router = inject(Router);
   private readonly sanitizer = inject(DomSanitizer);
   private readonly toastController = inject(ToastController);
@@ -591,6 +599,15 @@ export class GymAdmin implements OnDestroy {
     email: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.email] }),
   });
 
+  protected readonly tvScreens = signal<TvScreen[]>([]);
+  protected readonly claimingScreen = signal(false);
+  protected readonly removingScreenId = signal<number | null>(null);
+  protected readonly tvScreenError = signal<string | null>(null);
+  protected readonly tvScreenForm = new FormGroup({
+    code: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.minLength(6)] }),
+    name: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.minLength(2)] }),
+  });
+
   protected readonly identityForm = new FormGroup({
     tagline: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(160)] }),
     description: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(600)] }),
@@ -626,6 +643,7 @@ export class GymAdmin implements OnDestroy {
     this.loadPlans();
     this.loadMembers();
     this.loadPhotos();
+    this.loadTvScreens();
 
     // Ionic overlays (the ion-select popup, ion-alert, ion-toast) are
     // portaled to the top of the DOM, outside <ion-content>/<ion-modal> —
@@ -1603,5 +1621,85 @@ export class GymAdmin implements OnDestroy {
       next: (members) => this.members.set(members),
       error: () => this.status.set('error'),
     });
+  }
+
+  private loadTvScreens(): void {
+    this.tvScreenService.listMyScreens().subscribe({
+      next: (screens) => this.tvScreens.set(screens),
+      error: () => this.status.set('error'),
+    });
+  }
+
+  protected submitTvScreen(): void {
+    if (this.tvScreenForm.invalid) {
+      return;
+    }
+    const raw = this.tvScreenForm.getRawValue();
+    this.tvScreenError.set(null);
+    this.claimingScreen.set(true);
+    this.tvScreenService.claimScreen({ code: raw.code.trim().toUpperCase(), name: raw.name.trim() }).subscribe({
+      next: (screen) => {
+        this.claimingScreen.set(false);
+        this.tvScreens.update((list) => [...list, screen]);
+        this.tvScreenForm.reset({ code: '', name: '' });
+        this.showToast(`Pantalla "${screen.name}" vinculada.`);
+      },
+      error: (err) => {
+        this.claimingScreen.set(false);
+        this.handleWriteError(() =>
+          this.tvScreenError.set(
+            err?.status === 404
+              ? 'Ese código no existe o ya venció — pedile a la TV que muestre uno nuevo.'
+              : 'No pudimos vincular la pantalla. Intenta nuevamente.',
+          ),
+        );
+      },
+    });
+  }
+
+  protected async removeTvScreen(screen: TvScreen): Promise<void> {
+    const confirmed = await this.confirmAction(
+      'Desvincular pantalla',
+      `¿Desvincular "${screen.name}"? La TV va a dejar de mostrar el horario hasta que la vincules de nuevo con un código nuevo.`,
+      'Desvincular',
+    );
+    if (!confirmed) {
+      return;
+    }
+    this.removingScreenId.set(screen.id);
+    this.tvScreenService.removeScreen(screen.id).subscribe({
+      next: () => {
+        this.removingScreenId.set(null);
+        this.tvScreens.update((list) => list.filter((s) => s.id !== screen.id));
+        this.showToast(`Pantalla "${screen.name}" desvinculada.`);
+      },
+      error: () => {
+        this.removingScreenId.set(null);
+        this.handleWriteError(() => this.showToast('No pudimos desvincular la pantalla.', 'danger'));
+      },
+    });
+  }
+
+  // Mismo criterio que lastLoginLabel/demoExpiryLabel en gym-form.ts (super-admin) — "última
+  // actividad" relativa, más rápido de leer que una fecha. Acá no hay vencimiento fijo que
+  // mostrar (la pantalla no expira por tiempo, solo por abandono, ver TvScreenService), así que
+  // solo se muestra la actividad.
+  protected screenActivityLabel(screen: TvScreen): string {
+    if (!screen.lastPolledAt) {
+      return 'Todavía no se conectó';
+    }
+    const elapsedMs = Date.now() - new Date(screen.lastPolledAt).getTime();
+    if (elapsedMs < 2 * 60 * 1000) {
+      return 'Conectada ahora';
+    }
+    const hours = Math.round(elapsedMs / (60 * 60 * 1000));
+    if (hours < 1) {
+      return `Última vez hace ${Math.round(elapsedMs / (60 * 1000))} min`;
+    }
+    if (hours < 24) {
+      return `Última vez hace ${hours}h`;
+    }
+    const days = Math.round(hours / 24);
+    return `Última vez hace ${days} día${days === 1 ? '' : 's'}`;
   }
 }

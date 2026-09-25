@@ -24,6 +24,8 @@ import com.cortesdev.mygym.services.exception.MemberNotFoundException;
 import com.cortesdev.mygym.services.exception.ReservationNotFoundException;
 import com.cortesdev.mygym.services.exception.SubscriptionRequiredException;
 import com.cortesdev.mygym.services.exception.TooManyGymPhotosException;
+import com.cortesdev.mygym.services.exception.TvPairingCodeNotFoundException;
+import com.cortesdev.mygym.services.exception.TvScreenNotFoundException;
 import com.cortesdev.mygym.services.exception.UnauthorizedGoogleLoginException;
 import java.net.URI;
 import java.time.Instant;
@@ -69,6 +71,22 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     public ResponseEntity<ProblemDetail> handleGymBlockNotFound(GymBlockNotFoundException ex) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
         problem.setTitle("Bloque no encontrado");
+        problem.setProperty("timestamp", Instant.now());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problem);
+    }
+
+    @ExceptionHandler(TvPairingCodeNotFoundException.class)
+    public ResponseEntity<ProblemDetail> handleTvPairingCodeNotFound(TvPairingCodeNotFoundException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+        problem.setTitle("Código de emparejamiento no encontrado");
+        problem.setProperty("timestamp", Instant.now());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problem);
+    }
+
+    @ExceptionHandler(TvScreenNotFoundException.class)
+    public ResponseEntity<ProblemDetail> handleTvScreenNotFound(TvScreenNotFoundException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+        problem.setTitle("Pantalla no encontrada");
         problem.setProperty("timestamp", Instant.now());
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problem);
     }

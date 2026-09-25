@@ -60,6 +60,10 @@
         <ion-icon name="color-palette-outline" aria-hidden="true"></ion-icon>
         <ion-label>Marca</ion-label>
       </ion-segment-button>
+      <ion-segment-button value="screens">
+        <ion-icon name="tv-outline" aria-hidden="true"></ion-icon>
+        <ion-label>Pantallas</ion-label>
+      </ion-segment-button>
       <ion-segment-button value="history">
         <ion-icon name="calendar-outline" aria-hidden="true"></ion-icon>
         <ion-label>Historial</ion-label>
@@ -944,6 +948,69 @@
           }
         </div>
         <input #photoInput type="file" accept="image/png,image/jpeg,image/webp" hidden (change)="onPhotoFileSelected($event)" />
+      </ion-card-content>
+    </ion-card>
+  } @else if (section() === 'screens') {
+    <ion-card>
+      <ion-card-header>
+        <ion-card-title>
+          <ion-icon name="tv-outline" aria-hidden="true"></ion-icon>
+          Pantallas de TV
+        </ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <p class="item-hint">
+          Mostrá el horario en vivo en una tele del gym: quién va en la clase actual, quién viene
+          en la siguiente, cuánto tiempo queda. En la TV, abrí
+          <strong>mygym.cl/tv</strong> — va a mostrar un código de 6 caracteres, lo ingresás acá
+          abajo junto con un nombre (ej. "TV Recepción") y queda vinculada. Nunca hace falta
+          tipear nada más en el control remoto.
+        </p>
+
+        <ion-list lines="full">
+          @for (screen of tvScreens(); track screen.id) {
+            <ion-item>
+              <ion-icon name="tv-outline" slot="start" aria-hidden="true"></ion-icon>
+              <ion-label>
+                {{ screen.name }}
+                <p>{{ screenActivityLabel(screen) }}</p>
+              </ion-label>
+              <ion-button
+                fill="clear"
+                color="danger"
+                [disabled]="removingScreenId() === screen.id"
+                (click)="removeTvScreen(screen)"
+              >
+                <ion-icon name="trash-outline" slot="icon-only" aria-hidden="true"></ion-icon>
+              </ion-button>
+            </ion-item>
+          } @empty {
+            <div class="admins-empty">
+              <ion-icon name="tv-outline" aria-hidden="true"></ion-icon>
+              <p>Todavía no vinculaste ninguna pantalla.</p>
+            </div>
+          }
+        </ion-list>
+
+        <form [formGroup]="tvScreenForm" (ngSubmit)="submitTvScreen()" class="ion-margin-top">
+          <ion-item>
+            <ion-input
+              label="Código de la TV *"
+              formControlName="code"
+              placeholder="Ej: A3K9QZ"
+              style="text-transform: uppercase"
+            />
+          </ion-item>
+          <ion-item lines="none">
+            <ion-input label="Nombre de la pantalla *" formControlName="name" placeholder="Ej: TV Recepción" />
+          </ion-item>
+          <ion-button type="submit" fill="outline" [disabled]="tvScreenForm.invalid || claimingScreen()" class="ion-margin-top">
+            {{ claimingScreen() ? 'Vinculando...' : 'Vincular pantalla' }}
+          </ion-button>
+          @if (tvScreenError(); as error) {
+            <ion-note color="danger">{{ error }}</ion-note>
+          }
+        </form>
       </ion-card-content>
     </ion-card>
   } @else if (section() === 'history') {

@@ -1,0 +1,799 @@
+// Pantalla de TV: 10 pies de distancia, nadie interactúa con esto — tipografía enorme,
+// alto contraste, cero elementos que asuman touch/mouse (ver ui-ux-pro-max: Exaggerated
+// Minimalism + Carousel/Auto-Rotation, adaptado sin controles prev/next).
+
+:host {
+  display: block;
+  height: 100%;
+}
+
+.tv-content {
+  --background: var(--brand-ink);
+}
+
+// Alto FIJO, no mínimo — una TV no tiene scroll, así que nada puede tener permiso de crecer más
+// que el viewport. Con min-height, contenido de más simplemente estiraba la página entera y
+// aparecía una scrollbar (invisible en una TV real). height fijo + overflow:hidden acá arriba
+// es la última red de seguridad, encima de los topes duros de tv-screen.ts.
+.tv-viewport {
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+  font-family: var(--brand-font-display);
+}
+
+// --- Emparejamiento / carga / error --------------------------------------------------
+
+.tv-pairing {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  padding: 4rem;
+  text-align: center;
+  background: var(--brand-ink);
+  color: var(--brand-text);
+}
+
+.tv-pairing__mark {
+  font-family: var(--brand-font-heading);
+  font-weight: 700;
+  font-size: clamp(1.5rem, 3vw, 2.25rem);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--brand-accent);
+}
+
+.tv-pairing__eyebrow {
+  margin: 0;
+  font-family: var(--brand-font-heading);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: clamp(1rem, 1.6vw, 1.35rem);
+  color: var(--brand-text-dim);
+}
+
+.tv-pairing__code {
+  font-family: var(--brand-font-mono);
+  font-weight: 700;
+  font-size: clamp(4rem, 11vw, 8rem);
+  letter-spacing: 0.28em;
+  padding: 0 0.14em;
+  color: var(--brand-accent);
+  animation: tv-pulse 2.4s ease-in-out infinite;
+}
+
+.tv-pairing__code--loading {
+  color: var(--brand-text-dim);
+  animation: none;
+  opacity: 0.6;
+}
+
+.tv-pairing__hint {
+  max-width: 42ch;
+  margin: 0;
+  font-size: clamp(1.1rem, 1.8vw, 1.5rem);
+  line-height: 1.5;
+  color: var(--brand-text-dim);
+}
+
+.tv-loading {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--brand-ink);
+}
+
+.tv-loading__spinner {
+  width: 4rem;
+  height: 4rem;
+  border-radius: 50%;
+  border: 0.4rem solid var(--brand-ink-surface);
+  border-top-color: var(--brand-accent);
+  animation: tv-spin 900ms linear infinite;
+}
+
+@keyframes tv-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@keyframes tv-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// --- Grilla principal ------------------------------------------------------------------
+
+.tv-display {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(1rem, 2.5vw, 2rem);
+  padding: clamp(1.5rem, 3vw, 3rem) clamp(2rem, 4vw, 4.5rem);
+  background: var(--tv-bg, var(--brand-ink));
+  color: var(--tv-accent-text, var(--brand-text));
+}
+
+.tv-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.tv-header__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.tv-header__logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: clamp(2.25rem, 3vw, 3rem);
+  height: clamp(2.25rem, 3vw, 3rem);
+  flex-shrink: 0;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+}
+
+.tv-header__logo-svg {
+  display: flex;
+  width: 100%;
+  height: 100%;
+
+  ::ng-deep svg {
+    width: 100%;
+    height: 100%;
+  }
+}
+
+.tv-header__gym {
+  font-family: var(--brand-font-heading);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: clamp(1.5rem, 2.6vw, 2.25rem);
+  color: var(--tv-accent-text, var(--brand-accent));
+}
+
+// Mismo patrón de scroll infinito CSS-only que member.scss (.gym-photo-strip), escalado para
+// verse a distancia de TV en vez de como thumbnail de mobile.
+.tv-photo-strip {
+  overflow: hidden;
+  mask-image: linear-gradient(to right, transparent, black 6%, black 94%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, black 6%, black 94%, transparent);
+}
+
+.tv-photo-strip__track {
+  display: flex;
+  gap: 0.85rem;
+  width: max-content;
+  animation: tv-photo-strip-scroll 55s linear infinite;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+.tv-photo-strip__img {
+  width: clamp(9rem, 12vw, 13rem);
+  height: clamp(6rem, 8vw, 8.5rem);
+  border-radius: 1rem;
+  object-fit: cover;
+  flex-shrink: 0;
+  opacity: 0.92;
+}
+
+@keyframes tv-photo-strip-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    // La lista está duplicada — a mitad de camino queda idéntica al inicio.
+    transform: translateX(-50%);
+  }
+}
+
+.tv-header__clock {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  font-family: var(--brand-font-mono);
+}
+
+// Aviso sutil, no alarmante — la pantalla sigue mostrando el último dato bueno que tuvo, esto
+// solo avisa que no se pudo refrescar hace un buen rato (ver RECONNECTING_THRESHOLD_MS).
+.tv-header__reconnecting {
+  font-size: 0.85rem;
+  opacity: 0.6;
+  animation: tv-pulse 2.4s ease-in-out infinite;
+}
+
+.tv-header__time {
+  font-weight: 700;
+  font-size: clamp(2rem, 3.4vw, 3rem);
+}
+
+.tv-header__date {
+  font-size: clamp(1rem, 1.5vw, 1.35rem);
+  opacity: 0.75;
+}
+
+.tv-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(1rem, 2vw, 1.75rem);
+  min-height: 0;
+}
+
+// Layout fijo: "ahora" grande a la izquierda, "anterior"/"próxima" chicas apiladas a la
+// derecha — decisión explícita del usuario, nada rota ni se turna. Una TV no tiene scroll: el
+// grid y sus hijos directos SIEMPRE llevan overflow:hidden como red de seguridad — los topes
+// duros en tv-screen.ts (MAX_SIMULTANEOUS_*, roster capado) hacen que en la práctica nunca haga
+// falta recortar nada, pero si algún dato futuro rompe esa suposición, se corta en vez de
+// desbordar la página entera (que en una TV real significa contenido invisible para siempre).
+.tv-schedule-grid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(16rem, 1fr);
+  gap: clamp(1rem, 2vw, 1.75rem);
+  overflow: hidden;
+}
+
+// Sin clase en curso, "próxima clase" pasa a ocupar el lugar grande (ver heroBlocks/isIdle en
+// tv-screen.ts) — ya no hace falta repartir el espacio entre un aviso vacío y una columna
+// angosta. Esto solo cubre el caso residual sin NINGÚN dato (ni ahora, ni antes, ni después):
+// ahí no tiene sentido reservar una columna lateral vacía, la tarjeta grande toma todo el ancho.
+.tv-schedule-grid--no-sidebar {
+  grid-template-columns: 1fr;
+}
+
+.tv-now-panel {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(0.75rem, 1.5vw, 1.25rem);
+  overflow: hidden;
+}
+
+.tv-main__label {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  font-family: var(--brand-font-heading);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: clamp(1.1rem, 1.8vw, 1.5rem);
+  color: var(--tv-accent-text, var(--brand-accent));
+}
+
+.tv-main__label-extra {
+  font-family: var(--brand-font-mono);
+  letter-spacing: normal;
+  text-transform: none;
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
+
+.tv-idle {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  text-align: center;
+}
+
+.tv-idle__title {
+  margin: 0;
+  font-family: var(--brand-font-heading);
+  font-size: clamp(1.5rem, 2.6vw, 2.25rem);
+  opacity: 0.7;
+}
+
+.tv-slides {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 30rem), 1fr));
+  gap: clamp(1rem, 2vw, 2rem);
+  overflow: hidden;
+}
+
+.tv-slides--single {
+  grid-template-columns: 1fr;
+}
+
+// 3+ clases simultáneas: columnas más angostas para que quepan varias por fila en vez de
+// apilar filas de más (cada fila extra es alto que la TV no tiene).
+.tv-slides--compact {
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: clamp(0.6rem, 1.2vw, 1rem);
+}
+
+.tv-slide {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: clamp(1.5rem, 2.4vw, 2.5rem);
+  border-radius: 1.5rem;
+  background: var(--tv-card, var(--brand-ink-surface));
+  border: 1px solid color-mix(in srgb, var(--tv-accent-text, var(--brand-accent)) 18%, transparent);
+  animation: tv-enter 480ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.tv-slide--compact {
+  gap: 0.5rem;
+  padding: clamp(0.85rem, 1.4vw, 1.25rem);
+  border-radius: 1rem;
+}
+
+.tv-slide--full {
+  border-color: var(--tv-accent, var(--brand-accent));
+  box-shadow: 0 0 0 1px var(--tv-accent, var(--brand-accent)) inset;
+}
+
+@keyframes tv-enter {
+  from {
+    opacity: 0;
+    transform: translateY(1.25rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.tv-slide__meta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-family: var(--brand-font-mono);
+}
+
+.tv-slide__time {
+  font-weight: 700;
+  font-size: clamp(1.5rem, 2.4vw, 2rem);
+}
+
+.tv-slide__day {
+  text-transform: uppercase;
+  font-size: 0.9rem;
+  letter-spacing: 0.08em;
+  opacity: 0.7;
+}
+
+.tv-slide__countdown {
+  margin-left: auto;
+  padding: 0.3rem 0.85rem;
+  border-radius: 999px;
+  font-size: 1rem;
+  font-weight: 700;
+  background: var(--tv-accent, var(--brand-accent));
+  color: var(--tv-accent-solid-text, var(--brand-accent-contrast));
+}
+
+// "Empieza en X min" (hero promovido desde "próxima", todavía no arrancó) — outline en vez de
+// sólido, para distinguirlo de un vistazo del countdown "en vivo" de una clase que ya empezó.
+.tv-slide__countdown--upcoming {
+  background: transparent;
+  border: 1px solid var(--tv-accent, var(--brand-accent));
+  color: var(--tv-accent-text, var(--brand-accent));
+}
+
+.tv-slide__capacity--low {
+  color: var(--tv-accent-text, var(--brand-accent));
+  opacity: 1;
+  font-weight: 700;
+}
+
+.tv-slide__low-badge {
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid var(--tv-accent-text, var(--brand-accent));
+  color: var(--tv-accent-text, var(--brand-accent));
+  font-family: var(--brand-font-display);
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.tv-slide__title {
+  margin: 0;
+  font-family: var(--brand-font-heading);
+  font-weight: 700;
+  line-height: 1.05;
+  font-size: clamp(2rem, 3.6vw, 3.25rem);
+}
+
+.tv-slide--compact .tv-slide__title {
+  font-size: clamp(1.15rem, 1.8vw, 1.5rem);
+}
+
+.tv-slide--compact .tv-slide__time {
+  font-size: clamp(1.05rem, 1.5vw, 1.3rem);
+}
+
+.tv-slide--compact .tv-slide__sub {
+  font-size: clamp(0.85rem, 1.1vw, 1rem);
+}
+
+// Cuánto tiempo transcurrió de la clase en curso — refuerzo visual del countdown en texto,
+// se nota "viva" de un vistazo sin tener que leer el número.
+.tv-slide__progress {
+  height: 0.4rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--tv-accent-text, var(--brand-text)) 14%, transparent);
+  overflow: hidden;
+}
+
+.tv-slide__progress-fill {
+  height: 100%;
+  background: var(--tv-accent, var(--brand-accent));
+  transition: width 1s linear;
+}
+
+.tv-slide__instructor {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.tv-slide__instructor-photo {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.tv-slide__sub {
+  margin: 0;
+  display: flex;
+  gap: 0.5ch;
+  flex-wrap: wrap;
+  font-size: clamp(1.05rem, 1.5vw, 1.3rem);
+  opacity: 0.8;
+}
+
+.tv-slide__capacity {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-family: var(--brand-font-mono);
+  font-size: clamp(1.05rem, 1.5vw, 1.3rem);
+  opacity: 0.9;
+}
+
+.tv-slide__full-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  background: var(--tv-accent, var(--brand-accent));
+  color: var(--tv-accent-solid-text, var(--brand-accent-contrast));
+  font-family: var(--brand-font-display);
+  font-weight: 600;
+  font-size: 0.95rem;
+  animation: tv-glow 1.6s ease-in-out infinite;
+
+  svg {
+    width: 1.05rem;
+    height: 1.05rem;
+  }
+}
+
+@keyframes tv-glow {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.35);
+  }
+}
+
+.tv-roster {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  overflow: hidden;
+  max-height: 100%;
+}
+
+.tv-roster__chip {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.75rem 0.35rem 0.35rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--tv-accent-text, var(--brand-text)) 8%, transparent);
+  font-size: clamp(0.95rem, 1.2vw, 1.1rem);
+}
+
+.tv-roster__photo {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.tv-roster__initial {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: var(--tv-accent, var(--brand-accent));
+  color: var(--tv-accent-solid-text, var(--brand-accent-contrast));
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.tv-roster__empty {
+  margin: 0;
+  opacity: 0.55;
+  font-size: clamp(0.95rem, 1.2vw, 1.1rem);
+}
+
+.tv-roster__chip--more {
+  opacity: 0.6;
+  font-weight: 600;
+  padding: 0.35rem 0.85rem;
+}
+
+// Versión compacta del roster (3+ clases simultáneas, o tarjetas chicas de anterior/próxima):
+// solo avatares con un anillo del color del plan — mismo principio de "diferenciar de un
+// vistazo" que el badge completo, sin el texto que no entra en el espacio disponible.
+// Avatar + nombre (no solo el círculo) — hay espacio de sobra incluso en modo compacto, y un
+// nombre en texto se lee mejor de lejos que solo una inicial en un círculo.
+.tv-avatar-stack {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tv-avatar-stack__item {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.tv-avatar-stack__circle {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  border: 0.15rem solid transparent;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.tv-avatar-stack__initial {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  background: color-mix(in srgb, var(--tv-accent-text, var(--brand-text)) 15%, transparent);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.tv-avatar-stack__name {
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.tv-avatar-stack__more {
+  font-family: var(--brand-font-mono);
+  font-size: 0.85rem;
+  opacity: 0.65;
+}
+
+// Identificador visual del plan del socio dentro de su chip del roster — pedido explícito del
+// usuario, con un color propio por plan (asignado en tv-screen.ts vía [style.background]/
+// [style.color]) para que se distingan entre sí a simple vista y a distancia; el ícono es
+// genérico porque no existe un ícono por plan en el modelo de datos.
+.tv-roster__plan {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.8em;
+  font-weight: 600;
+  white-space: nowrap;
+
+  svg {
+    width: 0.85em;
+    height: 0.85em;
+    flex-shrink: 0;
+  }
+}
+
+// --- Tarjetas chicas: clase anterior / próxima ------------------------------------------
+
+.tv-mini-stack {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(0.75rem, 1.5vw, 1.25rem);
+  overflow: hidden;
+}
+
+.tv-mini-card {
+  // "auto" (no "0%") como base: cada tarjeta parte de su alto de contenido real y solo ahí se
+  // reparte lo que sobra o se achica lo que falta — así "anterior" (siempre 1 clase) no fuerza
+  // un 50/50 con "próxima" (puede tener 2 clases con roster), que es la que más espacio necesita.
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: clamp(1.1rem, 1.8vw, 1.5rem);
+  border-radius: 1.25rem;
+  background: var(--tv-card, var(--brand-ink-surface));
+  border: 1px solid color-mix(in srgb, var(--tv-accent-text, var(--brand-accent)) 14%, transparent);
+  overflow: hidden;
+}
+
+.tv-mini-card__label {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-family: var(--brand-font-heading);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 0.85rem;
+  opacity: 0.65;
+}
+
+.tv-mini-card__label-extra {
+  font-family: var(--brand-font-mono);
+  letter-spacing: normal;
+  text-transform: none;
+  opacity: 0.85;
+}
+
+.tv-mini-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+
+  & + & {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid color-mix(in srgb, var(--tv-accent-text, var(--brand-text)) 12%, transparent);
+  }
+}
+
+.tv-mini-card__time {
+  font-family: var(--brand-font-mono);
+  font-weight: 700;
+  font-size: clamp(1.15rem, 1.6vw, 1.4rem);
+}
+
+.tv-mini-card__day {
+  margin-left: 0.5rem;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  opacity: 0.65;
+}
+
+.tv-mini-card__title {
+  margin: 0;
+  font-family: var(--brand-font-heading);
+  font-weight: 700;
+  font-size: clamp(1.15rem, 1.8vw, 1.5rem);
+}
+
+.tv-mini-card__sub {
+  margin: 0;
+  font-size: clamp(0.85rem, 1.1vw, 1rem);
+  opacity: 0.7;
+}
+
+.tv-mini-card__capacity {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--brand-font-mono);
+  font-size: clamp(0.85rem, 1.1vw, 1rem);
+  opacity: 0.7;
+}
+
+// "Últimos cupos" tiene sentido acá (próxima clase, todavía reservable) — a diferencia de la
+// clase en curso, donde las inscripciones ya cerraron y ese aviso no era accionable.
+.tv-mini-card__capacity-tag {
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-family: var(--brand-font-display);
+  font-weight: 600;
+  font-size: 0.75rem;
+  opacity: 0.85;
+  border: 1px solid currentColor;
+}
+
+.tv-mini-card__capacity-tag--low {
+  color: var(--tv-accent-text, var(--brand-accent));
+  opacity: 1;
+}
+
+.tv-mini-card__body .tv-avatar-stack {
+  margin-top: 0.3rem;
+}
+
+.tv-mini-card__body .tv-avatar-stack__circle {
+  width: 1.6rem;
+  height: 1.6rem;
+}
+
+.tv-mini-card__body .tv-avatar-stack__name {
+  font-size: 0.8rem;
+}
+
+.tv-mini-card__empty {
+  margin: auto 0;
+  opacity: 0.5;
+  font-size: clamp(0.9rem, 1.2vw, 1.05rem);
+}
+
+.tv-footer {
+  text-align: center;
+}
+
+.tv-footer__tagline {
+  margin: 0;
+  font-family: var(--brand-font-heading);
+  font-style: italic;
+  font-size: clamp(1.1rem, 1.6vw, 1.4rem);
+  opacity: 0.8;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tv-pairing__code,
+  .tv-slide,
+  .tv-slide__full-badge,
+  .tv-loading__spinner {
+    animation: none;
+  }
+}

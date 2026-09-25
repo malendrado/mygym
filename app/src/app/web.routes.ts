@@ -26,6 +26,13 @@ export const webRoutes: Routes = [
     loadComponent: () => import('./pages/legal/privacidad/privacidad').then((m) => m.LegalPrivacidad),
   },
   {
+    // Pantalla de TV del gym — pública a propósito, sin login: una tele no puede loguearse con
+    // Google cómodo. Se autentica sola con un token de emparejamiento guardado en localStorage
+    // (ver TvScreen, tv-screen.ts) — nunca con el JWT de auth normal de la app.
+    path: 'tv',
+    loadComponent: () => import('./pages/tv-screen/tv-screen').then((m) => m.TvScreenPage),
+  },
+  {
     path: 'member',
     canActivate: [authGuard, roleGuard('MEMBER')],
     loadComponent: () => import('./pages/member/member').then((m) => m.MemberPage),
