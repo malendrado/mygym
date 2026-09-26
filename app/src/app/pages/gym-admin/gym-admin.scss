@@ -1030,3 +1030,23 @@ ion-segment-button.segment-button-checked {
     }
   }
 }
+
+// Teaser de la Pantalla de TV, SOLO para cuentas demo (isDemoAdmin) — el gym demo no tiene una TV
+// real vinculada, así que sin esto la sección quedaría vacía y el prospecto no se enteraría de que
+// la funcionalidad existe. Captura real (no un mockup dibujado) de /tv, recortada para no mostrar
+// el nombre del gym de prueba usado para tomarla.
+.tv-preview-card__img {
+  display: block;
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--brand-accent) 20%, transparent);
+  margin-top: 0.75rem;
+}
+
+.tv-preview-card__caption {
+  margin: 0.6rem 0 0;
+  font-size: 0.78rem;
+  color: var(--brand-text-dim);
+  text-align: center;
+  letter-spacing: 0.02em;
+}

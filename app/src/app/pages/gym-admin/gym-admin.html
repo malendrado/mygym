@@ -951,6 +951,29 @@
       </ion-card-content>
     </ion-card>
   } @else if (section() === 'screens') {
+    @if (isDemoAdmin()) {
+      <ion-card class="tv-preview-card">
+        <ion-card-header>
+          <ion-card-title>
+            <ion-icon name="tv-outline" aria-hidden="true"></ion-icon>
+            Así se ve en una TV real
+          </ion-card-title>
+        </ion-card-header>
+        <ion-card-content>
+          <p class="item-hint">
+            En esta cuenta demo no se puede vincular una TV de verdad, pero así se ve la pantalla en
+            un gimnasio real: la clase de ahora, quién se anotó y qué viene después, siempre a la
+            vista en la recepción.
+          </p>
+          <img
+            class="tv-preview-card__img"
+            src="/tv-screen-preview.png"
+            alt="Ejemplo de la pantalla de TV mostrando la clase en curso, sus asistentes y la próxima clase"
+          />
+          <p class="tv-preview-card__caption">Ejemplo ilustrativo · no son datos reales</p>
+        </ion-card-content>
+      </ion-card>
+    }
     <ion-card>
       <ion-card-header>
         <ion-card-title>
