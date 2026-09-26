@@ -1,6 +1,7 @@
 import {
   AfterViewInit,
   Component,
+  DestroyRef,
   ElementRef,
   HostListener,
   OnDestroy,
@@ -11,6 +12,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { GymService } from '../../core/services/gym.service';
 import { IonContent, IonIcon } from '@ionic/angular';
@@ -100,6 +102,7 @@ interface MemberBenefit {
 export class Landing implements OnInit, AfterViewInit, OnDestroy {
   private readonly gymService = inject(GymService);
   private readonly route = inject(ActivatedRoute);
+  private readonly destroyRef = inject(DestroyRef);
 
   @ViewChildren('reveal') protected revealEls!: QueryList<ElementRef<HTMLElement>>;
   @ViewChild('modalCloseButton') protected modalCloseButtonRef?: ElementRef<HTMLElement>;
@@ -392,14 +395,24 @@ export class Landing implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnInit(): void {
     this.gymService.recordVisit('LANDING');
-    const contacto = this.route.snapshot.queryParamMap.get('contacto');
-    if (contacto === 'demo-vencida') {
-      this.openContact('Mi acceso a la demo de mygym venció, me gustaría agendar una reunión.');
-    } else if (contacto === 'cuenta-no-registrada') {
-      this.openContact(
-        'Intenté entrar a mygym con mi cuenta de Google, pero no encontré ninguna cuenta asociada. ¿Me ayudan?',
-      );
-    }
+    // Suscrito (no snapshot único) — bug real encontrado en la práctica: el interceptor de
+    // errores redirige acá con router.navigate (SPA, sin recargar la página) cuando el login
+    // falla (410 demo vencida, 403 cuenta no registrada). Si esta misma pantalla ya estaba
+    // montada antes en la sesión (ej. Landing → Entrar → login → falla → vuelve a Landing),
+    // Ionic reusa la instancia del componente (mismo gotcha ya documentado para otras páginas,
+    // ver ionViewWillEnter en otras partes) y ngOnInit no se vuelve a ejecutar — con un snapshot
+    // único, el query param nunca se llegaba a leer y el modal de contacto no se abría, aunque
+    // la URL sí mostrara el ?contacto=... correcto. queryParamMap sigue emitiendo igual.
+    this.route.queryParamMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
+      const contacto = params.get('contacto');
+      if (contacto === 'demo-vencida') {
+        this.openContact('Mi acceso a la demo de mygym venció, me gustaría agendar una reunión.');
+      } else if (contacto === 'cuenta-no-registrada') {
+        this.openContact(
+          'Intenté entrar a mygym con mi cuenta de Google, pero no encontré ninguna cuenta asociada. ¿Me ayudan?',
+        );
+      }
+    });
   }
 
   ngAfterViewInit(): void {
