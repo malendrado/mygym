@@ -33,6 +33,10 @@
           <ion-icon name="color-palette-outline" aria-hidden="true"></ion-icon>
           <ion-label>Marca</ion-label>
         </ion-segment-button>
+        <ion-segment-button value="screens">
+          <ion-icon name="tv-outline" aria-hidden="true"></ion-icon>
+          <ion-label>Pantallas</ion-label>
+        </ion-segment-button>
         <ion-segment-button value="history">
           <ion-icon name="calendar-outline" aria-hidden="true"></ion-icon>
           <ion-label>Historial</ion-label>
@@ -1210,6 +1214,46 @@
           }
         </div>
         <input #photoInput type="file" accept="image/png,image/jpeg,image/webp" hidden (change)="onPhotoFileSelected($event)" />
+      </ion-card-content>
+    </ion-card>
+    } @else if (section() === 'screens') {
+    <ion-card>
+      <ion-card-header>
+        <ion-card-title>
+          <ion-icon name="tv-outline" aria-hidden="true"></ion-icon>
+          Pantallas de TV
+        </ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <p class="item-hint">
+          Soporte: acá solo puedes ver y desvincular. Para emparejar una TV nueva hay que estar
+          frente a ella e ingresar el código desde el panel del propio gimnasio.
+        </p>
+
+        <ion-list lines="full">
+          @for (screen of tvScreens(); track screen.id) {
+            <ion-item>
+              <ion-icon name="tv-outline" slot="start" aria-hidden="true"></ion-icon>
+              <ion-label>
+                {{ screen.name }}
+                <p>{{ screenActivityLabel(screen) }}</p>
+              </ion-label>
+              <ion-button
+                fill="clear"
+                color="danger"
+                [disabled]="removingScreenId() === screen.id"
+                (click)="removeTvScreen(screen)"
+              >
+                <ion-icon name="trash-outline" slot="icon-only" aria-hidden="true"></ion-icon>
+              </ion-button>
+            </ion-item>
+          } @empty {
+            <div class="admins-empty">
+              <ion-icon name="tv-outline" aria-hidden="true"></ion-icon>
+              <p>Este gimnasio todavía no vinculó ninguna pantalla.</p>
+            </div>
+          }
+        </ion-list>
       </ion-card-content>
     </ion-card>
     } @else if (section() === 'history') {

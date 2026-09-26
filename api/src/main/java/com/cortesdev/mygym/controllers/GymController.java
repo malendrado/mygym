@@ -28,12 +28,14 @@ import com.cortesdev.mygym.models.dto.PlanCreateRequest;
 import com.cortesdev.mygym.models.dto.PlanResponse;
 import com.cortesdev.mygym.models.dto.PlanUpdateRequest;
 import com.cortesdev.mygym.models.dto.ThemeUpdateRequest;
+import com.cortesdev.mygym.models.dto.TvScreenResponse;
 import com.cortesdev.mygym.security.AuthenticatedUser;
 import com.cortesdev.mygym.services.BrandingSuggestionService;
 import com.cortesdev.mygym.services.GymDisconnectionService;
 import com.cortesdev.mygym.services.GymService;
 import com.cortesdev.mygym.services.MemberService;
 import com.cortesdev.mygym.services.ReservationService;
+import com.cortesdev.mygym.services.TvScreenService;
 import jakarta.validation.Valid;
 import java.net.URI;
 import java.time.LocalDate;
@@ -63,6 +65,7 @@ public class GymController {
     private final BrandingSuggestionService brandingSuggestionService;
     private final ReservationService reservationService;
     private final GymDisconnectionService gymDisconnectionService;
+    private final TvScreenService tvScreenService;
 
     @PostMapping("/suggest-branding")
     public BrandingSuggestionResponse suggestBranding(@Valid @RequestBody BrandingSuggestionRequest request) {
@@ -273,6 +276,19 @@ public class GymController {
     @GetMapping("/{id}/members")
     public List<MemberResponse> listMembers(@PathVariable Long id) {
         return memberService.listMembers(id);
+    }
+
+    // Mismo TvScreenService que usa el propio GYM_ADMIN en TvAdminController — el super-admin
+    // solo lista y desvincula (soporte), nunca empareja: eso requiere estar frente a la TV real.
+    @GetMapping("/{id}/tv-screens")
+    public List<TvScreenResponse> listTvScreens(@PathVariable Long id) {
+        return tvScreenService.listScreens(id);
+    }
+
+    @DeleteMapping("/{id}/tv-screens/{screenId}")
+    public ResponseEntity<Void> removeTvScreen(@PathVariable Long id, @PathVariable Long screenId) {
+        tvScreenService.deleteScreen(id, screenId);
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{id}/members")

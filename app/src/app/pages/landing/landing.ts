@@ -392,8 +392,13 @@ export class Landing implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnInit(): void {
     this.gymService.recordVisit('LANDING');
-    if (this.route.snapshot.queryParamMap.get('contacto') === 'demo-vencida') {
+    const contacto = this.route.snapshot.queryParamMap.get('contacto');
+    if (contacto === 'demo-vencida') {
       this.openContact('Mi acceso a la demo de mygym venció, me gustaría agendar una reunión.');
+    } else if (contacto === 'cuenta-no-registrada') {
+      this.openContact(
+        'Intenté entrar a mygym con mi cuenta de Google, pero no encontré ninguna cuenta asociada. ¿Me ayudan?',
+      );
     }
   }
 

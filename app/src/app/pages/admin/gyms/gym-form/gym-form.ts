@@ -66,6 +66,7 @@ import {
   sparklesOutline,
   timeOutline,
   trashOutline,
+  tvOutline,
   warningOutline,
 } from 'ionicons/icons';
 import { firstValueFrom } from 'rxjs';
@@ -92,6 +93,7 @@ import {
 } from '../../../../core/models/gym.model';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Attendee, InviteStatus, Member, MembershipStatus } from '../../../../core/models/member.model';
+import { TvScreen } from '../../../../core/models/tv-screen.model';
 import { BloqueFormModal, DAYS } from '../bloque-form-modal/bloque-form-modal';
 import { BloqueSeriesModal } from '../bloque-series-modal/bloque-series-modal';
 import { PlanFormModal } from '../plan-form-modal/plan-form-modal';
@@ -142,11 +144,12 @@ addIcons({
   'megaphone-outline': megaphoneOutline,
   'person-circle-outline': personCircleOutline,
   'warning-outline': warningOutline,
+  'tv-outline': tvOutline,
 });
 
 type Status = 'idle' | 'loading' | 'saving' | 'error';
 type SuggestStatus = 'idle' | 'loading' | 'error';
-type Section = 'general' | 'blocks' | 'plans' | 'members' | 'branding' | 'history';
+type Section = 'general' | 'blocks' | 'plans' | 'members' | 'branding' | 'screens' | 'history';
 
 // Mismo criterio que gym-admin.ts (implementación paralela, no compartida)
 // — segundo eje de filtro para la grilla de horarios, con tooltip que
@@ -202,6 +205,7 @@ const SECTION_LABELS: Record<Section, string> = {
   plans: 'Planes',
   members: 'Socios',
   branding: 'Marca',
+  screens: 'Pantallas',
   history: 'Historial',
 };
 
@@ -549,6 +553,11 @@ export class GymForm implements OnDestroy {
   protected readonly photoUploading = signal(false);
   protected readonly maxPhotos = MAX_PHOTOS;
 
+  // Soporte, no emparejamiento — el super-admin solo ve y desvincula (mismos datos que el propio
+  // GYM_ADMIN en su panel); vincular una TV nueva requiere estar frente a la pantalla real.
+  protected readonly tvScreens = signal<TvScreen[]>([]);
+  protected readonly removingScreenId = signal<number | null>(null);
+
   protected readonly suggestStatus = signal<SuggestStatus>('idle');
   protected readonly brandingSuggestion = signal<BrandingSuggestion | null>(null);
   protected readonly safeSuggestedLogo = computed(() => {
@@ -730,6 +739,7 @@ export class GymForm implements OnDestroy {
         this.loadPlans(id);
         this.loadMembers(id);
         this.loadPhotos(id);
+        this.loadTvScreens(id);
       },
       error: () => {
         this.status.set('error');
@@ -1812,6 +1822,62 @@ export class GymForm implements OnDestroy {
       };
       reader.readAsDataURL(file);
     });
+  }
+
+  private loadTvScreens(id: number): void {
+    this.gymService.listTvScreens(id).subscribe({
+      next: (screens) => this.tvScreens.set(screens),
+      error: () => this.showToast('No pudimos cargar las pantallas de TV.', 'danger'),
+    });
+  }
+
+  protected async removeTvScreen(screen: TvScreen): Promise<void> {
+    const id = this.gymId();
+    if (id === null) {
+      return;
+    }
+    const confirmed = await this.confirmAction(
+      'Desvincular pantalla',
+      `¿Desvincular "${screen.name}"? La TV va a dejar de mostrar el horario hasta que la vinculen de nuevo con un código nuevo.`,
+      'Desvincular',
+    );
+    if (!confirmed) {
+      return;
+    }
+    this.removingScreenId.set(screen.id);
+    this.gymService.removeTvScreen(id, screen.id).subscribe({
+      next: () => {
+        this.removingScreenId.set(null);
+        this.tvScreens.update((list) => list.filter((s) => s.id !== screen.id));
+        this.showToast(`Pantalla "${screen.name}" desvinculada.`);
+      },
+      error: () => {
+        this.removingScreenId.set(null);
+        this.showToast('No pudimos desvincular la pantalla.', 'danger');
+      },
+    });
+  }
+
+  // Copiado de gym-admin.ts (implementación paralela, no compartida — mismo criterio que
+  // lastLoginLabel/demoExpiryLabel de acá mismo: "última actividad" relativa, más rápido de leer
+  // que una fecha).
+  protected screenActivityLabel(screen: TvScreen): string {
+    if (!screen.lastPolledAt) {
+      return 'Todavía no se conectó';
+    }
+    const elapsedMs = Date.now() - new Date(screen.lastPolledAt).getTime();
+    if (elapsedMs < 2 * 60 * 1000) {
+      return 'Conectada ahora';
+    }
+    const hours = Math.round(elapsedMs / (60 * 60 * 1000));
+    if (hours < 1) {
+      return `Última vez hace ${Math.round(elapsedMs / (60 * 1000))} min`;
+    }
+    if (hours < 24) {
+      return `Última vez hace ${hours}h`;
+    }
+    const days = Math.round(hours / 24);
+    return `Última vez hace ${days} día${days === 1 ? '' : 's'}`;
   }
 
   private loadPhotos(id: number): void {
