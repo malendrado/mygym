@@ -1,0 +1,65 @@
+.install-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin: 0 0 0.85rem;
+  padding: 0.6rem 0.4rem 0.6rem 0.75rem;
+  background: var(--member-card, var(--brand-ink-surface-2));
+  border: 1px solid var(--brand-accent);
+  border-radius: 16px;
+
+  &__icon img {
+    display: block;
+    border-radius: 10px;
+  }
+
+  &__text {
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__title {
+    margin: 0;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--brand-text);
+  }
+
+  &__body {
+    margin: 0.1rem 0 0;
+    font-size: 0.75rem;
+    line-height: 1.35;
+    color: var(--brand-text-dim);
+
+    ion-icon {
+      vertical-align: -2px;
+      color: var(--brand-accent-text-safe, var(--brand-accent));
+    }
+  }
+
+  &__cta {
+    flex-shrink: 0;
+    margin: 0;
+  }
+
+  &__close {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--brand-text-dim);
+    font-size: 1.25rem;
+    cursor: pointer;
+    border-radius: 50%;
+
+    &:focus-visible {
+      outline: 2px solid var(--brand-accent);
+      outline-offset: -2px;
+    }
+  }
+}

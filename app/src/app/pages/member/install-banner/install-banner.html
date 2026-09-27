@@ -1,0 +1,27 @@
+@if (pwa.mode(); as mode) {
+  <aside class="install-banner" aria-label="Instalar la app">
+    <div class="install-banner__icon" aria-hidden="true">
+      <img src="pwa/icon-192.png" alt="" width="40" height="40">
+    </div>
+    <div class="install-banner__text">
+      <p class="install-banner__title">Lleva tu gimnasio en el celular</p>
+      @if (mode === 'prompt') {
+        <p class="install-banner__body">Instala la app y reserva con un toque desde tu pantalla de inicio.</p>
+      } @else {
+        <p class="install-banner__body">
+          Toca <ion-icon name="share-outline" aria-label="Compartir"></ion-icon> y luego
+          <strong>"Agregar a pantalla de inicio"</strong>.
+        </p>
+      }
+    </div>
+    @if (mode === 'prompt') {
+      <ion-button size="small" class="install-banner__cta" (click)="pwa.install()">
+        <ion-icon slot="start" name="download-outline"></ion-icon>
+        Instalar
+      </ion-button>
+    }
+    <button type="button" class="install-banner__close" aria-label="Cerrar aviso" (click)="pwa.dismiss()">
+      <ion-icon name="close-outline"></ion-icon>
+    </button>
+  </aside>
+}

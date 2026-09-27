@@ -81,6 +81,10 @@
       <h1>Hola, {{ firstName() }}</h1>
     </div>
 
+    @if (!isDemoPreview) {
+      <app-install-banner />
+    }
+
     @if (section() === 'reservar') {
     <p class="section-hook">Elige un día y reserva tu clase en segundos.</p>
 

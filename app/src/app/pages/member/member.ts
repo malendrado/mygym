@@ -18,6 +18,7 @@ import {
   ToastController,
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
+import { InstallBanner } from './install-banner/install-banner';
 import {
   alertCircleOutline,
   calendarOutline,
@@ -217,6 +218,7 @@ const OCCURRENCES_LOADING_MESSAGES = [
     IonSegment,
     IonSegmentButton,
     IonLabel,
+    InstallBanner,
   ],
   templateUrl: './member.html',
   styleUrl: './member.scss',

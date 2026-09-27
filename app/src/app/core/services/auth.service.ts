@@ -12,6 +12,24 @@ interface StoredSession {
   user: AuthUser;
 }
 
+// Installed PWA: sessionStorage dies every time the app is closed, which would force a Google
+// login on every open. In a regular browser tab we keep sessionStorage (shared computers).
+function sessionStore(): Storage {
+  const installed =
+    window.matchMedia?.('(display-mode: standalone)').matches ||
+    (navigator as Navigator & { standalone?: boolean }).standalone === true;
+  return installed ? localStorage : sessionStorage;
+}
+
+function isExpired(token: string): boolean {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    return typeof payload.exp === 'number' && payload.exp * 1000 <= Date.now();
+  } catch {
+    return true;
+  }
+}
+
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly http = inject(HttpClient);
@@ -55,6 +73,7 @@ export class AuthService {
     this._currentUser.set(null);
     this._token = null;
     sessionStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(STORAGE_KEY);
     await this.socialAuthService.signOut().catch(() => {});
   }
 
@@ -69,16 +88,22 @@ export class AuthService {
     };
     this._currentUser.set(user);
     this._token = response.token;
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ token: response.token, user }));
+    sessionStore().setItem(STORAGE_KEY, JSON.stringify({ token: response.token, user }));
   }
 
   private readStored(): StoredSession | null {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
+    const store = sessionStore();
+    const raw = store.getItem(STORAGE_KEY);
     if (!raw) {
       return null;
     }
     try {
-      return JSON.parse(raw) as StoredSession;
+      const session = JSON.parse(raw) as StoredSession;
+      if (isExpired(session.token)) {
+        store.removeItem(STORAGE_KEY);
+        return null;
+      }
+      return session;
     } catch {
       return null;
     }
