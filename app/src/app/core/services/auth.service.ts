@@ -96,21 +96,30 @@ export class AuthService {
     sessionStore().setItem(STORAGE_KEY, JSON.stringify({ token: response.token, user }));
   }
 
+  // Escanear el QR de la TV (o cualquier link) abre una pestaña normal de Chrome, NO la app
+  // instalada — aunque sea el mismo dispositivo con la app ya logueada. Esa pestaña, al no ser
+  // standalone, antes solo miraba sessionStorage (vacío, recién abierta) e ignoraba que la
+  // sesión real ya estaba en localStorage (mismo origen, la comparten) — pedía login de nuevo
+  // sin necesidad. Ahora la LECTURA revisa los dos lugares sin importar el contexto; solo la
+  // ESCRITURA de una sesión nueva sigue decidiendo dónde guardar según sessionStore() (para no
+  // perder la protección de "computador compartido" en pestañas normales).
   private readStored(): StoredSession | null {
-    const store = sessionStore();
-    const raw = store.getItem(STORAGE_KEY);
-    if (!raw) {
-      return null;
-    }
-    try {
-      const session = JSON.parse(raw) as StoredSession;
-      if (isExpired(session.token)) {
-        store.removeItem(STORAGE_KEY);
-        return null;
+    for (const store of [localStorage, sessionStorage]) {
+      const raw = store.getItem(STORAGE_KEY);
+      if (!raw) {
+        continue;
       }
-      return session;
-    } catch {
-      return null;
+      try {
+        const session = JSON.parse(raw) as StoredSession;
+        if (isExpired(session.token)) {
+          store.removeItem(STORAGE_KEY);
+          continue;
+        }
+        return session;
+      } catch {
+        continue;
+      }
     }
+    return null;
   }
 }

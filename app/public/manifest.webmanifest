@@ -8,6 +8,7 @@
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
+  "launch_handler": { "client_mode": "navigate-existing" },
   "background_color": "#1e2c30",
   "theme_color": "#1e2c30",
   "categories": ["health", "fitness", "lifestyle"],
