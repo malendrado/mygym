@@ -1,5 +1,6 @@
 package com.cortesdev.mygym.controllers;
 
+import com.cortesdev.mygym.models.dto.TvCheckinCodeResponse;
 import com.cortesdev.mygym.models.dto.TvPairingCreateResponse;
 import com.cortesdev.mygym.models.dto.TvPairingStatusResponse;
 import com.cortesdev.mygym.models.dto.TvScheduleResponse;
@@ -37,5 +38,12 @@ public class PublicTvController {
     @GetMapping("/screens/{token}/schedule")
     public TvScheduleResponse schedule(@PathVariable String token) {
         return tvScreenService.getSchedule(token);
+    }
+
+    // La TV pide uno nuevo periódicamente (ver CHECKIN_POLL_MS en tv-screen.ts) y lo renderiza
+    // como QR — el socio lo canjea desde su celular en POST /api/me/checkin.
+    @PostMapping("/screens/{token}/checkin-code")
+    public TvCheckinCodeResponse checkinCode(@PathVariable String token) {
+        return tvScreenService.createCheckinCode(token);
     }
 }

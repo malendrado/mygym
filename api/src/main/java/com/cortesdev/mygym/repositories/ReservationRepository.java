@@ -33,5 +33,7 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
 
     List<Reservation> findByMemberIdIn(List<Long> memberIds);
 
+    List<Reservation> findByMemberIdAndClassDateAndStatus(Long memberId, LocalDate classDate, ReservationStatus status);
+
     int countByMemberIdIn(List<Long> memberIds);
 }

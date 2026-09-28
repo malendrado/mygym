@@ -3,12 +3,14 @@ package com.cortesdev.mygym.services;
 import com.cortesdev.mygym.models.Gym;
 import com.cortesdev.mygym.models.GymBlock;
 import com.cortesdev.mygym.models.GymPlan;
+import com.cortesdev.mygym.models.TvCheckinCode;
 import com.cortesdev.mygym.models.TvPairingCode;
 import com.cortesdev.mygym.models.TvScreen;
 import com.cortesdev.mygym.models.dto.GymPhotoResponse;
 import com.cortesdev.mygym.models.dto.MemberReservation;
 import com.cortesdev.mygym.models.dto.TvAttendeeResponse;
 import com.cortesdev.mygym.models.dto.TvBlockOccurrenceResponse;
+import com.cortesdev.mygym.models.dto.TvCheckinCodeResponse;
 import com.cortesdev.mygym.models.dto.TvPairingCreateResponse;
 import com.cortesdev.mygym.models.dto.TvPairingStatusResponse;
 import com.cortesdev.mygym.models.dto.TvScheduleResponse;
@@ -17,6 +19,7 @@ import com.cortesdev.mygym.repositories.GymBlockRepository;
 import com.cortesdev.mygym.repositories.GymPhotoRepository;
 import com.cortesdev.mygym.repositories.GymPlanRepository;
 import com.cortesdev.mygym.repositories.GymRepository;
+import com.cortesdev.mygym.repositories.TvCheckinCodeRepository;
 import com.cortesdev.mygym.repositories.TvPairingCodeRepository;
 import com.cortesdev.mygym.repositories.TvScreenRepository;
 import com.cortesdev.mygym.services.exception.GymNotFoundException;
@@ -60,6 +63,11 @@ public class TvScreenService {
     // fantasma vivo para siempre si alguien se olvida de desvincularla a mano.
     private static final Duration SCREEN_INACTIVITY_TTL = Duration.ofDays(90);
 
+    // Corto a propósito (una TV pública, cualquiera que la vea puede escanear el QR): si alguien
+    // le saca una foto, deja de servir a los pocos segundos. La TV pide uno nuevo bastante antes
+    // de que este venza (ver CHECKIN_POLL_MS en tv-screen.ts) para que siempre haya uno vigente.
+    private static final Duration CHECKIN_CODE_TTL = Duration.ofSeconds(45);
+
     // Sin 0/O/1/I — se leen fácil desde lejos en una tele y no se confunden entre sí.
     private static final String CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     private static final int CODE_LENGTH = 6;
@@ -77,6 +85,7 @@ public class TvScreenService {
     private final GymPhotoRepository gymPhotoRepository;
     private final GymPlanRepository gymPlanRepository;
     private final ReservationService reservationService;
+    private final TvCheckinCodeRepository checkinCodeRepository;
 
     public TvPairingCreateResponse createPairingCode() {
         Instant now = Instant.now();
@@ -123,6 +132,23 @@ public class TvScreenService {
     public void deleteScreen(Long gymId, Long id) {
         TvScreen screen = tvScreenRepository.findByIdAndGymId(id, gymId).orElseThrow(() -> new TvScreenNotFoundException(id));
         tvScreenRepository.delete(screen);
+    }
+
+    // Ver TvCheckinCode / ReservationService.checkIn — el celular del socio lo canjea al escanear
+    // el QR que la TV renderiza a partir de este código.
+    public TvCheckinCodeResponse createCheckinCode(String screenToken) {
+        TvScreen screen = tvScreenRepository
+                .findByToken(screenToken)
+                .filter(this::isActive)
+                .orElseThrow(() -> new TvScreenNotFoundException(screenToken));
+        Instant now = Instant.now();
+        TvCheckinCode checkin = checkinCodeRepository.save(TvCheckinCode.builder()
+                .gymId(screen.getGymId())
+                .code(generateUniqueCheckinCode())
+                .createdAt(now)
+                .expiresAt(now.plus(CHECKIN_CODE_TTL))
+                .build());
+        return new TvCheckinCodeResponse(checkin.getCode(), checkin.getExpiresAt());
     }
 
     public TvScheduleResponse getSchedule(String token) {
@@ -252,7 +278,12 @@ public class TvScreenService {
         Long planId = mr.member().getPlanId();
         GymPlan plan = planId == null ? null : plansById.get(planId);
         return new TvAttendeeResponse(
-                firstName, lastName, mr.member().getPhotoUrl(), plan == null ? null : plan.getName(), plan == null ? null : plan.getId());
+                firstName,
+                lastName,
+                mr.member().getPhotoUrl(),
+                plan == null ? null : plan.getName(),
+                plan == null ? null : plan.getId(),
+                mr.checkedInAt() != null);
     }
 
     private TvPairingCode findValidPairing(String code) {
@@ -269,13 +300,25 @@ public class TvScreenService {
     private String generateUniqueCode() {
         String code;
         do {
-            StringBuilder sb = new StringBuilder(CODE_LENGTH);
-            for (int i = 0; i < CODE_LENGTH; i++) {
-                sb.append(CODE_CHARS.charAt(RANDOM.nextInt(CODE_CHARS.length())));
-            }
-            code = sb.toString();
+            code = randomCode();
         } while (pairingCodeRepository.findByCode(code).isPresent());
         return code;
+    }
+
+    private String generateUniqueCheckinCode() {
+        String code;
+        do {
+            code = randomCode();
+        } while (checkinCodeRepository.findByCode(code).isPresent());
+        return code;
+    }
+
+    private String randomCode() {
+        StringBuilder sb = new StringBuilder(CODE_LENGTH);
+        for (int i = 0; i < CODE_LENGTH; i++) {
+            sb.append(CODE_CHARS.charAt(RANDOM.nextInt(CODE_CHARS.length())));
+        }
+        return sb.toString();
     }
 
     private String generateToken() {

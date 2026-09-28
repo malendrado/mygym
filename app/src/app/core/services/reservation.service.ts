@@ -24,4 +24,9 @@ export class ReservationService {
   cancel(id: number): Observable<void> {
     return this.http.delete<void>(`${this.base}/reservations/${id}`);
   }
+
+  /** Canjea el QR de asistencia que muestra la TV del gym — ver /checkin/:code (checkin.ts). */
+  checkIn(code: string): Observable<{ classLabels: string[] }> {
+    return this.http.post<{ classLabels: string[] }>(`${this.base}/checkin`, { code });
+  }
 }

@@ -38,6 +38,13 @@ export const webRoutes: Routes = [
     loadComponent: () => import('./pages/member/member').then((m) => m.MemberPage),
   },
   {
+    // A donde llega el socio al escanear el QR de asistencia de la TV (ver tv-screen.ts) —
+    // requiere estar logueado como MEMBER, igual que /member.
+    path: 'checkin/:code',
+    canActivate: [authGuard, roleGuard('MEMBER')],
+    loadComponent: () => import('./pages/checkin/checkin').then((m) => m.CheckinPage),
+  },
+  {
     path: 'gym-admin',
     canActivate: [authGuard, roleGuard('GYM_ADMIN', 'DEMO_ADMIN')],
     loadComponent: () => import('./pages/gym-admin/gym-admin').then((m) => m.GymAdmin),

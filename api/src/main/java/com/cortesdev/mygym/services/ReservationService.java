@@ -9,19 +9,25 @@ import com.cortesdev.mygym.models.Role;
 import com.cortesdev.mygym.models.dto.GymBlockOccurrenceResponse;
 import com.cortesdev.mygym.models.dto.MemberReservation;
 import com.cortesdev.mygym.models.dto.OccurrenceAttendees;
+import com.cortesdev.mygym.models.TvCheckinCode;
 import com.cortesdev.mygym.models.dto.ReservationCreateRequest;
 import com.cortesdev.mygym.models.dto.ReservationResponse;
 import com.cortesdev.mygym.repositories.AppUserRepository;
 import com.cortesdev.mygym.repositories.GymBlockRepository;
 import com.cortesdev.mygym.repositories.GymRepository;
 import com.cortesdev.mygym.repositories.ReservationRepository;
+import com.cortesdev.mygym.repositories.TvCheckinCodeRepository;
 import com.cortesdev.mygym.services.exception.BookingWindowClosedException;
 import com.cortesdev.mygym.services.exception.CapacityExceededException;
+import com.cortesdev.mygym.services.exception.CheckinCodeNotFoundException;
 import com.cortesdev.mygym.services.exception.GymBlockNotFoundException;
 import com.cortesdev.mygym.services.exception.GymNotFoundException;
 import com.cortesdev.mygym.services.exception.MemberNotFoundException;
+import com.cortesdev.mygym.services.exception.NoActiveReservationException;
 import com.cortesdev.mygym.services.exception.ReservationNotFoundException;
 import com.cortesdev.mygym.services.exception.SubscriptionRequiredException;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
@@ -44,11 +50,17 @@ public class ReservationService {
 
     private static final ZoneId GYM_ZONE = ZoneId.of("America/Santiago");
 
+    // Cuánto antes de que empiece la clase ya se puede marcar asistencia — llegar unos minutos
+    // antes a estirar/cambiarse es normal, no tiene sentido que el QR recién funcione al segundo
+    // exacto de inicio.
+    private static final Duration CHECKIN_EARLY_WINDOW = Duration.ofMinutes(10);
+
     private final GymBlockRepository gymBlockRepository;
     private final ReservationRepository reservationRepository;
     private final GymRepository gymRepository;
     private final AppUserRepository appUserRepository;
     private final MemberService memberService;
+    private final TvCheckinCodeRepository checkinCodeRepository;
 
     @Transactional(readOnly = true)
     public List<GymBlockOccurrenceResponse> listOccurrences(Long gymId, Long memberId, LocalDate from, LocalDate to) {
@@ -131,7 +143,7 @@ public class ReservationService {
                 .stream()
                 .collect(Collectors.toMap(AppUser::getId, member -> member));
         return reservations.stream()
-                .map(r -> new MemberReservation(membersById.get(r.getMemberId()), r.getId()))
+                .map(r -> new MemberReservation(membersById.get(r.getMemberId()), r.getId(), r.getCheckedInAt()))
                 .filter(mr -> mr.member() != null)
                 .sorted(Comparator.comparing(mr -> mr.member().getName()))
                 .toList();
@@ -200,7 +212,7 @@ public class ReservationService {
                         entry.getKey().gymBlockId(),
                         entry.getKey().classDate(),
                         entry.getValue().stream()
-                                .map(r -> new MemberReservation(membersById.get(r.getMemberId()), r.getId()))
+                                .map(r -> new MemberReservation(membersById.get(r.getMemberId()), r.getId(), r.getCheckedInAt()))
                                 .sorted(Comparator.comparing(mr -> mr.member().getName()))
                                 .toList()))
                 .toList();
@@ -305,6 +317,64 @@ public class ReservationService {
         return reservations.stream()
                 .map(r -> toResponse(r, blocksById.get(r.getGymBlockId())))
                 .toList();
+    }
+
+    /**
+     * Canjea el QR rotativo que la TV muestra durante una clase en curso (ver TvScreenService.
+     * createCheckinCode) — confirma asistencia real, distinta de haber reservado. No exige que el
+     * código identifique una clase puntual: resuelve el gym del código, y de ahí busca ENTRE LAS
+     * RESERVAS DE HOY DEL SOCIO cuál cae dentro de su ventana horaria real ahora mismo. Casi
+     * siempre da una sola coincidencia; si da más de una (dos reservas simultáneas, caso raro)
+     * marca todas — la asistencia es aditiva, nunca exclusiva.
+     */
+    public List<String> checkIn(Long memberId, String code) {
+        TvCheckinCode checkin = checkinCodeRepository
+                .findByCode(code)
+                .filter(c -> c.getExpiresAt().isAfter(Instant.now()))
+                .orElseThrow(() -> new CheckinCodeNotFoundException(code));
+
+        // Si el socio no pertenece a ESE gimnasio, tratarlo igual que "no tengo nada que marcar"
+        // acá — nunca revelar que el código es válido para un gym distinto al suyo.
+        if (appUserRepository.findByIdAndGymId(memberId, checkin.getGymId()).isEmpty()) {
+            throw new NoActiveReservationException();
+        }
+
+        LocalDate today = LocalDate.now(GYM_ZONE);
+        List<Reservation> todaysBooked =
+                reservationRepository.findByMemberIdAndClassDateAndStatus(memberId, today, ReservationStatus.BOOKED);
+        List<Long> blockIds = todaysBooked.stream().map(Reservation::getGymBlockId).distinct().toList();
+        Map<Long, GymBlock> blocksById = blockIds.isEmpty()
+                ? Map.of()
+                : gymBlockRepository.findAllById(blockIds).stream()
+                        .collect(Collectors.toMap(GymBlock::getId, b -> b));
+
+        ZonedDateTime nowZoned = ZonedDateTime.now(GYM_ZONE);
+        List<Reservation> matches = todaysBooked.stream()
+                .filter(r -> r.getCheckedInAt() == null)
+                .filter(r -> {
+                    GymBlock block = blocksById.get(r.getGymBlockId());
+                    if (block == null || !block.getGymId().equals(checkin.getGymId())) {
+                        return false;
+                    }
+                    ZonedDateTime start = ZonedDateTime.of(today, block.getStartTime(), GYM_ZONE).minus(CHECKIN_EARLY_WINDOW);
+                    ZonedDateTime end = ZonedDateTime.of(today, block.getEndTime(), GYM_ZONE);
+                    return !nowZoned.isBefore(start) && !nowZoned.isAfter(end);
+                })
+                .toList();
+
+        if (matches.isEmpty()) {
+            throw new NoActiveReservationException();
+        }
+
+        Instant now = Instant.now();
+        List<String> classLabels = new ArrayList<>();
+        for (Reservation reservation : matches) {
+            reservation.setCheckedInAt(now);
+            reservationRepository.save(reservation);
+            GymBlock block = blocksById.get(reservation.getGymBlockId());
+            classLabels.add(block != null ? block.getLabel() : "tu clase");
+        }
+        return classLabels;
     }
 
     private String occurrenceKey(Long gymBlockId, LocalDate classDate) {

@@ -4,6 +4,7 @@ import com.cortesdev.mygym.services.exception.AdminNotFoundException;
 import com.cortesdev.mygym.services.exception.BookingWindowClosedException;
 import com.cortesdev.mygym.services.exception.BrandingSuggestionException;
 import com.cortesdev.mygym.services.exception.CapacityExceededException;
+import com.cortesdev.mygym.services.exception.CheckinCodeNotFoundException;
 import com.cortesdev.mygym.services.exception.DuplicateMemberEmailException;
 import com.cortesdev.mygym.services.exception.DemoAccessExpiredException;
 import com.cortesdev.mygym.services.exception.DemoSampleMemberMissingException;
@@ -22,6 +23,7 @@ import com.cortesdev.mygym.services.exception.InvalidLogoException;
 import com.cortesdev.mygym.services.exception.InvalidThemeException;
 import com.cortesdev.mygym.services.exception.MemberNotFoundException;
 import com.cortesdev.mygym.services.exception.ReservationNotFoundException;
+import com.cortesdev.mygym.services.exception.NoActiveReservationException;
 import com.cortesdev.mygym.services.exception.SubscriptionRequiredException;
 import com.cortesdev.mygym.services.exception.TooManyGymPhotosException;
 import com.cortesdev.mygym.services.exception.TvPairingCodeNotFoundException;
@@ -89,6 +91,22 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
         problem.setTitle("Pantalla no encontrada");
         problem.setProperty("timestamp", Instant.now());
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problem);
+    }
+
+    @ExceptionHandler(CheckinCodeNotFoundException.class)
+    public ResponseEntity<ProblemDetail> handleCheckinCodeNotFound(CheckinCodeNotFoundException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+        problem.setTitle("Código de asistencia no encontrado");
+        problem.setProperty("timestamp", Instant.now());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problem);
+    }
+
+    @ExceptionHandler(NoActiveReservationException.class)
+    public ResponseEntity<ProblemDetail> handleNoActiveReservation(NoActiveReservationException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+        problem.setTitle("Sin reserva activa");
+        problem.setProperty("timestamp", Instant.now());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(problem);
     }
 
     @ExceptionHandler(GymPhotoNotFoundException.class)

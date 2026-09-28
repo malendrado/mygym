@@ -3,6 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import {
+  TvCheckinCode,
   TvPairingCreated,
   TvPairingStatus,
   TvSchedule,
@@ -28,6 +29,10 @@ export class TvScreenService {
 
   schedule(screenToken: string): Observable<TvSchedule> {
     return this.http.get<TvSchedule>(`${this.publicBase}/screens/${screenToken}/schedule`);
+  }
+
+  checkinCode(screenToken: string): Observable<TvCheckinCode> {
+    return this.http.post<TvCheckinCode>(`${this.publicBase}/screens/${screenToken}/checkin-code`, {});
   }
 
   // --- Gym-admin, autenticado — usado por el panel (gym-admin.ts) ---

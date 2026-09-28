@@ -24,6 +24,12 @@ export interface TvPairingStatus {
   screenToken: string | null;
 }
 
+/** Espejo de TvCheckinCodeResponse — el código que la TV renderiza como QR de asistencia. */
+export interface TvCheckinCode {
+  code: string;
+  expiresAt: string;
+}
+
 /** Espejo de TvAttendeeResponse — nunca email, pero SÍ apellido (decisión explícita del usuario
  *  para esta pantalla, a diferencia de "Ver quién reservó"). lastName null si no está
  *  registrado. planName/planId son null si el socio no tiene un plan activo asignado. planId
@@ -35,6 +41,8 @@ export interface TvAttendeeSummary {
   photoUrl: string | null;
   planName: string | null;
   planId: number | null;
+  /** Confirmó asistencia real escaneando el QR de la clase (ver /api/me/checkin). */
+  checkedIn: boolean;
 }
 
 /** Espejo de TvBlockOccurrenceResponse. */

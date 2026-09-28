@@ -2,6 +2,7 @@ import { NgTemplateOutlet } from '@angular/common';
 import { Component, OnDestroy, computed, inject, signal } from '@angular/core';
 import { DomSanitizer } from '@angular/platform-browser';
 import { IonContent } from '@ionic/angular';
+import { toDataURL as qrToDataUrl } from 'qrcode';
 import { TvAttendeeSummary, TvBlockOccurrence, TvSchedule } from '../../core/models/tv-screen.model';
 import { TvScreenService } from '../../core/services/tv-screen.service';
 import { FitTier, TvFitDirective } from './tv-fit.directive';
@@ -115,6 +116,11 @@ export class TvScreenPage implements OnDestroy {
   protected readonly pairingCode = signal<string | null>(null);
   protected readonly schedule = signal<TvSchedule | null>(null);
   protected readonly now = signal<Date>(new Date());
+
+  // QR de asistencia — solo tiene sentido mientras hay al menos una clase en curso (ver
+  // refreshCheckinQr). null = no mostrar nada, ni placeholder: no confundir "sin clase ahora"
+  // con "todavía cargando".
+  protected readonly checkinQrDataUrl = signal<string | null>(null);
 
   protected readonly isRasterLogo = computed(() => (this.schedule()?.logoSvg ?? '').startsWith('data:image'));
   protected readonly safeLogo = computed(() => {
@@ -340,6 +346,13 @@ export class TvScreenPage implements OnDestroy {
           this.schedule.set(data);
           this.stage.set('display');
           syncThemeOverrides(data.themeMode === 'LIGHT' ? 'LIGHT' : 'DARK', data.themeColor);
+          // Solo tiene sentido marcar asistencia mientras hay una clase en curso — sin eso, se
+          // limpia (no queda un QR "viejo" apuntando a un código ya vencido con nada que canjear).
+          if (data.current.length > 0) {
+            this.refreshCheckinQr(token);
+          } else {
+            this.checkinQrDataUrl.set(null);
+          }
           this.pollTimer = setTimeout(poll, SCHEDULE_POLL_MS);
         },
         error: (err) => {
@@ -357,6 +370,21 @@ export class TvScreenPage implements OnDestroy {
       });
     };
     poll();
+  }
+
+  // El código dura 45s en el backend (CHECKIN_CODE_TTL) y se pide uno nuevo en cada poll de
+  // schedule (25s) — siempre hay margen antes de que venza. Si esta llamada puntual falla, el
+  // QR anterior sigue en pantalla unos segundos más en vez de desaparecer de golpe.
+  private refreshCheckinQr(screenToken: string): void {
+    this.tvScreenService.checkinCode(screenToken).subscribe({
+      next: (res) => {
+        const url = `${location.origin}/checkin/${res.code}`;
+        qrToDataUrl(url, { margin: 1, width: 320 })
+          .then((dataUrl) => this.checkinQrDataUrl.set(dataUrl))
+          .catch(() => void 0);
+      },
+      error: () => void 0,
+    });
   }
 
   protected clockLabel(): string {
@@ -399,17 +427,38 @@ export class TvScreenPage implements OnDestroy {
     return label.charAt(0).toUpperCase() + label.slice(1);
   }
 
-  protected remainingLabel(occurrence: TvBlockOccurrence): string {
+  // Null = la ocurrencia no es de hoy (no debería pasar para el hero en vivo, pero
+  // remainingLabel ya contemplaba el caso devolviendo '').
+  private remainingSeconds(occurrence: TvBlockOccurrence): number | null {
     const parts = this.santiagoParts(this.now());
-    if (occurrence.classDate !== parts.dateIso) return '';
+    if (occurrence.classDate !== parts.dateIso) return null;
     const [eh, em] = occurrence.endTime.split(':').map(Number);
     const nowSec = parts.hh * 3600 + parts.mm * 60 + parts.ss;
     const endSec = eh * 3600 + em * 60;
-    const remaining = endSec - nowSec;
+    return endSec - nowSec;
+  }
+
+  protected remainingLabel(occurrence: TvBlockOccurrence): string {
+    const remaining = this.remainingSeconds(occurrence);
+    if (remaining === null) return '';
     if (remaining <= 0) return 'Termina ya';
     const mins = Math.floor(remaining / 60);
     if (mins < 1) return 'Último minuto';
     return `Quedan ${mins} min`;
+  }
+
+  // Caluga/barra de "en curso" pasan de acento de marca a un semáforo FIJO (no derivado del
+  // acento del gimnasio) a medida que se acaba la clase — decisión de diseño: una señal de
+  // estado de sistema tiene que verse igual en todos los gimnasios, si usara el acento variable
+  // un gym con acento naranjo/rojo ya "se vería urgente" todo el rato. Umbrales en minutos
+  // ABSOLUTOS (no % de duración): "quedan 5 min" transmite la misma urgencia en una clase de 30
+  // que en una de 90.
+  protected countdownUrgency(occurrence: TvBlockOccurrence): 'normal' | 'warning' | 'critical' {
+    const remaining = this.remainingSeconds(occurrence);
+    if (remaining === null) return 'normal';
+    if (remaining <= 2 * 60) return 'critical';
+    if (remaining <= 5 * 60) return 'warning';
+    return 'normal';
   }
 
   // Fracción [0,100] transcurrida de la clase — para la barra de progreso de "ahora".

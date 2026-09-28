@@ -118,12 +118,19 @@
 // --- Grilla principal ------------------------------------------------------------------
 
 .tv-display {
+  position: relative;
   flex: 1;
   display: flex;
   flex-direction: column;
   gap: clamp(1rem, 2.5vw, 2rem);
   padding: clamp(1.5rem, 3vw, 3rem) clamp(2rem, 4vw, 4.5rem);
-  background: var(--tv-bg, var(--brand-ink));
+  // Feedback real del usuario: el fondo plano se veía "demasiado oscuro/plano" a distancia.
+  // Wash blanco muy sutil desde arriba, fijo (no derivado del acento) — en modo oscuro da
+  // profundidad tipo estudio de TV; en modo claro es casi invisible sobre un fondo ya claro,
+  // así que no hace falta una segunda variante por theme.
+  background:
+    radial-gradient(140% 65% at 50% -12%, rgba(255, 255, 255, 0.06), transparent 60%),
+    var(--tv-bg, var(--brand-ink));
   color: var(--tv-accent-text, var(--brand-text));
 }
 
@@ -132,6 +139,39 @@
   align-items: baseline;
   justify-content: space-between;
   gap: 1rem;
+}
+
+// Insignia flotante con el QR de asistencia — anclada al costado, nunca compite con el
+// contenido principal (nadie tiene que "leer" esto, solo levantar el celular un segundo).
+// El QR en sí siempre se renderiza negro sobre blanco (máximo contraste posible para que
+// cualquier cámara lo lea rápido) — independiente del acento/tema del gimnasio.
+.tv-checkin-badge {
+  position: absolute;
+  top: clamp(1.5rem, 3vw, 3rem);
+  right: clamp(2rem, 4vw, 4.5rem);
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.6rem 0.9rem;
+  border-radius: 1rem;
+  background: #ffffff;
+  box-shadow: 0 1rem 2rem -0.8rem rgba(0, 0, 0, 0.5);
+
+  &__img {
+    display: block;
+    width: clamp(3.4rem, 4.2vw, 4.6rem);
+    height: clamp(3.4rem, 4.2vw, 4.6rem);
+  }
+
+  &__label {
+    margin: 0;
+    max-width: 9ch;
+    font-size: clamp(0.7rem, 0.85vw, 0.85rem);
+    line-height: 1.25;
+    font-weight: 600;
+    color: #1a1200;
+  }
 }
 
 .tv-header__brand {
@@ -331,7 +371,13 @@
   padding: clamp(1.5rem, 2.4vw, 2.5rem);
   border-radius: 1.5rem;
   background: var(--tv-card, var(--brand-ink-surface));
-  border: 1px solid color-mix(in srgb, var(--tv-accent-text, var(--brand-accent)) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tv-accent-text, var(--brand-accent)) 26%, transparent);
+  // Sombra para "levantar" la tarjeta del fondo + una línea blanca sutil arriba (sheen) —
+  // mismo motivo que el wash de .tv-display: separar la tarjeta del fondo sin depender del
+  // acento variable de cada gimnasio.
+  box-shadow:
+    0 1.5rem 3rem -1.5rem rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07);
   animation: tv-fade 600ms ease-out both;
   overflow: hidden;
 }
@@ -385,6 +431,22 @@
   color: var(--tv-accent-text, var(--brand-accent));
 }
 
+// Semáforo de urgencia — FIJO, nunca derivado de --tv-accent (ver comentario en
+// countdownUrgency() de tv-screen.ts: una señal de estado de sistema tiene que verse igual en
+// todos los gimnasios). --tv-warning-contrast NO sigue el heurístico simple de luminancia>0.6
+// que usa solidFillTextColor() para el acento variable: para este ámbar puntual esa regla de
+// bolsillo elige mal (da blanco), la razón de contraste real (WCAG) da texto oscuro ~9.8:1
+// contra apenas ~2.1:1 con blanco — se fija a mano en vez de calcularlo en runtime.
+.tv-slide__countdown--warning {
+  background: #f59e0b;
+  color: #1a1200;
+}
+
+.tv-slide__countdown--critical {
+  background: var(--ion-color-danger);
+  color: var(--ion-color-danger-contrast);
+}
+
 .tv-slide__title {
   margin: 0;
   font-family: var(--brand-font-heading);
@@ -403,7 +465,17 @@
 .tv-slide__progress-fill {
   height: 100%;
   background: var(--tv-accent, var(--brand-accent));
-  transition: width 1s linear;
+  transition:
+    width 1s linear,
+    background-color 0.4s ease;
+
+  &--warning {
+    background: #f59e0b;
+  }
+
+  &--critical {
+    background: var(--ion-color-danger);
+  }
 }
 
 .tv-slide__instructor {
@@ -535,19 +607,47 @@
 }
 
 .tv-chip__avatar {
+  position: relative;
   width: var(--avatar);
   height: var(--avatar);
   flex-shrink: 0;
   display: flex;
   border-radius: 50%;
-  overflow: hidden;
+  // Sin overflow:hidden acá — el checkmark (abajo) tiene que asomar FUERA del círculo, un
+  // recorte lo cortaría a la mitad. El recorte de la foto en sí se hace en el <img> propio.
   // Anillo del color del plan: en el tamaño chico es la única señal del plan (sin píldora).
   box-shadow: 0 0 0 0.16rem var(--plan, transparent);
 
   img {
     width: 100%;
     height: 100%;
+    border-radius: 50%;
     object-fit: cover;
+  }
+}
+
+// Confirmó asistencia real (escaneó el QR) — refuerzo en vivo de que el check-in funciona,
+// visible para todo el gym, no solo para quien escaneó. Verde fijo (semáforo "todo bien"),
+// nunca el acento variable del gym — mismo criterio que el semáforo de urgencia del countdown.
+.tv-chip__checkmark {
+  position: absolute;
+  bottom: -0.1rem;
+  right: -0.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46%;
+  height: 46%;
+  min-width: 0.9rem;
+  min-height: 0.9rem;
+  border-radius: 50%;
+  background: #22c55e;
+  border: 2px solid var(--tv-card, var(--brand-ink-surface));
+  color: #ffffff;
+
+  svg {
+    width: 65%;
+    height: 65%;
   }
 }
 
@@ -669,7 +769,10 @@
   padding: clamp(0.9rem, 1.2vw, 1.15rem) clamp(1rem, 1.4vw, 1.3rem);
   border-radius: 1.25rem;
   background: var(--tv-card, var(--brand-ink-surface));
-  border: 1px solid color-mix(in srgb, var(--tv-accent-text, var(--brand-accent)) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tv-accent-text, var(--brand-accent)) 22%, transparent);
+  box-shadow:
+    0 1rem 2rem -1.2rem rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
   overflow: hidden;
 }
 

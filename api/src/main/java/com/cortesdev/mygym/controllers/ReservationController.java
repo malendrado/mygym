@@ -2,6 +2,8 @@ package com.cortesdev.mygym.controllers;
 
 import com.cortesdev.mygym.models.dto.AttendeeSummaryResponse;
 import com.cortesdev.mygym.models.dto.BankTransferInfoResponse;
+import com.cortesdev.mygym.models.dto.CheckinRequest;
+import com.cortesdev.mygym.models.dto.CheckinResponse;
 import com.cortesdev.mygym.models.dto.GymBlockOccurrenceResponse;
 import com.cortesdev.mygym.models.dto.GymPhotoResponse;
 import com.cortesdev.mygym.models.dto.MemberPlanResponse;
@@ -130,5 +132,14 @@ public class ReservationController {
     @GetMapping("/reservations")
     public List<ReservationResponse> myReservations(@AuthenticationPrincipal Jwt jwt) {
         return reservationService.myReservations(AuthenticatedUser.from(jwt).userId());
+    }
+
+    // Canjea el QR rotativo que muestra la TV del gym durante una clase en curso — confirma
+    // asistencia real a la reserva que ya tenía. Ver ReservationService.checkIn.
+    @PostMapping("/checkin")
+    public CheckinResponse checkIn(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody CheckinRequest request) {
+        List<String> classLabels =
+                reservationService.checkIn(AuthenticatedUser.from(jwt).userId(), request.code().trim().toUpperCase());
+        return new CheckinResponse(classLabels);
     }
 }

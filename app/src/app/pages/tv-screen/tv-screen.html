@@ -13,11 +13,18 @@
     <!-- Clave por persona: al cambiar de página son otras personas → los chips se recrean y entran con fundido. -->
     @for (a of attendees.slice(fit.layout().start, fit.layout().start + fit.layout().visible); track a.firstName + ' ' + a.lastName + $index) {
       <div class="tv-chip" [style.--plan]="a.planId != null ? planColor(a.planId) : null">
-        <span class="tv-chip__avatar">
+        <span class="tv-chip__avatar" [class.tv-chip__avatar--checked-in]="a.checkedIn">
           @if (a.photoUrl) {
             <img [src]="a.photoUrl" alt="" />
           } @else {
             <span class="tv-chip__initial">{{ a.firstName.charAt(0) }}</span>
+          }
+          @if (a.checkedIn) {
+            <span class="tv-chip__checkmark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 12l5 5L20 6" />
+              </svg>
+            </span>
           }
         </span>
         <span class="tv-chip__text">
@@ -156,6 +163,13 @@
               </div>
             </header>
 
+            @if (checkinQrDataUrl(); as qr) {
+              <div class="tv-checkin-badge">
+                <img [src]="qr" alt="" class="tv-checkin-badge__img" />
+                <p class="tv-checkin-badge__label">Escanea para<br />marcar tu asistencia</p>
+              </div>
+            }
+
             <main class="tv-main">
               <div class="tv-schedule-grid" [class.tv-schedule-grid--no-sidebar]="!showSidebar()">
                 <section class="tv-now-panel">
@@ -187,7 +201,11 @@
                                 <span class="tv-slide__day">{{ dayLabel(occ) }}</span>
                               }
                               @if (isHeroLive()) {
-                                <span class="tv-slide__countdown">{{ remainingLabel(occ) }}</span>
+                                <span
+                                  class="tv-slide__countdown"
+                                  [class.tv-slide__countdown--warning]="countdownUrgency(occ) === 'warning'"
+                                  [class.tv-slide__countdown--critical]="countdownUrgency(occ) === 'critical'"
+                                >{{ remainingLabel(occ) }}</span>
                               } @else if (dayLabel(occ) === 'Hoy') {
                                 <span class="tv-slide__countdown tv-slide__countdown--upcoming">{{ startsInLabel(occ) }}</span>
                               }
@@ -195,7 +213,12 @@
                             <h2 class="tv-slide__title">{{ occ.label }}</h2>
                             @if (isHeroLive()) {
                               <div class="tv-slide__progress">
-                                <div class="tv-slide__progress-fill" [style.width.%]="progressPercent(occ)"></div>
+                                <div
+                                  class="tv-slide__progress-fill"
+                                  [class.tv-slide__progress-fill--warning]="countdownUrgency(occ) === 'warning'"
+                                  [class.tv-slide__progress-fill--critical]="countdownUrgency(occ) === 'critical'"
+                                  [style.width.%]="progressPercent(occ)"
+                                ></div>
                               </div>
                             }
                             @if (occ.category || occ.instructorName) {

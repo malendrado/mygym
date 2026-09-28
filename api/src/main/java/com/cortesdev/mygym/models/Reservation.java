@@ -39,6 +39,10 @@ public class Reservation {
     @Enumerated(EnumType.STRING)
     private ReservationStatus status;
 
+    // Null = no vino todavía. "No show" se calcula al vuelo (BOOKED + clase ya terminó + esto
+    // sigue null), no es un status aparte — ver ReservationService.checkIn.
+    private Instant checkedInAt;
+
     private Instant createdAt;
 
     private Instant updatedAt;

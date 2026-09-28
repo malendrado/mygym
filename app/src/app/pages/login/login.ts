@@ -1,5 +1,5 @@
 import { Component, DestroyRef, inject, signal } from '@angular/core';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { IonContent, IonHeader, IonSpinner, IonText, IonTitle, IonToolbar } from '@ionic/angular';
 import { GoogleSigninButtonDirective, SocialAuthService } from '@abacritt/angularx-social-login';
 import { AuthService } from '../../core/services/auth.service';
@@ -24,6 +24,7 @@ export class Login {
   private readonly socialAuthService = inject(SocialAuthService);
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
 
   protected readonly errorMessage = signal<string | null>(null);
@@ -45,13 +46,18 @@ export class Login {
           this.loggedIn = true;
           this.showWelcome.set(true);
           setTimeout(() => {
+            // returnUrl solo la honra un MEMBER real (ver checkin.ts) — un admin que haya
+            // llegado a /login con ese query param igual cae en su destino normal por rol.
+            const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl');
             const destination =
-              response.role === 'SUPER_ADMIN'
-                ? '/admin/gyms'
-                : response.role === 'GYM_ADMIN' || response.role === 'DEMO_ADMIN'
-                  ? '/gym-admin'
-                  : '/member';
-            this.router.navigate([destination]);
+              response.role === 'MEMBER' && returnUrl?.startsWith('/') && !returnUrl.startsWith('//')
+                ? returnUrl
+                : response.role === 'SUPER_ADMIN'
+                  ? '/admin/gyms'
+                  : response.role === 'GYM_ADMIN' || response.role === 'DEMO_ADMIN'
+                    ? '/gym-admin'
+                    : '/member';
+            this.router.navigateByUrl(destination);
           }, WELCOME_PAUSE_MS);
         },
         error: (err: Error) => {
