@@ -55,6 +55,13 @@ public class ReservationService {
     // exacto de inicio.
     private static final Duration CHECKIN_EARLY_WINDOW = Duration.ofMinutes(10);
 
+    // Gracia después de que termina — a veces el socio junta el QR de la TV recién cuando ya
+    // está saliendo. Es aditivo con CHECKIN_EARLY_WINDOW: si además tiene otra reserva que ya
+    // empezó dentro de SU propia ventana, un solo escaneo marca ambas (mismo criterio que dos
+    // clases simultáneas, ver checkIn) — no hay forma de colarse en una clase que no reservó,
+    // esto solo mira las reservas propias del socio.
+    private static final Duration CHECKIN_LATE_WINDOW = Duration.ofMinutes(15);
+
     private final GymBlockRepository gymBlockRepository;
     private final ReservationRepository reservationRepository;
     private final GymRepository gymRepository;
@@ -357,7 +364,7 @@ public class ReservationService {
                         return false;
                     }
                     ZonedDateTime start = ZonedDateTime.of(today, block.getStartTime(), GYM_ZONE).minus(CHECKIN_EARLY_WINDOW);
-                    ZonedDateTime end = ZonedDateTime.of(today, block.getEndTime(), GYM_ZONE);
+                    ZonedDateTime end = ZonedDateTime.of(today, block.getEndTime(), GYM_ZONE).plus(CHECKIN_LATE_WINDOW);
                     return !nowZoned.isBefore(start) && !nowZoned.isAfter(end);
                 })
                 .toList();

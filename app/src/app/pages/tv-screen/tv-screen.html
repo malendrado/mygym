@@ -12,7 +12,11 @@
   >
     <!-- Clave por persona: al cambiar de página son otras personas → los chips se recrean y entran con fundido. -->
     @for (a of attendees.slice(fit.layout().start, fit.layout().start + fit.layout().visible); track a.firstName + ' ' + a.lastName + $index) {
-      <div class="tv-chip" [style.--plan]="a.planId != null ? planColor(a.planId) : null">
+      <div
+        class="tv-chip"
+        [class.tv-chip--confirmed]="a.checkedIn"
+        [style.--plan]="a.planId != null ? planColor(a.planId) : null"
+      >
         <span class="tv-chip__avatar" [class.tv-chip__avatar--checked-in]="a.checkedIn">
           @if (a.photoUrl) {
             <img [src]="a.photoUrl" alt="" />
@@ -154,21 +158,27 @@
                 }
                 <div class="tv-header__gym">{{ sched.gymName }}</div>
               </div>
-              <div class="tv-header__clock">
-                @if (isReconnecting()) {
-                  <span class="tv-header__reconnecting">Reconectando…</span>
+              <div class="tv-header__right">
+                @if (checkinQrDataUrl(); as qr) {
+                  <div class="tv-checkin-header">
+                    <div class="tv-checkin-header__qr-wrap">
+                      <img [src]="qr" alt="" class="tv-checkin-header__img" />
+                    </div>
+                    <div class="tv-checkin-header__text">
+                      <p class="tv-checkin-header__title">Escanea y marca tu asistencia</p>
+                      <p class="tv-checkin-header__hint">Con la cámara de tu celular</p>
+                    </div>
+                  </div>
                 }
-                <span class="tv-header__time">{{ clockLabel() }}</span>
-                <span class="tv-header__date">{{ dateLabel() }}</span>
+                <div class="tv-header__clock">
+                  @if (isReconnecting()) {
+                    <span class="tv-header__reconnecting">Reconectando…</span>
+                  }
+                  <span class="tv-header__time">{{ clockLabel() }}</span>
+                  <span class="tv-header__date">{{ dateLabel() }}</span>
+                </div>
               </div>
             </header>
-
-            @if (checkinQrDataUrl(); as qr) {
-              <div class="tv-checkin-badge">
-                <img [src]="qr" alt="" class="tv-checkin-badge__img" />
-                <p class="tv-checkin-badge__label">Escanea para<br />marcar tu asistencia</p>
-              </div>
-            }
 
             <main class="tv-main">
               <div class="tv-schedule-grid" [class.tv-schedule-grid--no-sidebar]="!showSidebar()">
@@ -263,6 +273,7 @@
                       <p class="tv-idle__title">Sin clases programadas</p>
                     </div>
                   }
+
                 </section>
 
                 @if (showSidebar()) {

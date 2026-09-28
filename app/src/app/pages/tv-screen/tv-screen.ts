@@ -2,7 +2,7 @@ import { NgTemplateOutlet } from '@angular/common';
 import { Component, OnDestroy, computed, inject, signal } from '@angular/core';
 import { DomSanitizer } from '@angular/platform-browser';
 import { IonContent } from '@ionic/angular';
-import { toDataURL as qrToDataUrl } from 'qrcode';
+import { toCanvas as qrToCanvas } from 'qrcode';
 import { TvAttendeeSummary, TvBlockOccurrence, TvSchedule } from '../../core/models/tv-screen.model';
 import { TvScreenService } from '../../core/services/tv-screen.service';
 import { FitTier, TvFitDirective } from './tv-fit.directive';
@@ -13,6 +13,11 @@ import {
   ensureMinContrastColor,
   syncThemeOverrides,
 } from '../../core/utils/gym-theme';
+
+// Área del logo central como % del ancho del QR — bien por debajo del margen que da el nivel de
+// corrección de errores 'H' (tolera perder hasta un 30% del área; un cuadrado de este lado ocupa
+// ~7% del área total), así el celular sigue leyendo el código sin problema.
+const QR_LOGO_SIZE_RATIO = 0.26;
 
 const TV_TOKEN_KEY = 'mygym.tv.screenToken';
 const SCHEDULE_POLL_MS = 25_000;
@@ -379,12 +384,80 @@ export class TvScreenPage implements OnDestroy {
     this.tvScreenService.checkinCode(screenToken).subscribe({
       next: (res) => {
         const url = `${location.origin}/checkin/${res.code}`;
-        qrToDataUrl(url, { margin: 1, width: 320 })
-          .then((dataUrl) => this.checkinQrDataUrl.set(dataUrl))
-          .catch(() => void 0);
+        this.renderBrandedQr(url).then((dataUrl) => {
+          if (dataUrl) {
+            this.checkinQrDataUrl.set(dataUrl);
+          }
+        });
       },
       error: () => void 0,
     });
+  }
+
+  // QR "de marca": módulos en una variante oscura del acento del gimnasio (nunca el acento
+  // crudo — muchos son colores claros tipo neón, ilegibles para una cámara) en vez del negro
+  // genérico de cualquier QR, + el logo del propio gym (o el de mygym si no tiene) al centro.
+  // Nivel de corrección 'H' es justamente lo que hace posible tapar el centro sin romper la
+  // lectura — ver QR_LOGO_SIZE_RATIO arriba.
+  private async renderBrandedQr(url: string): Promise<string | null> {
+    const accent = this.schedule()?.themeColor ?? '#c6ff3d';
+    const darkColor = ensureMinContrastColor(accent, '#ffffff', 7);
+    const canvas = document.createElement('canvas');
+    try {
+      await qrToCanvas(canvas, url, {
+        margin: 1,
+        width: 320,
+        errorCorrectionLevel: 'H',
+        color: { dark: darkColor, light: '#ffffff' },
+      });
+    } catch {
+      return null;
+    }
+    // Con el QR base ya dibujado, un fallo acá (logo raro, drawImage que no carga) nunca debe
+    // tirar todo el QR abajo — antes esto no estaba cubierto y un error silencioso dejaba el QR
+    // sin actualizar ninguna vuelta más (bug real reportado por el usuario: "no aparece").
+    try {
+      const ctx = canvas.getContext('2d');
+      const logo = ctx ? await this.loadLogoImage() : null;
+      if (ctx && logo) {
+        const size = canvas.width * QR_LOGO_SIZE_RATIO;
+        const pad = size * 0.16;
+        const x = (canvas.width - size) / 2;
+        const y = (canvas.height - size) / 2;
+        ctx.fillStyle = '#ffffff';
+        this.roundedRectPath(ctx, x - pad, y - pad, size + pad * 2, size + pad * 2, (size + pad * 2) * 0.2);
+        ctx.fill();
+        ctx.drawImage(logo, x, y, size, size);
+      }
+    } catch {
+      // El QR base (sin logo) sigue siendo perfectamente escaneable — mejor eso que nada.
+    }
+    return canvas.toDataURL();
+  }
+
+  private loadLogoImage(): Promise<HTMLImageElement | null> {
+    const logoSvg = this.schedule()?.logoSvg;
+    const src = logoSvg
+      ? this.isRasterLogo()
+        ? logoSvg
+        : `data:image/svg+xml;utf8,${encodeURIComponent(logoSvg)}`
+      : '/favicon.svg';
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => resolve(null);
+      img.src = src;
+    });
+  }
+
+  private roundedRectPath(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
   }
 
   protected clockLabel(): string {

@@ -124,53 +124,99 @@
   flex-direction: column;
   gap: clamp(1rem, 2.5vw, 2rem);
   padding: clamp(1.5rem, 3vw, 3rem) clamp(2rem, 4vw, 4.5rem);
-  // Feedback real del usuario: el fondo plano se veía "demasiado oscuro/plano" a distancia.
-  // Wash blanco muy sutil desde arriba, fijo (no derivado del acento) — en modo oscuro da
-  // profundidad tipo estudio de TV; en modo claro es casi invisible sobre un fondo ya claro,
-  // así que no hace falta una segunda variante por theme.
+  // Feedback real del usuario: incluso después de un primer intento (radial sutil desde
+  // arriba), seguía viéndose "muy oscuro" — ese wash era demasiado tímido. Acá van DOS capas:
+  // una pareja de fondo a fondo (sube el piso general de brillo, no solo cerca del header) +
+  // un radial más marcado arriba (foco de luz, da sensación de estudio de TV). Fijo, no
+  // derivado del acento — en modo claro ya es un fondo claro, así que este blanco extra se nota
+  // poco y no hace daño (nunca oscurece).
   background:
-    radial-gradient(140% 65% at 50% -12%, rgba(255, 255, 255, 0.06), transparent 60%),
+    radial-gradient(140% 70% at 50% -12%, rgba(255, 255, 255, 0.2), transparent 68%),
+    linear-gradient(rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.07)),
     var(--tv-bg, var(--brand-ink));
   color: var(--tv-accent-text, var(--brand-text));
 }
 
 .tv-header {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 1rem;
+  // Alto propio, no solo el que le den sus hijos por default — así el bloque del QR (más alto
+  // que el reloj solo) tiene margen real para respirar sin que el header quede "apretado".
+  // A diferencia del hero/roster de abajo, esta franja NUNCA compite por espacio con la
+  // cantidad de bloques/asistentes reales del gimnasio (altura fija, ver feedback del usuario).
+  min-height: clamp(4.2rem, 7vw, 5.6rem);
 }
 
-// Insignia flotante con el QR de asistencia — anclada al costado, nunca compite con el
-// contenido principal (nadie tiene que "leer" esto, solo levantar el celular un segundo).
-// El QR en sí siempre se renderiza negro sobre blanco (máximo contraste posible para que
-// cualquier cámara lo lea rápido) — independiente del acento/tema del gimnasio.
-.tv-checkin-badge {
-  position: absolute;
-  top: clamp(1.5rem, 3vw, 3rem);
-  right: clamp(2rem, 4vw, 4.5rem);
-  z-index: 5;
+.tv-header__right {
   display: flex;
   align-items: center;
-  gap: 0.7rem;
-  padding: 0.6rem 0.9rem;
-  border-radius: 1rem;
-  background: #ffffff;
-  box-shadow: 0 1rem 2rem -0.8rem rgba(0, 0, 0, 0.5);
+  gap: clamp(1rem, 2vw, 2rem);
+}
+
+// Llamado a la acción del QR de asistencia — vive en el header (franja de alto FIJO, ver
+// .tv-header arriba), no debajo del hero: ahí compite por espacio con el roster medido
+// dinámicamente (TvFitDirective), que con datos reales (muchos bloques/asistentes) ya viene
+// apretado — feedback real del usuario tras probarlo con la data de Fortis. El header, en
+// cambio, nunca cambia de tamaño según cuánta data haya. Acento del propio gimnasio en el
+// marco + anillo pulsante alrededor del QR (nunca sobre el QR en sí — su contraste tiene que
+// quedarse siempre al 100% para que la cámara lo lea) para que el ojo lo encuentre solo.
+.tv-checkin-header {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.4rem 1rem 0.4rem 0.4rem;
+  border-radius: 1.1rem;
+  background: color-mix(in srgb, var(--tv-accent, var(--brand-accent)) 16%, transparent);
+  border: 1px solid var(--tv-accent, var(--brand-accent));
+
+  &__qr-wrap {
+    flex-shrink: 0;
+    display: flex;
+    padding: 0.35rem;
+    border-radius: 0.8rem;
+    background: #ffffff;
+    animation: tv-checkin-glow 2.2s ease-out infinite;
+  }
 
   &__img {
     display: block;
-    width: clamp(3.4rem, 4.2vw, 4.6rem);
-    height: clamp(3.4rem, 4.2vw, 4.6rem);
+    width: clamp(3rem, 3.8vw, 3.8rem);
+    height: clamp(3rem, 3.8vw, 3.8rem);
   }
 
-  &__label {
+  &__text {
+    min-width: 0;
+  }
+
+  &__title {
     margin: 0;
-    max-width: 9ch;
-    font-size: clamp(0.7rem, 0.85vw, 0.85rem);
-    line-height: 1.25;
-    font-weight: 600;
-    color: #1a1200;
+    max-width: 15ch;
+    font-family: var(--brand-font-heading);
+    font-weight: 700;
+    font-size: clamp(0.8rem, 1vw, 1rem);
+    line-height: 1.2;
+    color: var(--tv-accent-text, var(--brand-accent));
+  }
+
+  &__hint {
+    margin: 0.1rem 0 0;
+    font-size: clamp(0.62rem, 0.75vw, 0.78rem);
+    color: var(--tv-accent-text, var(--brand-text));
+    opacity: 0.8;
+  }
+}
+
+@keyframes tv-checkin-glow {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--tv-accent, var(--brand-accent)) 45%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 0.85rem color-mix(in srgb, var(--tv-accent, var(--brand-accent)) 0%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--tv-accent, var(--brand-accent)) 0%, transparent);
   }
 }
 
@@ -370,14 +416,19 @@
   gap: 1rem;
   padding: clamp(1.5rem, 2.4vw, 2.5rem);
   border-radius: 1.5rem;
-  background: var(--tv-card, var(--brand-ink-surface));
-  border: 1px solid color-mix(in srgb, var(--tv-accent-text, var(--brand-accent)) 26%, transparent);
+  // Capa blanca pareja MEZCLADA con --tv-card (no solo un borde/sheen) — es lo que de verdad
+  // aclara el relleno de la tarjeta en vez de solo decorar el borde. Funciona sobre cualquier
+  // color base (oscuro o claro) porque es aditiva, nunca invierte ni desatura el tema.
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.1)),
+    var(--tv-card, var(--brand-ink-surface));
+  border: 1px solid color-mix(in srgb, var(--tv-accent-text, var(--brand-accent)) 30%, transparent);
   // Sombra para "levantar" la tarjeta del fondo + una línea blanca sutil arriba (sheen) —
   // mismo motivo que el wash de .tv-display: separar la tarjeta del fondo sin depender del
   // acento variable de cada gimnasio.
   box-shadow:
     0 1.5rem 3rem -1.5rem rgba(0, 0, 0, 0.5),
-    inset 0 1px 0 rgba(255, 255, 255, 0.07);
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
   animation: tv-fade 600ms ease-out both;
   overflow: hidden;
 }
@@ -604,6 +655,21 @@
   border-radius: 999px;
   background: color-mix(in srgb, var(--tv-accent-text, var(--brand-text)) 8%, transparent);
   overflow: hidden;
+  transition: opacity 0.4s ease;
+}
+
+// Clase en curso, socio todavía sin marcar asistencia — opacado para que los que SÍ confirmaron
+// (check verde) resalten a simple vista, sin ocultar del todo a quien todavía no escaneó (sigue
+// siendo información real: "vino y no lo vio" no es lo mismo que "no vino"). Nunca se aplica
+// fuera de una clase en curso (roster de "próxima"/"anterior"/agenda) — ver el "live" que pasa
+// el hero al #roster, algo que todavía no empezó no tiene nada que "pendiente" marcar.
+// Apagar a quien NO confirmó (probado antes) se sentía como un error de pantalla, no como un
+// estado a propósito — feedback real del usuario. Se da vuelta el enfoque: el que no confirmó
+// queda EXACTAMENTE igual que siempre; el que sí confirmó gana una señal positiva y clara, un
+// aro verde en toda la pastilla (no solo el circulito chico del check), para que se note de
+// lejos sin tener que comparar tonos entre dos grupos parecidos.
+.tv-chip--confirmed {
+  box-shadow: 0 0 0 0.14rem #22c55e;
 }
 
 .tv-chip__avatar {
@@ -657,6 +723,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  // Redondeo propio, no heredado del overflow:hidden del padre (.tv-chip__avatar ya no lo
+  // tiene — se sacó para que el check verde pudiera asomar fuera del círculo, ver comentario
+  // ahí) — sin esto, cualquier socio sin foto se veía con un cuadrado en vez de un círculo.
+  border-radius: 50%;
   background: var(--tv-accent, var(--brand-accent));
   color: var(--tv-accent-solid-text, var(--brand-accent-contrast));
   font-weight: 700;
@@ -768,11 +838,13 @@
   gap: 0.6rem;
   padding: clamp(0.9rem, 1.2vw, 1.15rem) clamp(1rem, 1.4vw, 1.3rem);
   border-radius: 1.25rem;
-  background: var(--tv-card, var(--brand-ink-surface));
-  border: 1px solid color-mix(in srgb, var(--tv-accent-text, var(--brand-accent)) 22%, transparent);
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.08)),
+    var(--tv-card, var(--brand-ink-surface));
+  border: 1px solid color-mix(in srgb, var(--tv-accent-text, var(--brand-accent)) 28%, transparent);
   box-shadow:
     0 1rem 2rem -1.2rem rgba(0, 0, 0, 0.45),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    inset 0 1px 0 rgba(255, 255, 255, 0.09);
   overflow: hidden;
 }
 
@@ -1078,7 +1150,8 @@
   .tv-slide,
   .tv-slide__full-badge,
   .tv-loading__spinner,
-  .tv-header__reconnecting {
+  .tv-header__reconnecting,
+  .tv-checkin-header__qr-wrap {
     animation: none;
   }
 
