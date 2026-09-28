@@ -270,6 +270,28 @@ export class TvScreenPage implements OnDestroy {
     return new Map(sortedIds.map((id, index) => [id, PLAN_PALETTE[index % PLAN_PALETTE.length]]));
   });
 
+  // Leyenda color→plan, UNA sola vez para toda la pantalla (no por tarjeta) — el color de cada
+  // plan ya es estable en toda la TV (mismo planColorMap de arriba), así que repetirla en cada
+  // clase en curso solo le comía espacio fijo al roster sin agregar información nueva (feedback
+  // real del usuario). Si todos comparten un solo plan, no hay nada que distinguir.
+  protected readonly planLegend = computed<{ planId: number; planName: string; color: string }[]>(() => {
+    const sched = this.schedule();
+    if (!sched) return [];
+    const groups = [...sched.current, ...sched.next, ...(sched.later ?? []), ...(sched.previous ? [sched.previous] : [])];
+    const names = new Map<number, string>();
+    groups.forEach((occ) =>
+      occ.attendees.forEach((a) => {
+        if (a.planId != null && a.planName && !names.has(a.planId)) {
+          names.set(a.planId, a.planName);
+        }
+      }),
+    );
+    const colors = this.planColorMap();
+    return [...names.entries()]
+      .sort(([idA], [idB]) => idA - idB)
+      .map(([planId, planName]) => ({ planId, planName, color: colors.get(planId) ?? PLAN_PALETTE[0] }));
+  });
+
   // Se oculta sola pasados PREVIOUS_STALE_MINUTES desde que terminó — ver constante arriba.
   protected readonly previousBlock = computed<TvBlockOccurrence | null>(() => {
     const prev = this.schedule()?.previous ?? null;

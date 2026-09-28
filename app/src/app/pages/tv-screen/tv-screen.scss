@@ -362,6 +362,14 @@
   gap: clamp(0.75rem, 1.5vw, 1.25rem);
 }
 
+.tv-main__label-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
 .tv-main__label {
   margin: 0;
   display: flex;
@@ -639,6 +647,31 @@
   font-size: clamp(1rem, 1.4vw, 1.25rem);
 }
 
+// Traduce el color de plan (aro del avatar + barra lateral del chip, ver .tv-chip) a su nombre
+// real — UNA sola vez para toda la pantalla, junto al label "AHORA" (zona fija, nunca la mide
+// TvFitDirective), no repetida por tarjeta: el color ya es estable en toda la TV.
+.tv-plan-legend {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 0.9rem;
+  font-size: clamp(0.7rem, 0.9vw, 0.85rem);
+  opacity: 0.85;
+
+  &__item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  &__dot {
+    width: 0.6rem;
+    height: 0.6rem;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+}
+
 .tv-roster-empty--small {
   flex: 0 0 auto;
   font-size: clamp(0.85rem, 1.1vw, 1rem);
@@ -651,11 +684,24 @@
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  padding: 0 0.9rem 0 0.35rem;
+  padding: 0 0.9rem 0 0.55rem;
   border-radius: 999px;
   background: color-mix(in srgb, var(--tv-accent-text, var(--brand-text)) 8%, transparent);
   overflow: hidden;
   transition: opacity 0.4s ease;
+  position: relative;
+
+  // Refuerzo del color de plan además del aro chico del avatar — pedido explícito del usuario
+  // ("marcar en algún otro lugar para verlo de más lejos"): una barra sólida se lee a más
+  // distancia que un aro delgado alrededor de un círculo chico. Recortada sola al borde
+  // redondeado de la pastilla por el overflow:hidden de acá arriba.
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 0.3rem;
+    background: var(--plan, transparent);
+  }
 }
 
 // Clase en curso, socio todavía sin marcar asistencia — opacado para que los que SÍ confirmaron
@@ -668,8 +714,12 @@
 // queda EXACTAMENTE igual que siempre; el que sí confirmó gana una señal positiva y clara, un
 // aro verde en toda la pastilla (no solo el circulito chico del check), para que se note de
 // lejos sin tener que comparar tonos entre dos grupos parecidos.
+// inset, no hacia afuera: un aro que sale del propio borde de la pastilla queda recortado por
+// cualquier contenedor ancestro con overflow:hidden (el roster medido por TvFitDirective lo
+// tiene) — confirmado real ("se ve mordido en las esquinas"). Hacia adentro nunca se recorta,
+// sin importar el padre.
 .tv-chip--confirmed {
-  box-shadow: 0 0 0 0.14rem #22c55e;
+  box-shadow: inset 0 0 0 0.14rem #22c55e;
 }
 
 .tv-chip__avatar {
@@ -802,7 +852,7 @@
 .tv-roster-fit[data-tier='s'] .tv-chip {
   --avatar: 1.7rem;
   gap: 0.45rem;
-  padding: 0 0.7rem 0 0.25rem;
+  padding: 0 0.7rem 0 0.45rem;
   .tv-chip__name {
     font-size: 0.88rem;
   }

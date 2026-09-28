@@ -194,12 +194,27 @@
                       </div>
                     </div>
                   }
-                  <p class="tv-main__label">
-                    {{ heroLabel() }}
-                    @if (heroPageCount() > 1) {
-                      <ng-container [ngTemplateOutlet]="pager" [ngTemplateOutletContext]="{ $implicit: heroPageCount(), index: heroPageIndex() }"></ng-container>
+                  <div class="tv-main__label-row">
+                    <p class="tv-main__label">
+                      {{ heroLabel() }}
+                      @if (heroPageCount() > 1) {
+                        <ng-container [ngTemplateOutlet]="pager" [ngTemplateOutletContext]="{ $implicit: heroPageCount(), index: heroPageIndex() }"></ng-container>
+                      }
+                    </p>
+                    <!-- Leyenda color→plan UNA sola vez para toda la pantalla (el color ya es
+                         estable en toda la TV, ver planColorMap) — repetirla en cada tarjeta le
+                         comía espacio fijo al roster sin sumar información nueva. -->
+                    @if (planLegend().length > 1) {
+                      <div class="tv-plan-legend">
+                        @for (p of planLegend(); track p.planId) {
+                          <span class="tv-plan-legend__item">
+                            <span class="tv-plan-legend__dot" [style.background]="p.color"></span>
+                            {{ p.planName }}
+                          </span>
+                        }
+                      </div>
                     }
-                  </p>
+                  </div>
                   @if (heroBlocks().length > 0) {
                     <div class="tv-slides">
                       @for (occ of heroBlocks(); track occ.blockId) {
