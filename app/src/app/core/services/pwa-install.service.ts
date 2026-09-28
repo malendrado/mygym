@@ -23,8 +23,11 @@ export class PwaInstallService {
   readonly isIosSafari =
     /iphone|ipad|ipod/i.test(navigator.userAgent) && !/crios|fxios|edgios/i.test(navigator.userAgent);
 
+  // Touch devices only: on desktop Chrome already shows its own install icon in the address bar.
+  readonly isTouchDevice = window.matchMedia?.('(pointer: coarse)').matches ?? false;
+
   readonly mode = computed<'prompt' | 'ios' | null>(() => {
-    if (this.isStandalone || this.dismissed()) {
+    if (this.isStandalone || this.dismissed() || !this.isTouchDevice) {
       return null;
     }
     if (this.canPrompt()) {
