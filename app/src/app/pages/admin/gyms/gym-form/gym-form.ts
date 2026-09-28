@@ -650,7 +650,24 @@ export class GymForm implements OnDestroy {
         this.loadHistoryAttendees();
       }
     });
+
+    // Mismo fix que gym-admin.ts: lastPolledAt SÍ se actualiza en el backend en cada poll real de
+    // la TV, pero la lista acá solo se cargaba una vez — quedaba mostrando "Todavía no se
+    // conectó" aunque la TV ya estuviera sondeando. Refresca cada 15s mientras la pestaña
+    // "Pantallas" está abierta (la TV sondea cada 25s, ver tv-screen.ts).
+    effect(() => {
+      const id = this.gymId();
+      if (this.section() === 'screens' && id !== null) {
+        this.loadTvScreens(id);
+        this.tvScreensPollTimer = setInterval(() => this.loadTvScreens(id), 15_000);
+      } else if (this.tvScreensPollTimer) {
+        clearInterval(this.tvScreensPollTimer);
+        this.tvScreensPollTimer = null;
+      }
+    });
   }
+
+  private tvScreensPollTimer: ReturnType<typeof setInterval> | null = null;
 
   ngOnDestroy(): void {
     const root = document.documentElement.style;
@@ -658,6 +675,9 @@ export class GymForm implements OnDestroy {
       root.removeProperty(property);
     }
     clearThemeOverrides();
+    if (this.tvScreensPollTimer) {
+      clearInterval(this.tvScreensPollTimer);
+    }
   }
 
   protected get isEditing(): boolean {

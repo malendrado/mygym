@@ -679,7 +679,24 @@ export class GymAdmin implements OnDestroy {
         this.loadHistoryAttendees();
       }
     });
+
+    // "Todavía no se conectó" quedaba pegado en la UI aunque la TV ya estuviera sondeando de
+    // verdad (lastPolledAt SÍ se actualiza en el backend en cada poll) — loadTvScreens() solo se
+    // llamaba una vez al entrar, nunca se refrescaba. Mientras la pestaña "Pantallas" está
+    // abierta, refresca cada 15s (la TV sondea cada 25s, ver tv-screen.ts) para que el estado se
+    // ponga al día solo, sin que el admin tenga que recargar la página entera.
+    effect(() => {
+      if (this.section() === 'screens') {
+        this.loadTvScreens();
+        this.tvScreensPollTimer = setInterval(() => this.loadTvScreens(), 15_000);
+      } else if (this.tvScreensPollTimer) {
+        clearInterval(this.tvScreensPollTimer);
+        this.tvScreensPollTimer = null;
+      }
+    });
   }
+
+  private tvScreensPollTimer: ReturnType<typeof setInterval> | null = null;
 
   ngOnDestroy(): void {
     const root = document.documentElement.style;
@@ -687,6 +704,9 @@ export class GymAdmin implements OnDestroy {
       root.removeProperty(property);
     }
     clearThemeOverrides();
+    if (this.tvScreensPollTimer) {
+      clearInterval(this.tvScreensPollTimer);
+    }
   }
 
   protected setSection(section: Section): void {
