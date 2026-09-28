@@ -23,7 +23,12 @@ function sessionStore(): Storage {
 
 function isExpired(token: string): boolean {
   try {
-    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    // JWTs nunca traen el '=' de relleno de base64 — sin completarlo, atob() puede tirar
+    // InvalidCharacterError según el largo exacto del payload (varía con los datos de cada
+    // usuario), lo que acá se traducía en "sesión inválida" y un logout silencioso.
+    const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4);
+    const payload = JSON.parse(atob(padded));
     return typeof payload.exp === 'number' && payload.exp * 1000 <= Date.now();
   } catch {
     return true;
