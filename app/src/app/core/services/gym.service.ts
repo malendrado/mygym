@@ -31,7 +31,7 @@ import {
   UpdateGymPlanRequest,
 } from '../models/gym.model';
 import { Attendee, AttendeeSummary, Member } from '../models/member.model';
-import { TvScreen } from '../models/tv-screen.model';
+import { TvScreen, TvScreenClaimRequest } from '../models/tv-screen.model';
 
 @Injectable({ providedIn: 'root' })
 export class GymService {
@@ -267,10 +267,13 @@ export class GymService {
     return this.http.delete<void>(`${this.base}/${gymId}/photos/${photoId}`);
   }
 
-  // El super-admin solo lista y desvincula (soporte) — nunca empareja, eso requiere estar frente
-  // a la TV real. Mismo TvScreenService/tabla que ve el propio GYM_ADMIN en su panel.
+  // Mismo TvScreenService/tabla que ve el propio GYM_ADMIN en su panel — soporte in situ.
   listTvScreens(gymId: number): Observable<TvScreen[]> {
     return this.http.get<TvScreen[]>(`${this.base}/${gymId}/tv-screens`);
+  }
+
+  claimTvScreen(gymId: number, payload: TvScreenClaimRequest): Observable<TvScreen> {
+    return this.http.post<TvScreen>(`${this.base}/${gymId}/tv-screens`, payload);
   }
 
   removeTvScreen(gymId: number, screenId: number): Observable<void> {

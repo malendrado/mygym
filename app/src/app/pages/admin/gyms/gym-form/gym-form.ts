@@ -553,10 +553,15 @@ export class GymForm implements OnDestroy {
   protected readonly photoUploading = signal(false);
   protected readonly maxPhotos = MAX_PHOTOS;
 
-  // Soporte, no emparejamiento — el super-admin solo ve y desvincula (mismos datos que el propio
-  // GYM_ADMIN en su panel); vincular una TV nueva requiere estar frente a la pantalla real.
+  // Mismos datos/acciones que ve el propio GYM_ADMIN en su panel — soporte in situ.
   protected readonly tvScreens = signal<TvScreen[]>([]);
   protected readonly removingScreenId = signal<number | null>(null);
+  protected readonly claimingScreen = signal(false);
+  protected readonly tvScreenError = signal<string | null>(null);
+  protected readonly tvScreenForm = new FormGroup({
+    code: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.minLength(6)] }),
+    name: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.minLength(2)] }),
+  });
 
   protected readonly suggestStatus = signal<SuggestStatus>('idle');
   protected readonly brandingSuggestion = signal<BrandingSuggestion | null>(null);
@@ -1828,6 +1833,32 @@ export class GymForm implements OnDestroy {
     this.gymService.listTvScreens(id).subscribe({
       next: (screens) => this.tvScreens.set(screens),
       error: () => this.showToast('No pudimos cargar las pantallas de TV.', 'danger'),
+    });
+  }
+
+  protected submitTvScreen(): void {
+    const id = this.gymId();
+    if (id === null || this.tvScreenForm.invalid) {
+      return;
+    }
+    const raw = this.tvScreenForm.getRawValue();
+    this.tvScreenError.set(null);
+    this.claimingScreen.set(true);
+    this.gymService.claimTvScreen(id, { code: raw.code.trim().toUpperCase(), name: raw.name.trim() }).subscribe({
+      next: (screen) => {
+        this.claimingScreen.set(false);
+        this.tvScreens.update((list) => [...list, screen]);
+        this.tvScreenForm.reset({ code: '', name: '' });
+        this.showToast(`Pantalla "${screen.name}" vinculada.`);
+      },
+      error: (err) => {
+        this.claimingScreen.set(false);
+        this.tvScreenError.set(
+          err?.status === 404
+            ? 'Ese código no existe o ya venció — recarga la pantalla de la TV para que muestre uno nuevo.'
+            : 'No pudimos vincular la pantalla. Intenta nuevamente.',
+        );
+      },
     });
   }
 

@@ -1226,8 +1226,10 @@
       </ion-card-header>
       <ion-card-content>
         <p class="item-hint">
-          Soporte: acá solo puedes ver y desvincular. Para emparejar una TV nueva hay que estar
-          frente a ella e ingresar el código desde el panel del propio gimnasio.
+          Muestra el horario en vivo en una tele del gym: quién está en la clase actual, quién viene
+          en la siguiente y cuánto tiempo queda. En la TV, abre
+          <strong>mygym.cl/tv</strong>: va a aparecer un código de 6 caracteres. Ingrésalo acá
+          abajo junto con un nombre (ej. "TV Recepción") y queda vinculada.
         </p>
 
         <ion-list lines="full">
@@ -1254,6 +1256,26 @@
             </div>
           }
         </ion-list>
+
+        <form [formGroup]="tvScreenForm" (ngSubmit)="submitTvScreen()" class="ion-margin-top">
+          <ion-item>
+            <ion-input
+              label="Código de la TV *"
+              formControlName="code"
+              placeholder="Ej: A3K9QZ"
+              style="text-transform: uppercase"
+            />
+          </ion-item>
+          <ion-item lines="none">
+            <ion-input label="Nombre de la pantalla *" formControlName="name" placeholder="Ej: TV Recepción" />
+          </ion-item>
+          <ion-button type="submit" fill="outline" [disabled]="tvScreenForm.invalid || claimingScreen()" class="ion-margin-top">
+            {{ claimingScreen() ? 'Vinculando...' : 'Vincular pantalla' }}
+          </ion-button>
+          @if (tvScreenError(); as error) {
+            <ion-note color="danger">{{ error }}</ion-note>
+          }
+        </form>
       </ion-card-content>
     </ion-card>
     } @else if (section() === 'history') {

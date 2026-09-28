@@ -28,6 +28,7 @@ import com.cortesdev.mygym.models.dto.PlanCreateRequest;
 import com.cortesdev.mygym.models.dto.PlanResponse;
 import com.cortesdev.mygym.models.dto.PlanUpdateRequest;
 import com.cortesdev.mygym.models.dto.ThemeUpdateRequest;
+import com.cortesdev.mygym.models.dto.TvScreenClaimRequest;
 import com.cortesdev.mygym.models.dto.TvScreenResponse;
 import com.cortesdev.mygym.security.AuthenticatedUser;
 import com.cortesdev.mygym.services.BrandingSuggestionService;
@@ -279,10 +280,18 @@ public class GymController {
     }
 
     // Mismo TvScreenService que usa el propio GYM_ADMIN en TvAdminController — el super-admin
-    // solo lista y desvincula (soporte), nunca empareja: eso requiere estar frente a la TV real.
+    // también puede emparejar (soporte in situ: instalando/configurando la TV de un gimnasio sin
+    // pedirle al dueño que entre a su propio panel), ver TvAdminController.claimScreen.
     @GetMapping("/{id}/tv-screens")
     public List<TvScreenResponse> listTvScreens(@PathVariable Long id) {
         return tvScreenService.listScreens(id);
+    }
+
+    @PostMapping("/{id}/tv-screens")
+    public ResponseEntity<TvScreenResponse> claimTvScreen(
+            @PathVariable Long id, @Valid @RequestBody TvScreenClaimRequest request) {
+        TvScreenResponse screen = tvScreenService.claimPairingCode(id, request.code(), request.name());
+        return ResponseEntity.created(URI.create("/api/gyms/" + id + "/tv-screens/" + screen.id())).body(screen);
     }
 
     @DeleteMapping("/{id}/tv-screens/{screenId}")
