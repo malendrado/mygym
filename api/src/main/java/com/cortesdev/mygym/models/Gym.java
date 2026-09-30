@@ -1,6 +1,8 @@
 package com.cortesdev.mygym.models;
 
+import com.cortesdev.mygym.services.EncryptedStringConverter;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -80,6 +82,40 @@ public class Gym {
     private String bankHolderName;
 
     private String bankConfirmationEmail;
+
+    // Cuenta Pago Online (Flow.cl) propia de este gym — los pagos le llegan directo a su
+    // cuenta bancaria (bank_* de arriba, reusados tal cual como destino). Sin API
+    // key/secret key configuradas, "Pagar con Flow" queda oculto (ver
+    // PublicGymResponse.flowConfigured) y solo se ofrece transferencia bancaria.
+    private String flowCompanyRut;
+
+    private String flowCompanyName;
+
+    private String flowBusinessActivity;
+
+    private String flowCompanyAddress;
+
+    private String flowVatCondition;
+
+    private String flowLegalRepName;
+
+    private String flowLegalRepRut;
+
+    private String flowLegalRepPhone;
+
+    private String flowContactEmail;
+
+    private String flowContactName;
+
+    private String flowContactPhone;
+
+    @Convert(converter = EncryptedStringConverter.class)
+    @Column(columnDefinition = "text")
+    private String flowApiKey;
+
+    @Convert(converter = EncryptedStringConverter.class)
+    @Column(columnDefinition = "text")
+    private String flowSecretKey;
 
     private Instant createdAt;
 

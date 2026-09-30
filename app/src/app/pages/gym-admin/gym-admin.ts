@@ -18,6 +18,7 @@ import {
   IonItem,
   IonLabel,
   IonList,
+  IonListHeader,
   IonModal,
   IonNote,
   IonSegment,
@@ -89,6 +90,8 @@ import {
   CreateGymPhotoRequest,
   CreateGymPlanRequest,
   DayOfWeek,
+  FlowAccount,
+  FlowAccountDetailsUpdateRequest,
   GymBlock,
   GymPhoto,
   GymPlan,
@@ -103,6 +106,7 @@ import { PlanFormModal } from '../admin/gyms/plan-form-modal/plan-form-modal';
 import { MarkPaidModal } from '../admin/gyms/mark-paid-modal/mark-paid-modal';
 import { ImportMembersModal } from '../admin/gyms/import-members-modal/import-members-modal';
 import { registerClassCategoryIcons, resolveClassCategoryIcon } from '../../core/utils/class-category';
+import { formatRut, rutFormatValidator } from '../../core/utils/rut';
 
 registerClassCategoryIcons();
 import {
@@ -354,6 +358,7 @@ const THEMED_ROOT_PROPERTIES = [
     IonLabel,
     IonInput,
     IonList,
+    IonListHeader,
     IonBadge,
     IonChip,
     IonModal,
@@ -412,6 +417,10 @@ export class GymAdmin implements OnDestroy {
     const g = this.gym();
     return !!(g?.bankName && g.bankAccountType && g.bankAccountNumber && g.bankHolderRut && g.bankHolderName);
   });
+  protected readonly hasFlowAccountDetails = computed(() => {
+    const a = this.flowAccount();
+    return !!(a?.companyRut && a.companyName && a.legalRepName && a.legalRepRut && a.contactEmail);
+  });
   protected readonly setupChecklist = computed(() => [
     { key: 'plans', label: 'Crea al menos un plan de membresía', done: this.hasActivePlan(), section: 'plans' as Section },
     { key: 'schedule', label: 'Configura tus horarios de clases', done: this.hasSchedule(), section: 'blocks' as Section },
@@ -420,7 +429,13 @@ export class GymAdmin implements OnDestroy {
       key: 'bank',
       label: 'Carga tus datos bancarios (transferencia)',
       done: this.hasBankTransfer(),
-      section: 'branding' as Section,
+      section: 'general' as Section,
+    },
+    {
+      key: 'flow',
+      label: 'Completa los datos de tu cuenta Pago Online',
+      done: this.hasFlowAccountDetails(),
+      section: 'general' as Section,
     },
   ]);
   protected readonly setupPending = computed(() => this.setupChecklist().filter((item) => !item.done));
@@ -627,11 +642,30 @@ export class GymAdmin implements OnDestroy {
     bankNameOther: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(60)] }),
     accountType: new FormControl('', { nonNullable: true }),
     accountNumber: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(40)] }),
-    holderRut: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(20)] }),
+    holderRut: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(20), rutFormatValidator()] }),
     holderName: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(120)] }),
     confirmationEmail: new FormControl('', { nonNullable: true, validators: [Validators.email, Validators.maxLength(160)] }),
   });
   protected readonly bankTransferSaving = signal(false);
+
+  // Cuenta Pago Online (Flow.cl) — el dueño del gym completa empresa/representante
+  // legal/contacto; la API key/secret key las carga el super-admin aparte, una vez que
+  // estos datos ya estén completos (ver GymAdminController.updateMyFlowAccount).
+  protected readonly flowAccount = signal<FlowAccount | null>(null);
+  protected readonly flowAccountSaving = signal(false);
+  protected readonly flowAccountForm = new FormGroup({
+    companyRut: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(20), rutFormatValidator()] }),
+    companyName: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(160)] }),
+    businessActivity: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(160)] }),
+    companyAddress: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(200)] }),
+    vatCondition: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(80)] }),
+    legalRepName: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(120)] }),
+    legalRepRut: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(20), rutFormatValidator()] }),
+    legalRepPhone: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(30)] }),
+    contactEmail: new FormControl('', { nonNullable: true, validators: [Validators.email, Validators.maxLength(160)] }),
+    contactName: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(120)] }),
+    contactPhone: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(30)] }),
+  });
 
   protected readonly photos = signal<GymPhoto[]>([]);
   protected readonly photoUploading = signal(false);
@@ -1125,6 +1159,47 @@ export class GymAdmin implements OnDestroy {
     });
   }
 
+  // Formatea a "XX.XXX.XXX-D" al salir del campo — si lo que se escribió no es un RUT válido
+  // (dígito verificador incorrecto), lo deja tal cual para que el mensaje de error se lea
+  // junto al valor que el usuario realmente tipeó, no un formato a medio aplicar.
+  protected formatRutOnBlur(control: FormControl<string>): void {
+    control.setValue(formatRut(control.value));
+  }
+
+  protected saveFlowAccount(): void {
+    if (this.flowAccountForm.invalid) {
+      return;
+    }
+    const raw = this.flowAccountForm.getRawValue();
+    const payload: FlowAccountDetailsUpdateRequest = {
+      companyRut: raw.companyRut || null,
+      companyName: raw.companyName || null,
+      businessActivity: raw.businessActivity || null,
+      companyAddress: raw.companyAddress || null,
+      vatCondition: raw.vatCondition || null,
+      legalRepName: raw.legalRepName || null,
+      legalRepRut: raw.legalRepRut || null,
+      legalRepPhone: raw.legalRepPhone || null,
+      contactEmail: raw.contactEmail || null,
+      contactName: raw.contactName || null,
+      contactPhone: raw.contactPhone || null,
+    };
+    this.flowAccountSaving.set(true);
+    this.gymService.updateMyFlowAccount(payload).subscribe({
+      next: (account) => {
+        this.flowAccountSaving.set(false);
+        this.flowAccount.set(account);
+        this.showToast('Datos de la cuenta Pago Online actualizados.');
+      },
+      error: () => {
+        this.flowAccountSaving.set(false);
+        this.handleWriteError(() =>
+          this.showToast('No pudimos guardar la cuenta Pago Online. Intenta nuevamente.', 'danger'),
+        );
+      },
+    });
+  }
+
   protected async onLogoFileSelected(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0] ?? null;
@@ -1286,22 +1361,21 @@ export class GymAdmin implements OnDestroy {
       return;
     }
     this.seriesCreating.set(true);
-    let created = 0;
-    let failed = 0;
-    for (const draft of drafts) {
-      try {
-        await firstValueFrom(this.gymService.createMyBlock(draft));
-        created++;
-      } catch {
-        failed++;
-      }
+    // Un solo request con todos los bloques — antes era un POST secuencial por bloque (podían
+    // ser ~80-300 según la configuración elegida), cada uno esperando al anterior.
+    try {
+      const results = await firstValueFrom(this.gymService.createMyBlocksBatch(drafts));
+      const created = results.filter((r) => r.success).length;
+      const failed = results.length - created;
+      this.showToast(
+        failed === 0 ? `Se crearon ${created} bloques.` : `Se crearon ${created} bloques. ${failed} fallaron.`,
+        failed === 0 ? 'success' : 'danger',
+      );
+    } catch {
+      this.showToast('No pudimos crear los bloques. Intenta nuevamente.', 'danger');
     }
     this.seriesCreating.set(false);
     this.loadBlocks();
-    this.showToast(
-      failed === 0 ? `Se crearon ${created} bloques.` : `Se crearon ${created} bloques. ${failed} fallaron.`,
-      failed === 0 ? 'success' : 'danger',
-    );
   }
 
   protected saveBlock(payload: CreateGymBlockRequest | UpdateGymBlockRequest): void {
@@ -1458,6 +1532,7 @@ export class GymAdmin implements OnDestroy {
   // deshabilitar y mostrar spinner solo en ese botón mientras se espera la respuesta.
   protected readonly markingPaidId = signal<number | null>(null);
   protected readonly revokingPlanId = signal<number | null>(null);
+  protected readonly deletingMemberId = signal<number | null>(null);
 
   // Registro manual para dinero que no pasó por Flow.cl (efectivo/transferencia) — el admin
   // elige el plan que el socio pagó y queda persistido de verdad (GymService.simulatePlanPayment).
@@ -1519,6 +1594,31 @@ export class GymAdmin implements OnDestroy {
       error: () => {
         this.revokingPlanId.set(null);
         this.handleWriteError(() => this.showToast('No pudimos quitar el plan. Intenta nuevamente.', 'danger'));
+      },
+    });
+  }
+
+  // Contraparte de gym-form.ts (SUPER_ADMIN) — pedido explícito del usuario para que el propio
+  // dueño del gimnasio también pueda borrar un socio, no solo alguien de mygym.
+  protected async deleteMember(member: Member): Promise<void> {
+    const confirmed = await this.confirmAction(
+      'Eliminar socio permanentemente',
+      `¿Eliminar a ${member.name} (${member.email})? Esto borra TODO su registro: reservas, historial de clases y pagos. No se puede deshacer.`,
+      'Eliminar para siempre',
+    );
+    if (!confirmed) {
+      return;
+    }
+    this.deletingMemberId.set(member.id);
+    this.memberService.deleteMember(member.id).subscribe({
+      next: () => {
+        this.deletingMemberId.set(null);
+        this.members.update((list) => list.filter((m) => m.id !== member.id));
+        this.showToast(`${member.name} fue eliminado permanentemente.`);
+      },
+      error: () => {
+        this.deletingMemberId.set(null);
+        this.handleWriteError(() => this.showToast('No pudimos eliminar al socio. Intenta nuevamente.', 'danger'));
       },
     });
   }
@@ -1607,10 +1707,35 @@ export class GymAdmin implements OnDestroy {
           confirmationEmail: gym.bankConfirmationEmail ?? '',
         });
         this.gymLoaded.set(true);
+        this.loadFlowAccount();
       },
       error: () => {
         this.status.set('error');
         this.gymLoaded.set(true);
+      },
+    });
+  }
+
+  private loadFlowAccount(): void {
+    this.gymService.getMyFlowAccount().subscribe({
+      next: (account) => {
+        this.flowAccount.set(account);
+        this.flowAccountForm.patchValue({
+          companyRut: account.companyRut ?? '',
+          companyName: account.companyName ?? '',
+          businessActivity: account.businessActivity ?? '',
+          companyAddress: account.companyAddress ?? '',
+          vatCondition: account.vatCondition ?? '',
+          legalRepName: account.legalRepName ?? '',
+          legalRepRut: account.legalRepRut ?? '',
+          legalRepPhone: account.legalRepPhone ?? '',
+          contactEmail: account.contactEmail ?? '',
+          contactName: account.contactName ?? '',
+          contactPhone: account.contactPhone ?? '',
+        });
+      },
+      error: () => {
+        // Best-effort: si falla, la sección queda vacía pero el resto del panel sigue andando.
       },
     });
   }

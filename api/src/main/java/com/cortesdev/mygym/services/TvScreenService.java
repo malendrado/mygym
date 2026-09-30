@@ -8,6 +8,7 @@ import com.cortesdev.mygym.models.TvPairingCode;
 import com.cortesdev.mygym.models.TvScreen;
 import com.cortesdev.mygym.models.dto.GymPhotoResponse;
 import com.cortesdev.mygym.models.dto.MemberReservation;
+import com.cortesdev.mygym.models.dto.OccurrenceAttendees;
 import com.cortesdev.mygym.models.dto.TvAttendeeResponse;
 import com.cortesdev.mygym.models.dto.TvBlockOccurrenceResponse;
 import com.cortesdev.mygym.models.dto.TvCheckinCodeResponse;
@@ -189,6 +190,19 @@ public class TvScreenService {
                 .max(Comparator.comparing(GymBlock::getStartTime))
                 .orElse(null);
 
+        // Todo el roster de asistentes (current+next+later+previous) en UNA sola query batch —
+        // antes cada casillero llamaba reservationService.getOccurrenceAttendees() por separado
+        // (hasta ~10 queries de reservas + ~10 de socios por cada poll de la TV, cada 25s). Solo
+        // hay como mucho 2 fechas distintas en juego (hoy, y el día de "next" si cae más
+        // adelante), así que el rango [hoy, next.date()] cubre todos los casilleros.
+        LocalDate today = nowZoned.toLocalDate();
+        LocalDate rangeEnd = next == null || next.date().isBefore(today) ? today : next.date();
+        Map<OccKey, List<MemberReservation>> attendeesByOccurrence = reservationService
+                .getOccurrenceAttendeesForRange(gym.getId(), today, rangeEnd)
+                .stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        a -> new OccKey(a.gymBlockId(), a.classDate()), OccurrenceAttendees::attendees));
+
         return new TvScheduleResponse(
                 gym.getName(),
                 gym.getLogoSvg(),
@@ -197,16 +211,21 @@ public class TvScreenService {
                 gym.getTagline(),
                 photos,
                 Instant.now(),
-                currentBlocks.stream().map(b -> toOccurrence(gym.getId(), b, nowZoned.toLocalDate(), plansById)).toList(),
+                currentBlocks.stream().map(b -> toOccurrence(b, today, plansById, attendeesByOccurrence)).toList(),
                 next == null
                         ? List.of()
-                        : next.blocks().stream().map(b -> toOccurrence(gym.getId(), b, next.date(), plansById)).toList(),
+                        : next.blocks().stream().map(b -> toOccurrence(b, next.date(), plansById, attendeesByOccurrence)).toList(),
                 next == null ? null : next.date(),
-                previousBlock == null ? null : toOccurrence(gym.getId(), previousBlock, nowZoned.toLocalDate(), plansById),
+                previousBlock == null ? null : toOccurrence(previousBlock, today, plansById, attendeesByOccurrence),
                 next == null
                         ? List.of()
-                        : next.later().stream().map(b -> toOccurrence(gym.getId(), b, next.date(), plansById)).toList());
+                        : next.later().stream().map(b -> toOccurrence(b, next.date(), plansById, attendeesByOccurrence)).toList());
     }
+
+    /** Clave de lookup para el batch de asistentes de getSchedule — mismo criterio de
+     *  agrupamiento (gymBlockId, classDate) que ReservationService.OccurrenceGroupKey, pero
+     *  este no es accesible desde acá (privado a ese archivo), así que se replica acá. */
+    private record OccKey(Long gymBlockId, LocalDate classDate) {}
 
     private boolean isActive(TvScreen screen) {
         Instant reference = screen.getLastPolledAt() != null ? screen.getLastPolledAt() : screen.getCreatedAt();
@@ -244,8 +263,10 @@ public class TvScreenService {
         return null;
     }
 
-    private TvBlockOccurrenceResponse toOccurrence(Long gymId, GymBlock block, LocalDate classDate, Map<Long, GymPlan> plansById) {
-        List<TvAttendeeResponse> attendees = reservationService.getOccurrenceAttendees(gymId, block.getId(), classDate)
+    private TvBlockOccurrenceResponse toOccurrence(
+            GymBlock block, LocalDate classDate, Map<Long, GymPlan> plansById, Map<OccKey, List<MemberReservation>> attendeesByOccurrence) {
+        List<TvAttendeeResponse> attendees = attendeesByOccurrence
+                .getOrDefault(new OccKey(block.getId(), classDate), List.of())
                 .stream()
                 .map(mr -> toSummary(mr, plansById))
                 .toList();

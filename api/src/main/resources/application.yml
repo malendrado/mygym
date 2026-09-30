@@ -41,8 +41,9 @@ app:
     api-key: ${RESEND_API_KEY:}
     from: ${RESEND_FROM:mygym <onboarding@resend.dev>}
   flow:
-    api-key: ${FLOW_API_KEY:}
-    secret-key: ${FLOW_SECRET_KEY:}
+    # api-key/secret-key YA NO son globales — cada gym tiene la suya propia (Gym.flowApiKey/
+    # flowSecretKey, cifradas, cargadas por el super-admin en "Cuenta Pago Online"). Acá solo
+    # queda infraestructura compartida (misma base URL / URLs de retorno para todos los gyms).
     # Sandbox por default a propósito — nunca apuntar a producción sin que
     # el usuario cambie esta env var a mano, ver plan de integración.
     base-url: ${FLOW_BASE_URL:https://sandbox.flow.cl/api}

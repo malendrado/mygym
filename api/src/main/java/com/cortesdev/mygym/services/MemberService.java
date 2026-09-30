@@ -3,6 +3,7 @@ package com.cortesdev.mygym.services;
 import com.cortesdev.mygym.models.AppUser;
 import com.cortesdev.mygym.models.Gym;
 import com.cortesdev.mygym.models.GymPlan;
+import com.cortesdev.mygym.models.Reservation;
 import com.cortesdev.mygym.models.ReservationStatus;
 import com.cortesdev.mygym.models.Role;
 import com.cortesdev.mygym.models.dto.MemberCreateRequest;
@@ -18,12 +19,14 @@ import com.cortesdev.mygym.services.exception.GymNotFoundException;
 import com.cortesdev.mygym.services.exception.MemberNotFoundException;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -117,9 +120,7 @@ public class MemberService {
 
     @Transactional(readOnly = true)
     public List<MemberResponse> listMembers(Long gymId) {
-        return appUserRepository.findByGymIdAndRole(gymId, Role.MEMBER).stream()
-                .map(this::toResponse)
-                .toList();
+        return toResponses(appUserRepository.findByGymIdAndRole(gymId, Role.MEMBER));
     }
 
     // Borrado permanente — a diferencia de revokePlan (solo le saca el plan), esto elimina
@@ -193,44 +194,91 @@ public class MemberService {
     }
 
     private MemberResponse toResponse(AppUser user) {
-        String planName = null;
-        Instant planEndDate = null;
-        Integer monthlyClasses = null;
-        Integer sessionsRemaining = null;
-        Long planId = user.getPlanId();
-        Instant paidAt = user.getPaidAt();
-        if (planId != null && paidAt != null) {
-            ZonedDateTime periodStart = paidAt.atZone(GYM_ZONE);
-            ZonedDateTime periodEnd = periodStart.plusMonths(1);
-            planEndDate = periodEnd.toInstant();
-            GymPlan plan = gymPlanRepository.findById(planId).orElse(null);
-            if (plan != null) {
-                planName = plan.getName();
-                monthlyClasses = plan.getMonthlyClasses();
-                if (monthlyClasses != null) {
-                    int used = reservationRepository.countByMemberIdAndStatusAndClassDateBetween(
-                            user.getId(), ReservationStatus.BOOKED, periodStart.toLocalDate(), periodEnd.toLocalDate());
-                    int usedAtImport = user.getUsedSessionsAtImport() != null ? user.getUsedSessionsAtImport() : 0;
-                    sessionsRemaining = Math.max(0, monthlyClasses - used - usedAtImport);
-                }
+        return toResponses(List.of(user)).get(0);
+    }
+
+    /** Arma la respuesta de una lista de socios SIN N+1 — antes esto era toResponse() llamado
+     *  una vez por socio, y cada llamada disparaba su propio gymPlanRepository.findById() +
+     *  su propio reservationRepository.count(). Con un gym de varios cientos de socios eso eran
+     *  cientos de queries extra en una sola carga de la pestaña Socios (reportado por el
+     *  usuario como lentitud de carga, mismo patrón que ya se arregló en GymSummaryResponse/
+     *  AnalyticsService). Ahora: 1 query batch de planes + 1 query batch de reservas, el resto
+     *  se resuelve en memoria. Un solo socio (createMember/getOwnMembership) pasa por acá
+     *  también, como lista de 1 — el costo extra de armar los maps es despreciable. */
+    private List<MemberResponse> toResponses(List<AppUser> users) {
+        List<Long> planIds = users.stream().map(AppUser::getPlanId).filter(Objects::nonNull).distinct().toList();
+        Map<Long, GymPlan> plansById = planIds.isEmpty()
+                ? Map.of()
+                : gymPlanRepository.findAllById(planIds).stream().collect(Collectors.toMap(GymPlan::getId, p -> p));
+
+        record Period(Long memberId, LocalDate start, LocalDate end) {}
+        List<Period> periods = new ArrayList<>();
+        for (AppUser user : users) {
+            GymPlan plan = user.getPlanId() != null ? plansById.get(user.getPlanId()) : null;
+            if (plan != null && plan.getMonthlyClasses() != null && user.getPaidAt() != null) {
+                ZonedDateTime start = user.getPaidAt().atZone(GYM_ZONE);
+                periods.add(new Period(user.getId(), start.toLocalDate(), start.plusMonths(1).toLocalDate()));
             }
         }
-        return new MemberResponse(
-                user.getId(),
-                user.getName(),
-                user.getEmail(),
-                user.getRole(),
-                user.getGymId(),
-                user.isActive(),
-                user.getCreatedAt(),
-                user.getPlanId(),
-                user.getPaidAt(),
-                membershipStatus(user),
-                planName,
-                planEndDate,
-                monthlyClasses,
-                sessionsRemaining,
-                user.getPhotoUrl(),
-                inviteStatus(user));
+
+        Map<Long, Long> usedByMember = Map.of();
+        if (!periods.isEmpty()) {
+            LocalDate minStart = periods.stream().map(Period::start).min(LocalDate::compareTo).orElseThrow();
+            LocalDate maxEnd = periods.stream().map(Period::end).max(LocalDate::compareTo).orElseThrow();
+            List<Long> memberIds = periods.stream().map(Period::memberId).toList();
+            Map<Long, List<Reservation>> reservationsByMember = reservationRepository
+                    .findByMemberIdInAndStatusAndClassDateBetween(memberIds, ReservationStatus.BOOKED, minStart, maxEnd)
+                    .stream()
+                    .collect(Collectors.groupingBy(Reservation::getMemberId));
+            usedByMember = periods.stream()
+                    .collect(Collectors.toMap(
+                            Period::memberId,
+                            p -> reservationsByMember.getOrDefault(p.memberId(), List.of()).stream()
+                                    .filter(r -> !r.getClassDate().isBefore(p.start()) && r.getClassDate().isBefore(p.end()))
+                                    .count()));
+        }
+
+        List<MemberResponse> responses = new ArrayList<>();
+        for (AppUser user : users) {
+            String planName = null;
+            Instant planEndDate = null;
+            Integer monthlyClasses = null;
+            Integer sessionsRemaining = null;
+            Long planId = user.getPlanId();
+            Instant paidAt = user.getPaidAt();
+            if (planId != null && paidAt != null) {
+                ZonedDateTime periodStart = paidAt.atZone(GYM_ZONE);
+                ZonedDateTime periodEnd = periodStart.plusMonths(1);
+                planEndDate = periodEnd.toInstant();
+                GymPlan plan = plansById.get(planId);
+                if (plan != null) {
+                    planName = plan.getName();
+                    monthlyClasses = plan.getMonthlyClasses();
+                    if (monthlyClasses != null) {
+                        long used = usedByMember.getOrDefault(user.getId(), 0L);
+                        int usedAtImport = user.getUsedSessionsAtImport() != null ? user.getUsedSessionsAtImport() : 0;
+                        sessionsRemaining = (int) Math.max(0, monthlyClasses - used - usedAtImport);
+                    }
+                }
+            }
+            responses.add(new MemberResponse(
+                    user.getId(),
+                    user.getName(),
+                    user.getEmail(),
+                    user.getRole(),
+                    user.getGymId(),
+                    user.isActive(),
+                    user.getCreatedAt(),
+                    user.getPlanId(),
+                    user.getPaidAt(),
+                    membershipStatus(user),
+                    planName,
+                    planEndDate,
+                    monthlyClasses,
+                    sessionsRemaining,
+                    user.getPhotoUrl(),
+                    inviteStatus(user)));
+        }
+        return responses;
     }
 }

@@ -13,4 +13,7 @@ public record PublicGymResponse(
         String description,
         String instagramUrl,
         String whatsappNumber,
-        int cancellationWindowHours) {}
+        int cancellationWindowHours,
+        /** true si el gym tiene su propia cuenta Flow configurada — si es false, el
+         *  frontend oculta "Pagar con Flow" y solo ofrece transferencia bancaria. */
+        boolean flowConfigured) {}

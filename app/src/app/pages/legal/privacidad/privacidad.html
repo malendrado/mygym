@@ -16,8 +16,11 @@
     <section class="legal-page__section">
       <h2>2. Qué información recopilamos</h2>
       <p>
-        <strong>De los administradores de gimnasio:</strong> nombre, correo electrónico, y los datos bancarios necesarios
-        para transferirte el dinero de tus socios (banco, tipo y número de cuenta, RUT y nombre del titular).
+        <strong>De los administradores de gimnasio:</strong> nombre, correo electrónico, y los datos de tu propia cuenta
+        de pago online (Flow.cl) — RUT y razón social de tu empresa, giro, dirección comercial, condición frente al IVA,
+        datos de tu representante legal, datos de contacto, y tus datos bancarios (banco, tipo y número de cuenta, RUT y
+        nombre del titular). La API key y secret key de tu cuenta Flow se guardan cifradas en nuestra base de datos, nunca
+        en texto plano.
       </p>
       <p>
         <strong>De los socios:</strong> nombre, correo electrónico y, si inician sesión con Google, su foto de perfil.
@@ -40,7 +43,9 @@
     <section class="legal-page__section">
       <h2>4. Con quién compartimos información</h2>
       <ul>
-        <li><strong>Flow.cl:</strong> procesa los pagos de los socios. mygym no almacena datos de tarjetas — esa información la maneja Flow directamente.</li>
+        <li><strong>Flow.cl:</strong> procesa los pagos de los socios directamente en la cuenta de Flow propia de cada
+        gimnasio. mygym no almacena datos de tarjetas — esa información la maneja Flow directamente — ni recibe ni
+        retiene en ningún momento el dinero de esos pagos.</li>
         <li><strong>Resend:</strong> proveedor que usamos para enviar los correos transaccionales de la plataforma (confirmaciones, invitaciones, avisos).</li>
       </ul>
       <p>No compartimos datos con nadie más, salvo que la ley nos obligue a hacerlo.</p>
@@ -50,9 +55,10 @@
       <h2>5. Cómo se paga y se liquida el dinero</h2>
       <p>
         Los socios pagan sus planes de membresía en línea a través de Flow.cl, mes a mes y de forma manual — mygym no
-        guarda tarjetas ni realiza cobros automáticos recurrentes. Cuando Flow consolida (liquida) los pagos recibidos,
-        mygym transfiere el mismo día el monto correspondiente al administrador del gimnasio, a la cuenta bancaria que
-        este haya registrado.
+        guarda tarjetas ni realiza cobros automáticos recurrentes. Cada gimnasio cuenta con su propia cuenta de Flow,
+        creada por su administrador con el equipo de mygym: los pagos de sus socios llegan directo a esa cuenta y de
+        ahí a la cuenta bancaria que el administrador registró. mygym no recibe ni retiene ese dinero en ningún
+        momento, ni actúa como intermediario del flujo de fondos entre el socio y el gimnasio.
       </p>
       <p>
         Los reembolsos a los socios son responsabilidad exclusiva del administrador de cada gimnasio — mygym no
@@ -89,8 +95,9 @@
       <h2>8. Seguridad</h2>
       <p>
         Aplicamos medidas técnicas razonables para proteger la información que manejamos (comunicaciones cifradas,
-        acceso restringido a los sistemas). Ningún sistema es 100% infalible, pero tratamos los datos de tus socios
-        con el mismo cuidado que le pedimos al resto de la industria.
+        acceso restringido a los sistemas). La API key y secret key de la cuenta Flow de cada gimnasio se guardan
+        cifradas en nuestra base de datos, no en texto plano. Ningún sistema es 100% infalible, pero tratamos los
+        datos de tus socios con el mismo cuidado que le pedimos al resto de la industria.
       </p>
     </section>
 

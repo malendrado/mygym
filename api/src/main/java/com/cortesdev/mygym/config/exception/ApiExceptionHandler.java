@@ -12,6 +12,7 @@ import com.cortesdev.mygym.services.exception.GymDisconnectionEmailFailedExcepti
 import com.cortesdev.mygym.services.exception.GymNameMismatchException;
 import com.cortesdev.mygym.services.exception.DuplicateOwnerEmailException;
 import com.cortesdev.mygym.services.exception.DuplicateSlugException;
+import com.cortesdev.mygym.services.exception.FlowNotConfiguredException;
 import com.cortesdev.mygym.services.exception.ForbiddenGymAccessException;
 import com.cortesdev.mygym.services.exception.GymBlockNotFoundException;
 import com.cortesdev.mygym.services.exception.GymNotFoundException;
@@ -20,6 +21,7 @@ import com.cortesdev.mygym.services.exception.GymPlanNotFoundException;
 import com.cortesdev.mygym.services.exception.InvalidBlockScheduleException;
 import com.cortesdev.mygym.services.exception.InvalidGoogleTokenException;
 import com.cortesdev.mygym.services.exception.InvalidLogoException;
+import com.cortesdev.mygym.services.exception.InvalidRutException;
 import com.cortesdev.mygym.services.exception.InvalidThemeException;
 import com.cortesdev.mygym.services.exception.MemberNotFoundException;
 import com.cortesdev.mygym.services.exception.ReservationNotFoundException;
@@ -149,6 +151,14 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
     }
 
+    @ExceptionHandler(InvalidRutException.class)
+    public ResponseEntity<ProblemDetail> handleInvalidRut(InvalidRutException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+        problem.setTitle("RUT inválido");
+        problem.setProperty("timestamp", Instant.now());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
+    }
+
     @ExceptionHandler(MemberNotFoundException.class)
     public ResponseEntity<ProblemDetail> handleMemberNotFound(MemberNotFoundException ex) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
@@ -211,6 +221,14 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
         problem.setTitle("Membresía requerida");
         problem.setProperty("timestamp", Instant.now());
         return ResponseEntity.status(HttpStatus.PAYMENT_REQUIRED).body(problem);
+    }
+
+    @ExceptionHandler(FlowNotConfiguredException.class)
+    public ResponseEntity<ProblemDetail> handleFlowNotConfigured(FlowNotConfiguredException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+        problem.setTitle("Flow no configurado");
+        problem.setProperty("timestamp", Instant.now());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(problem);
     }
 
     @ExceptionHandler(UnauthorizedGoogleLoginException.class)

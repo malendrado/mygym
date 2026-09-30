@@ -28,6 +28,31 @@
       <a href="#precios">Precios</a>
     </div>
     <div class="nav__actions">
+      <div class="nav__help">
+        <a routerLink="/faq"><ion-icon name="help-circle-outline" aria-hidden="true"></ion-icon> FAQ</a>
+        <a routerLink="/privacidad"><ion-icon name="shield-checkmark-outline" aria-hidden="true"></ion-icon> Privacidad</a>
+      </div>
+      <div class="nav__help-wrap">
+        <button
+          type="button"
+          class="nav__help-toggle"
+          [attr.aria-expanded]="helpMenuOpen()"
+          aria-label="Más enlaces: FAQ y Privacidad"
+          (click)="toggleHelpMenu()"
+        >
+          <ion-icon name="ellipsis-horizontal-outline" aria-hidden="true"></ion-icon>
+        </button>
+        @if (helpMenuOpen()) {
+          <div class="nav__help-menu">
+            <a routerLink="/faq" (click)="closeHelpMenu()">
+              <ion-icon name="help-circle-outline" aria-hidden="true"></ion-icon> FAQ
+            </a>
+            <a routerLink="/privacidad" (click)="closeHelpMenu()">
+              <ion-icon name="shield-checkmark-outline" aria-hidden="true"></ion-icon> Privacidad
+            </a>
+          </div>
+        }
+      </div>
       <a class="nav__login" routerLink="/login"><ion-icon name="log-in-outline" aria-hidden="true"></ion-icon> Entrar</a>
       <button class="nav__cta" type="button" (click)="openContact()">Pedir demo</button>
     </div>
@@ -40,9 +65,15 @@
         Reservas, membresías y pagos en un solo lugar: arma tu horario, cobra automático y deja de perseguir a tus
         socios por WhatsApp.
       </p>
-      <button #heroCta class="button button--primary hero__cta" type="button" (click)="openContact()">
-        Pedir demo
-      </button>
+      <div class="hero__ctas">
+        <button #heroCta class="button button--primary hero__cta" type="button" (click)="openContact()">
+          Pedir demo
+        </button>
+        <a class="button button--ghost hero__brochure" href="/brochure">
+          Ver el brochure
+          <ion-icon name="arrow-forward-outline" aria-hidden="true"></ion-icon>
+        </a>
+      </div>
     </div>
     <div class="hero__asset">
       <img

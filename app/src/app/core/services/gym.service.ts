@@ -7,6 +7,7 @@ import {
   AnalyticsSummary,
   BankTransferInfo,
   BankTransferUpdateRequest,
+  BlockCreateResult,
   BlockOccurrenceAttendees,
   BrandingSuggestion,
   CheckoutResponse,
@@ -15,8 +16,12 @@ import {
   CreateGymPhotoRequest,
   CreateGymPlanRequest,
   CreateGymRequest,
+  FlowAccount,
+  FlowAccountDetailsUpdateRequest,
+  FlowAccountUpdateRequest,
   Gym,
   GymBlock,
+  GymSummary,
   GymConfigUpdateRequest,
   GymDeletionAudit,
   GymDisconnectRequest,
@@ -157,8 +162,8 @@ export class GymService {
     return this.http.post<CheckoutResponse>(`${this.meBase}/plans/${planId}/checkout`, {});
   }
 
-  list(): Observable<Gym[]> {
-    return this.http.get<Gym[]>(this.base);
+  list(): Observable<GymSummary[]> {
+    return this.http.get<GymSummary[]>(this.base);
   }
 
   get(id: number): Observable<Gym> {
@@ -190,6 +195,10 @@ export class GymService {
     return this.http.post<GymBlock>(`${this.base}/${gymId}/blocks`, payload);
   }
 
+  createBlocksBatch(gymId: number, blocks: CreateGymBlockRequest[]): Observable<BlockCreateResult[]> {
+    return this.http.post<BlockCreateResult[]>(`${this.base}/${gymId}/blocks/batch`, { blocks });
+  }
+
   updateBlock(gymId: number, blockId: number, payload: UpdateGymBlockRequest): Observable<GymBlock> {
     return this.http.put<GymBlock>(`${this.base}/${gymId}/blocks/${blockId}`, payload);
   }
@@ -208,6 +217,13 @@ export class GymService {
 
   updateAdminStatus(gymId: number, userId: number, active: boolean): Observable<Admin> {
     return this.http.put<Admin>(`${this.base}/${gymId}/admins/${userId}`, { active });
+  }
+
+  // Borrado real (no desactivar) — pedido explícito del usuario: "Quitar acceso" dejaba el
+  // email ocupado para siempre (existsByEmail en addAdmin), sin forma de reinvitar a esa
+  // persona. Mismo criterio que removeDemoAdmin de abajo, para un GYM_ADMIN real.
+  removeAdmin(gymId: number, userId: number): Observable<void> {
+    return this.http.delete<void>(`${this.base}/${gymId}/admins/${userId}`);
   }
 
   // Acceso de solo-lectura a la demo comercial (Role.DEMO_ADMIN) — activar/desactivar reusa
@@ -253,6 +269,14 @@ export class GymService {
 
   updateBankTransfer(gymId: number, payload: BankTransferUpdateRequest): Observable<Gym> {
     return this.http.put<Gym>(`${this.base}/${gymId}/bank-transfer`, payload);
+  }
+
+  getFlowAccount(gymId: number): Observable<FlowAccount> {
+    return this.http.get<FlowAccount>(`${this.base}/${gymId}/flow-account`);
+  }
+
+  updateFlowAccount(gymId: number, payload: FlowAccountUpdateRequest): Observable<FlowAccount> {
+    return this.http.put<FlowAccount>(`${this.base}/${gymId}/flow-account`, payload);
   }
 
   listPhotos(gymId: number): Observable<GymPhoto[]> {
@@ -302,6 +326,10 @@ export class GymService {
     return this.http.post<GymBlock>(`${this.myGymBase}/blocks`, payload);
   }
 
+  createMyBlocksBatch(blocks: CreateGymBlockRequest[]): Observable<BlockCreateResult[]> {
+    return this.http.post<BlockCreateResult[]>(`${this.myGymBase}/blocks/batch`, { blocks });
+  }
+
   updateMyBlock(blockId: number, payload: UpdateGymBlockRequest): Observable<GymBlock> {
     return this.http.put<GymBlock>(`${this.myGymBase}/blocks/${blockId}`, payload);
   }
@@ -340,6 +368,14 @@ export class GymService {
 
   updateMyBankTransfer(payload: BankTransferUpdateRequest): Observable<Gym> {
     return this.http.put<Gym>(`${this.myGymBase}/bank-transfer`, payload);
+  }
+
+  getMyFlowAccount(): Observable<FlowAccount> {
+    return this.http.get<FlowAccount>(`${this.myGymBase}/flow-account`);
+  }
+
+  updateMyFlowAccount(payload: FlowAccountDetailsUpdateRequest): Observable<FlowAccount> {
+    return this.http.put<FlowAccount>(`${this.myGymBase}/flow-account`, payload);
   }
 
   listMyPhotos(): Observable<GymPhoto[]> {

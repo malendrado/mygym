@@ -9,6 +9,7 @@ import com.cortesdev.mygym.repositories.AppUserRepository;
 import com.cortesdev.mygym.repositories.GymPlanRepository;
 import com.cortesdev.mygym.repositories.GymRepository;
 import com.cortesdev.mygym.repositories.PaymentRepository;
+import com.cortesdev.mygym.services.exception.FlowNotConfiguredException;
 import com.cortesdev.mygym.services.exception.GymNotFoundException;
 import com.cortesdev.mygym.services.exception.GymPlanNotFoundException;
 import com.cortesdev.mygym.services.exception.MemberNotFoundException;
@@ -84,6 +85,9 @@ public class FlowPaymentService {
      *  MACH, Khipu, etc. — Flow decide qué ofrecerle, no elegimos un medio nosotros). */
     public String startCheckout(Long gymId, Long memberId, Long planId) {
         Gym gym = gymRepository.findById(gymId).orElseThrow(() -> new GymNotFoundException(gymId));
+        if (isBlank(gym.getFlowApiKey()) || isBlank(gym.getFlowSecretKey())) {
+            throw new FlowNotConfiguredException(gymId);
+        }
         GymPlan plan = gymPlanRepository
                 .findByIdAndGymId(planId, gymId)
                 .orElseThrow(() -> new GymPlanNotFoundException(gymId, planId));
@@ -113,7 +117,8 @@ public class FlowPaymentService {
         params.put("urlConfirmation", webhookUrl);
         params.put("urlReturn", returnUrl);
 
-        Map<String, Object> response = flowApiClient.post("/payment/create", params);
+        Map<String, Object> response =
+                flowApiClient.post("/payment/create", params, gym.getFlowApiKey(), gym.getFlowSecretKey());
         String url = stringOf(response.get("url"));
         String token = stringOf(response.get("token"));
         String flowOrder = stringOf(response.get("flowOrder"));
@@ -140,9 +145,24 @@ public class FlowPaymentService {
             return; // idempotencia — Flow puede reintentar el mismo webhook más de una vez.
         }
 
+        AppUser member = appUserRepository.findById(payment.getMemberId()).orElse(null);
+        if (member == null) {
+            log.error("Webhook de Flow para el pago {} pero no se encontró el socio local", payment.getId());
+            return;
+        }
+        Gym gym = gymRepository.findById(member.getGymId()).orElse(null);
+        if (gym == null || isBlank(gym.getFlowApiKey()) || isBlank(gym.getFlowSecretKey())) {
+            log.error(
+                    "No se pudo confirmar el pago {}: el gimnasio {} no tiene cuenta Flow configurada",
+                    payment.getId(),
+                    member.getGymId());
+            return;
+        }
+
         Map<String, Object> status;
         try {
-            status = flowApiClient.get("/payment/getStatus", Map.of("token", token));
+            status = flowApiClient.get(
+                    "/payment/getStatus", Map.of("token", token), gym.getFlowApiKey(), gym.getFlowSecretKey());
         } catch (RestClientException e) {
             log.error("No se pudo confirmar con Flow el pago {}: {}", payment.getId(), e.getMessage());
             return;
@@ -160,10 +180,9 @@ public class FlowPaymentService {
             return;
         }
 
-        AppUser member = appUserRepository.findById(payment.getMemberId()).orElse(null);
         GymPlan plan = payment.getPlanId() != null ? gymPlanRepository.findById(payment.getPlanId()).orElse(null) : null;
-        if (member == null || plan == null) {
-            log.error("Pago {} confirmado por Flow pero no se encontró el socio/plan local", payment.getId());
+        if (plan == null) {
+            log.error("Pago {} confirmado por Flow pero no se encontró el plan local", payment.getId());
             return;
         }
 
@@ -174,14 +193,15 @@ public class FlowPaymentService {
         member.setUsedSessionsAtImport(null);
         appUserRepository.save(member);
 
-        Gym gym = gymRepository.findById(member.getGymId()).orElse(null);
-        if (gym != null) {
-            List<String> adminEmails = appUserRepository.findByGymIdAndRole(gym.getId(), Role.GYM_ADMIN).stream()
-                    .map(AppUser::getEmail)
-                    .toList();
-            memberLifecycleEmailService.sendPaymentConfirmedMember(gym, member, plan);
-            memberLifecycleEmailService.sendPaymentConfirmedAdmin(gym, member, plan, adminEmails);
-        }
+        List<String> adminEmails = appUserRepository.findByGymIdAndRole(gym.getId(), Role.GYM_ADMIN).stream()
+                .map(AppUser::getEmail)
+                .toList();
+        memberLifecycleEmailService.sendPaymentConfirmedMember(gym, member, plan);
+        memberLifecycleEmailService.sendPaymentConfirmedAdmin(gym, member, plan, adminEmails);
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 
     private static String stringOf(Object value) {

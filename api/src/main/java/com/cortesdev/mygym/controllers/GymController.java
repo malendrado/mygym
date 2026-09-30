@@ -5,7 +5,11 @@ import com.cortesdev.mygym.models.dto.AdminResponse;
 import com.cortesdev.mygym.models.dto.AdminStatusUpdateRequest;
 import com.cortesdev.mygym.models.dto.AttendeeResponse;
 import com.cortesdev.mygym.models.dto.BankTransferUpdateRequest;
+import com.cortesdev.mygym.models.dto.BlockBatchCreateRequest;
 import com.cortesdev.mygym.models.dto.BlockCreateRequest;
+import com.cortesdev.mygym.models.dto.BlockCreateResult;
+import com.cortesdev.mygym.models.dto.FlowAccountResponse;
+import com.cortesdev.mygym.models.dto.FlowAccountUpdateRequest;
 import com.cortesdev.mygym.models.dto.BlockOccurrenceAttendeesResponse;
 import com.cortesdev.mygym.models.dto.BlockResponse;
 import com.cortesdev.mygym.models.dto.BlockUpdateRequest;
@@ -19,6 +23,7 @@ import com.cortesdev.mygym.models.dto.GymIdentityUpdateRequest;
 import com.cortesdev.mygym.models.dto.GymPhotoCreateRequest;
 import com.cortesdev.mygym.models.dto.GymPhotoResponse;
 import com.cortesdev.mygym.models.dto.GymResponse;
+import com.cortesdev.mygym.models.dto.GymSummaryResponse;
 import com.cortesdev.mygym.models.dto.MarkPaidRequest;
 import com.cortesdev.mygym.models.dto.MemberCreateRequest;
 import com.cortesdev.mygym.models.dto.MemberReservation;
@@ -80,7 +85,7 @@ public class GymController {
     }
 
     @GetMapping
-    public List<GymResponse> listGyms(@RequestParam(required = false) Boolean active) {
+    public List<GymSummaryResponse> listGyms(@RequestParam(required = false) Boolean active) {
         return gymService.listGyms(active);
     }
 
@@ -106,6 +111,12 @@ public class GymController {
         BlockResponse block = gymService.addBlock(id, request);
         return ResponseEntity.created(URI.create("/api/gyms/" + id + "/blocks/" + block.id()))
                 .body(block);
+    }
+
+    @PostMapping("/{id}/blocks/batch")
+    public List<BlockCreateResult> addBlocksBatch(
+            @PathVariable Long id, @Valid @RequestBody BlockBatchCreateRequest request) {
+        return gymService.addBlocks(id, request.blocks());
     }
 
     @GetMapping("/{id}/blocks")
@@ -192,6 +203,14 @@ public class GymController {
         return gymService.updateAdminStatus(id, userId, request);
     }
 
+    /** Borrado real de un GYM_ADMIN (a diferencia de updateAdminStatus, que solo desactiva) —
+     *  libera su email para poder invitarlo de nuevo más adelante. Ver GymService.removeAdmin. */
+    @DeleteMapping("/{id}/admins/{userId}")
+    public ResponseEntity<Void> removeAdmin(@PathVariable Long id, @PathVariable Long userId) {
+        gymService.removeAdmin(id, userId);
+        return ResponseEntity.noContent().build();
+    }
+
     // Acceso de solo-lectura a la demo comercial (Role.DEMO_ADMIN) — desactivar/reactivar
     // reusa el mismo PUT .../admins/{userId} de arriba, ver GymService.findAdminOrThrow.
     @GetMapping("/{id}/demo-admins")
@@ -254,6 +273,17 @@ public class GymController {
             @PathVariable Long id, @Valid @RequestBody BankTransferUpdateRequest request) {
         gymService.updateBankTransfer(id, request);
         return gymService.getGym(id);
+    }
+
+    @GetMapping("/{id}/flow-account")
+    public FlowAccountResponse getFlowAccount(@PathVariable Long id) {
+        return gymService.getFlowAccount(id);
+    }
+
+    @PutMapping("/{id}/flow-account")
+    public FlowAccountResponse updateFlowAccount(
+            @PathVariable Long id, @Valid @RequestBody FlowAccountUpdateRequest request) {
+        return gymService.updateFlowAccount(id, request);
     }
 
     @GetMapping("/{id}/photos")

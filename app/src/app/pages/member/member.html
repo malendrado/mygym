@@ -104,19 +104,21 @@
             <h2>¿Cómo quieres pagar?</h2>
             <p class="item-hint">{{ choicePlan.name }} — ${{ formatClp(choicePlan.priceClp) }} / mes</p>
 
-            <article class="payment-option">
-              <h3>Pagar con Flow</h3>
-              <p class="payment-option__row">
-                <span>Plan</span><span>${{ formatClp(choicePlan.priceClp) }}</span>
-              </p>
-              <p class="payment-option__row">
-                <span>Comisión pasarela (2,89% + IVA)</span><span>${{ formatClp(commissionFor(choicePlan)) }}</span>
-              </p>
-              <p class="payment-option__row payment-option__row--total">
-                <span>Total</span><span>${{ formatClp(totalWithCommission(choicePlan)) }}</span>
-              </p>
-              <ion-button expand="block" (click)="payWithFlow(choicePlan)">Pagar con Flow</ion-button>
-            </article>
+            @if (gym()?.flowConfigured) {
+              <article class="payment-option">
+                <h3>Pagar con Flow</h3>
+                <p class="payment-option__row">
+                  <span>Plan</span><span>${{ formatClp(choicePlan.priceClp) }}</span>
+                </p>
+                <p class="payment-option__row">
+                  <span>Comisión pasarela (2,89% + IVA)</span><span>${{ formatClp(commissionFor(choicePlan)) }}</span>
+                </p>
+                <p class="payment-option__row payment-option__row--total">
+                  <span>Total</span><span>${{ formatClp(totalWithCommission(choicePlan)) }}</span>
+                </p>
+                <ion-button expand="block" (click)="payWithFlow(choicePlan)">Pagar con Flow</ion-button>
+              </article>
+            }
 
             @if (bankTransferConfigured()) {
               <article class="payment-option">

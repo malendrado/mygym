@@ -209,6 +209,192 @@
         </ul>
       </div>
     }
+
+    <ion-card>
+      <ion-card-header>
+        <ion-card-title>Cuenta Pago Online</ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <p class="item-hint">
+          Completa estos datos para que mygym pueda armar tu propia cuenta de Flow — así tus socios te pagan directo
+          a ti, no a una cuenta compartida. La cuenta bancaria de destino es la que cargues abajo, en "Transferencia
+          bancaria".
+        </p>
+        @if (!flowAccount()?.configured) {
+          <ion-text color="warning">
+            <p class="item-hint">
+              Una vez que completes estos datos, el equipo de mygym activa el cobro con Flow en tu cuenta. Mientras
+              tanto, tus socios pueden pagar por transferencia bancaria.
+            </p>
+          </ion-text>
+        }
+        <form [formGroup]="flowAccountForm" (ngSubmit)="saveFlowAccount()">
+          <ion-list-header>
+            <ion-label>Empresa</ion-label>
+          </ion-list-header>
+          <ion-item>
+            <ion-input label-placement="stacked"
+              label="RUT de la empresa"
+              formControlName="companyRut"
+              placeholder="Ej: 76.123.456-7"
+              (ionBlur)="formatRutOnBlur(flowAccountForm.controls.companyRut)"
+            />
+          </ion-item>
+          @if (
+            flowAccountForm.controls.companyRut.invalid &&
+            (flowAccountForm.controls.companyRut.dirty || flowAccountForm.controls.companyRut.touched)
+          ) {
+            <ion-note color="danger">RUT inválido — revisa el número y el dígito verificador.</ion-note>
+          }
+          <ion-item>
+            <ion-input label-placement="stacked" label="Razón social" formControlName="companyName" placeholder="Nombre legal de tu empresa" />
+          </ion-item>
+          <ion-item>
+            <ion-input label-placement="stacked" label="Giro comercial" formControlName="businessActivity" placeholder="Ej: Servicios de gimnasio" />
+          </ion-item>
+          <ion-item>
+            <ion-input label-placement="stacked" label="Dirección comercial" formControlName="companyAddress" placeholder="Calle, número, comuna" />
+          </ion-item>
+          <ion-item>
+            <ion-input label-placement="stacked"
+              label="Condición frente al IVA"
+              formControlName="vatCondition"
+              placeholder="Ej: Primera categoría, Exento"
+            />
+          </ion-item>
+
+          <ion-list-header>
+            <ion-label>Representante legal</ion-label>
+          </ion-list-header>
+          <ion-item>
+            <ion-input label-placement="stacked" label="Nombre completo" formControlName="legalRepName" placeholder="Nombre del representante" />
+          </ion-item>
+          <ion-item>
+            <ion-input label-placement="stacked"
+              label="RUT"
+              formControlName="legalRepRut"
+              placeholder="Ej: 12.345.678-9"
+              (ionBlur)="formatRutOnBlur(flowAccountForm.controls.legalRepRut)"
+            />
+          </ion-item>
+          @if (
+            flowAccountForm.controls.legalRepRut.invalid &&
+            (flowAccountForm.controls.legalRepRut.dirty || flowAccountForm.controls.legalRepRut.touched)
+          ) {
+            <ion-note color="danger">RUT inválido — revisa el número y el dígito verificador.</ion-note>
+          }
+          <ion-item>
+            <ion-input label-placement="stacked" label="Teléfono" formControlName="legalRepPhone" placeholder="+56912345678" />
+          </ion-item>
+
+          <ion-list-header>
+            <ion-label>Contacto</ion-label>
+          </ion-list-header>
+          <ion-item>
+            <ion-input label-placement="stacked" label="Nombre de contacto" formControlName="contactName" placeholder="Nombre del contacto" />
+          </ion-item>
+          <ion-item>
+            <ion-input label-placement="stacked"
+              label="Email de contacto"
+              type="email"
+              formControlName="contactEmail"
+              placeholder="pagos@tugym.cl"
+            />
+          </ion-item>
+          @if (
+            flowAccountForm.controls.contactEmail.invalid &&
+            (flowAccountForm.controls.contactEmail.dirty || flowAccountForm.controls.contactEmail.touched)
+          ) {
+            <ion-note color="danger">Ingresa un email válido.</ion-note>
+          }
+          <ion-item>
+            <ion-input label-placement="stacked" label="Teléfono de contacto" formControlName="contactPhone" placeholder="+56912345678" />
+          </ion-item>
+
+          <ion-button
+            type="submit"
+            [disabled]="flowAccountForm.invalid || flowAccountSaving()"
+            class="ion-margin-top"
+          >
+            {{ flowAccountSaving() ? 'Guardando...' : 'Guardar cuenta Pago Online' }}
+          </ion-button>
+        </form>
+      </ion-card-content>
+    </ion-card>
+
+    <ion-card>
+      <ion-card-header>
+        <ion-card-title>Transferencia bancaria</ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <p class="item-hint">
+          Si los completas, tus socios podrán pagar transfiriendo directo a esta cuenta en vez de usar Flow. Tú
+          confirmas el pago a mano desde la pestaña Socios, igual que hoy.
+        </p>
+        <form [formGroup]="bankTransferForm" (ngSubmit)="saveBankTransfer()">
+          <ion-item>
+            <ion-select label-placement="stacked" label="Banco" formControlName="bankName" placeholder="Selecciona tu banco">
+              @for (bank of chileBanks; track bank) {
+                <ion-select-option [value]="bank">{{ bank }}</ion-select-option>
+              }
+            </ion-select>
+          </ion-item>
+          @if (bankTransferForm.controls.bankName.value === 'Otro') {
+            <ion-item>
+              <ion-input label-placement="stacked" label="Nombre del banco" formControlName="bankNameOther" placeholder="Nombre de tu banco" />
+            </ion-item>
+          }
+          <ion-item>
+            <ion-select label-placement="stacked" label="Tipo de cuenta" formControlName="accountType" placeholder="Selecciona el tipo">
+              @for (type of bankAccountTypes; track type) {
+                <ion-select-option [value]="type">{{ type }}</ion-select-option>
+              }
+            </ion-select>
+          </ion-item>
+          <ion-item>
+            <ion-input label-placement="stacked" label="Número de cuenta" formControlName="accountNumber" placeholder="Ej: 00012345678" />
+          </ion-item>
+          <ion-item>
+            <ion-input label-placement="stacked"
+              label="RUT titular"
+              formControlName="holderRut"
+              placeholder="Ej: 12.345.678-9"
+              (ionBlur)="formatRutOnBlur(bankTransferForm.controls.holderRut)"
+            />
+          </ion-item>
+          @if (
+            bankTransferForm.controls.holderRut.invalid &&
+            (bankTransferForm.controls.holderRut.dirty || bankTransferForm.controls.holderRut.touched)
+          ) {
+            <ion-note color="danger">RUT inválido — revisa el número y el dígito verificador.</ion-note>
+          }
+          <ion-item>
+            <ion-input label-placement="stacked" label="Nombre titular" formControlName="holderName" placeholder="Nombre completo o razón social" />
+          </ion-item>
+          <ion-item>
+            <ion-input label-placement="stacked"
+              label="Email para enviar comprobante"
+              type="email"
+              formControlName="confirmationEmail"
+              placeholder="pagos@tugym.cl"
+            />
+          </ion-item>
+          @if (
+            bankTransferForm.controls.confirmationEmail.invalid &&
+            (bankTransferForm.controls.confirmationEmail.dirty || bankTransferForm.controls.confirmationEmail.touched)
+          ) {
+            <ion-note color="danger">Ingresa un email válido.</ion-note>
+          }
+          <ion-button
+            type="submit"
+            [disabled]="bankTransferForm.invalid || bankTransferSaving()"
+            class="ion-margin-top"
+          >
+            {{ bankTransferSaving() ? 'Guardando...' : 'Guardar datos bancarios' }}
+          </ion-button>
+        </form>
+      </ion-card-content>
+    </ion-card>
   } @else if (section() === 'blocks') {
     <ion-card>
       <ion-card-header class="card-header-row">
@@ -647,6 +833,21 @@
                   Quitar plan
                 </ion-button>
               }
+              <ion-button
+                fill="clear"
+                size="small"
+                color="danger"
+                class="member-action-btn"
+                [disabled]="deletingMemberId() === member.id"
+                (click)="deleteMember(member)"
+                aria-label="Eliminar socio permanentemente"
+              >
+                @if (deletingMemberId() === member.id) {
+                  <ion-spinner name="crescent" slot="icon-only"></ion-spinner>
+                } @else {
+                  <ion-icon name="trash-outline" slot="icon-only" aria-hidden="true"></ion-icon>
+                }
+              </ion-button>
             </ion-item>
           } @empty {
             <ion-item lines="none">
@@ -851,63 +1052,6 @@
           />
           <ion-button type="submit" [disabled]="identityForm.invalid || identitySaving()" class="ion-margin-top">
             {{ identitySaving() ? 'Guardando...' : 'Guardar identidad' }}
-          </ion-button>
-        </form>
-      </ion-card-content>
-    </ion-card>
-
-    <ion-card>
-      <ion-card-header>
-        <ion-card-title>Transferencia bancaria</ion-card-title>
-      </ion-card-header>
-      <ion-card-content>
-        <p class="item-hint">
-          Si los completas, tus socios podrán pagar transfiriendo directo a esta cuenta en vez de usar Flow. Tú
-          confirmas el pago a mano desde la pestaña Socios, igual que hoy.
-        </p>
-        <form [formGroup]="bankTransferForm" (ngSubmit)="saveBankTransfer()">
-          <ion-item>
-            <ion-select label="Banco" formControlName="bankName" placeholder="Selecciona tu banco">
-              @for (bank of chileBanks; track bank) {
-                <ion-select-option [value]="bank">{{ bank }}</ion-select-option>
-              }
-            </ion-select>
-          </ion-item>
-          @if (bankTransferForm.controls.bankName.value === 'Otro') {
-            <ion-item>
-              <ion-input label="Nombre del banco" formControlName="bankNameOther" placeholder="Nombre de tu banco" />
-            </ion-item>
-          }
-          <ion-item>
-            <ion-select label="Tipo de cuenta" formControlName="accountType" placeholder="Selecciona el tipo">
-              @for (type of bankAccountTypes; track type) {
-                <ion-select-option [value]="type">{{ type }}</ion-select-option>
-              }
-            </ion-select>
-          </ion-item>
-          <ion-item>
-            <ion-input label="Número de cuenta" formControlName="accountNumber" placeholder="Ej: 00012345678" />
-          </ion-item>
-          <ion-item>
-            <ion-input label="RUT titular" formControlName="holderRut" placeholder="Ej: 12.345.678-9" />
-          </ion-item>
-          <ion-item>
-            <ion-input label="Nombre titular" formControlName="holderName" placeholder="Nombre completo o razón social" />
-          </ion-item>
-          <ion-item>
-            <ion-input
-              label="Email para enviar comprobante"
-              type="email"
-              formControlName="confirmationEmail"
-              placeholder="pagos@tugym.cl"
-            />
-          </ion-item>
-          <ion-button
-            type="submit"
-            [disabled]="bankTransferForm.invalid || bankTransferSaving()"
-            class="ion-margin-top"
-          >
-            {{ bankTransferSaving() ? 'Guardando...' : 'Guardar datos bancarios' }}
           </ion-button>
         </form>
       </ion-card-content>

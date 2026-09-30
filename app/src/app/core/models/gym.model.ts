@@ -37,6 +37,20 @@ export interface Gym {
   updatedAt: string;
 }
 
+/** Vista liviana de /admin/gyms (lista del super-admin, GET /api/gyms) — solo los campos que
+ *  esa pantalla pinta (tarjeta + 3 stats agregados). El detalle de un gym puntual (gym-form)
+ *  sigue usando `Gym` completo vía GymService.get(id). */
+export interface GymSummary {
+  id: number;
+  publicId: string;
+  name: string;
+  slug: string;
+  active: boolean;
+  maxUsers: number;
+  themeColor: string | null;
+  logoSvg: string | null;
+}
+
 /** Branding-only view for the public join page (mygym.cl/j/{slug}) — no auth required to fetch this. */
 export interface PublicGym {
   name: string;
@@ -51,6 +65,9 @@ export interface PublicGym {
   whatsappNumber: string | null;
   cancellationWindowHours: number;
   themeMode: 'DARK' | 'LIGHT';
+  /** true si el gym tiene su propia cuenta Flow configurada — si es false, /member oculta
+   *  "Pagar con Flow" y solo ofrece transferencia bancaria. */
+  flowConfigured: boolean;
 }
 
 /** PUT .../theme (gym-admin y super-admin comparten el mismo shape). */
@@ -109,6 +126,62 @@ export interface BankTransferInfo {
   holderRut: string | null;
   holderName: string | null;
   confirmationEmail: string | null;
+}
+
+/** Vista del super-admin de la cuenta "Pago Online" (Flow.cl) de un gym
+ *  (GET/PUT .../flow-account) — apiKeyMasked/secretKeyMasked nunca traen el valor real, solo
+ *  para mostrar "ya hay una cargada" (ver hasApiKey/hasSecretKey). Reenviar apiKey/secretKey
+ *  vacíos en el PUT significa "no cambiar lo ya guardado". */
+export interface FlowAccount {
+  configured: boolean;
+  companyRut: string | null;
+  companyName: string | null;
+  businessActivity: string | null;
+  companyAddress: string | null;
+  vatCondition: string | null;
+  legalRepName: string | null;
+  legalRepRut: string | null;
+  legalRepPhone: string | null;
+  contactEmail: string | null;
+  contactName: string | null;
+  contactPhone: string | null;
+  hasApiKey: boolean;
+  hasSecretKey: boolean;
+  apiKeyMasked: string | null;
+  secretKeyMasked: string | null;
+}
+
+/** Lo que puede editar el propio GYM_ADMIN de su cuenta Pago Online — todo lo de
+ *  FlowAccountUpdateRequest MENOS apiKey/secretKey (esas dos las carga solo el super-admin). */
+export interface FlowAccountDetailsUpdateRequest {
+  companyRut: string | null;
+  companyName: string | null;
+  businessActivity: string | null;
+  companyAddress: string | null;
+  vatCondition: string | null;
+  legalRepName: string | null;
+  legalRepRut: string | null;
+  legalRepPhone: string | null;
+  contactEmail: string | null;
+  contactName: string | null;
+  contactPhone: string | null;
+}
+
+export interface FlowAccountUpdateRequest {
+  companyRut: string | null;
+  companyName: string | null;
+  businessActivity: string | null;
+  companyAddress: string | null;
+  vatCondition: string | null;
+  legalRepName: string | null;
+  legalRepRut: string | null;
+  legalRepPhone: string | null;
+  contactEmail: string | null;
+  contactName: string | null;
+  contactPhone: string | null;
+  /** Vacío/null = no cambiar el valor ya guardado. */
+  apiKey: string | null;
+  secretKey: string | null;
 }
 
 export interface GymPhoto {
@@ -230,6 +303,16 @@ export interface CreateGymBlockRequest {
 
 export interface UpdateGymBlockRequest extends CreateGymBlockRequest {
   active: boolean;
+}
+
+/** Resultado de un bloque procesado por POST .../blocks/batch — un lote entero en un solo
+ *  request (reemplaza el fan-out de un POST por bloque que hacía la creación de series antes).
+ *  Cada bloque es independiente: un horario inválido en uno no tumba el resto del lote, por eso
+ *  la respuesta es un array de resultados, no un solo GymBlock[]. */
+export interface BlockCreateResult {
+  success: boolean;
+  block: GymBlock | null;
+  error: string | null;
 }
 
 export interface GymPlan {

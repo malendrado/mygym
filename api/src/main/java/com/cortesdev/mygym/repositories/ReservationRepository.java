@@ -36,4 +36,11 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
     List<Reservation> findByMemberIdAndClassDateAndStatus(Long memberId, LocalDate classDate, ReservationStatus status);
 
     int countByMemberIdIn(List<Long> memberIds);
+
+    /** Batch para MemberService.toResponses — una sola query para calcular sessionsRemaining
+     *  de una lista completa de socios, en vez de un count() por socio (ver el comentario
+     *  largo en MemberService). El rango from/to es el más amplio necesario entre todos los
+     *  socios pedidos; el filtrado al período exacto de cada uno se hace en memoria. */
+    List<Reservation> findByMemberIdInAndStatusAndClassDateBetween(
+            List<Long> memberIds, ReservationStatus status, LocalDate from, LocalDate to);
 }

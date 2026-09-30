@@ -6,15 +6,13 @@ import com.cortesdev.mygym.models.dto.AnalyticsSummaryResponse;
 import com.cortesdev.mygym.models.dto.GymVisitStats;
 import com.cortesdev.mygym.models.dto.PageStats;
 import com.cortesdev.mygym.repositories.GymRepository;
+import com.cortesdev.mygym.repositories.GymVisitAggregateRow;
 import com.cortesdev.mygym.repositories.PageViewRepository;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -54,30 +52,21 @@ public class AnalyticsService {
         PageStats landing = statsFor("LANDING", since7d, since30d);
         PageStats joinTotal = statsFor("JOIN", since7d, since30d);
 
-        Map<Long, Long> totalByGym = pageViewRepository.findByPageAndGymIdIsNotNull("JOIN").stream()
-                .collect(Collectors.groupingBy(PageView::getGymId, Collectors.counting()));
-        Map<Long, Long> last30dByGym = pageViewRepository
-                .findByPageAndGymIdIsNotNullAndCreatedAtAfter("JOIN", since30d)
-                .stream()
-                .collect(Collectors.groupingBy(PageView::getGymId, Collectors.counting()));
-
-        List<GymVisitStats> byGym = new ArrayList<>(gymRepository.findAll().stream()
-                .filter(gym -> totalByGym.containsKey(gym.getId()))
-                .map(gym -> new GymVisitStats(
-                        gym.getId(),
-                        gym.getName(),
-                        gym.getSlug(),
-                        totalByGym.getOrDefault(gym.getId(), 0L),
-                        last30dByGym.getOrDefault(gym.getId(), 0L)))
-                .sorted(Comparator.comparingLong(GymVisitStats::total).reversed())
+        // Agrupado en SQL (una sola query, con los índices de V27) — antes traía TODAS las
+        // filas de page_view con page='JOIN' y agrupaba en memoria Java, sin límite.
+        List<GymVisitAggregateRow> rows = pageViewRepository.aggregateByGym("JOIN", since30d);
+        List<GymVisitStats> byGym = new ArrayList<>(rows.stream()
+                .map(r -> new GymVisitStats(r.getGymId(), r.getGymName(), r.getGymSlug(), r.getTotal(), r.getLast30d()))
                 .toList());
 
         // El total de joinTotal cuenta TODAS las visitas a /j/:slug, incluidas las de un slug
         // que no coincidió con ningún gimnasio (link roto, gimnasio borrado, typo) — esas nunca
-        // quedan agrupadas en totalByGym/last30dByGym porque no tienen gymId. Sin esta fila, el
+        // aparecen en `rows` porque el JOIN con gym exige gym_id resuelto. Sin esta fila, el
         // número agregado de la tarjeta no reconciliaba con la suma de la lista de abajo.
-        long unresolvedTotal = joinTotal.total() - totalByGym.values().stream().mapToLong(Long::longValue).sum();
-        long unresolvedLast30d = joinTotal.last30d() - last30dByGym.values().stream().mapToLong(Long::longValue).sum();
+        long resolvedTotal = rows.stream().mapToLong(GymVisitAggregateRow::getTotal).sum();
+        long resolvedLast30d = rows.stream().mapToLong(GymVisitAggregateRow::getLast30d).sum();
+        long unresolvedTotal = joinTotal.total() - resolvedTotal;
+        long unresolvedLast30d = joinTotal.last30d() - resolvedLast30d;
         if (unresolvedTotal > 0) {
             byGym.add(new GymVisitStats(null, "Otros (link sin gimnasio)", null, unresolvedTotal, unresolvedLast30d));
         }

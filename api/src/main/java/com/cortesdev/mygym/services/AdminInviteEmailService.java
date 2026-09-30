@@ -32,6 +32,7 @@ public class AdminInviteEmailService {
     private final String apiKey;
     private final String from;
     private final String template;
+    private final String ownerTemplate;
     private final String demoTemplate;
 
     public AdminInviteEmailService(
@@ -42,11 +43,19 @@ public class AdminInviteEmailService {
         this.apiKey = apiKey;
         this.from = from;
         this.template = loadTemplate("templates/email/admin-invite.html");
+        this.ownerTemplate = loadTemplate("templates/email/gym-owner-invite.html");
         this.demoTemplate = loadTemplate("templates/email/demo-invite.html");
     }
 
     public void sendAdminInvite(Gym gym, AppUser admin) {
         send(template, "Ya tienes acceso a administrar " + gym.getName(), gym, admin);
+    }
+
+    // Variante más cálida, solo para el dueño de un gym RECIÉN CREADO — agrega el aviso de
+    // completar los datos de la cuenta Pago Online. Un admin agregado después a un gym que ya
+    // existe sigue recibiendo sendAdminInvite tal cual (no tiene sentido repetirle este aviso).
+    public void sendGymOwnerInvite(Gym gym, AppUser owner) {
+        send(ownerTemplate, "Bienvenido a mygym — ya puedes administrar " + gym.getName(), gym, owner);
     }
 
     // Misma mecánica que sendAdminInvite pero con la plantilla/copy de demo-invite.html — nunca

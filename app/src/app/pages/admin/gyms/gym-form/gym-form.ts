@@ -19,6 +19,7 @@ import {
   IonItem,
   IonLabel,
   IonList,
+  IonListHeader,
   IonModal,
   IonNote,
   IonSegment,
@@ -39,6 +40,7 @@ import {
   barbellOutline,
   businessOutline,
   calendarOutline,
+  cardOutline,
   checkmarkCircleOutline,
   chevronBackOutline,
   chevronDownOutline,
@@ -83,6 +85,8 @@ import {
   CreateGymPhotoRequest,
   CreateGymPlanRequest,
   DayOfWeek,
+  FlowAccount,
+  FlowAccountUpdateRequest,
   Gym,
   GymBlock,
   GymPhoto,
@@ -100,6 +104,7 @@ import { PlanFormModal } from '../plan-form-modal/plan-form-modal';
 import { MarkPaidModal } from '../mark-paid-modal/mark-paid-modal';
 import { QuantityStepper } from '../../../../core/components/quantity-stepper/quantity-stepper';
 import { registerClassCategoryIcons, resolveClassCategoryIcon } from '../../../../core/utils/class-category';
+import { formatRut, rutFormatValidator } from '../../../../core/utils/rut';
 import {
   LIGHT_PALETTES,
   LightPaletteEntry,
@@ -136,6 +141,7 @@ addIcons({
   'trash-outline': trashOutline,
   'pricetag-outline': pricetagOutline,
   'color-palette-outline': colorPaletteOutline,
+  'card-outline': cardOutline,
   'refresh-outline': refreshOutline,
   'remove-circle-outline': removeCircleOutline,
   'search-outline': searchOutline,
@@ -149,7 +155,7 @@ addIcons({
 
 type Status = 'idle' | 'loading' | 'saving' | 'error';
 type SuggestStatus = 'idle' | 'loading' | 'error';
-type Section = 'general' | 'blocks' | 'plans' | 'members' | 'branding' | 'screens' | 'history';
+type Section = 'general' | 'blocks' | 'plans' | 'members' | 'branding' | 'flow' | 'screens' | 'history';
 
 // Mismo criterio que gym-admin.ts (implementación paralela, no compartida)
 // — segundo eje de filtro para la grilla de horarios, con tooltip que
@@ -205,6 +211,7 @@ const SECTION_LABELS: Record<Section, string> = {
   plans: 'Planes',
   members: 'Socios',
   branding: 'Marca',
+  flow: 'Pago Online',
   screens: 'Pantallas',
   history: 'Historial',
 };
@@ -335,6 +342,7 @@ const THEMED_ROOT_PROPERTIES = [
     IonNote,
     IonText,
     IonList,
+    IonListHeader,
     IonBadge,
     IonChip,
     IonModal,
@@ -543,11 +551,33 @@ export class GymForm implements OnDestroy {
     bankNameOther: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(60)] }),
     accountType: new FormControl('', { nonNullable: true }),
     accountNumber: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(40)] }),
-    holderRut: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(20)] }),
+    holderRut: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(20), rutFormatValidator()] }),
     holderName: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(120)] }),
     confirmationEmail: new FormControl('', { nonNullable: true, validators: [Validators.email, Validators.maxLength(160)] }),
   });
   protected readonly bankTransferSaving = signal(false);
+
+  // Cuenta Pago Online (Flow.cl) — ver GymService.getFlowAccount/updateFlowAccount en el
+  // backend. apiKey/secretKey son write-only (nunca vuelven en claro del backend, ver
+  // FlowAccount.apiKeyMasked/hasApiKey): el form siempre arranca esos dos campos vacíos,
+  // un valor vacío al guardar significa "no cambiar lo ya guardado".
+  protected readonly flowAccount = signal<FlowAccount | null>(null);
+  protected readonly flowAccountSaving = signal(false);
+  protected readonly flowAccountForm = new FormGroup({
+    companyRut: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(20), rutFormatValidator()] }),
+    companyName: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(160)] }),
+    businessActivity: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(160)] }),
+    companyAddress: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(200)] }),
+    vatCondition: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(80)] }),
+    legalRepName: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(120)] }),
+    legalRepRut: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(20), rutFormatValidator()] }),
+    legalRepPhone: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(30)] }),
+    contactEmail: new FormControl('', { nonNullable: true, validators: [Validators.email, Validators.maxLength(160)] }),
+    contactName: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(120)] }),
+    contactPhone: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(30)] }),
+    apiKey: new FormControl('', { nonNullable: true }),
+    secretKey: new FormControl('', { nonNullable: true }),
+  });
 
   protected readonly photos = signal<GymPhoto[]>([]);
   protected readonly photoUploading = signal(false);
@@ -765,10 +795,35 @@ export class GymForm implements OnDestroy {
         this.loadMembers(id);
         this.loadPhotos(id);
         this.loadTvScreens(id);
+        this.loadFlowAccount(id);
       },
       error: () => {
         this.status.set('error');
         this.gymLoaded.set(true);
+      },
+    });
+  }
+
+  private loadFlowAccount(id: number): void {
+    this.gymService.getFlowAccount(id).subscribe({
+      next: (account) => {
+        this.flowAccount.set(account);
+        this.flowAccountForm.patchValue({
+          companyRut: account.companyRut ?? '',
+          companyName: account.companyName ?? '',
+          businessActivity: account.businessActivity ?? '',
+          companyAddress: account.companyAddress ?? '',
+          vatCondition: account.vatCondition ?? '',
+          legalRepName: account.legalRepName ?? '',
+          legalRepRut: account.legalRepRut ?? '',
+          legalRepPhone: account.legalRepPhone ?? '',
+          contactEmail: account.contactEmail ?? '',
+          contactName: account.contactName ?? '',
+          contactPhone: account.contactPhone ?? '',
+        });
+      },
+      error: () => {
+        // Best-effort: si falla, la sección queda vacía pero el resto del panel sigue andando.
       },
     });
   }
@@ -997,6 +1052,37 @@ export class GymForm implements OnDestroy {
       },
       error: () => {
         this.togglingAdminId.set(null);
+        this.status.set('error');
+      },
+    });
+  }
+
+  protected readonly removingAdminId = signal<number | null>(null);
+
+  // Distinto de toggleAdminStatus de arriba (que solo desactiva): esto borra el registro
+  // entero — pedido explícito del usuario porque "Quitar acceso" dejaba el email ocupado
+  // para siempre, sin forma de volver a invitar a esa persona.
+  protected async removeAdmin(admin: Admin): Promise<void> {
+    const id = this.gymId();
+    if (id === null) {
+      return;
+    }
+    const confirmed = await this.confirmAction(
+      'Eliminar administrador permanentemente',
+      `¿Eliminar a ${admin.name} (${admin.email})? A diferencia de "Quitar acceso", esto libera su email para siempre — se puede volver a invitar como admin más adelante. No se puede deshacer.`,
+      'Eliminar para siempre',
+    );
+    if (!confirmed) {
+      return;
+    }
+    this.removingAdminId.set(admin.id);
+    this.gymService.removeAdmin(id, admin.id).subscribe({
+      next: () => {
+        this.removingAdminId.set(null);
+        this.loadAdmins(id);
+      },
+      error: () => {
+        this.removingAdminId.set(null);
         this.status.set('error');
       },
     });
@@ -1316,21 +1402,20 @@ export class GymForm implements OnDestroy {
     }
     this.isSeriesModalOpen.set(false);
     this.seriesCreating.set(true);
-    let created = 0;
-    let failed = 0;
-    for (const draft of drafts) {
-      try {
-        await firstValueFrom(this.gymService.createBlock(id, draft));
-        created++;
-      } catch {
-        failed++;
-      }
+    // Un solo request con todos los bloques — antes era un POST secuencial por bloque (podían
+    // ser ~80-300 según la configuración elegida), cada uno esperando al anterior.
+    try {
+      const results = await firstValueFrom(this.gymService.createBlocksBatch(id, drafts));
+      const created = results.filter((r) => r.success).length;
+      const failed = results.length - created;
+      this.showToast(
+        failed === 0 ? `Se crearon ${created} bloques.` : `Se crearon ${created} bloques. ${failed} fallaron.`,
+      );
+    } catch {
+      this.showToast('No pudimos crear los bloques. Intenta nuevamente.', 'danger');
     }
     this.seriesCreating.set(false);
     this.loadBlocks(id);
-    this.showToast(
-      failed === 0 ? `Se crearon ${created} bloques.` : `Se crearon ${created} bloques. ${failed} fallaron.`,
-    );
   }
 
   protected saveBlock(payload: CreateGymBlockRequest | UpdateGymBlockRequest): void {
@@ -1716,6 +1801,51 @@ export class GymForm implements OnDestroy {
       error: () => {
         this.bankTransferSaving.set(false);
         this.showToast('No pudimos guardar los datos bancarios. Intenta nuevamente.', 'danger');
+      },
+    });
+  }
+
+  // Formatea a "XX.XXX.XXX-D" al salir del campo — si lo que se escribió no es un RUT válido
+  // (dígito verificador incorrecto), lo deja tal cual para que el mensaje de error se lea
+  // junto al valor que el usuario realmente tipeó, no un formato a medio aplicar.
+  protected formatRutOnBlur(control: FormControl<string>): void {
+    control.setValue(formatRut(control.value));
+  }
+
+  protected saveFlowAccount(): void {
+    const id = this.gymId();
+    if (id === null || this.flowAccountForm.invalid) {
+      return;
+    }
+    const raw = this.flowAccountForm.getRawValue();
+    const payload: FlowAccountUpdateRequest = {
+      companyRut: raw.companyRut || null,
+      companyName: raw.companyName || null,
+      businessActivity: raw.businessActivity || null,
+      companyAddress: raw.companyAddress || null,
+      vatCondition: raw.vatCondition || null,
+      legalRepName: raw.legalRepName || null,
+      legalRepRut: raw.legalRepRut || null,
+      legalRepPhone: raw.legalRepPhone || null,
+      contactEmail: raw.contactEmail || null,
+      contactName: raw.contactName || null,
+      contactPhone: raw.contactPhone || null,
+      apiKey: raw.apiKey || null,
+      secretKey: raw.secretKey || null,
+    };
+    this.flowAccountSaving.set(true);
+    this.gymService.updateFlowAccount(id, payload).subscribe({
+      next: (account) => {
+        this.flowAccountSaving.set(false);
+        this.flowAccount.set(account);
+        // apiKey/secretKey son write-only — se limpian tras guardar, el masked de arriba
+        // (apiKeyMasked/secretKeyMasked) es la única confirmación visual de que quedaron.
+        this.flowAccountForm.patchValue({ apiKey: '', secretKey: '' });
+        this.showToast('Cuenta Pago Online actualizada.');
+      },
+      error: () => {
+        this.flowAccountSaving.set(false);
+        this.showToast('No pudimos guardar la cuenta Pago Online. Intenta nuevamente.', 'danger');
       },
     });
   }

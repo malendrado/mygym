@@ -10,16 +10,21 @@ import com.cortesdev.mygym.models.dto.AdminCreateRequest;
 import com.cortesdev.mygym.models.dto.AdminResponse;
 import com.cortesdev.mygym.models.dto.AdminStatusUpdateRequest;
 import com.cortesdev.mygym.models.dto.BlockCreateRequest;
+import com.cortesdev.mygym.models.dto.BlockCreateResult;
 import com.cortesdev.mygym.models.dto.BlockResponse;
 import com.cortesdev.mygym.models.dto.BlockUpdateRequest;
 import com.cortesdev.mygym.models.dto.GymConfigUpdateRequest;
 import com.cortesdev.mygym.models.dto.GymCreateRequest;
 import com.cortesdev.mygym.models.dto.BankTransferInfoResponse;
 import com.cortesdev.mygym.models.dto.BankTransferUpdateRequest;
+import com.cortesdev.mygym.models.dto.FlowAccountDetailsUpdateRequest;
+import com.cortesdev.mygym.models.dto.FlowAccountResponse;
+import com.cortesdev.mygym.models.dto.FlowAccountUpdateRequest;
 import com.cortesdev.mygym.models.dto.GymIdentityUpdateRequest;
 import com.cortesdev.mygym.models.dto.GymPhotoCreateRequest;
 import com.cortesdev.mygym.models.dto.GymPhotoResponse;
 import com.cortesdev.mygym.models.dto.GymResponse;
+import com.cortesdev.mygym.models.dto.GymSummaryResponse;
 import com.cortesdev.mygym.models.dto.MemberPlanResponse;
 import com.cortesdev.mygym.models.dto.PlanCreateRequest;
 import com.cortesdev.mygym.models.dto.PlanResponse;
@@ -42,6 +47,7 @@ import com.cortesdev.mygym.services.exception.GymPhotoNotFoundException;
 import com.cortesdev.mygym.services.exception.GymPlanNotFoundException;
 import com.cortesdev.mygym.services.exception.InvalidBlockScheduleException;
 import com.cortesdev.mygym.services.exception.InvalidLogoException;
+import com.cortesdev.mygym.services.exception.InvalidRutException;
 import com.cortesdev.mygym.services.exception.InvalidThemeException;
 import com.cortesdev.mygym.services.exception.MemberNotFoundException;
 import com.cortesdev.mygym.services.exception.TooManyGymPhotosException;
@@ -49,6 +55,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import lombok.RequiredArgsConstructor;
@@ -100,15 +107,14 @@ public class GymService {
                 .active(true)
                 .build();
         owner = appUserRepository.save(owner);
-        adminInviteEmailService.sendAdminInvite(gym, owner);
+        adminInviteEmailService.sendGymOwnerInvite(gym, owner);
 
         return toResponse(gym);
     }
 
     @Transactional(readOnly = true)
-    public List<GymResponse> listGyms(Boolean active) {
-        List<Gym> gyms = active == null ? gymRepository.findAll() : gymRepository.findByActive(active);
-        return gyms.stream().map(this::toResponse).toList();
+    public List<GymSummaryResponse> listGyms(Boolean active) {
+        return gymRepository.findAllSummaries(active);
     }
 
     @Transactional(readOnly = true)
@@ -152,7 +158,8 @@ public class GymService {
                 gym.getDescription(),
                 gym.getInstagramUrl(),
                 gym.getWhatsappNumber(),
-                gym.getCancellationWindowHours());
+                gym.getCancellationWindowHours(),
+                hasFlowCredentials(gym));
     }
 
     public GymResponse updateGymConfig(Long id, GymConfigUpdateRequest request) {
@@ -194,7 +201,7 @@ public class GymService {
         gym.setBankName(blankToNull(request.bankName()));
         gym.setBankAccountType(blankToNull(request.accountType()));
         gym.setBankAccountNumber(blankToNull(request.accountNumber()));
-        gym.setBankHolderRut(blankToNull(request.holderRut()));
+        gym.setBankHolderRut(validatedRutOrNull(request.holderRut(), "RUT titular"));
         gym.setBankHolderName(blankToNull(request.holderName()));
         gym.setBankConfirmationEmail(blankToNull(request.confirmationEmail()));
         gymRepository.save(gym);
@@ -202,6 +209,20 @@ public class GymService {
 
     private static String blankToNull(String value) {
         return value == null || value.isBlank() ? null : value;
+    }
+
+    /** Valida y normaliza un RUT chileno (empresa o representante legal) al formato
+     *  "XX.XXX.XXX-D" antes de guardarlo — mismo criterio que el validador del frontend
+     *  (rut.ts), acá como defensa en profundidad para quien llame la API directo. */
+    private static String validatedRutOrNull(String value, String fieldLabel) {
+        String trimmed = blankToNull(value);
+        if (trimmed == null) {
+            return null;
+        }
+        if (!RutValidator.isValid(trimmed)) {
+            throw new InvalidRutException(fieldLabel);
+        }
+        return RutValidator.format(trimmed);
     }
 
     /** Vista del socio de los datos bancarios de SU gym — "configurado" exige los 4 campos
@@ -226,6 +247,90 @@ public class GymService {
                 gym.getBankHolderRut(),
                 gym.getBankHolderName(),
                 gym.getBankConfirmationEmail());
+    }
+
+    /** Vista del super-admin de la cuenta Pago Online (Flow.cl) — ver GymController. */
+    @Transactional(readOnly = true)
+    public FlowAccountResponse getFlowAccount(Long gymId) {
+        return toFlowAccountResponse(findGymOrThrow(gymId));
+    }
+
+    public FlowAccountResponse updateFlowAccount(Long gymId, FlowAccountUpdateRequest request) {
+        Gym gym = findGymOrThrow(gymId);
+        gym.setFlowCompanyRut(validatedRutOrNull(request.companyRut(), "RUT de la empresa"));
+        gym.setFlowCompanyName(blankToNull(request.companyName()));
+        gym.setFlowBusinessActivity(blankToNull(request.businessActivity()));
+        gym.setFlowCompanyAddress(blankToNull(request.companyAddress()));
+        gym.setFlowVatCondition(blankToNull(request.vatCondition()));
+        gym.setFlowLegalRepName(blankToNull(request.legalRepName()));
+        gym.setFlowLegalRepRut(validatedRutOrNull(request.legalRepRut(), "RUT del representante legal"));
+        gym.setFlowLegalRepPhone(blankToNull(request.legalRepPhone()));
+        gym.setFlowContactEmail(blankToNull(request.contactEmail()));
+        gym.setFlowContactName(blankToNull(request.contactName()));
+        gym.setFlowContactPhone(blankToNull(request.contactPhone()));
+        // apiKey/secretKey: solo se sobreescriben si llega un valor no vacío — nunca se
+        // devuelven en claro al frontend, así que un vacío significa "no tocar" (ver DTO).
+        if (request.apiKey() != null && !request.apiKey().isBlank()) {
+            gym.setFlowApiKey(request.apiKey().strip());
+        }
+        if (request.secretKey() != null && !request.secretKey().isBlank()) {
+            gym.setFlowSecretKey(request.secretKey().strip());
+        }
+        return toFlowAccountResponse(gymRepository.save(gym));
+    }
+
+    /** Lo que puede tocar el propio GYM_ADMIN de su cuenta Pago Online — todo salvo
+     *  apiKey/secretKey (ver FlowAccountDetailsUpdateRequest), que solo carga el
+     *  super-admin una vez que estos datos ya están completos. */
+    public FlowAccountResponse updateFlowAccountDetails(Long gymId, FlowAccountDetailsUpdateRequest request) {
+        Gym gym = findGymOrThrow(gymId);
+        gym.setFlowCompanyRut(validatedRutOrNull(request.companyRut(), "RUT de la empresa"));
+        gym.setFlowCompanyName(blankToNull(request.companyName()));
+        gym.setFlowBusinessActivity(blankToNull(request.businessActivity()));
+        gym.setFlowCompanyAddress(blankToNull(request.companyAddress()));
+        gym.setFlowVatCondition(blankToNull(request.vatCondition()));
+        gym.setFlowLegalRepName(blankToNull(request.legalRepName()));
+        gym.setFlowLegalRepRut(validatedRutOrNull(request.legalRepRut(), "RUT del representante legal"));
+        gym.setFlowLegalRepPhone(blankToNull(request.legalRepPhone()));
+        gym.setFlowContactEmail(blankToNull(request.contactEmail()));
+        gym.setFlowContactName(blankToNull(request.contactName()));
+        gym.setFlowContactPhone(blankToNull(request.contactPhone()));
+        return toFlowAccountResponse(gymRepository.save(gym));
+    }
+
+    private FlowAccountResponse toFlowAccountResponse(Gym gym) {
+        return new FlowAccountResponse(
+                hasFlowCredentials(gym),
+                gym.getFlowCompanyRut(),
+                gym.getFlowCompanyName(),
+                gym.getFlowBusinessActivity(),
+                gym.getFlowCompanyAddress(),
+                gym.getFlowVatCondition(),
+                gym.getFlowLegalRepName(),
+                gym.getFlowLegalRepRut(),
+                gym.getFlowLegalRepPhone(),
+                gym.getFlowContactEmail(),
+                gym.getFlowContactName(),
+                gym.getFlowContactPhone(),
+                gym.getFlowApiKey() != null,
+                gym.getFlowSecretKey() != null,
+                maskSecret(gym.getFlowApiKey()),
+                maskSecret(gym.getFlowSecretKey()));
+    }
+
+    private static boolean hasFlowCredentials(Gym gym) {
+        return gym.getFlowApiKey() != null
+                && !gym.getFlowApiKey().isBlank()
+                && gym.getFlowSecretKey() != null
+                && !gym.getFlowSecretKey().isBlank();
+    }
+
+    private static String maskSecret(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String last4 = value.length() <= 4 ? value : value.substring(value.length() - 4);
+        return "••••" + last4;
     }
 
     private static final List<String> ALLOWED_LOGO_IMAGE_MIME_TYPES =
@@ -338,6 +443,22 @@ public class GymService {
         return toResponse(appUserRepository.save(admin));
     }
 
+    // Borrado real, no desactivar — mismo bug que ya se había resuelto una vez para
+    // removeDemoAdmin (ver comentario ahí), pero reportado de nuevo para un GYM_ADMIN real:
+    // "Quitar acceso" solo pone active=false, así que el email queda ocupado para siempre por
+    // existsByEmail() en addAdmin, sin forma de volver a invitar a esa persona (ni a ese gym ni
+    // a ningún otro, el email es único en toda la tabla). Un GYM_ADMIN nunca tiene reservas ni
+    // pagos propios (esas tablas son de socios), así que borrar el registro entero es seguro.
+    public void removeAdmin(Long gymId, Long userId) {
+        AppUser admin = appUserRepository
+                .findByIdAndGymId(userId, gymId)
+                .orElseThrow(() -> new AdminNotFoundException(gymId, userId));
+        if (admin.getRole() != Role.GYM_ADMIN) {
+            throw new AdminNotFoundException(gymId, userId);
+        }
+        appUserRepository.delete(admin);
+    }
+
     // Acceso de solo-lectura a la demo comercial (ver Role.DEMO_ADMIN / SecurityConfig). Reusa
     // el mismo AppUser + email de invitación que un admin real, pero con otro rol y otra copia de
     // email — nunca se debe confundir con addAdmin, que da acceso de escritura real a un gym real.
@@ -397,6 +518,24 @@ public class GymService {
                 .active(true)
                 .build();
         return toResponse(gymBlockRepository.save(block));
+    }
+
+    // Reemplaza el fan-out de un POST por bloque que hacía el frontend al generar un horario en
+    // serie (BloqueSeriesModal/confirmSeries) — un solo request con todos los bloques, en vez de
+    // N round-trips secuenciales (podían ser ~80-300 según la configuración elegida). Cada
+    // bloque sigue siendo independiente (try/catch por item, igual que MemberService.
+    // importMembers): un horario inválido en uno no tumba el resto del lote.
+    public List<BlockCreateResult> addBlocks(Long gymId, List<BlockCreateRequest> requests) {
+        findGymOrThrow(gymId);
+        List<BlockCreateResult> results = new ArrayList<>();
+        for (BlockCreateRequest request : requests) {
+            try {
+                results.add(new BlockCreateResult(true, addBlock(gymId, request), null));
+            } catch (InvalidBlockScheduleException e) {
+                results.add(new BlockCreateResult(false, null, e.getMessage()));
+            }
+        }
+        return results;
     }
 
     @Transactional(readOnly = true)

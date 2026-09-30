@@ -28,7 +28,7 @@ import {
   sparklesOutline,
 } from 'ionicons/icons';
 import { GymService } from '../../../../core/services/gym.service';
-import { AnalyticsSummary, Gym } from '../../../../core/models/gym.model';
+import { AnalyticsSummary, GymSummary } from '../../../../core/models/gym.model';
 import { AuthService } from '../../../../core/services/auth.service';
 
 addIcons({
@@ -71,7 +71,7 @@ export class GymList implements ViewWillEnter {
   private readonly sanitizer = inject(DomSanitizer);
 
   protected readonly status = signal<Status>('idle');
-  protected readonly gyms = signal<Gym[]>([]);
+  protected readonly gyms = signal<GymSummary[]>([]);
 
   // Panel de Visitas — contador propio (no depende de leer Vercel Analytics
   // por API, que no existe). Se carga aparte de la lista de gimnasios y
@@ -111,11 +111,11 @@ export class GymList implements ViewWillEnter {
     this.router.navigate(['/']);
   }
 
-  protected isRasterLogo(gym: Gym): boolean {
+  protected isRasterLogo(gym: GymSummary): boolean {
     return (gym.logoSvg ?? '').startsWith('data:image');
   }
 
-  protected safeLogo(gym: Gym): SafeHtml | null {
+  protected safeLogo(gym: GymSummary): SafeHtml | null {
     return gym.logoSvg && !this.isRasterLogo(gym) ? this.sanitizer.bypassSecurityTrustHtml(gym.logoSvg) : null;
   }
 

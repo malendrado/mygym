@@ -18,16 +18,20 @@ import { GymService } from '../../core/services/gym.service';
 import { IonContent, IonIcon } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import {
+  arrowForwardOutline,
   businessOutline,
   cardOutline,
   chevronDownOutline,
+  ellipsisHorizontalOutline,
   flashOutline,
+  helpCircleOutline,
   logInOutline,
   logoWhatsapp,
   mailOutline,
   notificationsOutline,
   peopleOutline,
   pulseOutline,
+  shieldCheckmarkOutline,
 } from 'ionicons/icons';
 
 addIcons({
@@ -35,12 +39,16 @@ addIcons({
   'people-outline': peopleOutline,
   'card-outline': cardOutline,
   'chevron-down-outline': chevronDownOutline,
+  'ellipsis-horizontal-outline': ellipsisHorizontalOutline,
   'flash-outline': flashOutline,
   'pulse-outline': pulseOutline,
   'notifications-outline': notificationsOutline,
   'logo-whatsapp': logoWhatsapp,
   'mail-outline': mailOutline,
   'log-in-outline': logInOutline,
+  'help-circle-outline': helpCircleOutline,
+  'shield-checkmark-outline': shieldCheckmarkOutline,
+  'arrow-forward-outline': arrowForwardOutline,
 });
 
 const WHATSAPP_NUMBER = '56964641042';
@@ -275,6 +283,32 @@ export class Landing implements OnInit, AfterViewInit, OnDestroy {
 
   protected readonly whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_DEFAULT_MESSAGE)}`;
 
+  // Menú "más enlaces" (FAQ/Privacidad) del header en mobile/tablet — por debajo de los
+  // 900px .nav__help (los links inline de siempre) queda oculto porque no entra en el
+  // ancho del header, así que se ofrece un toggle compacto con el mismo contenido en un
+  // menú flotante. Reportado por el usuario: en mobile esos dos links desaparecían del
+  // header por completo (seguían existiendo en el footer, pero sin ninguna señal ahí arriba).
+  protected readonly helpMenuOpen = signal(false);
+
+  protected toggleHelpMenu(): void {
+    this.helpMenuOpen.update((open) => !open);
+  }
+
+  protected closeHelpMenu(): void {
+    this.helpMenuOpen.set(false);
+  }
+
+  @HostListener('document:click', ['$event'])
+  protected onDocumentClickForHelpMenu(event: MouseEvent): void {
+    if (!this.helpMenuOpen()) {
+      return;
+    }
+    const target = event.target as HTMLElement;
+    if (!target.closest('.nav__help-wrap')) {
+      this.closeHelpMenu();
+    }
+  }
+
   protected readonly isContactOpen = signal(false);
   protected readonly nameError = signal<string | null>(null);
   protected readonly emailError = signal<string | null>(null);
@@ -327,6 +361,9 @@ export class Landing implements OnInit, AfterViewInit, OnDestroy {
   protected onEscape(): void {
     if (this.isContactOpen()) {
       this.closeContact();
+    }
+    if (this.helpMenuOpen()) {
+      this.closeHelpMenu();
     }
   }
 

@@ -1,13 +1,17 @@
 package com.cortesdev.mygym.controllers;
 
 import com.cortesdev.mygym.models.dto.AttendeeResponse;
+import com.cortesdev.mygym.models.dto.BlockBatchCreateRequest;
 import com.cortesdev.mygym.models.dto.BlockCreateRequest;
+import com.cortesdev.mygym.models.dto.BlockCreateResult;
 import com.cortesdev.mygym.models.dto.BlockOccurrenceAttendeesResponse;
 import com.cortesdev.mygym.models.dto.MemberReservation;
 import com.cortesdev.mygym.models.dto.OccurrenceAttendees;
 import com.cortesdev.mygym.models.dto.BlockResponse;
 import com.cortesdev.mygym.models.dto.BlockUpdateRequest;
 import com.cortesdev.mygym.models.dto.BankTransferUpdateRequest;
+import com.cortesdev.mygym.models.dto.FlowAccountDetailsUpdateRequest;
+import com.cortesdev.mygym.models.dto.FlowAccountResponse;
 import com.cortesdev.mygym.models.dto.GymIdentityUpdateRequest;
 import com.cortesdev.mygym.models.dto.GymLogoUpdateRequest;
 import com.cortesdev.mygym.models.dto.GymPhotoCreateRequest;
@@ -130,6 +134,12 @@ public class GymAdminController {
         return ResponseEntity.created(URI.create("/api/gym-admin/gym/blocks/" + block.id())).body(block);
     }
 
+    @PostMapping("/blocks/batch")
+    public List<BlockCreateResult> addMyBlocksBatch(
+            @AuthenticationPrincipal Jwt jwt, @Valid @RequestBody BlockBatchCreateRequest request) {
+        return gymService.addBlocks(AuthenticatedUser.from(jwt).gymId(), request.blocks());
+    }
+
     @PutMapping("/blocks/{blockId}")
     public BlockResponse updateMyBlock(
             @AuthenticationPrincipal Jwt jwt, @PathVariable Long blockId, @Valid @RequestBody BlockUpdateRequest request) {
@@ -195,6 +205,17 @@ public class GymAdminController {
         Long gymId = AuthenticatedUser.from(jwt).gymId();
         gymService.updateBankTransfer(gymId, request);
         return gymService.getGym(gymId);
+    }
+
+    @GetMapping("/flow-account")
+    public FlowAccountResponse getMyFlowAccount(@AuthenticationPrincipal Jwt jwt) {
+        return gymService.getFlowAccount(AuthenticatedUser.from(jwt).gymId());
+    }
+
+    @PutMapping("/flow-account")
+    public FlowAccountResponse updateMyFlowAccount(
+            @AuthenticationPrincipal Jwt jwt, @Valid @RequestBody FlowAccountDetailsUpdateRequest request) {
+        return gymService.updateFlowAccountDetails(AuthenticatedUser.from(jwt).gymId(), request);
     }
 
     @GetMapping("/photos")
