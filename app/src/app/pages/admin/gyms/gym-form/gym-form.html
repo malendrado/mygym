@@ -570,6 +570,12 @@
             <p>Creando tus bloques en el servidor, esto puede tardar unos segundos...</p>
           </div>
         }
+        <ion-searchbar
+          placeholder="Buscar clase por nombre, categoría o instructor"
+          [value]="blockSearchQuery()"
+          (ionInput)="blockSearchQuery.set($any($event.detail.value) ?? '')"
+          (ionClear)="blockSearchQuery.set('')"
+        ></ion-searchbar>
         <div class="day-chips">
           <button
             type="button"

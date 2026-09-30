@@ -21,6 +21,7 @@ import {
   IonListHeader,
   IonModal,
   IonNote,
+  IonSearchbar,
   IonSegment,
   IonSegmentButton,
   IonSelect,
@@ -363,6 +364,7 @@ const THEMED_ROOT_PROPERTIES = [
     IonChip,
     IonModal,
     IonNote,
+    IonSearchbar,
     IonSegment,
     IonSegmentButton,
     IonSelect,
@@ -449,11 +451,21 @@ export class GymAdmin implements OnDestroy {
   protected readonly selectedTimeBand = signal<TimeBand | null>(null);
   protected readonly timeBandOptions = TIME_BAND_OPTIONS;
   protected readonly timeBandAllHint = TIME_BAND_ALL_HINT;
+  // Client-side, igual criterio que memberSearchQuery — los bloques del gym ya viven completos
+  // en memoria (blocks()), así que buscar por texto no necesita pedirle nada al backend.
+  protected readonly blockSearchQuery = signal('');
   protected readonly filteredBlocks = computed(() => {
     const day = this.selectedDay();
     const band = this.selectedTimeBand();
+    const query = this.blockSearchQuery().trim().toLowerCase();
     return this.blocks().filter(
-      (b) => (!day || b.dayOfWeek === day) && (!band || timeBandOf(b.startTime) === band),
+      (b) =>
+        (!day || b.dayOfWeek === day) &&
+        (!band || timeBandOf(b.startTime) === band) &&
+        (!query ||
+          b.label.toLowerCase().includes(query) ||
+          (b.category ?? '').toLowerCase().includes(query) ||
+          (b.instructorName ?? '').toLowerCase().includes(query)),
     );
   });
   // Quién reservó en un bloque — pedido explícito del usuario. Cada bloque
@@ -564,11 +576,20 @@ export class GymAdmin implements OnDestroy {
   // ("este socio lo invité yo"), no un estado que compita con el de pago.
   protected readonly invitedPendingMembers = computed(() => this.members().filter((m) => m.inviteStatus === 'PENDING').length);
   protected readonly memberInviteFilter = signal<InviteStatus>(null);
+  // Client-side a propósito: el roster completo del gym ya vive en memoria (members(), un solo
+  // GET al entrar a la pestaña) — no hace falta pedirle nada al backend para filtrar por texto,
+  // a diferencia del buscador de reservas (ver comentario de reservationSearchQuery más arriba),
+  // que sí necesita ir al servidor porque ahí el roster NO está completo en memoria.
+  protected readonly memberSearchQuery = signal('');
   protected readonly filteredMembers = computed(() => {
     const statusFilter = this.memberStatusFilter();
     const inviteFilter = this.memberInviteFilter();
+    const query = this.memberSearchQuery().trim().toLowerCase();
     return this.members().filter(
-      (m) => (!statusFilter || m.membershipStatus === statusFilter) && (!inviteFilter || m.inviteStatus === inviteFilter),
+      (m) =>
+        (!statusFilter || m.membershipStatus === statusFilter) &&
+        (!inviteFilter || m.inviteStatus === inviteFilter) &&
+        (!query || m.name.toLowerCase().includes(query) || m.email.toLowerCase().includes(query)),
     );
   });
   protected readonly isModalOpen = signal(false);
@@ -814,6 +835,10 @@ export class GymAdmin implements OnDestroy {
   protected emptyBlocksMessage(): string {
     if (this.blocks().length === 0) {
       return 'Todavía no hay bloques configurados.';
+    }
+    const query = this.blockSearchQuery().trim();
+    if (query) {
+      return `No encontramos clases que coincidan con "${query}".`;
     }
     const day = this.selectedDay();
     const band = this.selectedTimeBand();

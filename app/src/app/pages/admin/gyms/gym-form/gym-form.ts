@@ -22,6 +22,7 @@ import {
   IonListHeader,
   IonModal,
   IonNote,
+  IonSearchbar,
   IonSegment,
   IonSegmentButton,
   IonSelect,
@@ -346,6 +347,7 @@ const THEMED_ROOT_PROPERTIES = [
     IonBadge,
     IonChip,
     IonModal,
+    IonSearchbar,
     IonSegment,
     IonSegmentButton,
     IonSelect,
@@ -385,11 +387,21 @@ export class GymForm implements OnDestroy {
   protected readonly selectedTimeBand = signal<TimeBand | null>(null);
   protected readonly timeBandOptions = TIME_BAND_OPTIONS;
   protected readonly timeBandAllHint = TIME_BAND_ALL_HINT;
+  // Client-side, mismo criterio que memberSearch — los bloques del gym ya viven completos en
+  // memoria (blocks()), buscar por texto no necesita pedirle nada al backend.
+  protected readonly blockSearchQuery = signal('');
   protected readonly filteredBlocks = computed(() => {
     const day = this.selectedDay();
     const band = this.selectedTimeBand();
+    const query = this.blockSearchQuery().trim().toLowerCase();
     return this.blocks().filter(
-      (b) => (!day || b.dayOfWeek === day) && (!band || timeBandOf(b.startTime) === band),
+      (b) =>
+        (!day || b.dayOfWeek === day) &&
+        (!band || timeBandOf(b.startTime) === band) &&
+        (!query ||
+          b.label.toLowerCase().includes(query) ||
+          (b.category ?? '').toLowerCase().includes(query) ||
+          (b.instructorName ?? '').toLowerCase().includes(query)),
     );
   });
   protected readonly isModalOpen = signal(false);
@@ -1133,6 +1145,10 @@ export class GymForm implements OnDestroy {
   protected emptyBlocksMessage(): string {
     if (this.blocks().length === 0) {
       return 'Todavía no hay bloques configurados.';
+    }
+    const query = this.blockSearchQuery().trim();
+    if (query) {
+      return `No encontramos clases que coincidan con "${query}".`;
     }
     const day = this.selectedDay();
     const band = this.selectedTimeBand();

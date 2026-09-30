@@ -416,6 +416,12 @@
             <p>Creando tus bloques en el servidor, esto puede tardar unos segundos...</p>
           </div>
         }
+        <ion-searchbar
+          placeholder="Buscar clase por nombre, categoría o instructor"
+          [value]="blockSearchQuery()"
+          (ionInput)="blockSearchQuery.set($any($event.detail.value) ?? '')"
+          (ionClear)="blockSearchQuery.set('')"
+        ></ion-searchbar>
         <div class="day-chips">
           <button
             type="button"
@@ -757,6 +763,12 @@
         }
       </ion-card-header>
       <ion-card-content>
+        <ion-searchbar
+          placeholder="Buscar por nombre o email"
+          [value]="memberSearchQuery()"
+          (ionInput)="memberSearchQuery.set($any($event.detail.value) ?? '')"
+          (ionClear)="memberSearchQuery.set('')"
+        ></ion-searchbar>
         <ion-list lines="full">
           @for (member of filteredMembers(); track member.id) {
             <ion-item>
@@ -853,9 +865,11 @@
             <ion-item lines="none">
               <ion-label>
                 {{
-                  memberStatusFilter() || memberInviteFilter()
-                    ? 'No hay socios en este filtro.'
-                    : 'Todavía no hay socios cargados.'
+                  memberSearchQuery()
+                    ? 'No encontramos socios que coincidan con "' + memberSearchQuery() + '".'
+                    : memberStatusFilter() || memberInviteFilter()
+                      ? 'No hay socios en este filtro.'
+                      : 'Todavía no hay socios cargados.'
                 }}
               </ion-label>
             </ion-item>
