@@ -197,6 +197,17 @@ function todayIsoDate(): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Santiago' }).format(new Date());
 }
 
+// "HH:mm" en el huso del gym — mismo criterio que todayIsoDate(), para precargar el filtro de
+// franja horaria con la que corresponde a AHORA (ver selectedTimeBand más abajo).
+function nowTimeString(): string {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'America/Santiago',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).format(new Date());
+}
+
 function nextOccurrenceDate(dayOfWeek: DayOfWeek): string {
   const todayIso = todayIsoDate();
   const [y, m, d] = todayIso.split('-').map(Number);
@@ -381,10 +392,12 @@ export class GymForm implements OnDestroy {
   // Mismo fix que gym-admin.ts (2026-09-13): sin esto la lista de bloques de
   // TODOS los días se mostraba de corrido — el super-admin ve esta misma
   // pantalla (es una implementación paralela a la de gym-admin, no la
-  // comparten), así que necesitaba el mismo filtro.
-  protected readonly selectedDay = signal<DayOfWeek | null>(null);
+  // comparten), así que necesitaba el mismo filtro. Precargado con el día/franja de AHORA
+  // (pedido explícito, mismo criterio que gym-admin.ts): lo primero que se quiere ver al
+  // entrar es lo que está pasando en este momento, no la semana completa.
+  protected readonly selectedDay = signal<DayOfWeek | null>(dayOfWeekOfDate(todayIsoDate()));
   protected readonly days = DAYS;
-  protected readonly selectedTimeBand = signal<TimeBand | null>(null);
+  protected readonly selectedTimeBand = signal<TimeBand | null>(timeBandOf(nowTimeString()));
   protected readonly timeBandOptions = TIME_BAND_OPTIONS;
   protected readonly timeBandAllHint = TIME_BAND_ALL_HINT;
   // Client-side, mismo criterio que memberSearch — los bloques del gym ya viven completos en
