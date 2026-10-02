@@ -48,18 +48,22 @@
         <ion-icon name="time-outline" aria-hidden="true"></ion-icon>
         <ion-label>Horarios</ion-label>
       </ion-segment-button>
-      <ion-segment-button value="plans">
-        <ion-icon name="pricetag-outline" aria-hidden="true"></ion-icon>
-        <ion-label>Planes</ion-label>
-      </ion-segment-button>
+      @if (!isProfesor()) {
+        <ion-segment-button value="plans">
+          <ion-icon name="pricetag-outline" aria-hidden="true"></ion-icon>
+          <ion-label>Planes</ion-label>
+        </ion-segment-button>
+      }
       <ion-segment-button value="members">
         <ion-icon name="people-outline" aria-hidden="true"></ion-icon>
         <ion-label>Socios</ion-label>
       </ion-segment-button>
-      <ion-segment-button value="branding">
-        <ion-icon name="color-palette-outline" aria-hidden="true"></ion-icon>
-        <ion-label>Marca</ion-label>
-      </ion-segment-button>
+      @if (!isProfesor()) {
+        <ion-segment-button value="branding">
+          <ion-icon name="color-palette-outline" aria-hidden="true"></ion-icon>
+          <ion-label>Marca</ion-label>
+        </ion-segment-button>
+      }
       <ion-segment-button value="screens">
         <ion-icon name="tv-outline" aria-hidden="true"></ion-icon>
         <ion-label>Pantallas</ion-label>
@@ -206,6 +210,7 @@
       </div>
     }
 
+    @if (!isProfesor()) {
     <ion-card>
       <ion-card-header>
         <ion-card-title>Cuenta Pago Online</ion-card-title>
@@ -391,6 +396,7 @@
         </form>
       </ion-card-content>
     </ion-card>
+    }
   } @else if (section() === 'blocks') {
     <ion-card>
       <ion-card-header class="card-header-row">
@@ -900,7 +906,7 @@
                     }
                     Marcar pago
                   </ion-button>
-                } @else {
+                } @else if (!isProfesor()) {
                   <ion-button
                     fill="outline"
                     size="small"
