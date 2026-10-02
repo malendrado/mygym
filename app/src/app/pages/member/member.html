@@ -309,6 +309,8 @@
                 class="class-tile"
                 [class.class-tile--reserved]="!!occurrence.myReservationId"
                 [class.class-tile--past]="occurrence.past"
+                [class.class-tile--live]="isOccurrenceLive(occurrence)"
+                [class.class-tile--live-pending]="isOccurrenceLive(occurrence) && !occurrence.myCheckedInAt"
               >
                 <p class="class-tile__title">
                   <ion-icon [name]="categoryIcon(occurrence.category)" aria-hidden="true"></ion-icon>
@@ -317,6 +319,24 @@
                 <p class="class-tile__datetime">{{ shortTime(occurrence.startTime) }}-{{ shortTime(occurrence.endTime) }}</p>
                 @if (occurrence.instructorName) {
                   <p class="class-tile__instructor">{{ occurrence.instructorName }}</p>
+                }
+                @if (isOccurrenceLive(occurrence)) {
+                  <div
+                    class="class-tile__progress"
+                    role="progressbar"
+                    [attr.aria-valuenow]="liveProgressPercent(occurrence.startTime, occurrence.endTime)"
+                    aria-valuemin="0"
+                    aria-valuemax="100"
+                    [attr.aria-label]="'Clase en curso: ' + liveProgressPercent(occurrence.startTime, occurrence.endTime) + '% transcurrido'"
+                  >
+                    <div class="class-tile__progress-fill" [style.width.%]="liveProgressPercent(occurrence.startTime, occurrence.endTime)"></div>
+                  </div>
+                  @if (!occurrence.myCheckedInAt) {
+                    <p class="class-tile__live-hint" role="status">
+                      <ion-icon name="qr-code-outline" aria-hidden="true"></ion-icon>
+                      Escanea el QR de la TV para marcar tu asistencia.
+                    </p>
+                  }
                 }
                 <p class="class-tile__capacity">{{ occurrence.taken }}/{{ occurrence.capacity }} cupos</p>
                 @if (occurrence.taken > 0) {
@@ -348,7 +368,19 @@
                 }
                 <div class="class-tile__action">
                   @if (occurrence.myReservationId) {
-                    <ion-badge color="success">Reservado</ion-badge>
+                    @if (isOccurrenceLive(occurrence)) {
+                      <ion-badge color="warning">En curso ahora</ion-badge>
+                      @if (occurrence.myCheckedInAt) {
+                        <ion-badge color="success" class="class-tile__attendance-badge">
+                          <ion-icon name="checkmark-outline" aria-hidden="true"></ion-icon>
+                          Asistencia marcada
+                        </ion-badge>
+                      } @else {
+                        <ion-badge color="medium" class="class-tile__attendance-badge">Sin marcar asistencia</ion-badge>
+                      }
+                    } @else {
+                      <ion-badge color="success">Reservado</ion-badge>
+                    }
                     @if (!occurrence.past) {
                       <button
                         type="button"
@@ -511,13 +543,47 @@
       <h2>Próximas</h2>
       <div class="class-grid">
         @for (reservation of upcomingReservations(); track reservation.id) {
-          <article class="class-tile class-tile--reserved">
+          <article
+            class="class-tile class-tile--reserved"
+            [class.class-tile--live]="isReservationLive(reservation)"
+            [class.class-tile--live-pending]="isReservationLive(reservation) && !reservation.checkedInAt"
+          >
             <p class="class-tile__title">{{ reservation.blockLabel }}</p>
             <p class="class-tile__datetime">
               {{ formatShortDate(reservation.classDate) }} · {{ shortTime(reservation.startTime) }}-{{ shortTime(reservation.endTime) }}
             </p>
+            @if (isReservationLive(reservation)) {
+              <div
+                class="class-tile__progress"
+                role="progressbar"
+                [attr.aria-valuenow]="liveProgressPercent(reservation.startTime, reservation.endTime)"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                [attr.aria-label]="'Clase en curso: ' + liveProgressPercent(reservation.startTime, reservation.endTime) + '% transcurrido'"
+              >
+                <div class="class-tile__progress-fill" [style.width.%]="liveProgressPercent(reservation.startTime, reservation.endTime)"></div>
+              </div>
+              @if (!reservation.checkedInAt) {
+                <p class="class-tile__live-hint" role="status">
+                  <ion-icon name="qr-code-outline" aria-hidden="true"></ion-icon>
+                  Escanea el QR de la TV para marcar tu asistencia.
+                </p>
+              }
+            }
             <div class="class-tile__action">
-              <ion-badge color="success">Reservado</ion-badge>
+              @if (isReservationLive(reservation)) {
+                <ion-badge color="warning">En curso ahora</ion-badge>
+                @if (reservation.checkedInAt) {
+                  <ion-badge color="success" class="class-tile__attendance-badge">
+                    <ion-icon name="checkmark-outline" aria-hidden="true"></ion-icon>
+                    Asistencia marcada
+                  </ion-badge>
+                } @else {
+                  <ion-badge color="medium" class="class-tile__attendance-badge">Sin marcar asistencia</ion-badge>
+                }
+              } @else {
+                <ion-badge color="success">Reservado</ion-badge>
+              }
               <button
                 type="button"
                 class="class-tile__link class-tile__link--danger"

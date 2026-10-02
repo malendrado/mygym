@@ -89,6 +89,18 @@
   }
 }
 
+// Respiración suave del borde/glow warning — nunca opacity pulsando (se lee más como "cargando"
+// que como "atención"), un box-shadow que crece y se achica se lee más como urgencia real.
+@keyframes class-tile-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--ion-color-warning, #ffc409) 35%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--ion-color-warning, #ffc409) 55%, transparent);
+  }
+}
+
 // Sin este tope, en un navegador de escritorio real (no un celular) todo el
 // contenido se estira al ancho completo de la ventana — la grilla del
 // calendario queda con celdas gigantes (aspect-ratio:1 sobre una columna de
@@ -918,6 +930,71 @@ ion-segment-button.segment-button-checked {
 
   &--past {
     opacity: 0.55;
+  }
+
+  // Resalta la clase que está pasando AHORA mismo (pedido explícito del usuario, que se note) —
+  // acento warning (ámbar), no el color de marca: acá queremos que llame la atención de verdad,
+  // no que se mimetice con el resto de los acentos verdes/lima de la tarjeta.
+  &--live {
+    border-color: var(--ion-color-warning, #ffc409);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--ion-color-warning, #ffc409) 35%, transparent);
+    background: color-mix(in srgb, var(--ion-color-warning, #ffc409) 10%, var(--member-card, var(--brand-ink-surface-2)));
+  }
+
+  // "Latido" SOLO mientras falta marcar asistencia — apenas se marca, la tarjeta se queda quieta
+  // (ya no hay nada pendiente que apurar). Un solo elemento animado por vista (la tarjeta en sí,
+  // no también el badge por separado) — más de eso distrae en vez de llamar la atención, y
+  // siempre respeta prefers-reduced-motion (se desactiva entero, no queda a medias).
+  &--live-pending {
+    @media (prefers-reduced-motion: no-preference) {
+      animation: class-tile-pulse 1.8s ease-in-out infinite;
+    }
+  }
+
+  // Segunda píldora aparte de "En curso ahora" — nunca mezclar los dos estados en un solo badge
+  // (son dos preguntas distintas: "¿cuándo es?" vs "¿ya marcaste?"), consistente con la skill UX
+  // (un badge = un mensaje atómico, nunca dos estados compitiendo en la misma píldora).
+  &__attendance-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+
+    ion-icon {
+      font-size: 0.8rem;
+    }
+  }
+
+  // Barra estática (no timer en vivo) de cuánto lleva corrida la clase — mismo acento warning
+  // que el resto del estado "en curso", nunca el color de marca (se leería como progreso de
+  // otra cosa, ej. cupos).
+  &__progress {
+    height: 4px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--ion-color-warning, #ffc409) 18%, transparent);
+    overflow: hidden;
+    margin: 0.35rem 0 0;
+  }
+
+  &__progress-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: var(--ion-color-warning, #ffc409);
+  }
+
+  &__live-hint {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    margin: 0.25rem 0 0;
+    color: var(--ion-color-warning-shade, #e0ac08);
+    font-size: 0.68rem;
+    font-weight: 600;
+    line-height: 1.3;
+
+    ion-icon {
+      flex-shrink: 0;
+      font-size: 0.85rem;
+    }
   }
 
   &__title {

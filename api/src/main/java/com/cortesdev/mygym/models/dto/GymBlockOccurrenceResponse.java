@@ -1,6 +1,7 @@
 package com.cortesdev.mygym.models.dto;
 
 import java.time.DayOfWeek;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 
@@ -19,4 +20,5 @@ public record GymBlockOccurrenceResponse(
         boolean bookable,
         boolean past,
         Long myReservationId,
-        boolean waitlisted) {}
+        boolean waitlisted,
+        Instant myCheckedInAt) {}

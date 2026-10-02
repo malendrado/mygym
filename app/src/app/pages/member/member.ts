@@ -40,6 +40,7 @@ import {
   logOutOutline,
   logoInstagram,
   logoWhatsapp,
+  qrCodeOutline,
   sparklesOutline,
   trendingUpOutline,
 } from 'ionicons/icons';
@@ -85,6 +86,7 @@ addIcons({
   'close-circle-outline': closeCircleOutline,
   'information-circle-outline': informationCircleOutline,
   'create-outline': createOutline,
+  'qr-code-outline': qrCodeOutline,
 });
 
 type Status = 'idle' | 'loading' | 'error';
@@ -1270,6 +1272,41 @@ export class MemberPage {
 
   private isReservationPast(reservation: Reservation): boolean {
     return `${reservation.classDate}T${reservation.endTime}` < this.nowChileIso;
+  }
+
+  // Resalta la clase que está pasando AHORA — pedido explícito del usuario para que se note (y
+  // de paso empuje a marcar asistencia escaneando el QR de la TV, sin el cual Memoria Viva ni
+  // Historial cuentan la clase como asistida). Compartido por "Mis reservas" (Reservation) y
+  // "Reserva tu bloque" (GymBlockOccurrence) — mismos 3 campos de fecha/hora en los dos.
+  private isLiveNow(classDate: string, startTime: string, endTime: string): boolean {
+    const start = `${classDate}T${startTime}`;
+    const end = `${classDate}T${endTime}`;
+    return start <= this.nowChileIso && this.nowChileIso <= end;
+  }
+
+  protected isReservationLive(reservation: Reservation): boolean {
+    return this.isLiveNow(reservation.classDate, reservation.startTime, reservation.endTime);
+  }
+
+  protected isOccurrenceLive(occurrence: GymBlockOccurrence): boolean {
+    return !!occurrence.myReservationId && this.isLiveNow(occurrence.classDate, occurrence.startTime, occurrence.endTime);
+  }
+
+  // Barra ESTÁTICA (pedido explícito): calculada una sola vez contra el mismo snapshot de "ahora"
+  // que el resto de esta pantalla, no un timer en vivo — evita tener que mantener un intervalo
+  // corriendo mientras la página esté abierta por un dato que ya se ve en texto (el horario).
+  protected liveProgressPercent(startTime: string, endTime: string): number {
+    const toMinutes = (hms: string) => {
+      const [h, m] = hms.split(':').map(Number);
+      return h * 60 + m;
+    };
+    const total = toMinutes(endTime) - toMinutes(startTime);
+    if (total <= 0) {
+      return 0;
+    }
+    const nowTime = this.nowChileIso.split('T')[1];
+    const elapsed = toMinutes(nowTime) - toMinutes(startTime);
+    return Math.min(100, Math.max(0, Math.round((elapsed / total) * 100)));
   }
 
   // Mientras el socio no tiene plan, el calendario borroso va cambiando solo

@@ -17,6 +17,7 @@ import com.cortesdev.mygym.repositories.GymBlockRepository;
 import com.cortesdev.mygym.repositories.GymRepository;
 import com.cortesdev.mygym.repositories.ReservationRepository;
 import com.cortesdev.mygym.repositories.TvCheckinCodeRepository;
+import com.cortesdev.mygym.services.exception.AlreadyCheckedInException;
 import com.cortesdev.mygym.services.exception.BookingWindowClosedException;
 import com.cortesdev.mygym.services.exception.CapacityExceededException;
 import com.cortesdev.mygym.services.exception.CheckinCodeNotFoundException;
@@ -93,11 +94,13 @@ public class ReservationService {
         Set<String> myWaitlistedOccurrences = waitlistService.myWaitlistedOccurrences(memberId, from, to);
         Map<String, Integer> takenByOccurrence = new HashMap<>();
         Map<String, Long> myReservationIdByOccurrence = new HashMap<>();
+        Map<String, Instant> myCheckedInAtByOccurrence = new HashMap<>();
         for (Reservation reservation : bookedInRange) {
             String key = occurrenceKey(reservation.getGymBlockId(), reservation.getClassDate());
             takenByOccurrence.merge(key, 1, Integer::sum);
             if (reservation.getMemberId().equals(memberId)) {
                 myReservationIdByOccurrence.put(key, reservation.getId());
+                myCheckedInAtByOccurrence.put(key, reservation.getCheckedInAt());
             }
         }
 
@@ -130,7 +133,8 @@ public class ReservationService {
                         bookable,
                         past,
                         myReservationId,
-                        waitlisted));
+                        waitlisted,
+                        myCheckedInAtByOccurrence.get(key)));
             }
         }
         result.sort(Comparator.comparing(GymBlockOccurrenceResponse::classDate)
@@ -367,8 +371,7 @@ public class ReservationService {
                         .collect(Collectors.toMap(GymBlock::getId, b -> b));
 
         ZonedDateTime nowZoned = ZonedDateTime.now(GYM_ZONE);
-        List<Reservation> matches = todaysBooked.stream()
-                .filter(r -> r.getCheckedInAt() == null)
+        List<Reservation> windowMatches = todaysBooked.stream()
                 .filter(r -> {
                     GymBlock block = blocksById.get(r.getGymBlockId());
                     if (block == null || !block.getGymId().equals(checkin.getGymId())) {
@@ -380,9 +383,17 @@ public class ReservationService {
                 })
                 .toList();
 
-        if (matches.isEmpty()) {
-            throw new NoActiveReservationException();
+        // Si la única razón de no encontrar nada es que ya había marcado asistencia antes, avisar
+        // eso en vez del mensaje genérico de "no tienes reserva" — es un caso distinto y confunde.
+        if (windowMatches.stream().allMatch(r -> r.getCheckedInAt() != null)) {
+            if (windowMatches.isEmpty()) {
+                throw new NoActiveReservationException();
+            }
+            throw new AlreadyCheckedInException();
         }
+
+        List<Reservation> matches =
+                windowMatches.stream().filter(r -> r.getCheckedInAt() == null).toList();
 
         Instant now = Instant.now();
         List<String> classLabels = new ArrayList<>();
@@ -430,6 +441,7 @@ public class ReservationService {
                 block != null ? block.getStartTime() : null,
                 block != null ? block.getEndTime() : null,
                 reservation.getStatus(),
-                reservation.getCreatedAt());
+                reservation.getCreatedAt(),
+                reservation.getCheckedInAt());
     }
 }

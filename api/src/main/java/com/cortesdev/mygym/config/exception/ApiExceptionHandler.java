@@ -1,6 +1,7 @@
 package com.cortesdev.mygym.config.exception;
 
 import com.cortesdev.mygym.services.exception.AdminNotFoundException;
+import com.cortesdev.mygym.services.exception.AlreadyCheckedInException;
 import com.cortesdev.mygym.services.exception.BookingWindowClosedException;
 import com.cortesdev.mygym.services.exception.BrandingSuggestionException;
 import com.cortesdev.mygym.services.exception.CapacityExceededException;
@@ -113,6 +114,14 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     public ResponseEntity<ProblemDetail> handleNoActiveReservation(NoActiveReservationException ex) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
         problem.setTitle("Sin reserva activa");
+        problem.setProperty("timestamp", Instant.now());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(problem);
+    }
+
+    @ExceptionHandler(AlreadyCheckedInException.class)
+    public ResponseEntity<ProblemDetail> handleAlreadyCheckedIn(AlreadyCheckedInException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+        problem.setTitle("Asistencia ya marcada");
         problem.setProperty("timestamp", Instant.now());
         return ResponseEntity.status(HttpStatus.CONFLICT).body(problem);
     }

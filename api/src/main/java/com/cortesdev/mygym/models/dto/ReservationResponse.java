@@ -13,4 +13,5 @@ public record ReservationResponse(
         LocalTime startTime,
         LocalTime endTime,
         ReservationStatus status,
-        Instant createdAt) {}
+        Instant createdAt,
+        Instant checkedInAt) {}

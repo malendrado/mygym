@@ -16,6 +16,7 @@ export interface GymBlockOccurrence {
   past: boolean;
   myReservationId: number | null;
   waitlisted: boolean;
+  myCheckedInAt: string | null;
 }
 
 export type ReservationStatus = 'BOOKED' | 'CANCELLED';
@@ -29,6 +30,7 @@ export interface Reservation {
   endTime: string;
   status: ReservationStatus;
   createdAt: string;
+  checkedInAt: string | null;
 }
 
 export interface CreateReservationRequest {
