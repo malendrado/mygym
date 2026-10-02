@@ -165,7 +165,7 @@ addIcons({
   'tv-outline': tvOutline,
 });
 
-type Status = 'idle' | 'loading' | 'saving' | 'error';
+type Status = 'idle' | 'loading' | 'saving';
 type Section = 'general' | 'blocks' | 'plans' | 'members' | 'branding' | 'screens' | 'history';
 
 // Segundo eje de filtro para la grilla de horarios (además del día) —
@@ -1445,9 +1445,11 @@ export class GymAdmin implements OnDestroy {
         this.isModalOpen.set(false);
         this.loadBlocks();
       },
-      error: () => {
+      error: (err: Error) => {
         this.status.set('idle');
-        this.handleWriteError(() => this.status.set('error'));
+        this.handleWriteError(() =>
+          this.showToast(err.message || 'No pudimos guardar el bloque. Intenta nuevamente.', 'danger'),
+        );
       },
     });
   }
@@ -1462,7 +1464,8 @@ export class GymAdmin implements OnDestroy {
     }
     this.gymService.deleteMyBlock(block.id).subscribe({
       next: () => this.loadBlocks(),
-      error: () => this.handleWriteError(() => this.status.set('error')),
+      error: (err: Error) =>
+        this.handleWriteError(() => this.showToast(err.message || 'No pudimos eliminar el bloque.', 'danger')),
     });
   }
 
@@ -1493,9 +1496,11 @@ export class GymAdmin implements OnDestroy {
         this.isPlanModalOpen.set(false);
         this.loadPlans();
       },
-      error: () => {
+      error: (err: Error) => {
         this.status.set('idle');
-        this.handleWriteError(() => this.status.set('error'));
+        this.handleWriteError(() =>
+          this.showToast(err.message || 'No pudimos guardar el plan. Intenta nuevamente.', 'danger'),
+        );
       },
     });
   }
@@ -1507,7 +1512,8 @@ export class GymAdmin implements OnDestroy {
     }
     this.gymService.deleteMyPlan(plan.id).subscribe({
       next: () => this.loadPlans(),
-      error: () => this.handleWriteError(() => this.status.set('error')),
+      error: (err: Error) =>
+        this.handleWriteError(() => this.showToast(err.message || 'No pudimos eliminar el plan.', 'danger')),
     });
   }
 
@@ -1537,9 +1543,11 @@ export class GymAdmin implements OnDestroy {
         this.loadMembers();
         this.showToast(`Socio agregado: ${member.name}. Le enviamos un correo para activar su cuenta y elegir un plan.`);
       },
-      error: () => {
+      error: (err: Error) => {
         this.status.set('idle');
-        this.handleWriteError(() => this.status.set('error'));
+        this.handleWriteError(() =>
+          this.showToast(err.message || 'No pudimos agregar al socio. Intenta nuevamente.', 'danger'),
+        );
       },
     });
   }
@@ -1883,7 +1891,7 @@ export class GymAdmin implements OnDestroy {
         this.loadFlowAccount();
       },
       error: () => {
-        this.status.set('error');
+        this.showToast('No pudimos cargar los datos del gimnasio. Intenta nuevamente.', 'danger');
         this.gymLoaded.set(true);
       },
     });
@@ -1916,35 +1924,35 @@ export class GymAdmin implements OnDestroy {
   private loadPhotos(): void {
     this.gymService.listMyPhotos().subscribe({
       next: (photos) => this.photos.set(photos),
-      error: () => this.status.set('error'),
+      error: () => this.showToast('No pudimos cargar las fotos. Intenta nuevamente.', 'danger'),
     });
   }
 
   private loadBlocks(): void {
     this.gymService.listMyBlocks().subscribe({
       next: (blocks) => this.blocks.set(sortBlocksBySchedule(blocks)),
-      error: () => this.status.set('error'),
+      error: () => this.showToast('No pudimos cargar los horarios. Intenta nuevamente.', 'danger'),
     });
   }
 
   private loadPlans(): void {
     this.gymService.listMyPlans().subscribe({
       next: (plans) => this.plans.set(plans),
-      error: () => this.status.set('error'),
+      error: () => this.showToast('No pudimos cargar los planes. Intenta nuevamente.', 'danger'),
     });
   }
 
   private loadMembers(): void {
     this.memberService.list().subscribe({
       next: (members) => this.members.set(members),
-      error: () => this.status.set('error'),
+      error: () => this.showToast('No pudimos cargar los socios. Intenta nuevamente.', 'danger'),
     });
   }
 
   private loadTvScreens(): void {
     this.tvScreenService.listMyScreens().subscribe({
       next: (screens) => this.tvScreens.set(screens),
-      error: () => this.status.set('error'),
+      error: () => this.showToast('No pudimos cargar las pantallas. Intenta nuevamente.', 'danger'),
     });
   }
 

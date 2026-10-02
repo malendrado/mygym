@@ -547,14 +547,28 @@ ion-segment-button.segment-button-checked {
 }
 
 // Con 3 botones + la caluga de estado, ya no entraban junto al nombre/email en una sola línea
-// (reportado por el usuario con captura: se veía amontonado/cortado). Probar a forzar flex-wrap
-// en la parte interna real de `ion-item` (`::part(native)`) rompió el layout al revés — el
-// contenedor interno de Ionic que reparte el espacio entre el label y el slot "end" sigue sin
-// wrappear aunque el de afuera sí lo haga, y como `.member-row` tiene `overflow-x:auto` (su
-// min-width automático pasa a ser 0 por spec de flexbox), el label terminaba con ancho 0 y
-// el nombre/email directamente desaparecían. Fix real: dejar que el slot "end" wrappee ADENTRO
-// de sí mismo (ion-item no se toca), así solo pide el ancho de su botón más largo, no el de la
-// fila entera, y el label se queda con todo el espacio sobrante como siempre.
+// (reportado por el usuario con captura: se veía amontonado/cortado en desktop angosto, y
+// directamente desaparecía en mobile real). DOS intentos de arreglarlo forzando flex-wrap en el
+// `::part(native)` de ion-item (el contenedor interno que reparte el espacio entre ion-label y
+// el slot "end") rompieron el layout al revés: ion-label terminaba con width:0 — medido con
+// getBoundingClientRect(), no a simple vista — porque el tamaño mínimo automático de un flex item
+// colapsa a 0 por spec cuando el padre wrappea, y nada de lo que se le hace a ion-label desde
+// afuera (min-width, flex-basis) alcanza a ganarle a eso de forma confiable: Ionic decide el
+// layout real adentro de su shadow DOM, no en `::part(native)`.
+//
+// Fix real: dejar de pelear con el slot "end" por completo. `.member-actions` ya NO es un
+// hermano de ion-label (slot="end") — ahora es un hijo MÁS de ion-label, junto a `.member-row`,
+// envueltos los dos en `.member-row-wrapper` (ver gym-admin.html). Al ser contenido normal
+// adentro de ion-label (no un slot de Ionic), el flex que los reparte es 100% nuestro: lado a
+// lado en desktop, apilado en mobile, sin ningún cálculo automático de Ionic de por medio.
+.member-row-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  width: 100%;
+}
+
 .member-actions {
   display: flex;
   flex-wrap: wrap;
@@ -562,7 +576,31 @@ ion-segment-button.segment-button-checked {
   justify-content: flex-end;
   gap: 0.4rem;
   row-gap: 0.35rem;
+  flex-shrink: 0;
   max-width: 55%;
+}
+
+// Mismo breakpoint que el resto del panel usa para mobile — acá sí es simplemente apilar: el
+// wrapper pasa a columna, `.member-row` deja de scrollear horizontal (nunca más "se perdió la
+// info", ver guía de la skill UX: el contenido nunca debe depender de un scroll lateral que nadie
+// descubre) y `.member-actions` ocupa todo el ancho para que sus botones (ya en size="small",
+// 44px de alto — no se achican más para no romper el tamaño mínimo de touch target) tengan
+// espacio real en vez de amontonarse en una columna angosta.
+@media (max-width: 600px) {
+  .member-row-wrapper {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .member-row {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+
+  .member-actions {
+    max-width: 100%;
+    justify-content: flex-start;
+  }
 }
 
 .member-stats-heading {

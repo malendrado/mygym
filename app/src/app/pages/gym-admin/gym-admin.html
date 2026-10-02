@@ -86,10 +86,6 @@
     <p><strong>Hola, {{ adminFirstName() }}.</strong> {{ tip }}</p>
   </div>
 
-  @if (status() === 'error') {
-    <ion-text color="danger"><p>Ocurrió un error. Intenta nuevamente.</p></ion-text>
-  }
-
   @if (section() === 'general') {
     <div class="gym-detail-stats">
       <div class="gym-detail-stat">
@@ -853,6 +849,7 @@
                 <ion-icon name="person-circle-outline" slot="start" aria-hidden="true"></ion-icon>
               }
               <ion-label>
+                <div class="member-row-wrapper">
                 <div class="member-row">
                   <span class="member-row__name">{{ member.name }}</span>
                   <span class="member-row__email">{{ member.email }}</span>
@@ -883,8 +880,7 @@
                     </span>
                   }
                 </div>
-              </ion-label>
-              <div class="member-actions" slot="end">
+                <div class="member-actions">
                 <ion-badge [color]="statusColor(member.membershipStatus)">
                   {{ statusLabel(member.membershipStatus) }}
                 </ion-badge>
@@ -947,7 +943,9 @@
                     }
                   </ion-button>
                 }
-              </div>
+                </div>
+                </div>
+              </ion-label>
             </ion-item>
           } @empty {
             <ion-item lines="none">
