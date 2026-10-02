@@ -19,8 +19,10 @@ import com.cortesdev.mygym.services.exception.GymNotFoundException;
 import com.cortesdev.mygym.services.exception.GymPhotoNotFoundException;
 import com.cortesdev.mygym.services.exception.GymPlanNotFoundException;
 import com.cortesdev.mygym.services.exception.InvalidBlockScheduleException;
+import com.cortesdev.mygym.services.exception.InvalidCredentialsException;
 import com.cortesdev.mygym.services.exception.InvalidGoogleTokenException;
 import com.cortesdev.mygym.services.exception.InvalidLogoException;
+import com.cortesdev.mygym.services.exception.InvalidOrExpiredTokenException;
 import com.cortesdev.mygym.services.exception.InvalidRutException;
 import com.cortesdev.mygym.services.exception.InvalidThemeException;
 import com.cortesdev.mygym.services.exception.MemberNotFoundException;
@@ -281,6 +283,26 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
         problem.setTitle("Token de Google inválido");
         problem.setProperty("timestamp", Instant.now());
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(problem);
+    }
+
+    @ExceptionHandler(InvalidCredentialsException.class)
+    public ResponseEntity<ProblemDetail> handleInvalidCredentials(InvalidCredentialsException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, ex.getMessage());
+        problem.setTitle("Credenciales inválidas");
+        problem.setProperty("timestamp", Instant.now());
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(problem);
+    }
+
+    // BAD_REQUEST, no GONE: 410 ya está tomado globalmente por el interceptor del frontend para
+    // "demo vencida" (DemoAccessExpiredException) — ese interceptor no filtra por URL, así que
+    // reusar 410 acá haría que un token de activación vencido cerrara la sesión del usuario y lo
+    // mandara al formulario de contacto de la demo. Nada que ver.
+    @ExceptionHandler(InvalidOrExpiredTokenException.class)
+    public ResponseEntity<ProblemDetail> handleInvalidOrExpiredToken(InvalidOrExpiredTokenException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+        problem.setTitle("Link inválido o vencido");
+        problem.setProperty("timestamp", Instant.now());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
     }
 
     @ExceptionHandler(BrandingSuggestionException.class)

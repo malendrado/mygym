@@ -1,0 +1,88 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>mygym</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding activate-content">
+  <div class="activate-card">
+    @if (status() === 'loading') {
+      <div class="activate-loading">
+        <ion-spinner name="crescent"></ion-spinner>
+      </div>
+    } @else if (status() === 'invalid') {
+      <h1>Este link ya no es válido</h1>
+      <p>Puede que haya expirado o que ya lo hayas usado. Pide uno nuevo desde la pantalla de ingreso.</p>
+      <ion-button expand="block" routerLink="/login">Ir a ingresar</ion-button>
+    } @else if (status() === 'welcome') {
+      <div class="activate-welcome">
+        <h1>¡Listo!</h1>
+        <p>Ya puedes entrar a mygym.</p>
+      </div>
+    } @else {
+      @if (purpose() === 'SELF_REGISTER') {
+        <h1>¡{{ displayName() || 'Bienvenido' }}, un último paso!</h1>
+        <p>Crea tu contraseña para terminar de unirte.</p>
+      } @else if (purpose() === 'PASSWORD_RESET') {
+        <h1>Crea una nueva contraseña</h1>
+        <p>Esta va a reemplazar tu contraseña actual.</p>
+      } @else {
+        <h1>Hola {{ displayName() || 'de nuevo' }}, activa tu cuenta</h1>
+        <p>Crea una contraseña para entrar sin necesidad de Google.</p>
+      }
+
+      <form class="activate-form" (submit)="$event.preventDefault(); submit()">
+        <ion-item lines="full">
+          <ion-input
+            [type]="passwordVisible() ? 'text' : 'password'"
+            label="Nueva contraseña"
+            label-placement="stacked"
+            autocomplete="new-password"
+            helper-text="Mínimo 8 caracteres"
+            [value]="password()"
+            (ionInput)="password.set($any($event.detail.value) ?? '')"
+          >
+            <ion-button
+              slot="end"
+              fill="clear"
+              type="button"
+              aria-label="{{ passwordVisible() ? 'Ocultar contraseña' : 'Mostrar contraseña' }}"
+              (click)="togglePasswordVisible()"
+            >
+              <ion-icon slot="icon-only" [name]="passwordVisible() ? 'eye-off-outline' : 'eye-outline'" aria-hidden="true"></ion-icon>
+            </ion-button>
+          </ion-input>
+        </ion-item>
+        <ion-item lines="full">
+          <ion-input
+            [type]="passwordVisible() ? 'text' : 'password'"
+            label="Repite la contraseña"
+            label-placement="stacked"
+            autocomplete="new-password"
+            [value]="confirmPassword()"
+            (ionInput)="confirmPassword.set($any($event.detail.value) ?? '')"
+          ></ion-input>
+        </ion-item>
+        @if (passwordsMismatch) {
+          <ion-text color="danger"><p class="activate-hint">Las contraseñas no coinciden.</p></ion-text>
+        }
+        <ion-button
+          expand="block"
+          type="submit"
+          [disabled]="password().length < 8 || passwordsMismatch || status() === 'saving'"
+        >
+          @if (status() === 'saving') {
+            <ion-spinner name="crescent" slot="start"></ion-spinner>
+          }
+          Crear mi contraseña
+        </ion-button>
+      </form>
+
+      @if (errorMessage()) {
+        <ion-text color="danger" role="alert">
+          <p>{{ errorMessage() }}</p>
+        </ion-text>
+      }
+    }
+  </div>
+</ion-content>

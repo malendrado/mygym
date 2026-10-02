@@ -84,7 +84,7 @@ public class MemberLifecycleEmailService {
     // activar su cuenta con Google Y, de paso, tentarlo a elegir un plan de
     // una vez — por eso el cuerpo incluye un teaser con los planes activos del
     // gimnasio en vez de solo un aviso de bienvenida.
-    public void sendMemberInviteWithPlans(Gym gym, AppUser member, List<GymPlan> activePlans) {
+    public void sendMemberInviteWithPlans(Gym gym, AppUser member, List<GymPlan> activePlans, String activationUrl) {
         String joinUrl = "https://www.mygym.cl/j/" + gym.getSlug();
         String name = firstName(member);
         String headline = "¡" + name + ", bienvenido a " + gym.getName() + "!";
@@ -100,6 +100,7 @@ public class MemberLifecycleEmailService {
                             + "el suyo apenas entra, así reserva su primera clase el mismo día.</p>");
             body.append(planTeaserHtml(gym, activePlans));
         }
+        body.append(passwordAlternativeHtml(activationUrl));
         send(
                 gym,
                 member.getEmail(),
@@ -162,6 +163,55 @@ public class MemberLifecycleEmailService {
         return sb.toString();
     }
 
+    // Agregado al cuerpo de los emails de invitación/aviso de plan — ofrece la alternativa de
+    // email+contraseña sin reemplazar el botón de CTA principal (que sigue siendo Google, la
+    // opción más simple para la mayoría). Mismo link para las 3 variantes del token, ver
+    // PasswordAuthService/activate.html en el frontend.
+    private String passwordAlternativeHtml(String activationUrl) {
+        return "<p style=\"margin:16px 0 0; font-size:13px; color:#7d9296;\">¿Prefieres no usar Google? "
+                + "<a href=\"" + activationUrl + "\" style=\"color:#a9c2c6;\">Activa tu cuenta con un email y contraseña</a>.</p>";
+    }
+
+    // Auto-registro sin Google (PasswordAuthService.requestSelfRegistration) — el socio todavía
+    // no existe en la base (igual que SELF_REGISTER en AuthToken), así que acá se usa el nombre
+    // que él mismo escribió en el formulario, no el de una AppUser ya guardada.
+    public void sendSelfRegisterActivation(Gym gym, String name, String toEmail, String activationUrl) {
+        String firstName = name == null || name.isBlank() ? "" : name.trim().split(" ")[0];
+        String headline = (firstName.isEmpty() ? "¡Bienvenido" : "¡" + firstName) + ", ya casi estás dentro de " + gym.getName() + "!";
+        String body = "<p style=\"margin:0;\">Solo falta un paso — crea tu contraseña para activar tu cuenta y empezar a reservar clases en "
+                + "<strong style=\"color:#eaf6f7;\">" + escapeHtml(gym.getName()) + "</strong>.</p>";
+        send(
+                gym,
+                toEmail,
+                "Activa tu cuenta en " + gym.getName(),
+                "Activar cuenta",
+                headline,
+                body,
+                "Crear mi contraseña",
+                activationUrl,
+                "Recibiste este correo porque pediste unirte a " + escapeHtml(gym.getName()) + " en mygym.");
+    }
+
+    // "Olvidé mi contraseña" — gym puede venir null (ej. SUPER_ADMIN, que no tiene gymId) y acá se
+    // usa un gym sintético con el look neutro de mygym (nunca se persiste, solo para renderizar el
+    // email con el mismo template que el resto de esta clase).
+    public void sendPasswordReset(Gym gym, AppUser user, String activationUrl) {
+        Gym effectiveGym = gym != null ? gym : Gym.builder().name("mygym").themeColor(GymPalette.defaultHex()).build();
+        String headline = "Crea una nueva contraseña";
+        String body = "<p style=\"margin:0;\">Pediste restablecer tu contraseña — este link es válido por 1 hora y se puede usar una sola vez. "
+                + "Si no fuiste tú, ignora este correo y tu contraseña actual sigue funcionando igual.</p>";
+        send(
+                effectiveGym,
+                user.getEmail(),
+                "Restablece tu contraseña en mygym",
+                "Restablecer contraseña",
+                headline,
+                body,
+                "Crear nueva contraseña",
+                activationUrl,
+                "Recibiste este correo porque pediste restablecer tu contraseña en mygym.");
+    }
+
     public void sendNewMemberNotice(Gym gym, AppUser member, List<String> adminEmails) {
         String headline = "Tienes un socio nuevo en " + gym.getName();
         String body = "<p style=\"margin:0 0 12px;\"><strong style=\"color:#eaf6f7;\">" + escapeHtml(member.getName())
@@ -193,7 +243,7 @@ public class MemberLifecycleEmailService {
     // tienes tu plan activo" para un socio que, según la fecha que él mismo cargó, ya estaba
     // vencido.
     public void sendMemberImportedWithPlan(
-            Gym gym, AppUser member, GymPlan plan, ZonedDateTime periodEnd, Integer usedSessions) {
+            Gym gym, AppUser member, GymPlan plan, ZonedDateTime periodEnd, Integer usedSessions, String activationUrl) {
         String name = firstName(member);
         String dateLabel = IMPORT_DATE_FORMAT.format(periodEnd);
         boolean expired = periodEnd.isBefore(ZonedDateTime.now(GYM_ZONE));
@@ -211,10 +261,12 @@ public class MemberLifecycleEmailService {
                         + escapeHtml(plan.getName()) + "</strong>, vigente hasta el " + dateLabel
                         + " — esa fecha ya pasó, así que para reservar clases vas a necesitar renovarlo.</p>"
                         + "<p style=\"margin:0;\">Activa tu cuenta con Google para ver el detalle y renovar cuando quieras.</p>"
+                        + passwordAlternativeHtml(activationUrl)
                 : "<p style=\"margin:0 0 12px;\">" + escapeHtml(gym.getName()) + " activó tu plan <strong style=\"color:#eaf6f7;\">"
                         + escapeHtml(plan.getName()) + "</strong>, con " + quota + ", vigente hasta el " + dateLabel + "."
                         + usedNote + "</p>"
-                        + "<p style=\"margin:0;\">Activa tu cuenta con Google para reservar tu primera clase.</p>";
+                        + "<p style=\"margin:0;\">Activa tu cuenta con Google para reservar tu primera clase.</p>"
+                        + passwordAlternativeHtml(activationUrl);
         send(
                 gym,
                 member.getEmail(),

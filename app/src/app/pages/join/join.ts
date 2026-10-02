@@ -1,10 +1,28 @@
 import { Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { DomSanitizer } from '@angular/platform-browser';
-import { IonContent, IonHeader, IonIcon, IonSpinner, IonText, IonTitle, IonToolbar } from '@ionic/angular';
+import {
+  IonButton,
+  IonContent,
+  IonHeader,
+  IonIcon,
+  IonInput,
+  IonItem,
+  IonSpinner,
+  IonText,
+  IonTitle,
+  IonToolbar,
+} from '@ionic/angular';
 import { GoogleSigninButtonDirective, SocialAuthService } from '@abacritt/angularx-social-login';
 import { addIcons } from 'ionicons';
-import { informationCircleOutline, logoInstagram, logoWhatsapp, sparklesOutline } from 'ionicons/icons';
+import {
+  eyeOffOutline,
+  eyeOutline,
+  informationCircleOutline,
+  logoInstagram,
+  logoWhatsapp,
+  sparklesOutline,
+} from 'ionicons/icons';
 import { AuthService } from '../../core/services/auth.service';
 import { GymService } from '../../core/services/gym.service';
 import { LoginResponse } from '../../core/models/auth.model';
@@ -16,9 +34,12 @@ addIcons({
   'logo-whatsapp': logoWhatsapp,
   'information-circle-outline': informationCircleOutline,
   'sparkles-outline': sparklesOutline,
+  'eye-outline': eyeOutline,
+  'eye-off-outline': eyeOffOutline,
 });
 
 type Status = 'loading' | 'ready' | 'not-found' | 'joining' | 'welcome';
+type JoinMode = 'google' | 'password';
 
 // Mismo gotcha que login.ts: si el callback de Google nunca llega (navegador
 // embebido de WhatsApp/Instagram, restricciones de cookies de terceros en
@@ -33,7 +54,19 @@ const WELCOME_PAUSE_MS = 1600;
 
 @Component({
   selector: 'app-join',
-  imports: [IonHeader, IonToolbar, IonTitle, IonContent, IonText, IonIcon, IonSpinner, GoogleSigninButtonDirective],
+  imports: [
+    IonHeader,
+    IonToolbar,
+    IonTitle,
+    IonContent,
+    IonText,
+    IonIcon,
+    IonSpinner,
+    IonItem,
+    IonInput,
+    IonButton,
+    GoogleSigninButtonDirective,
+  ],
   templateUrl: './join.html',
   styleUrl: './join.scss',
 })
@@ -56,6 +89,16 @@ export class Join {
   protected readonly plansLoaded = signal(false);
   protected readonly photos = signal<GymPhoto[]>([]);
   protected readonly isNewMember = signal<boolean | null>(null);
+
+  // Alternativa a Google sin costo (ver brainstorming de auth 2026-10-02) — por defecto arranca
+  // en 'google' solo si el gym lo tiene habilitado; si no, el formulario de contraseña es la
+  // ÚNICA opción (antes esto era un callejón sin salida, ver el @else de abajo en join.html).
+  protected readonly joinMode = signal<JoinMode>('google');
+  protected readonly registerName = signal('');
+  protected readonly registerEmail = signal('');
+  protected readonly registerSubmitting = signal(false);
+  protected readonly registerSent = signal(false);
+  protected readonly passwordVisible = signal(false);
 
   protected readonly instagramUrl = computed(() => this.gym()?.instagramUrl || null);
   protected readonly whatsappLink = computed(() => {
@@ -95,6 +138,9 @@ export class Join {
       next: (gym) => {
         this.gym.set(gym);
         this.status.set('ready');
+        if (!gym.googleLoginEnabled) {
+          this.joinMode.set('password');
+        }
       },
       error: () => this.status.set('not-found'),
     });
@@ -188,6 +234,38 @@ export class Join {
       clearTimeout(this.timeoutHandle);
       this.timeoutHandle = null;
     }
+  }
+
+  protected setJoinMode(mode: JoinMode): void {
+    this.joinMode.set(mode);
+    this.errorMessage.set(null);
+  }
+
+  protected togglePasswordVisible(): void {
+    this.passwordVisible.update((v) => !v);
+  }
+
+  // Nunca inicia sesión de inmediato (a diferencia de Google) — la cuenta recién se crea al
+  // confirmar el token de activación que llega por correo (ver AuthService.registerSelf).
+  // Mensaje final siempre genérico, exista o no ya una cuenta con ese email.
+  protected submitSelfRegister(): void {
+    const name = this.registerName().trim();
+    const email = this.registerEmail().trim();
+    if (!name || !email || this.registerSubmitting()) {
+      return;
+    }
+    this.registerSubmitting.set(true);
+    this.errorMessage.set(null);
+    this.authService.registerSelf(name, email, this.slug).subscribe({
+      next: () => {
+        this.registerSubmitting.set(false);
+        this.registerSent.set(true);
+      },
+      error: () => {
+        this.registerSubmitting.set(false);
+        this.registerSent.set(true);
+      },
+    });
   }
 
   protected formatClp(value: number): string {

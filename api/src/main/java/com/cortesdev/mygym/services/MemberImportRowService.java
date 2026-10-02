@@ -37,6 +37,7 @@ public class MemberImportRowService {
     private final AppUserRepository appUserRepository;
     private final PaymentRepository paymentRepository;
     private final MemberLifecycleEmailService memberLifecycleEmailService;
+    private final PasswordAuthService passwordAuthService;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public MemberImportRowResult importRow(
@@ -96,6 +97,7 @@ public class MemberImportRowService {
             builder.planId(plan.getId()).paidAt(paidAt).usedSessionsAtImport(row.usedSessions());
         }
         AppUser member = appUserRepository.save(builder.build());
+        String activationUrl = passwordAuthService.activationUrl(passwordAuthService.createInviteToken(member));
 
         if (plan != null) {
             // Fila real en Payment (no solo planId/paidAt en AppUser) para que este socio importado
@@ -114,9 +116,9 @@ public class MemberImportRowService {
             // puede estar vencida. Se pasa row.expiresAt() (la fecha tal cual la cargó el admin), no
             // periodEnd recalculado desde paidAt, para no arrastrar ningún redondeo/drift.
             memberLifecycleEmailService.sendMemberImportedWithPlan(
-                    gym, member, plan, row.expiresAt().atZone(GYM_ZONE), row.usedSessions());
+                    gym, member, plan, row.expiresAt().atZone(GYM_ZONE), row.usedSessions(), activationUrl);
         } else {
-            memberLifecycleEmailService.sendMemberInviteWithPlans(gym, member, activePlansForInvite);
+            memberLifecycleEmailService.sendMemberInviteWithPlans(gym, member, activePlansForInvite, activationUrl);
         }
 
         return new MemberImportRowResult(row.email(), true, null);

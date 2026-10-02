@@ -38,3 +38,12 @@ export interface LoginResponse {
   isNewMember: boolean;
   photoUrl: string | null;
 }
+
+/** Las 3 variantes del mismo token de activación (ver PasswordAuthService en el backend). */
+export type AuthTokenPurpose = 'INVITE' | 'SELF_REGISTER' | 'PASSWORD_RESET';
+
+export interface TokenInfo {
+  purpose: AuthTokenPurpose;
+  displayName: string;
+  email: string;
+}

@@ -34,6 +34,11 @@ public class AppUser {
 
     private String googleSub;
 
+    /** Hash bcrypt — null si esta cuenta nunca creó una contraseña (solo entra con Google). Convive
+     *  con googleSub sin problema: el match sigue siendo por email, cualquiera de los dos métodos
+     *  puede estar presente, ausente, o ambos a la vez. */
+    private String passwordHash;
+
     private String name;
 
     /** Foto de perfil de Google (claim "picture" del ID token) — null si nunca se logueó con Google. */

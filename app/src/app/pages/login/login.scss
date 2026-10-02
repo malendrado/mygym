@@ -108,6 +108,40 @@
   }
 }
 
+.password-auth {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  width: 100%;
+  margin-top: 0.25rem;
+
+  ion-item {
+    --background: var(--brand-ink-surface-2);
+    --border-radius: 12px;
+    border-radius: 12px;
+    width: 100%;
+  }
+}
+
+// Link de texto plano para cambiar de modo (Google <-> contraseña <-> olvidé mi contraseña) —
+// nunca un ion-button, para que no compita visualmente con el CTA real de cada pantalla (misma
+// jerarquía que un link "terciario" en un formulario, ver guía de la skill ui-ux-pro-max).
+.password-auth__switch {
+  background: none;
+  border: none;
+  padding: 0.4rem 0;
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--brand-text-dim);
+  text-decoration: underline;
+  cursor: pointer;
+  min-height: 44px;
+
+  &:hover {
+    color: var(--brand-text);
+  }
+}
+
 @keyframes login-card-in {
   from {
     opacity: 0;

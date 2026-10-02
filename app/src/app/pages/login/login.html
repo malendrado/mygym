@@ -28,24 +28,101 @@
       </svg>
     </div>
     <h1>Ingresa a mygym</h1>
-    <p>Usa tu cuenta de Google para reservar clases o administrar tu gimnasio.</p>
-    <div class="google-auth">
-      @if (signingIn()) {
-        <div class="login-loading">
-          <ion-spinner name="crescent"></ion-spinner>
-          @if (showWelcome()) {
-            <p>¡Qué bueno verte de nuevo!</p>
-            <p class="login-loading__subtitle">Estamos abriendo tu portal...</p>
-          } @else {
-            <p>Ingresando...</p>
-          }
-        </div>
-      } @else {
+
+    @if (signingIn() || showWelcome()) {
+      <p>Usa tu cuenta de Google para reservar clases o administrar tu gimnasio.</p>
+      <div class="login-loading">
+        <ion-spinner name="crescent"></ion-spinner>
+        @if (showWelcome()) {
+          <p>¡Qué bueno verte de nuevo!</p>
+          <p class="login-loading__subtitle">Estamos abriendo tu portal...</p>
+        } @else {
+          <p>Ingresando...</p>
+        }
+      </div>
+    } @else if (mode() === 'google') {
+      <p>Usa tu cuenta de Google para reservar clases o administrar tu gimnasio.</p>
+      <div class="google-auth">
         <div class="google-auth__frame">
           <asl-google-signin-button type="standard" size="large" text="signin_with" shape="pill" theme="outline" logo_alignment="left" />
         </div>
+      </div>
+      <button type="button" class="password-auth__switch" (click)="setMode('password')">
+        o ingresa con tu email y contraseña
+      </button>
+    } @else if (mode() === 'password') {
+      <p>Ingresa con el email y la contraseña de tu cuenta.</p>
+      <form class="password-auth" (submit)="$event.preventDefault(); submitPasswordLogin()">
+        <ion-item lines="full">
+          <ion-input
+            type="email"
+            label="Email"
+            label-placement="stacked"
+            autocomplete="email"
+            [value]="loginEmail()"
+            (ionInput)="loginEmail.set($any($event.detail.value) ?? '')"
+          ></ion-input>
+        </ion-item>
+        <ion-item lines="full">
+          <ion-input
+            [type]="passwordVisible() ? 'text' : 'password'"
+            label="Contraseña"
+            label-placement="stacked"
+            autocomplete="current-password"
+            [value]="loginPassword()"
+            (ionInput)="loginPassword.set($any($event.detail.value) ?? '')"
+          >
+            <ion-button
+              slot="end"
+              fill="clear"
+              type="button"
+              aria-label="{{ passwordVisible() ? 'Ocultar contraseña' : 'Mostrar contraseña' }}"
+              (click)="togglePasswordVisible()"
+            >
+              <ion-icon slot="icon-only" [name]="passwordVisible() ? 'eye-off-outline' : 'eye-outline'" aria-hidden="true"></ion-icon>
+            </ion-button>
+          </ion-input>
+        </ion-item>
+        <ion-button
+          expand="block"
+          type="submit"
+          [disabled]="!loginEmail().trim() || !loginPassword() || passwordSubmitting()"
+        >
+          @if (passwordSubmitting()) {
+            <ion-spinner name="crescent" slot="start"></ion-spinner>
+          }
+          Ingresar
+        </ion-button>
+        <button type="button" class="password-auth__switch" (click)="setMode('forgot')">¿Olvidaste tu contraseña?</button>
+        <button type="button" class="password-auth__switch" (click)="setMode('google')">o ingresa con Google</button>
+      </form>
+    } @else {
+      @if (forgotSent()) {
+        <p>Si el email que escribiste tiene una cuenta, te enviamos un correo para continuar — revisa tu bandeja de entrada.</p>
+      } @else {
+        <p>Escribe tu email y te mandamos un link para crear una contraseña nueva.</p>
+        <form class="password-auth" (submit)="$event.preventDefault(); submitForgotPassword()">
+          <ion-item lines="full">
+            <ion-input
+              type="email"
+              label="Email"
+              label-placement="stacked"
+              autocomplete="email"
+              [value]="forgotEmail()"
+              (ionInput)="forgotEmail.set($any($event.detail.value) ?? '')"
+            ></ion-input>
+          </ion-item>
+          <ion-button expand="block" type="submit" [disabled]="!forgotEmail().trim() || forgotSubmitting()">
+            @if (forgotSubmitting()) {
+              <ion-spinner name="crescent" slot="start"></ion-spinner>
+            }
+            Enviar link
+          </ion-button>
+        </form>
       }
-    </div>
+      <button type="button" class="password-auth__switch" (click)="setMode('password')">volver a ingresar</button>
+    }
+
     @if (errorMessage()) {
       <ion-text color="danger" role="alert">
         <p>{{ errorMessage() }}</p>

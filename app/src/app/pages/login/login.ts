@@ -1,9 +1,13 @@
 import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { IonContent, IonHeader, IonSpinner, IonText, IonTitle, IonToolbar } from '@ionic/angular';
+import { IonButton, IonContent, IonHeader, IonIcon, IonInput, IonItem, IonSpinner, IonText, IonTitle, IonToolbar } from '@ionic/angular';
 import { GoogleSigninButtonDirective, SocialAuthService } from '@abacritt/angularx-social-login';
+import { addIcons } from 'ionicons';
+import { eyeOffOutline, eyeOutline } from 'ionicons/icons';
 import { AuthService } from '../../core/services/auth.service';
 import { homeRouteForRole } from '../../core/models/auth.model';
+
+addIcons({ 'eye-outline': eyeOutline, 'eye-off-outline': eyeOffOutline });
 
 // Si el callback de Google Identity Services nunca llega (bloqueado por un
 // navegador embebido tipo WhatsApp/Instagram, o por restricciones de cookies
@@ -15,9 +19,23 @@ const SIGN_IN_TIMEOUT_MS = 15000;
 // bienvenida se alcance a leer antes de redirigir.
 const WELCOME_PAUSE_MS = 1600;
 
+type LoginMode = 'google' | 'password' | 'forgot';
+
 @Component({
   selector: 'app-login',
-  imports: [IonHeader, IonToolbar, IonTitle, IonContent, IonText, IonSpinner, GoogleSigninButtonDirective],
+  imports: [
+    IonHeader,
+    IonToolbar,
+    IonTitle,
+    IonContent,
+    IonText,
+    IonSpinner,
+    IonItem,
+    IonInput,
+    IonButton,
+    IonIcon,
+    GoogleSigninButtonDirective,
+  ],
   templateUrl: './login.html',
   styleUrl: './login.scss',
 })
@@ -33,6 +51,19 @@ export class Login {
   protected readonly showWelcome = signal(false);
   private loggedIn = false;
   private timeoutHandle: ReturnType<typeof setTimeout> | null = null;
+
+  // Google arriba de siempre, con un toggle debajo para quien prefiera no usarlo — ver
+  // diseño acordado con el usuario (brainstorming de auth 2026-10-02): misma pantalla, un
+  // switch, no una ruta separada.
+  protected readonly mode = signal<LoginMode>('google');
+  protected readonly loginEmail = signal('');
+  protected readonly loginPassword = signal('');
+  protected readonly passwordVisible = signal(false);
+  protected readonly passwordSubmitting = signal(false);
+
+  protected readonly forgotEmail = signal('');
+  protected readonly forgotSubmitting = signal(false);
+  protected readonly forgotSent = signal(false);
 
   constructor() {
     this.socialAuthService.authState.subscribe((user) => {
@@ -71,7 +102,7 @@ export class Login {
     // quedó pegado (típico de navegadores embebidos de WhatsApp/Instagram, o
     // restricciones de cookies de terceros en Safari) — mostramos una salida.
     const onVisible = () => {
-      if (document.visibilityState === 'visible' && !this.loggedIn) {
+      if (document.visibilityState === 'visible' && !this.loggedIn && this.mode() === 'google') {
         this.armTimeout();
       }
     };
@@ -79,6 +110,64 @@ export class Login {
     this.destroyRef.onDestroy(() => {
       document.removeEventListener('visibilitychange', onVisible);
       this.clearTimeout();
+    });
+  }
+
+  protected setMode(mode: LoginMode): void {
+    this.mode.set(mode);
+    this.errorMessage.set(null);
+  }
+
+  protected togglePasswordVisible(): void {
+    this.passwordVisible.update((v) => !v);
+  }
+
+  protected submitPasswordLogin(): void {
+    const email = this.loginEmail().trim();
+    const password = this.loginPassword();
+    if (!email || !password || this.passwordSubmitting()) {
+      return;
+    }
+    this.passwordSubmitting.set(true);
+    this.errorMessage.set(null);
+    this.authService.loginWithPassword(email, password).subscribe({
+      next: (response) => {
+        this.loggedIn = true;
+        this.passwordSubmitting.set(false);
+        this.showWelcome.set(true);
+        this.mode.set('google'); // reusa el mismo bloque de bienvenida de abajo
+        setTimeout(() => {
+          const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl');
+          const destination =
+            response.role === 'MEMBER' && returnUrl?.startsWith('/') && !returnUrl.startsWith('//')
+              ? returnUrl
+              : homeRouteForRole(response.role);
+          this.router.navigateByUrl(destination);
+        }, WELCOME_PAUSE_MS);
+      },
+      error: (err: Error) => {
+        this.passwordSubmitting.set(false);
+        this.errorMessage.set(err.message || 'Email o contraseña incorrectos.');
+      },
+    });
+  }
+
+  protected submitForgotPassword(): void {
+    const email = this.forgotEmail().trim();
+    if (!email || this.forgotSubmitting()) {
+      return;
+    }
+    this.forgotSubmitting.set(true);
+    this.authService.requestPasswordReset(email).subscribe({
+      next: () => {
+        this.forgotSubmitting.set(false);
+        this.forgotSent.set(true);
+      },
+      error: () => {
+        // Mismo mensaje genérico aunque algo falle de verdad — nunca distinguir motivos.
+        this.forgotSubmitting.set(false);
+        this.forgotSent.set(true);
+      },
     });
   }
 

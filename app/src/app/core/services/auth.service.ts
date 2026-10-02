@@ -3,7 +3,7 @@ import { Injectable, inject, signal } from '@angular/core';
 import { SocialAuthService } from '@abacritt/angularx-social-login';
 import { Observable, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { AuthUser, LoginResponse } from '../models/auth.model';
+import { AuthUser, LoginResponse, TokenInfo } from '../models/auth.model';
 
 const STORAGE_KEY = 'mygym.auth';
 
@@ -53,6 +53,7 @@ export class AuthService {
   private readonly socialAuthService = inject(SocialAuthService);
   private readonly base = `${environment.apiUrl}/api/auth`;
   private readonly publicGymsBase = `${environment.apiUrl}/api/public/gyms`;
+  private readonly publicAuthBase = `${environment.apiUrl}/api/public/auth`;
 
   private readonly stored = this.readStored();
   private readonly _currentUser = signal<AuthUser | null>(this.stored?.user ?? null);
@@ -74,6 +75,36 @@ export class AuthService {
   joinGym(idToken: string, gymSlug: string): Observable<LoginResponse> {
     return this.http
       .post<LoginResponse>(`${this.publicGymsBase}/${gymSlug}/join`, { idToken })
+      .pipe(tap((response) => this.setSession(response)));
+  }
+
+  /** Alternativa a Google — misma convergencia en setSession/JWT, ver PasswordAuthController. */
+  loginWithPassword(email: string, password: string): Observable<LoginResponse> {
+    return this.http
+      .post<LoginResponse>(`${this.publicAuthBase}/login`, { email, password })
+      .pipe(tap((response) => this.setSession(response)));
+  }
+
+  /** Auto-registro sin Google en /j/:slug — nunca inicia sesión de inmediato, la cuenta recién se
+   *  crea al confirmar el token de activación (ver activateToken). Respuesta siempre genérica
+   *  (mismo mensaje exista o no ya una cuenta con ese email), a propósito. */
+  registerSelf(name: string, email: string, gymSlug: string): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.publicAuthBase}/register`, { name, email, gymSlug });
+  }
+
+  /** También respuesta siempre genérica — nunca revela si el email existe. */
+  requestPasswordReset(email: string): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.publicAuthBase}/forgot-password`, { email });
+  }
+
+  getTokenInfo(token: string): Observable<TokenInfo> {
+    return this.http.get<TokenInfo>(`${this.publicAuthBase}/token/${token}`);
+  }
+
+  /** Converge las 3 variantes (invitado, auto-registro, reset) — siempre deja la sesión iniciada. */
+  activateToken(token: string, password: string): Observable<LoginResponse> {
+    return this.http
+      .post<LoginResponse>(`${this.publicAuthBase}/activate`, { token, password })
       .pipe(tap((response) => this.setSession(response)));
   }
 

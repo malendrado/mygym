@@ -56,6 +56,7 @@ public class MemberService {
     private final GymRepository gymRepository;
     private final MemberLifecycleEmailService memberLifecycleEmailService;
     private final MemberImportRowService memberImportRowService;
+    private final PasswordAuthService passwordAuthService;
 
     public MemberResponse createMember(Long gymId, MemberCreateRequest request) {
         if (appUserRepository.existsByEmail(AppUser.normalizeEmail(request.email()))) {
@@ -80,7 +81,8 @@ public class MemberService {
                     .filter(GymPlan::isActive)
                     .sorted(Comparator.comparing(GymPlan::getPriceClp, Comparator.nullsLast(Comparator.reverseOrder())))
                     .toList();
-            memberLifecycleEmailService.sendMemberInviteWithPlans(gym, member, activePlans);
+            String activationUrl = passwordAuthService.activationUrl(passwordAuthService.createInviteToken(member));
+            memberLifecycleEmailService.sendMemberInviteWithPlans(gym, member, activePlans, activationUrl);
         });
 
         return toResponse(member);

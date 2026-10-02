@@ -15,6 +15,13 @@ export const webRoutes: Routes = [
     loadComponent: () => import('./pages/join/join').then((m) => m.Join),
   },
   {
+    // Convergencia de las 3 variantes de email+contraseña (invitado por un admin, auto-registro,
+    // "olvidé mi contraseña") — ver PasswordAuthService en el backend. Pública a propósito: el
+    // token en sí es la autenticación.
+    path: 'activar/:token',
+    loadComponent: () => import('./pages/activate/activate').then((m) => m.Activate),
+  },
+  {
     // Públicas, sin link desde la landing ni el brochure todavía — pedido explícito del
     // usuario (2026-09-23): subirlas a una ruta real para poder compartirlas, sin agregarlas
     // a la navegación hasta que decida publicarlas.

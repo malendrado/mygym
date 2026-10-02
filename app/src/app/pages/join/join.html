@@ -105,16 +105,54 @@
         }
 
         @if (status() === 'ready') {
-          @if (gym()!.googleLoginEnabled) {
+          @if (joinMode() === 'google') {
             <div class="google-auth">
               <div class="google-auth__frame">
                 <asl-google-signin-button type="standard" size="large" text="signin_with" shape="pill" theme="outline" logo_alignment="left" />
               </div>
             </div>
-          } @else {
+            <button type="button" class="password-auth__switch" (click)="setJoinMode('password')">
+              o regístrate con tu email
+            </button>
+          } @else if (registerSent()) {
             <ion-text color="medium">
-              <p>Este gimnasio todavía no habilitó el ingreso con Google. Consulta con tu gimnasio.</p>
+              <p>Si los datos son válidos, te enviamos un correo para continuar — revisa tu bandeja de entrada.</p>
             </ion-text>
+          } @else {
+            <form class="password-auth" (submit)="$event.preventDefault(); submitSelfRegister()">
+              <ion-item lines="full">
+                <ion-input
+                  label="Nombre completo"
+                  label-placement="stacked"
+                  autocomplete="name"
+                  [value]="registerName()"
+                  (ionInput)="registerName.set($any($event.detail.value) ?? '')"
+                ></ion-input>
+              </ion-item>
+              <ion-item lines="full">
+                <ion-input
+                  type="email"
+                  label="Email"
+                  label-placement="stacked"
+                  autocomplete="email"
+                  [value]="registerEmail()"
+                  (ionInput)="registerEmail.set($any($event.detail.value) ?? '')"
+                ></ion-input>
+              </ion-item>
+              <ion-button
+                expand="block"
+                type="submit"
+                [disabled]="!registerName().trim() || !registerEmail().trim() || registerSubmitting()"
+              >
+                @if (registerSubmitting()) {
+                  <ion-spinner name="crescent" slot="start"></ion-spinner>
+                }
+                Unirme con mi email
+              </ion-button>
+            </form>
+            @if (gym()!.googleLoginEnabled) {
+              <button type="button" class="password-auth__switch" (click)="setJoinMode('google')">o únete con Google</button>
+            }
           }
         } @else if (status() === 'joining') {
           <div class="join-status">
