@@ -1,0 +1,84 @@
+<div class="ion-page">
+<ion-header>
+  <ion-toolbar>
+    <ion-title>
+      <ion-icon name="barbell-outline" aria-hidden="true"></ion-icon>
+      Rutina — {{ memberName }}
+    </ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="cancel()">Cerrar</ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <p class="workout-plan-modal__label">Último registro</p>
+  @if (latestLogValue(); as log) {
+    <div class="workout-plan-modal__memory">
+      <p class="workout-plan-modal__memory-date">{{ formatClassDate(log.classDate) }}</p>
+      @if (deviated()) {
+        <p class="workout-plan-modal__memory-deviation">
+          <ion-icon name="information-circle-outline" aria-hidden="true"></ion-icon>
+          Le tocaba <strong>{{ log.suggestedPlanDayTitle }}</strong> pero hizo:
+          <strong>{{ doneLabel() }}</strong>
+        </p>
+      } @else {
+        <p>{{ log.planDayTitle }}</p>
+      }
+      @if (log.exercises && log.exercises.length > 0) {
+        <ul class="workout-plan-modal__exercises">
+          @for (entry of log.exercises; track $index) {
+            <li>{{ entry.exercise }}@if (entry.notes) { — {{ entry.notes }} }</li>
+          }
+        </ul>
+      }
+    </div>
+  } @else {
+    <p class="item-hint">Sin registros aún.</p>
+  }
+
+  <p class="workout-plan-modal__label">Rutina</p>
+  <ion-item lines="full">
+    <ion-label position="stacked">Nombre</ion-label>
+    <ion-input
+      placeholder="Ej. Rutina de fuerza"
+      [value]="name()"
+      (ionInput)="setName($any($event.detail.value) ?? '')"
+    ></ion-input>
+  </ion-item>
+
+  <ion-list lines="full">
+    @for (title of dayTitles(); track $index) {
+      <ion-item>
+        <ion-label position="stacked">Día {{ $index + 1 }}</ion-label>
+        <ion-input
+          placeholder="Ej. Pecho y tríceps"
+          [value]="title"
+          (ionInput)="setDayTitle($index, $any($event.detail.value) ?? '')"
+        ></ion-input>
+        <ion-button fill="clear" color="danger" slot="end" (click)="removeDay($index)" aria-label="Quitar día">
+          <ion-icon name="close-circle-outline" slot="icon-only" aria-hidden="true"></ion-icon>
+        </ion-button>
+      </ion-item>
+    }
+  </ion-list>
+  <ion-button fill="outline" size="small" (click)="addDay()">
+    <ion-icon name="add-circle-outline" slot="start" aria-hidden="true"></ion-icon>
+    Agregar día
+  </ion-button>
+  <p class="item-hint">Guardar reemplaza la rutina entera — los registros ya hechos quedan intactos, como historia.</p>
+</ion-content>
+
+<ion-footer>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-button (click)="cancel()">Cancelar</ion-button>
+    </ion-buttons>
+    <ion-buttons slot="end">
+      <ion-button strong [disabled]="!canSave()" (click)="confirm()">
+        {{ isSaving() ? 'Guardando...' : 'Guardar' }}
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-footer>
+</div>

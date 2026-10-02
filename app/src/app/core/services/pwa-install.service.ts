@@ -56,6 +56,12 @@ export class PwaInstallService {
       event.preventDefault();
       this.deferredPrompt = event as BeforeInstallPromptEvent;
       this.canPrompt.set(true);
+      // Chrome solo dispara esto cuando AHORA MISMO ofrece instalar — la señal más fresca y
+      // confiable de que no está instalada, más confiable que la marca permanente de abajo.
+      // Bug real: alguien borra el acceso directo del celular, la marca vieja se queda pegada
+      // para siempre (no hay evento de "se desinstaló"), y el banner no vuelve a aparecer nunca
+      // más aunque la app ya no esté instalada.
+      this.clearInstalledMark();
     });
     window.addEventListener('appinstalled', () => {
       this.deferredPrompt = null;
@@ -70,6 +76,15 @@ export class PwaInstallService {
       localStorage.setItem(INSTALLED_KEY, '1');
     } catch {
       // Modo privado: no persiste, pero no rompe nada — solo vuelve a preguntar la próxima vez.
+    }
+  }
+
+  private clearInstalledMark(): void {
+    this.installed.set(false);
+    try {
+      localStorage.removeItem(INSTALLED_KEY);
+    } catch {
+      // Modo privado: nunca se marcó, nada que limpiar.
     }
   }
 

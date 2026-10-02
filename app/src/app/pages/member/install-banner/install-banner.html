@@ -1,27 +1,46 @@
 @if (pwa.mode(); as mode) {
-  <aside class="install-banner" aria-label="Instalar la app">
-    <div class="install-banner__icon" aria-hidden="true">
-      <img src="pwa/icon-192.png" alt="" width="40" height="40">
-    </div>
-    <div class="install-banner__text">
-      <p class="install-banner__title">Lleva tu gimnasio en el celular</p>
-      @if (mode === 'prompt') {
-        <p class="install-banner__body">Instala la app y reserva con un toque desde tu pantalla de inicio.</p>
-      } @else {
-        <p class="install-banner__body">
-          Toca <ion-icon name="share-outline" aria-label="Compartir"></ion-icon> y luego
-          <strong>"Agregar a pantalla de inicio"</strong>.
-        </p>
-      }
-    </div>
-    @if (mode === 'prompt') {
-      <ion-button size="small" class="install-banner__cta" (click)="pwa.install()">
-        <ion-icon slot="start" name="download-outline"></ion-icon>
-        Instalar
-      </ion-button>
+  <span class="install-icon">
+    <ion-button
+      id="install-icon-trigger"
+      fill="clear"
+      class="install-icon__btn"
+      aria-label="Instalar la app en tu celular"
+      (click)="mode === 'prompt' ? pwa.install() : null"
+    >
+      <ion-icon name="download-outline" slot="start" aria-hidden="true"></ion-icon>
+      Instala tu app
+    </ion-button>
+
+    @if (mode === 'ios') {
+      <!-- ion-popover, no un div posicionado a mano: ion-header/ion-toolbar recortan cualquier
+           hijo absoluto que se salga de su propio marco (comprobado real, el div quedaba
+           invisible pese a estar en el DOM) — el popover de Ionic escapa ese recorte solo. Sin
+           controlar (sin [isOpen]/showIosSteps): el trigger nativo de Ionic ya abre/cierra solo,
+           con foco y cierre por backdrop/Escape incluidos. -->
+      <ion-popover trigger="install-icon-trigger" triggerAction="click" alignment="end">
+        <ng-template>
+          <div class="install-popover" role="dialog" aria-label="Cómo instalar en iPhone">
+            <p class="install-popover__title">Lleva tu gimnasio en el celular</p>
+            <div class="install-steps">
+              <div class="install-steps__step">
+                <span class="install-steps__badge">1</span>
+                <ion-icon class="install-steps__icon" name="share-outline" aria-hidden="true"></ion-icon>
+                <span class="install-steps__label">Compartir</span>
+              </div>
+              <ion-icon class="install-steps__arrow" name="arrow-forward-outline" aria-hidden="true"></ion-icon>
+              <div class="install-steps__step">
+                <span class="install-steps__badge">2</span>
+                <ion-icon class="install-steps__icon" name="add-circle-outline" aria-hidden="true"></ion-icon>
+                <span class="install-steps__label">Agregar a inicio</span>
+              </div>
+            </div>
+            <p class="install-popover__hint">
+              El botón de compartir está abajo, en la barra de Safari
+              <ion-icon class="install-popover__hint-arrow" name="chevron-down-outline" aria-hidden="true"></ion-icon>
+            </p>
+          </div>
+        </ng-template>
+      </ion-popover>
     }
-    <button type="button" class="install-banner__close" aria-label="Cerrar aviso" (click)="pwa.dismiss()">
-      <ion-icon name="close-outline"></ion-icon>
-    </button>
-  </aside>
+  </span>
 }

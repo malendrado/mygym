@@ -258,7 +258,7 @@
           }
           <h3>{{ tier.name }}</h3>
           <p class="pricing__clients">{{ tier.clients }}</p>
-          <p class="pricing__price">{{ tier.price }}<span> / mes</span></p>
+          <p class="pricing__price">{{ tier.price }}<span> / mes{{ tier.showIva ? ' + IVA' : '' }}</span></p>
           <ul>
             @for (item of tier.items; track item) {
               <li>{{ item }}</li>

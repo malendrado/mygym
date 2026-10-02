@@ -1118,3 +1118,76 @@ ion-segment-button.segment-button-checked {
     font-size: 1rem;
   }
 }
+
+// ---- "Memoria Viva": pestaña Rutina ----
+
+.workout-day-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.workout-day-chip {
+  border: 1px solid var(--brand-ink-surface-2);
+  border-radius: 999px;
+  padding: 0.5rem 1rem;
+  background: var(--brand-ink-surface);
+  color: var(--brand-text);
+  font-family: var(--brand-font-display);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+
+  &--selected {
+    border-color: var(--ion-color-primary, var(--brand-accent));
+    background: color-mix(in srgb, var(--ion-color-primary, var(--brand-accent)) 16%, var(--brand-ink-surface));
+  }
+}
+
+.workout-form__label {
+  margin: 0.75rem 0 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--brand-text-dim);
+}
+
+.workout-form__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.workout-saved {
+  border: 1px solid var(--brand-ink-surface-2);
+  border-radius: 14px;
+  padding: 1rem;
+  background: var(--brand-ink-surface);
+}
+
+.workout-saved__date {
+  margin: 0 0 0.35rem;
+  font-size: 0.72rem;
+  color: var(--brand-text-dim);
+}
+
+.workout-saved__deviation {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+  color: var(--ion-color-warning, #f0ad4e);
+
+  ion-icon {
+    flex-shrink: 0;
+    margin-top: 0.15rem;
+  }
+}
+
+.workout-saved__exercises {
+  margin: 0.5rem 0 0.75rem;
+  padding-left: 1.1rem;
+  font-size: 0.85rem;
+}

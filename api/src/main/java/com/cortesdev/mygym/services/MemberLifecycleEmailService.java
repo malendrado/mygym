@@ -2,15 +2,18 @@ package com.cortesdev.mygym.services;
 
 import com.cortesdev.mygym.models.AppUser;
 import com.cortesdev.mygym.models.Gym;
+import com.cortesdev.mygym.models.GymBlock;
 import com.cortesdev.mygym.models.GymPlan;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,6 +42,8 @@ public class MemberLifecycleEmailService {
     private static final String LOGIN_URL = "https://www.mygym.cl/login";
     private static final ZoneId GYM_ZONE = ZoneId.of("America/Santiago");
     private static final DateTimeFormatter IMPORT_DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+    private static final DateTimeFormatter WAITLIST_DATE_FORMAT =
+            DateTimeFormatter.ofPattern("EEEE d 'de' MMMM", new Locale("es", "CL"));
 
     private final RestClient restClient;
     private final String apiKey;
@@ -331,6 +336,53 @@ public class MemberLifecycleEmailService {
                     LOGIN_URL,
                     "Recibiste este correo porque administras " + escapeHtml(gym.getName()) + " en mygym.");
         }
+    }
+
+    // Lista de espera (ver WaitlistService) — dos avisos distintos según a quién le toca:
+    // sendWaitlistHeadStart al primero de la lista con una ventana de ventaja antes de que se
+    // le avise al resto; sendWaitlistSpotOpen al resto, cuando esa ventana vence y el cupo
+    // sigue libre. Mismo patrón de send()/plantilla que el resto de la clase.
+    public void sendWaitlistHeadStart(Gym gym, AppUser member, GymBlock block, LocalDate classDate, long headStartMinutes) {
+        String name = firstName(member);
+        String when = WAITLIST_DATE_FORMAT.format(classDate) + " a las " + block.getStartTime();
+        String headline = "¡" + name + ", se liberó un cupo en " + block.getLabel() + "!";
+        String body = "<p style=\"margin:0 0 12px;\">Eras el primero en la lista de espera de <strong style=\"color:#eaf6f7;\">"
+                + escapeHtml(block.getLabel()) + "</strong> (" + when + ") en " + escapeHtml(gym.getName())
+                + " — tienes <strong style=\"color:#eaf6f7;\">" + headStartMinutes
+                + " minutos de ventaja</strong> antes de avisarle al resto de la lista.</p>"
+                + "<p style=\"margin:0;\">Corre a reservar tu cupo, no te lo van a guardar después de eso.</p>";
+        send(
+                gym,
+                member.getEmail(),
+                "¡Se liberó tu cupo en " + block.getLabel() + "!",
+                "Cupo liberado",
+                headline,
+                body,
+                "Reservar ahora",
+                LOGIN_URL,
+                "Recibiste este correo porque pediste que te avisaran si se liberaba un cupo en "
+                        + escapeHtml(block.getLabel()) + " en " + escapeHtml(gym.getName()) + ".");
+    }
+
+    public void sendWaitlistSpotOpen(Gym gym, AppUser member, GymBlock block, LocalDate classDate) {
+        String name = firstName(member);
+        String when = WAITLIST_DATE_FORMAT.format(classDate) + " a las " + block.getStartTime();
+        String headline = "¡" + name + ", todavía hay cupo en " + block.getLabel() + "!";
+        String body = "<p style=\"margin:0 0 12px;\">Se liberó un cupo en <strong style=\"color:#eaf6f7;\">"
+                + escapeHtml(block.getLabel()) + "</strong> (" + when + ") en " + escapeHtml(gym.getName())
+                + " y sigue disponible.</p>"
+                + "<p style=\"margin:0;\">Es por orden de llegada — el primero que reserve se lo queda.</p>";
+        send(
+                gym,
+                member.getEmail(),
+                "Todavía hay cupo en " + block.getLabel(),
+                "Cupo liberado",
+                headline,
+                body,
+                "Reservar ahora",
+                LOGIN_URL,
+                "Recibiste este correo porque pediste que te avisaran si se liberaba un cupo en "
+                        + escapeHtml(block.getLabel()) + " en " + escapeHtml(gym.getName()) + ".");
     }
 
     private void send(

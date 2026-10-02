@@ -546,6 +546,25 @@ ion-segment-button.segment-button-checked {
   }
 }
 
+// Con 3 botones + la caluga de estado, ya no entraban junto al nombre/email en una sola línea
+// (reportado por el usuario con captura: se veía amontonado/cortado). Probar a forzar flex-wrap
+// en la parte interna real de `ion-item` (`::part(native)`) rompió el layout al revés — el
+// contenedor interno de Ionic que reparte el espacio entre el label y el slot "end" sigue sin
+// wrappear aunque el de afuera sí lo haga, y como `.member-row` tiene `overflow-x:auto` (su
+// min-width automático pasa a ser 0 por spec de flexbox), el label terminaba con ancho 0 y
+// el nombre/email directamente desaparecían. Fix real: dejar que el slot "end" wrappee ADENTRO
+// de sí mismo (ion-item no se toca), así solo pide el ancho de su botón más largo, no el de la
+// fila entera, y el label se queda con todo el espacio sobrante como siempre.
+.member-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.4rem;
+  row-gap: 0.35rem;
+  max-width: 55%;
+}
+
 .member-stats-heading {
   display: flex;
   align-items: center;

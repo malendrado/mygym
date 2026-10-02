@@ -50,6 +50,7 @@ import com.cortesdev.mygym.services.exception.InvalidLogoException;
 import com.cortesdev.mygym.services.exception.InvalidRutException;
 import com.cortesdev.mygym.services.exception.InvalidThemeException;
 import com.cortesdev.mygym.services.exception.MemberNotFoundException;
+import com.cortesdev.mygym.services.exception.ProfesorNotFoundException;
 import com.cortesdev.mygym.services.exception.TooManyGymPhotosException;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -457,6 +458,41 @@ public class GymService {
             throw new AdminNotFoundException(gymId, userId);
         }
         appUserRepository.delete(admin);
+    }
+
+    // ---- Profesores de "Memoria Viva" (ver WorkoutService) — a diferencia de addAdmin (solo
+    // SUPER_ADMIN, bajo /api/gyms/**), esto lo llama el propio GYM_ADMIN bajo /api/gym-admin/**,
+    // mismo patrón que MemberService.createMember para invitar socios. Sin email de invitación
+    // por ahora (simplificación a propósito para no duplicar plantillas HTML — el admin invitado
+    // real sí recibe una, pensar esto si se pide más adelante).
+
+    public AdminResponse addProfesor(Long gymId, AdminCreateRequest request) {
+        if (appUserRepository.existsByEmail(AppUser.normalizeEmail(request.email()))) {
+            throw new DuplicateOwnerEmailException(request.email());
+        }
+        AppUser profesor = AppUser.builder()
+                .email(request.email())
+                .name(request.name())
+                .role(Role.PROFESOR)
+                .gymId(gymId)
+                .active(true)
+                .build();
+        return toResponse(appUserRepository.save(profesor));
+    }
+
+    public List<AdminResponse> listProfesores(Long gymId) {
+        findGymOrThrow(gymId);
+        return appUserRepository.findByGymIdAndRole(gymId, Role.PROFESOR).stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    public void removeProfesor(Long gymId, Long userId) {
+        AppUser profesor = appUserRepository
+                .findByIdAndGymId(userId, gymId)
+                .filter(u -> u.getRole() == Role.PROFESOR)
+                .orElseThrow(() -> new ProfesorNotFoundException(gymId, userId));
+        appUserRepository.delete(profesor);
     }
 
     // Acceso de solo-lectura a la demo comercial (ver Role.DEMO_ADMIN / SecurityConfig). Reusa

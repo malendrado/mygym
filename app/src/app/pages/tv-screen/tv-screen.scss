@@ -302,9 +302,8 @@
 
 .tv-header__clock {
   display: flex;
-  align-items: baseline;
-  gap: 1rem;
-  font-family: var(--brand-font-mono);
+  align-items: stretch;
+  gap: 0.65rem;
 }
 
 // Aviso sutil, no alarmante — la pantalla sigue mostrando el último dato bueno que tuvo, esto
@@ -313,16 +312,55 @@
   font-size: 0.85rem;
   opacity: 0.6;
   animation: tv-pulse 2.4s ease-in-out infinite;
+  align-self: center;
+}
+
+// Reloj/fecha como dos "tiles" separados (bento) con relieve tallado (claymorphism) — pedido
+// explícito del usuario tras comparar ~20 alternativas de la skill de UX. El color sale de las
+// mismas variables de tema del gym que el resto de la TV (--tv-accent/--tv-card), nunca fijo:
+// cada gym ve sus propios tiles teñidos con su color, no un violeta hardcodeado como en el mockup.
+.tv-clock-tile {
+  border-radius: 1.1rem;
+  border: 0.14rem solid color-mix(in srgb, var(--tv-accent, var(--brand-accent)) 45%, transparent);
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--tv-accent, var(--brand-accent)) 18%, var(--tv-card, var(--brand-ink-surface))),
+    var(--tv-card, var(--brand-ink-surface))
+  );
+  box-shadow:
+    inset -0.18rem -0.18rem 0.5rem rgba(0, 0, 0, 0.35),
+    inset 0.18rem 0.18rem 0.5rem rgba(255, 255, 255, 0.05),
+    0 0.3rem 0.8rem rgba(0, 0, 0, 0.4);
+  padding: 0.55rem 1.4rem;
+  display: flex;
+  align-items: center;
+}
+
+.tv-clock-tile--date {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0.05rem;
 }
 
 .tv-header__time {
+  font-family: var(--brand-font-mono);
   font-weight: 700;
-  font-size: clamp(2rem, 3.4vw, 3rem);
+  font-size: clamp(2rem, 3.2vw, 2.9rem);
+  color: var(--tv-accent-text, var(--brand-text));
+}
+
+.tv-header__weekday {
+  font-weight: 700;
+  text-transform: capitalize;
+  font-size: clamp(1rem, 1.3vw, 1.3rem);
+  color: var(--tv-accent-text, var(--brand-text));
 }
 
 .tv-header__date {
-  font-size: clamp(1rem, 1.5vw, 1.35rem);
-  opacity: 0.75;
+  font-size: clamp(0.85rem, 1.05vw, 1.05rem);
+  opacity: 0.7;
+  color: var(--tv-accent-text, var(--brand-text));
 }
 
 
@@ -686,22 +724,22 @@
   gap: 0.6rem;
   padding: 0 0.9rem 0 0.55rem;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--tv-accent-text, var(--brand-text)) 8%, transparent);
   overflow: hidden;
   transition: opacity 0.4s ease;
   position: relative;
 
-  // Refuerzo del color de plan además del aro chico del avatar — pedido explícito del usuario
-  // ("marcar en algún otro lugar para verlo de más lejos"): una barra sólida se lee a más
-  // distancia que un aro delgado alrededor de un círculo chico. Recortada sola al borde
-  // redondeado de la pastilla por el overflow:hidden de acá arriba.
-  &::before {
-    content: '';
-    position: absolute;
-    inset: 0 auto 0 0;
-    width: 0.3rem;
-    background: var(--plan, transparent);
-  }
+  // Marca de plan = fondo teñido, no anillo/barra (feedback real del usuario: el anillo se leía
+  // como recorte de foto, no como señal de plan). Se apila sobre la base neutra de siempre en vez
+  // de reemplazarla, así un chip sin plan (--plan sin setear) queda IGUAL que antes.
+  // 70% y no 16%: probado en vivo con datos reales dos veces — a 16% y después a 42% el tinte
+  // seguía leyéndose apagado/parejo contra el fondo oscuro de la TV (feedback real del usuario,
+  // "todo sombrío"). A 70% el color domina el chip en vez de ser un matiz sutil.
+  background:
+    linear-gradient(
+      color-mix(in srgb, var(--plan, transparent) 70%, transparent),
+      color-mix(in srgb, var(--plan, transparent) 70%, transparent)
+    ),
+    color-mix(in srgb, var(--tv-accent-text, var(--brand-text)) 8%, transparent);
 }
 
 // Clase en curso, socio todavía sin marcar asistencia — opacado para que los que SÍ confirmaron
@@ -729,10 +767,9 @@
   flex-shrink: 0;
   display: flex;
   border-radius: 50%;
-  // Sin overflow:hidden acá — el checkmark (abajo) tiene que asomar FUERA del círculo, un
-  // recorte lo cortaría a la mitad. El recorte de la foto en sí se hace en el <img> propio.
-  // Anillo del color del plan: en el tamaño chico es la única señal del plan (sin píldora).
-  box-shadow: 0 0 0 0.16rem var(--plan, transparent);
+  // Sin overflow:hidden acá — el checkmark (abajo) y la etiqueta de plan (arriba, ver
+  // .tv-chip__plan-tag) tienen que asomar FUERA del círculo, un recorte los cortaría a la mitad.
+  // El recorte de la foto en sí se hace en el <img> propio.
 
   img {
     width: 100%;
@@ -767,6 +804,24 @@
   }
 }
 
+// Etiqueta corta del plan sobre el avatar (2-3 letras, ver planShort() en tv-screen.ts) —
+// esquina opuesta al checkmark para no pisarlo. Solo en tiers con lugar real (xl/l/m); en "s"
+// el template ni la renderiza (ver #roster), ahí el plan queda solo en el fondo teñido del chip
+// + la leyenda fija de la pantalla (planLegend) — probado que a esa escala el texto propio del
+// chip queda ilegible (ver validación de bloque lleno).
+.tv-chip__plan-tag {
+  position: absolute;
+  top: -0.35rem;
+  right: -0.45rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  line-height: 1.3;
+  padding: 0.05rem 0.3rem;
+  border-radius: 0.35rem;
+  background: var(--plan, var(--tv-accent, var(--brand-accent)));
+  color: var(--tv-accent-solid-text, var(--brand-accent-contrast));
+}
+
 .tv-chip__initial {
   width: 100%;
   height: 100%;
@@ -795,6 +850,14 @@
   white-space: nowrap;
   text-overflow: ellipsis;
   line-height: 1.2;
+  // Blanco por default, no el texto tenue de siempre (--tv-accent-text) — pedido real del
+  // usuario ("no se distinguen ni los nombres"): contra un fondo ya teñido por plan (ver
+  // .tv-chip de arriba) el texto apagado se perdía. Cuando SÍ hay plan, el template pisa este
+  // blanco con planTextColor(a.planId) — mismo cálculo de contraste que ya usa la píldora de
+  // abajo — para que un plan con color de fondo claro (ej. el amarillo de PLAN_PALETTE, sin
+  // usar hoy en Fortis pero disponible) no quede con blanco sobre blanco.
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
 }
 
 .tv-chip__plan {
@@ -826,6 +889,9 @@
   .tv-chip__plan {
     font-size: 0.9rem;
   }
+  .tv-chip__plan-tag {
+    font-size: 0.72rem;
+  }
 }
 
 .tv-roster-fit[data-tier='l'] .tv-chip {
@@ -837,6 +903,9 @@
   .tv-chip__plan {
     font-size: 0.8rem;
   }
+  .tv-chip__plan-tag {
+    font-size: 0.62rem;
+  }
 }
 
 .tv-roster-fit[data-tier='m'] .tv-chip {
@@ -846,6 +915,9 @@
   }
   .tv-chip__plan {
     font-size: 0.72rem;
+  }
+  .tv-chip__plan-tag {
+    font-size: 0.56rem;
   }
 }
 

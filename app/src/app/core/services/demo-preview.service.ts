@@ -5,6 +5,7 @@ import { environment } from '../../../environments/environment';
 import { BankTransferInfo, GymPhoto, MemberPlan, PublicGym } from '../models/gym.model';
 import { AttendeeSummary, Member } from '../models/member.model';
 import { GymBlockOccurrence, Reservation } from '../models/reservation.model';
+import { PendingWorkout } from '../models/workout.model';
 
 /**
  * "Ver como socio" para un DEMO_ADMIN (ver web.routes.ts / roleGuard) — espejo de solo lectura de
@@ -47,5 +48,9 @@ export class DemoPreviewService {
 
   getBlockAttendees(blockId: number, classDate: string): Observable<AttendeeSummary[]> {
     return this.http.get<AttendeeSummary[]>(`${this.base}/gym-blocks/${blockId}/occurrences/${classDate}/attendees`);
+  }
+
+  getPendingWorkout(): Observable<PendingWorkout> {
+    return this.http.get<PendingWorkout>(`${this.base}/workout/pending`);
   }
 }

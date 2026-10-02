@@ -46,7 +46,7 @@ export const webRoutes: Routes = [
   },
   {
     path: 'gym-admin',
-    canActivate: [authGuard, roleGuard('GYM_ADMIN', 'DEMO_ADMIN')],
+    canActivate: [authGuard, roleGuard('GYM_ADMIN', 'DEMO_ADMIN', 'PROFESOR')],
     loadComponent: () => import('./pages/gym-admin/gym-admin').then((m) => m.GymAdmin),
   },
   {

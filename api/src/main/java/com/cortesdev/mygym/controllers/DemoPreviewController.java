@@ -8,6 +8,7 @@ import com.cortesdev.mygym.models.dto.GymBlockOccurrenceResponse;
 import com.cortesdev.mygym.models.dto.GymPhotoResponse;
 import com.cortesdev.mygym.models.dto.MemberPlanResponse;
 import com.cortesdev.mygym.models.dto.MemberResponse;
+import com.cortesdev.mygym.models.dto.PendingWorkoutResponse;
 import com.cortesdev.mygym.models.dto.PublicGymResponse;
 import com.cortesdev.mygym.models.dto.ReservationResponse;
 import com.cortesdev.mygym.repositories.AppUserRepository;
@@ -15,6 +16,7 @@ import com.cortesdev.mygym.security.AuthenticatedUser;
 import com.cortesdev.mygym.services.GymService;
 import com.cortesdev.mygym.services.MemberService;
 import com.cortesdev.mygym.services.ReservationService;
+import com.cortesdev.mygym.services.WorkoutService;
 import com.cortesdev.mygym.services.exception.DemoSampleMemberMissingException;
 import java.time.LocalDate;
 import java.util.List;
@@ -46,6 +48,7 @@ public class DemoPreviewController {
     private final GymService gymService;
     private final MemberService memberService;
     private final ReservationService reservationService;
+    private final WorkoutService workoutService;
 
     @GetMapping("/gym")
     public PublicGymResponse gym(@AuthenticationPrincipal Jwt jwt) {
@@ -101,6 +104,14 @@ public class DemoPreviewController {
     @GetMapping("/reservations")
     public List<ReservationResponse> reservations(@AuthenticationPrincipal Jwt jwt) {
         return reservationService.myReservations(sampleMemberId(jwt));
+    }
+
+    // "Memoria Viva" en la demo — mismo recorte de solo-lectura que el resto de este controller,
+    // nunca expone crear/corregir un registro (igual que reservar/cancelar, el frontend bloquea
+    // esas acciones con el aviso de demo antes de llamar a cualquier endpoint de escritura real).
+    @GetMapping("/workout/pending")
+    public PendingWorkoutResponse pendingWorkout(@AuthenticationPrincipal Jwt jwt) {
+        return workoutService.getPendingWorkout(sampleMemberId(jwt));
     }
 
     private Long gymId(Jwt jwt) {

@@ -1,4 +1,5 @@
 import { Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { DomSanitizer } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
 import {
@@ -8,6 +9,8 @@ import {
   IonContent,
   IonHeader,
   IonIcon,
+  IonInput,
+  IonItem,
   IonLabel,
   IonSegment,
   IonSegmentButton,
@@ -20,14 +23,19 @@ import {
 import { addIcons } from 'ionicons';
 import { InstallBanner } from './install-banner/install-banner';
 import {
+  addCircleOutline,
   alertCircleOutline,
+  barbellOutline,
   calendarOutline,
   checkmarkDoneOutline,
   checkmarkOutline,
   chevronBackOutline,
   chevronForwardOutline,
+  closeCircleOutline,
+  createOutline,
   eyeOutline,
   flashOutline,
+  informationCircleOutline,
   lockClosedOutline,
   logOutOutline,
   logoInstagram,
@@ -39,9 +47,11 @@ import { AuthService } from '../../core/services/auth.service';
 import { DemoPreviewService } from '../../core/services/demo-preview.service';
 import { GymService } from '../../core/services/gym.service';
 import { ReservationService } from '../../core/services/reservation.service';
+import { WorkoutService } from '../../core/services/workout.service';
 import { GymBlockOccurrence, Reservation } from '../../core/models/reservation.model';
 import { BankTransferInfo, GymPhoto, MemberPlan, PublicGym } from '../../core/models/gym.model';
 import { AttendeeSummary } from '../../core/models/member.model';
+import { ExerciseLogEntry, MemberWorkoutLog, PendingWorkout, SaveWorkoutLogRequest } from '../../core/models/workout.model';
 import { deriveSurfaceTint, ensureMinContrastColor, syncThemeOverrides } from '../../core/utils/gym-theme';
 import { registerClassCategoryIcons, resolveClassCategoryIcon } from '../../core/utils/class-category';
 
@@ -70,6 +80,11 @@ addIcons({
   'checkmark-outline': checkmarkOutline,
   'chevron-back-outline': chevronBackOutline,
   'chevron-forward-outline': chevronForwardOutline,
+  'barbell-outline': barbellOutline,
+  'add-circle-outline': addCircleOutline,
+  'close-circle-outline': closeCircleOutline,
+  'information-circle-outline': informationCircleOutline,
+  'create-outline': createOutline,
 });
 
 type Status = 'idle' | 'loading' | 'error';
@@ -168,6 +183,21 @@ function capitalize(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
+/** "YYYY-MM-DD" + N días (puede ser negativo) → "YYYY-MM-DD" — puro cálculo de calendario con
+ *  y/m/d explícitos, mismo criterio que el resto de las fechas de este archivo (nunca
+ *  `new Date(isoString)`, que interpreta UTC y puede correr un día cerca de medianoche). */
+function addDaysIso(dateIso: string, days: number): string {
+  const [y, m, d] = dateIso.split('-').map(Number);
+  const date = new Date(y, m - 1, d + days);
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+}
+
+function monthYearLabel(year: number, month: number): string {
+  return capitalize(
+    new Intl.DateTimeFormat('es-CL', { month: 'long', year: 'numeric' }).format(new Date(year, month - 1, 1)),
+  );
+}
+
 /** "YYYY-MM-DD" → "mié 23 sep" — construido a partir de y/m/d explícitos, nunca `new Date(isoString)` (ver el bug de huso horario ya encontrado con nextOccurrenceDate). */
 function formatShortDate(dateIso: string): string {
   const [y, m, d] = dateIso.split('-').map(Number);
@@ -218,7 +248,10 @@ const OCCURRENCES_LOADING_MESSAGES = [
     IonSegment,
     IonSegmentButton,
     IonLabel,
+    IonInput,
+    IonItem,
     InstallBanner,
+    NgTemplateOutlet,
   ],
   templateUrl: './member.html',
   styleUrl: './member.scss',
@@ -227,6 +260,7 @@ export class MemberPage {
   private readonly authService = inject(AuthService);
   private readonly gymService = inject(GymService);
   private readonly reservationService = inject(ReservationService);
+  private readonly workoutService = inject(WorkoutService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly sanitizer = inject(DomSanitizer);
@@ -242,7 +276,7 @@ export class MemberPage {
   protected readonly isDemoPreview = this.route.snapshot.data['demoPreview'] === true;
   protected readonly demoMemberName = signal<string | null>(null);
 
-  protected readonly section = signal<'reservar' | 'reservas'>('reservar');
+  protected readonly section = signal<'reservar' | 'reservas' | 'rutina'>('reservar');
 
   protected readonly status = signal<Status>('idle');
   protected readonly gym = signal<PublicGym | null>(null);
@@ -256,6 +290,7 @@ export class MemberPage {
   protected readonly myReservations = signal<Reservation[]>([]);
   protected readonly bookingId = signal<number | null>(null);
   protected readonly cancelingId = signal<number | null>(null);
+  protected readonly waitlistingId = signal<number | null>(null);
 
   // "Hoy" se calcula en la zona horaria del gym (America/Santiago), no en la
   // del navegador del socio — un `new Date().toISOString()` corta a UTC y
@@ -268,11 +303,6 @@ export class MemberPage {
   private readonly nowChileIso = nowInGymZoneIso();
   private readonly monthRange = this.currentMonthRange();
   protected readonly weekdayLabels = WEEKDAY_LABELS;
-  protected readonly monthLabel = capitalize(
-    new Intl.DateTimeFormat('es-CL', { month: 'long', year: 'numeric' }).format(
-      new Date(this.monthRange.year, this.monthRange.month - 1, 1),
-    ),
-  );
   protected readonly selectedDate = signal(this.todayIso);
 
   protected readonly benefits = BENEFITS;
@@ -449,23 +479,73 @@ export class MemberPage {
     return color && surface ? ensureMinContrastColor(color, surface.card) : null;
   });
 
-  // Grilla del mes en curso (el socio solo puede navegar el mes calendario
-  // actual, no meses futuros/pasados) — celdas nulas al inicio/fin completan
-  // la fila para que la grilla quede rectangular (7 columnas, Lun a Dom).
+  // El calendario reservable se ata al período PAGADO (paidAt → vencimiento), no al mes
+  // calendario — pedido explícito del usuario tras notar que el 30 de septiembre no se podía
+  // reservar una clase para el 1 de octubre, un límite técnico (mes calendario fijo) sin
+  // relación con la regla de negocio real (se puede reservar mientras el plan esté activo).
+  // Solo aplica con plan ACTIVO y paidAt real; sin plan activo (none/pending/past_due) se
+  // mantiene el comportamiento viejo (mes calendario actual) sin tocarlo — decisión explícita.
+  protected readonly bookableRange = computed<{ from: string; to: string } | null>(() => {
+    const m = this.membership();
+    if (m.status !== 'active' || !m.paidAt) {
+      return null;
+    }
+    const to = this.membershipPeriodEnd();
+    return to ? { from: m.paidAt, to } : null;
+  });
+
+  // Grilla de días a mostrar — rectangular (7 columnas, Lun a Dom), con celdas `null` para
+  // completar filas. Dos modos:
+  // 1) Sin período pagado conocido: el mes calendario actual (comportamiento de siempre).
+  // 2) Con período pagado: el rango [from, to) completo, que casi siempre cruza un fin de mes
+  //    (paidAt no suele ser el día 1) — se arma concatenando los meses calendario que toca el
+  //    rango, uno atrás del otro (los días son contiguos, la alineación semanal sigue sola, sin
+  //    necesidad de realinear nada entre un mes y el siguiente). Un día real que cae FUERA de
+  //    [from, to) (antes de pagar, o ya vencido) se deja como celda `null` — mismo mecanismo que
+  //    ya usaban los días fuera del mes calendario, cero estado nuevo de "deshabilitado".
   protected readonly monthGrid = computed<(MonthDayCell | null)[]>(() => {
-    const { year, month, daysInMonth } = this.monthRange;
+    const range = this.bookableRange();
     const occurrenceDates = new Set(this.occurrences().map((o) => o.classDate));
-    const leadingBlanks = this.dayOfWeekMonFirst(year, month, 1);
-    const cells: (MonthDayCell | null)[] = Array(leadingBlanks).fill(null);
-    for (let day = 1; day <= daysInMonth; day++) {
-      const iso = `${year}-${pad2(month)}-${pad2(day)}`;
-      cells.push({
-        iso,
-        dayNumber: day,
-        isToday: iso === this.todayIso,
-        isPast: iso < this.todayIso,
-        hasClasses: occurrenceDates.has(iso),
-      });
+    const toCell = (iso: string, day: number): MonthDayCell => ({
+      iso,
+      dayNumber: day,
+      isToday: iso === this.todayIso,
+      isPast: iso < this.todayIso,
+      hasClasses: occurrenceDates.has(iso),
+    });
+
+    if (!range) {
+      const { year, month, daysInMonth } = this.monthRange;
+      const cells: (MonthDayCell | null)[] = Array(this.dayOfWeekMonFirst(year, month, 1)).fill(null);
+      for (let day = 1; day <= daysInMonth; day++) {
+        cells.push(toCell(`${year}-${pad2(month)}-${pad2(day)}`, day));
+      }
+      while (cells.length % 7 !== 0) {
+        cells.push(null);
+      }
+      return cells;
+    }
+
+    const { from, to } = range;
+    const [fy, fm] = from.split('-').map(Number);
+    const [ly, lm] = addDaysIso(to, -1).split('-').map(Number);
+    const cells: (MonthDayCell | null)[] = [];
+    let y = fy;
+    let m = fm;
+    while (y < ly || (y === ly && m <= lm)) {
+      const daysInMonth = new Date(y, m, 0).getDate();
+      if (cells.length === 0) {
+        cells.push(...Array(this.dayOfWeekMonFirst(y, m, 1)).fill(null));
+      }
+      for (let day = 1; day <= daysInMonth; day++) {
+        const iso = `${y}-${pad2(m)}-${pad2(day)}`;
+        cells.push(iso < from || iso >= to ? null : toCell(iso, day));
+      }
+      m++;
+      if (m > 12) {
+        m = 1;
+        y++;
+      }
     }
     while (cells.length % 7 !== 0) {
       cells.push(null);
@@ -473,9 +553,8 @@ export class MemberPage {
     return cells;
   });
 
-  // La grilla del mes completo (5-6 semanas) empuja demasiado abajo la lista
-  // de clases del día — por defecto se ve solo la semana de la fecha
-  // seleccionada; "Ver mes completo" expande a las semanas restantes.
+  // La grilla completa (hasta 2 meses parciales) empuja demasiado abajo la lista de clases del
+  // día — por defecto se ve solo la semana de la fecha seleccionada; "Ver todo" expande al resto.
   protected readonly monthExpanded = signal(false);
   protected readonly visibleGrid = computed(() => {
     const grid = this.monthGrid();
@@ -485,6 +564,25 @@ export class MemberPage {
     const index = grid.findIndex((cell) => cell?.iso === this.selectedDate());
     const rowStart = index === -1 ? 0 : Math.floor(index / 7) * 7;
     return grid.slice(rowStart, rowStart + 7);
+  });
+
+  // Reemplaza el título fijo de antes (un solo mes calendario) — ahora puede abarcar 1 o 2
+  // meses según lo que entre en la porción visible de la grilla (semana suelta o todo el rango).
+  protected readonly monthLabel = computed(() => {
+    const seen = new Set<string>();
+    const labels: string[] = [];
+    for (const cell of this.visibleGrid()) {
+      if (!cell) {
+        continue;
+      }
+      const [y, m] = cell.iso.split('-').map(Number);
+      const key = `${y}-${m}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        labels.push(monthYearLabel(y, m));
+      }
+    }
+    return labels.join(' – ');
   });
 
   // Flechas para pasar de semana sin tener que tocar un día específico —
@@ -526,6 +624,29 @@ export class MemberPage {
   protected readonly dayOccurrences = computed(() =>
     this.occurrences().filter((o) => o.classDate === this.selectedDate()),
   );
+
+  // Pedido explícito del usuario: en el día de HOY, las clases que ya terminaron quedaban
+  // arriba de la lista (orden cronológico) empujando hacia abajo la que está en curso o las que
+  // vienen más tarde ese mismo día — se obliga a scrollear para ver lo que realmente importa en
+  // el momento. Solo aplica a HOY (otro día del pasado no tiene "la que está en curso" que
+  // proteger; un día futuro no tiene clases pasadas que colapsar). Colapsado por defecto,
+  // `occurrence.past` ya lo calcula el backend — no hace falta duplicar esa lógica acá.
+  protected readonly isViewingToday = computed(() => this.selectedDate() === this.todayIso);
+  protected readonly pastOccurrencesCollapsed = signal(true);
+  protected readonly collapsedPastCount = computed(() =>
+    this.isViewingToday() ? this.dayOccurrences().filter((o) => o.past).length : 0,
+  );
+  protected readonly visibleDayOccurrences = computed(() => {
+    const all = this.dayOccurrences();
+    if (!this.isViewingToday() || !this.pastOccurrencesCollapsed()) {
+      return all;
+    }
+    return all.filter((o) => !o.past);
+  });
+
+  protected togglePastOccurrences(): void {
+    this.pastOccurrencesCollapsed.update((collapsed) => !collapsed);
+  }
 
   // Quiénes más reservaron una clase — pedido explícito del usuario. Vista
   // acordeón (una clase expandida a la vez) para no inundar la lista de
@@ -678,14 +799,163 @@ export class MemberPage {
 
   protected selectDay(iso: string): void {
     this.selectedDate.set(iso);
+    this.pastOccurrencesCollapsed.set(true);
   }
 
   protected toggleMonthExpanded(): void {
     this.monthExpanded.update((expanded) => !expanded);
   }
 
-  protected setSection(section: 'reservar' | 'reservas'): void {
+  protected setSection(section: 'reservar' | 'reservas' | 'rutina'): void {
     this.section.set(section);
+    if (section === 'rutina') {
+      this.loadPendingWorkout();
+    }
+  }
+
+  // ---- "Memoria Viva": pestaña Rutina — ver WorkoutService (backend) para los 3 estados
+  // vacíos (NO_PLAN/NO_PENDING/READY) y el diseño completo. Sin historial: solo se puede ver/
+  // anotar/corregir la última reserva con check-in pendiente de registrar a la vez.
+
+  protected readonly pendingWorkout = signal<PendingWorkout | null>(null);
+  protected readonly loadingWorkout = signal(false);
+  protected readonly savingWorkout = signal(false);
+
+  // El log recién guardado se muestra inline (con opción de corregirlo) aunque `pendingWorkout`
+  // ya haya pasado a NO_PENDING tras guardarlo — si no, el socio no tendría forma de ver/editar
+  // lo que acaba de anotar en esta misma visita.
+  protected readonly justSavedLog = signal<MemberWorkoutLog | null>(null);
+  protected readonly editingSavedLog = signal(false);
+
+  protected readonly selectedPlanDayId = signal<number | null>(null);
+  protected readonly useFreeText = signal(false);
+  protected readonly freeTextLabel = signal('');
+  protected readonly exerciseRows = signal<ExerciseLogEntry[]>([{ exercise: '', notes: '' }]);
+
+  protected readonly canSaveWorkout = computed(() =>
+    this.useFreeText() ? this.freeTextLabel().trim().length > 0 : this.selectedPlanDayId() !== null,
+  );
+
+  private loadPendingWorkout(): void {
+    this.loadingWorkout.set(true);
+    this.justSavedLog.set(null);
+    (this.isDemoPreview ? this.demoPreviewService.getPendingWorkout() : this.workoutService.getPending()).subscribe({
+      next: (pending) => {
+        this.pendingWorkout.set(pending);
+        this.loadingWorkout.set(false);
+        if (pending.status === 'READY') {
+          this.resetWorkoutForm(pending.suggestedPlanDayId);
+        }
+      },
+      error: () => this.loadingWorkout.set(false),
+    });
+  }
+
+  private resetWorkoutForm(suggestedPlanDayId: number | null): void {
+    this.selectedPlanDayId.set(suggestedPlanDayId);
+    this.useFreeText.set(false);
+    this.freeTextLabel.set('');
+    this.exerciseRows.set([{ exercise: '', notes: '' }]);
+  }
+
+  protected selectPlanDay(id: number): void {
+    this.selectedPlanDayId.set(id);
+    this.useFreeText.set(false);
+  }
+
+  protected selectFreeText(): void {
+    this.useFreeText.set(true);
+    this.selectedPlanDayId.set(null);
+  }
+
+  protected setFreeTextLabel(value: string): void {
+    this.freeTextLabel.set(value);
+  }
+
+  protected setExerciseField(index: number, field: 'exercise' | 'notes', value: string): void {
+    const rows = [...this.exerciseRows()];
+    rows[index] = { ...rows[index], [field]: value };
+    this.exerciseRows.set(rows);
+  }
+
+  protected addExerciseRow(): void {
+    this.exerciseRows.set([...this.exerciseRows(), { exercise: '', notes: '' }]);
+  }
+
+  protected removeExerciseRow(index: number): void {
+    const rows = this.exerciseRows().filter((_, i) => i !== index);
+    this.exerciseRows.set(rows.length > 0 ? rows : [{ exercise: '', notes: '' }]);
+  }
+
+  private buildWorkoutPayload(): SaveWorkoutLogRequest {
+    return {
+      planDayId: this.useFreeText() ? null : this.selectedPlanDayId(),
+      freeTextLabel: this.useFreeText() ? this.freeTextLabel().trim() : null,
+      exercises: this.exerciseRows().filter((row) => row.exercise.trim().length > 0),
+    };
+  }
+
+  protected saveWorkoutLog(): void {
+    const pending = this.pendingWorkout();
+    if (!pending || pending.status !== 'READY' || pending.reservationId === null || !this.canSaveWorkout()) {
+      return;
+    }
+    if (this.blockedInDemo()) {
+      return;
+    }
+    this.savingWorkout.set(true);
+    this.workoutService.createLog(pending.reservationId, this.buildWorkoutPayload()).subscribe({
+      next: (log) => {
+        this.savingWorkout.set(false);
+        this.justSavedLog.set(log);
+        this.editingSavedLog.set(false);
+        this.showToast('Registro guardado.');
+        this.loadPendingWorkout();
+      },
+      error: () => {
+        this.savingWorkout.set(false);
+        this.showToast('No pudimos guardar el registro. Intenta nuevamente.', 'danger');
+      },
+    });
+  }
+
+  protected editSavedLog(): void {
+    const log = this.justSavedLog();
+    if (!log) {
+      return;
+    }
+    this.selectedPlanDayId.set(log.planDayId);
+    this.useFreeText.set(log.planDayId === null);
+    this.freeTextLabel.set(log.freeTextLabel ?? '');
+    this.exerciseRows.set(log.exercises && log.exercises.length > 0 ? log.exercises : [{ exercise: '', notes: '' }]);
+    this.editingSavedLog.set(true);
+  }
+
+  protected cancelEditSavedLog(): void {
+    this.editingSavedLog.set(false);
+  }
+
+  protected updateSavedLog(): void {
+    const log = this.justSavedLog();
+    if (!log || !this.canSaveWorkout()) {
+      return;
+    }
+    if (this.blockedInDemo()) {
+      return;
+    }
+    this.savingWorkout.set(true);
+    this.workoutService.updateLog(log.id, this.buildWorkoutPayload()).subscribe({
+      next: (updated) => {
+        this.savingWorkout.set(false);
+        this.justSavedLog.set(updated);
+        this.editingSavedLog.set(false);
+        this.showToast('Registro actualizado.');
+      },
+      error: () => {
+        this.savingWorkout.set(false);
+        this.showToast('No pudimos actualizar el registro. Intenta nuevamente.', 'danger');
+      },
+    });
   }
 
   protected book(occurrence: GymBlockOccurrence): void {
@@ -726,6 +996,47 @@ export class MemberPage {
       error: (err: Error) => {
         this.cancelingId.set(null);
         this.showToast(err.message || 'No pudimos cancelar esa reserva.', 'danger');
+      },
+    });
+  }
+
+  // Bloque lleno: en vez de quedarse sin enterarse, el socio pide que le avisen por mail si se
+  // libera un cupo (ver WaitlistService en el backend — orden de llegada, con ventaja para el
+  // primero de la lista antes de avisarle al resto).
+  protected joinWaitlist(occurrence: GymBlockOccurrence): void {
+    if (this.blockedInDemo()) {
+      return;
+    }
+    this.waitlistingId.set(occurrence.gymBlockId);
+    this.reservationService
+      .joinWaitlist({ gymBlockId: occurrence.gymBlockId, classDate: occurrence.classDate })
+      .subscribe({
+        next: () => {
+          this.waitlistingId.set(null);
+          this.loadOccurrences();
+          this.showToast('Listo, te avisamos por mail si se libera un cupo.');
+        },
+        error: (err: Error) => {
+          this.waitlistingId.set(null);
+          this.showToast(err.message || 'No pudimos anotarte en la lista de espera.', 'danger');
+        },
+      });
+  }
+
+  protected leaveWaitlist(occurrence: GymBlockOccurrence): void {
+    if (this.blockedInDemo()) {
+      return;
+    }
+    this.waitlistingId.set(occurrence.gymBlockId);
+    this.reservationService.leaveWaitlist(occurrence.gymBlockId, occurrence.classDate).subscribe({
+      next: () => {
+        this.waitlistingId.set(null);
+        this.loadOccurrences();
+        this.showToast('Te sacamos de la lista de espera.');
+      },
+      error: (err: Error) => {
+        this.waitlistingId.set(null);
+        this.showToast(err.message || 'No pudimos sacarte de la lista de espera.', 'danger');
       },
     });
   }
@@ -865,6 +1176,13 @@ export class MemberPage {
         });
         this.expiryNotified = false;
         this.stopBookingDemo();
+        // El fetch inicial de ocurrencias (constructor) salió con el mes calendario de
+        // respaldo, antes de saber si hay plan activo — con status==='active' ya conocido acá,
+        // bookableRange() pasa a ser el rango real del período pagado: hay que volver a pedir
+        // las ocurrencias para ESE rango (puede no coincidir con el mes calendario de respaldo).
+        if (status === 'active') {
+          this.loadOccurrences();
+        }
       },
       error: () => {
         // Best-effort: sin datos reales, se queda en "none" (el estado por
@@ -906,9 +1224,10 @@ export class MemberPage {
 
   private loadOccurrences(): void {
     this.status.set('loading');
+    const range = this.bookableRange() ?? { from: this.monthRange.from, to: this.monthRange.to };
     (this.isDemoPreview
-      ? this.demoPreviewService.listOccurrences(this.monthRange.from, this.monthRange.to)
-      : this.reservationService.listOccurrences(this.monthRange.from, this.monthRange.to)
+      ? this.demoPreviewService.listOccurrences(range.from, range.to)
+      : this.reservationService.listOccurrences(range.from, range.to)
     ).subscribe({
       next: (occurrences) => {
         this.occurrences.set(occurrences);

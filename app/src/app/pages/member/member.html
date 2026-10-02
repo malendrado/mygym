@@ -28,6 +28,9 @@
         </div>
       </ion-title>
       <ion-buttons slot="end">
+        @if (!isDemoPreview) {
+          <app-install-banner />
+        }
         <ion-button (click)="logout()">
           <ion-icon name="log-out-outline" slot="start" aria-hidden="true"></ion-icon>
           {{ isDemoPreview ? 'Volver al panel' : 'Salir' }}
@@ -59,6 +62,10 @@
           <ion-icon name="checkmark-done-outline" aria-hidden="true"></ion-icon>
           <ion-label>Mis Reservas</ion-label>
         </ion-segment-button>
+        <ion-segment-button value="rutina">
+          <ion-icon name="barbell-outline" aria-hidden="true"></ion-icon>
+          <ion-label>Rutina</ion-label>
+        </ion-segment-button>
       </ion-segment>
     </ion-toolbar>
   </ion-header>
@@ -81,10 +88,6 @@
       <h1>Hola, {{ firstName() }}</h1>
     </div>
 
-    @if (!isDemoPreview) {
-      <app-install-banner />
-    }
-
     @if (section() === 'reservar') {
     <p class="section-hook">Elige un día y reserva tu clase en segundos.</p>
 
@@ -102,13 +105,13 @@
               Volver a los planes
             </button>
             <h2>¿Cómo quieres pagar?</h2>
-            <p class="item-hint">{{ choicePlan.name }} — ${{ formatClp(choicePlan.priceClp) }} / mes</p>
+            <p class="item-hint">{{ choicePlan.name }} — ${{ formatClp(choicePlan.priceClp) }} / mes + IVA</p>
 
             @if (gym()?.flowConfigured) {
               <article class="payment-option">
                 <h3>Pagar con Flow</h3>
                 <p class="payment-option__row">
-                  <span>Plan</span><span>${{ formatClp(choicePlan.priceClp) }}</span>
+                  <span>Plan (+ IVA)</span><span>${{ formatClp(choicePlan.priceClp) }}</span>
                 </p>
                 <p class="payment-option__row">
                   <span>Comisión pasarela (2,89% + IVA)</span><span>${{ formatClp(commissionFor(choicePlan)) }}</span>
@@ -124,8 +127,8 @@
               <article class="payment-option">
                 <h3>Transferencia bancaria</h3>
                 <p class="item-hint">
-                  Transfiere ${{ formatClp(choicePlan.priceClp) }} y avisa al gimnasio — ellos confirman tu pago apenas
-                  lo reciban.
+                  Transfiere ${{ formatClp(choicePlan.priceClp) }} (+ IVA) y avisa al gimnasio — ellos confirman tu pago
+                  apenas lo reciban.
                 </p>
                 <dl class="bank-details">
                   <div><dt>Banco</dt><dd>{{ bankTransfer()?.bankName }}</dd></div>
@@ -155,7 +158,7 @@
                   </span>
                 }
                 <h3>{{ plan.name }}</h3>
-                <p class="plan-card__price">${{ formatClp(plan.priceClp) }}<span> / mes</span></p>
+                <p class="plan-card__price">${{ formatClp(plan.priceClp) }}<span> / mes + IVA</span></p>
                 <p class="plan-card__quota">
                   {{ plan.monthlyClasses === null ? 'Clases ilimitadas' : plan.monthlyClasses + ' clases al mes' }}
                 </p>
@@ -232,7 +235,7 @@
     <div class="member-columns">
       <section class="member-section member-columns__calendar">
         <div class="calendar-header">
-          <h2>{{ monthLabel }}</h2>
+          <h2>{{ monthLabel() }}</h2>
           @if (!monthExpanded()) {
             <div class="calendar-header__nav">
               <button
@@ -282,15 +285,26 @@
           }
         </div>
         <button type="button" class="calendar-toggle" (click)="toggleMonthExpanded()">
-          {{ monthExpanded() ? 'Ver solo esta semana' : 'Ver mes completo' }}
+          {{ monthExpanded() ? 'Ver solo esta semana' : 'Ver todo' }}
         </button>
       </section>
 
       <div class="member-columns__agenda">
         <section class="member-section">
           <h2>{{ selectedDateLabel() }}</h2>
+          @if (collapsedPastCount() > 0) {
+            <button type="button" class="calendar-toggle" (click)="togglePastOccurrences()">
+              {{
+                pastOccurrencesCollapsed()
+                  ? 'Ver ' +
+                    collapsedPastCount() +
+                    (collapsedPastCount() === 1 ? ' clase que ya pasó hoy' : ' clases que ya pasaron hoy')
+                  : 'Ocultar clases que ya pasaron'
+              }}
+            </button>
+          }
           <div class="class-grid">
-            @for (occurrence of dayOccurrences(); track occurrence.gymBlockId + occurrence.classDate) {
+            @for (occurrence of visibleDayOccurrences(); track occurrence.gymBlockId + occurrence.classDate) {
               <article
                 class="class-tile"
                 [class.class-tile--reserved]="!!occurrence.myReservationId"
@@ -351,6 +365,28 @@
                     <button type="button" class="class-tile__link" (click)="scrollToPlans()">Elegir plan</button>
                   } @else if (quotaExhausted()) {
                     <span class="class-tile__note">Sin cupo del mes</span>
+                  } @else if (isCapacityFull(occurrence) && !occurrence.past) {
+                    @if (occurrence.waitlisted) {
+                      <ion-badge color="medium">En lista de espera</ion-badge>
+                      <button
+                        type="button"
+                        class="class-tile__link class-tile__link--danger"
+                        [disabled]="waitlistingId() === occurrence.gymBlockId"
+                        (click)="leaveWaitlist(occurrence)"
+                      >
+                        {{ waitlistingId() === occurrence.gymBlockId ? 'Sacando...' : 'Salir de la lista' }}
+                      </button>
+                    } @else {
+                      <ion-button
+                        expand="block"
+                        fill="outline"
+                        size="small"
+                        [disabled]="waitlistingId() === occurrence.gymBlockId"
+                        (click)="joinWaitlist(occurrence)"
+                      >
+                        {{ waitlistingId() === occurrence.gymBlockId ? 'Anotando...' : 'Notificarme si se libera un cupo' }}
+                      </ion-button>
+                    }
                   } @else {
                     <ion-button
                       expand="block"
@@ -363,11 +399,11 @@
                         bookingId() === occurrence.gymBlockId
                           ? 'Reservando...'
                           : !occurrence.bookable
-                            ? (isCapacityFull(occurrence) ? 'Sin cupo' : 'Reservas cerradas')
+                            ? 'Reservas cerradas'
                             : 'Reservar'
                       }}
                     </ion-button>
-                    @if (!occurrence.bookable && !isCapacityFull(occurrence)) {
+                    @if (!occurrence.bookable) {
                       <span class="class-tile__note class-tile__note--hint">
                         Se puede reservar hasta {{ gym()?.cancellationWindowHours }} h antes del inicio
                       </span>
@@ -376,7 +412,9 @@
                 </div>
               </article>
             } @empty {
-              <p class="item-hint">No hay clases programadas este día.</p>
+              @if (dayOccurrences().length === 0) {
+                <p class="item-hint">No hay clases programadas este día.</p>
+              }
             }
           </div>
         </section>
@@ -464,7 +502,7 @@
         }
       </div>
     }
-    } @else {
+    } @else if (section() === 'reservas') {
     <p class="section-hook">Tu historial de clases, ordenado y a la vista.</p>
 
     <div class="booking-teaser" [class.booking-teaser--locked]="bookingLocked()">
@@ -542,6 +580,125 @@
       </button>
     }
     </div>
+    } @else {
+    <p class="section-hook">Anota qué hiciste cada vez que entrenas — tu profesor lo ve antes de hablar contigo.</p>
+
+    @if (loadingWorkout()) {
+      <div class="occurrences-loading">
+        <ion-spinner name="crescent"></ion-spinner>
+      </div>
+    } @else if (pendingWorkout(); as pending) {
+      @if (justSavedLog(); as log) {
+        @if (!editingSavedLog()) {
+          <section class="member-section workout-saved">
+            <p class="workout-saved__date">{{ formatShortDate(log.classDate ?? '') }}</p>
+            @if (log.planDayId === null || log.planDayId !== log.suggestedPlanDayId) {
+              <p class="workout-saved__deviation">
+                <ion-icon name="information-circle-outline" aria-hidden="true"></ion-icon>
+                Te tocaba <strong>{{ log.suggestedPlanDayTitle }}</strong> y registraste:
+                <strong>{{ log.planDayId !== null ? log.planDayTitle : log.freeTextLabel }}</strong>
+              </p>
+            } @else {
+              <p><strong>{{ log.planDayTitle }}</strong></p>
+            }
+            @if (log.exercises && log.exercises.length > 0) {
+              <ul class="workout-saved__exercises">
+                @for (entry of log.exercises; track $index) {
+                  <li>{{ entry.exercise }}@if (entry.notes) { — {{ entry.notes }} }</li>
+                }
+              </ul>
+            }
+            <ion-button fill="outline" size="small" (click)="editSavedLog()">
+              <ion-icon name="create-outline" slot="start" aria-hidden="true"></ion-icon>
+              Corregir
+            </ion-button>
+          </section>
+        } @else {
+          <section class="member-section workout-form">
+            <ng-container *ngTemplateOutlet="workoutForm; context: { plan: pending.plan }"></ng-container>
+            <div class="workout-form__actions">
+              <ion-button fill="clear" size="small" (click)="cancelEditSavedLog()">Cancelar</ion-button>
+              <ion-button [disabled]="!canSaveWorkout() || savingWorkout()" (click)="updateSavedLog()">
+                {{ savingWorkout() ? 'Guardando...' : 'Guardar corrección' }}
+              </ion-button>
+            </div>
+          </section>
+        }
+      } @else if (pending.status === 'NO_PLAN') {
+        <p class="item-hint">Aún no tienes una rutina, habla con tu profesor.</p>
+      } @else if (pending.status === 'NO_PENDING') {
+        <p class="item-hint">Aún no tienes clases por registrar — reserva y marca asistencia primero.</p>
+        <ion-button fill="outline" size="small" (click)="setSection('reservar')">
+          <ion-icon name="calendar-outline" slot="start" aria-hidden="true"></ion-icon>
+          Reserva tu bloque
+        </ion-button>
+      } @else {
+        <section class="member-section workout-form">
+          <p class="item-hint">Clase del {{ formatShortDate(pending.classDate ?? '') }}</p>
+          <ng-container *ngTemplateOutlet="workoutForm; context: { plan: pending.plan }"></ng-container>
+          <div class="workout-form__actions">
+            <ion-button [disabled]="!canSaveWorkout() || savingWorkout()" (click)="saveWorkoutLog()">
+              {{ savingWorkout() ? 'Guardando...' : 'Guardar registro' }}
+            </ion-button>
+          </div>
+        </section>
+      }
+    }
+
+    <ng-template #workoutForm let-plan="plan">
+      <div class="workout-day-picker">
+        @for (day of plan?.days ?? []; track day.id) {
+          <button
+            type="button"
+            class="workout-day-chip"
+            [class.workout-day-chip--selected]="!useFreeText() && selectedPlanDayId() === day.id"
+            (click)="selectPlanDay(day.id)"
+          >
+            {{ day.title }}
+          </button>
+        }
+        <button
+          type="button"
+          class="workout-day-chip"
+          [class.workout-day-chip--selected]="useFreeText()"
+          (click)="selectFreeText()"
+        >
+          Otro
+        </button>
+      </div>
+      @if (useFreeText()) {
+        <ion-item lines="full">
+          <ion-label position="stacked">¿Qué hiciste?</ion-label>
+          <ion-input
+            placeholder="Ej. Remo"
+            [value]="freeTextLabel()"
+            (ionInput)="setFreeTextLabel($any($event.detail.value) ?? '')"
+          ></ion-input>
+        </ion-item>
+      }
+      <p class="workout-form__label">Ejercicios (opcional)</p>
+      @for (row of exerciseRows(); track $index) {
+        <ion-item lines="full">
+          <ion-input
+            placeholder="Ejercicio"
+            [value]="row.exercise"
+            (ionInput)="setExerciseField($index, 'exercise', $any($event.detail.value) ?? '')"
+          ></ion-input>
+          <ion-input
+            placeholder="Notas"
+            [value]="row.notes ?? ''"
+            (ionInput)="setExerciseField($index, 'notes', $any($event.detail.value) ?? '')"
+          ></ion-input>
+          <ion-button fill="clear" color="danger" slot="end" (click)="removeExerciseRow($index)" aria-label="Quitar ejercicio">
+            <ion-icon name="close-circle-outline" slot="icon-only" aria-hidden="true"></ion-icon>
+          </ion-button>
+        </ion-item>
+      }
+      <ion-button fill="outline" size="small" (click)="addExerciseRow()">
+        <ion-icon name="add-circle-outline" slot="start" aria-hidden="true"></ion-icon>
+        Agregar ejercicio
+      </ion-button>
+    </ng-template>
     }
     </div>
   </ion-content>

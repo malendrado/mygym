@@ -3,6 +3,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { IonContent, IonHeader, IonSpinner, IonText, IonTitle, IonToolbar } from '@ionic/angular';
 import { GoogleSigninButtonDirective, SocialAuthService } from '@abacritt/angularx-social-login';
 import { AuthService } from '../../core/services/auth.service';
+import { homeRouteForRole } from '../../core/models/auth.model';
 
 // Si el callback de Google Identity Services nunca llega (bloqueado por un
 // navegador embebido tipo WhatsApp/Instagram, o por restricciones de cookies
@@ -52,11 +53,7 @@ export class Login {
             const destination =
               response.role === 'MEMBER' && returnUrl?.startsWith('/') && !returnUrl.startsWith('//')
                 ? returnUrl
-                : response.role === 'SUPER_ADMIN'
-                  ? '/admin/gyms'
-                  : response.role === 'GYM_ADMIN' || response.role === 'DEMO_ADMIN'
-                    ? '/gym-admin'
-                    : '/member';
+                : homeRouteForRole(response.role);
             this.router.navigateByUrl(destination);
           }, WELCOME_PAUSE_MS);
         },

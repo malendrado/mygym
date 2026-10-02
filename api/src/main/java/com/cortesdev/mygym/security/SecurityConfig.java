@@ -53,7 +53,13 @@ public class SecurityConfig {
                         // siguiente (solo GYM_ADMIN) y recibe 403 real, no solo un botón
                         // deshabilitado en el frontend.
                         .requestMatchers(HttpMethod.GET, "/api/gym-admin/**")
-                        .hasAnyRole("GYM_ADMIN", "DEMO_ADMIN")
+                        .hasAnyRole("GYM_ADMIN", "DEMO_ADMIN", "PROFESOR")
+                        // PROFESOR escribe SOLO acá (rutina/bitácora de "Memoria Viva") — nunca en
+                        // el resto de /api/gym-admin/** (pagos, bloques, altas de profesores),
+                        // mismo gotcha de orden que arriba: este matcher específico va ANTES del
+                        // genérico hasRole("GYM_ADMIN") de abajo.
+                        .requestMatchers("/api/gym-admin/members/*/workout/**")
+                        .hasAnyRole("GYM_ADMIN", "PROFESOR")
                         .requestMatchers("/api/gym-admin/**")
                         .hasRole("GYM_ADMIN")
                         .requestMatchers("/api/me/**")

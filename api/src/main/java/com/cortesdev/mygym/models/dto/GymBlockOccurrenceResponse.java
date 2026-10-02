@@ -18,4 +18,5 @@ public record GymBlockOccurrenceResponse(
         Integer taken,
         boolean bookable,
         boolean past,
-        Long myReservationId) {}
+        Long myReservationId,
+        boolean waitlisted) {}

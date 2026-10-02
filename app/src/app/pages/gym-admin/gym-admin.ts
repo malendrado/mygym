@@ -101,11 +101,16 @@ import {
   sortBlocksBySchedule,
 } from '../../core/models/gym.model';
 import { Attendee, InviteStatus, Member, MembershipStatus } from '../../core/models/member.model';
+import { CreateProfesorRequest, Profesor } from '../../core/models/profesor.model';
+import { CreateWorkoutPlanRequest, MemberWorkoutLog, WorkoutPlan } from '../../core/models/workout.model';
+import { ProfesorService } from '../../core/services/profesor.service';
+import { WorkoutService } from '../../core/services/workout.service';
 import { BloqueFormModal, DAYS } from '../admin/gyms/bloque-form-modal/bloque-form-modal';
 import { BloqueSeriesModal } from '../admin/gyms/bloque-series-modal/bloque-series-modal';
 import { PlanFormModal } from '../admin/gyms/plan-form-modal/plan-form-modal';
 import { MarkPaidModal } from '../admin/gyms/mark-paid-modal/mark-paid-modal';
 import { ImportMembersModal } from '../admin/gyms/import-members-modal/import-members-modal';
+import { WorkoutPlanModal } from '../admin/gyms/workout-plan-modal/workout-plan-modal';
 import { registerClassCategoryIcons, resolveClassCategoryIcon } from '../../core/utils/class-category';
 import { formatRut, rutFormatValidator } from '../../core/utils/rut';
 
@@ -387,6 +392,7 @@ const THEMED_ROOT_PROPERTIES = [
     PlanFormModal,
     MarkPaidModal,
     ImportMembersModal,
+    WorkoutPlanModal,
     QuantityStepper,
     IonSpinner,
   ],
@@ -398,6 +404,8 @@ export class GymAdmin implements OnDestroy {
   private readonly gymService = inject(GymService);
   private readonly memberService = inject(MemberService);
   private readonly tvScreenService = inject(TvScreenService);
+  private readonly profesorService = inject(ProfesorService);
+  private readonly workoutService = inject(WorkoutService);
   private readonly router = inject(Router);
   private readonly sanitizer = inject(DomSanitizer);
   private readonly toastController = inject(ToastController);
@@ -411,6 +419,10 @@ export class GymAdmin implements OnDestroy {
   // backend) — el bloqueo real de escritura ya está en el backend, esto solo maneja el toggle
   // "ver como socio" y el difuminado de la sección de Marca (ver template).
   protected readonly isDemoAdmin = computed(() => this.authService.currentUser()?.role === 'DEMO_ADMIN');
+  // "Memoria Viva": un PROFESOR entra al mismo panel de gym-admin (ver roleGuard en web.routes.ts)
+  // pero solo puede escribir en rutina/bitácora (ver SecurityConfig en el backend) — nunca ve la
+  // gestión de profesores (eso es exclusivo de GYM_ADMIN, ver template).
+  protected readonly isProfesor = computed(() => this.authService.currentUser()?.role === 'PROFESOR');
   protected readonly tip = ADMIN_TIPS[Math.floor(Math.random() * ADMIN_TIPS.length)];
   protected readonly gym = signal<Gym | null>(null);
   protected readonly gymName = signal('');
@@ -713,6 +725,9 @@ export class GymAdmin implements OnDestroy {
     this.loadMembers();
     this.loadPhotos();
     this.loadTvScreens();
+    if (!this.isProfesor()) {
+      this.loadProfesores();
+    }
 
     // Ionic overlays (the ion-select popup, ion-alert, ion-toast) are
     // portaled to the top of the DOM, outside <ion-content>/<ion-modal> —
@@ -1658,6 +1673,125 @@ export class GymAdmin implements OnDestroy {
       error: () => {
         this.deletingMemberId.set(null);
         this.handleWriteError(() => this.showToast('No pudimos eliminar al socio. Intenta nuevamente.', 'danger'));
+      },
+    });
+  }
+
+  // ---- "Memoria Viva": profesores (solo GYM_ADMIN los crea, ver template) ----
+
+  protected readonly profesores = signal<Profesor[]>([]);
+  protected readonly newProfesorName = signal('');
+  protected readonly newProfesorEmail = signal('');
+  protected readonly creatingProfesor = signal(false);
+  protected readonly removingProfesorId = signal<number | null>(null);
+
+  private loadProfesores(): void {
+    this.profesorService.list().subscribe({ next: (list) => this.profesores.set(list) });
+  }
+
+  protected addProfesor(): void {
+    const name = this.newProfesorName().trim();
+    const email = this.newProfesorEmail().trim();
+    if (!name || !email) {
+      return;
+    }
+    this.creatingProfesor.set(true);
+    this.profesorService.create({ name, email } as CreateProfesorRequest).subscribe({
+      next: (profesor) => {
+        this.creatingProfesor.set(false);
+        this.profesores.update((list) => [...list, profesor]);
+        this.newProfesorName.set('');
+        this.newProfesorEmail.set('');
+        this.showToast(`${profesor.name} ya puede entrar como profesor.`);
+      },
+      error: () => {
+        this.creatingProfesor.set(false);
+        this.handleWriteError(() => this.showToast('No pudimos agregar al profesor. Intenta nuevamente.', 'danger'));
+      },
+    });
+  }
+
+  protected async removeProfesor(profesor: Profesor): Promise<void> {
+    const confirmed = await this.confirmAction(
+      'Quitar profesor',
+      `¿Quitarle el acceso a ${profesor.name}?`,
+      'Quitar acceso',
+    );
+    if (!confirmed) {
+      return;
+    }
+    this.removingProfesorId.set(profesor.id);
+    this.profesorService.remove(profesor.id).subscribe({
+      next: () => {
+        this.removingProfesorId.set(null);
+        this.profesores.update((list) => list.filter((p) => p.id !== profesor.id));
+        this.showToast(`Se le quitó el acceso a ${profesor.name}.`);
+      },
+      error: () => {
+        this.removingProfesorId.set(null);
+        this.handleWriteError(() => this.showToast('No pudimos quitar el acceso. Intenta nuevamente.', 'danger'));
+      },
+    });
+  }
+
+  // ---- "Memoria Viva": rutina de un socio (GYM_ADMIN y PROFESOR, ver SecurityConfig) ----
+
+  protected readonly workoutPlanMember = signal<Member | null>(null);
+  protected readonly workoutPlan = signal<WorkoutPlan | null>(null);
+  protected readonly workoutLatestLog = signal<MemberWorkoutLog | null>(null);
+  protected readonly loadingWorkoutPlan = signal(false);
+  protected readonly savingWorkoutPlan = signal(false);
+
+  protected openWorkoutPlanModal(member: Member): void {
+    this.workoutPlanMember.set(member);
+    this.workoutPlan.set(null);
+    this.workoutLatestLog.set(null);
+    this.loadingWorkoutPlan.set(true);
+    this.workoutService.getActivePlan(member.id).subscribe({
+      next: (plan) => this.workoutPlan.set(plan),
+      error: () => this.showToast('No pudimos cargar la rutina. Intenta nuevamente.', 'danger'),
+    });
+    this.workoutService.getLatestLog(member.id).subscribe({
+      next: (log) => {
+        this.workoutLatestLog.set(log);
+        this.loadingWorkoutPlan.set(false);
+      },
+      error: () => this.loadingWorkoutPlan.set(false),
+    });
+  }
+
+  protected closeWorkoutPlanModal(): void {
+    this.workoutPlanMember.set(null);
+  }
+
+  // Si ya había una rutina activa, "Guardar" la reemplaza entera (desactiva la vieja, crea una
+  // nueva) — pedido explícito de UX: confirmar antes, porque desde la pantalla se siente como
+  // "editar", no como "reemplazar", aunque los registros viejos queden intactos como historia.
+  protected async confirmWorkoutPlan(request: CreateWorkoutPlanRequest): Promise<void> {
+    const member = this.workoutPlanMember();
+    if (!member) {
+      return;
+    }
+    if (this.workoutPlan() !== null) {
+      const confirmed = await this.confirmAction(
+        'Reemplazar rutina',
+        `${member.name} ya tiene una rutina activa — esto la reemplaza entera por la nueva. Los registros ya hechos quedan intactos, como historia.`,
+        'Reemplazar',
+      );
+      if (!confirmed) {
+        return;
+      }
+    }
+    this.savingWorkoutPlan.set(true);
+    this.workoutService.replacePlan(member.id, request).subscribe({
+      next: () => {
+        this.savingWorkoutPlan.set(false);
+        this.workoutPlanMember.set(null);
+        this.showToast(`Rutina de ${member.name} actualizada.`);
+      },
+      error: () => {
+        this.savingWorkoutPlan.set(false);
+        this.handleWriteError(() => this.showToast('No pudimos guardar la rutina. Intenta nuevamente.', 'danger'));
       },
     });
   }

@@ -19,6 +19,7 @@ import { IonContent, IonIcon } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import {
   arrowForwardOutline,
+  barbellOutline,
   businessOutline,
   cardOutline,
   chevronDownOutline,
@@ -49,6 +50,7 @@ addIcons({
   'help-circle-outline': helpCircleOutline,
   'shield-checkmark-outline': shieldCheckmarkOutline,
   'arrow-forward-outline': arrowForwardOutline,
+  'barbell-outline': barbellOutline,
 });
 
 const WHATSAPP_NUMBER = '56964641042';
@@ -68,6 +70,9 @@ interface PricingTier {
   name: string;
   clients: string;
   price: string;
+  // false solo para "Escala" (precio a medida, no un número) — el impuesto se negocia junto con
+  // el precio, no tiene sentido mostrar "+ IVA" al lado de "A medida".
+  showIva: boolean;
   highlight: boolean;
   items: string[];
 }
@@ -163,6 +168,12 @@ export class Landing implements OnInit, AfterViewInit, OnDestroy {
       span: 'full',
       tint: 'accent',
     },
+    {
+      title: 'Memoria Viva: seguimiento de rutinas',
+      body: 'El profesor arma una pauta simple y el socio anota qué hizo cada vez que entrena. Antes de hablar con él, el profesor ve al toque si siguió el plan o se desvió — sin tener que acordarse ni preguntar.',
+      span: 'full',
+      tint: 'surface-2',
+    },
   ];
 
   protected readonly memberBenefits: MemberBenefit[] = [
@@ -185,6 +196,11 @@ export class Landing implements OnInit, AfterViewInit, OnDestroy {
       icon: 'notifications-outline',
       title: 'Te avisamos antes, no después',
       body: 'Un aviso si se libera un cupo en tu clase favorita, o si tu plan está por vencer.',
+    },
+    {
+      icon: 'barbell-outline',
+      title: 'Tu rutina, siempre a mano',
+      body: 'Anota qué hiciste en cada clase — tu profesor lo ve antes de hablar contigo.',
     },
   ];
 
@@ -262,6 +278,7 @@ export class Landing implements OnInit, AfterViewInit, OnDestroy {
       name: 'Empieza',
       clients: 'Hasta 100 socios activos',
       price: '$39.990',
+      showIva: true,
       highlight: false,
       items: ['Reservas y clases', 'Membresías y cobros', 'App para socios'],
     },
@@ -269,6 +286,7 @@ export class Landing implements OnInit, AfterViewInit, OnDestroy {
       name: 'Crece',
       clients: 'Hasta 400 socios activos',
       price: '$69.990',
+      showIva: true,
       highlight: true,
       items: ['Todo lo de Empieza', 'Control de acceso', 'Reportes', 'Pagos online'],
     },
@@ -276,6 +294,7 @@ export class Landing implements OnInit, AfterViewInit, OnDestroy {
       name: 'Escala',
       clients: 'Más de 400 socios activos',
       price: 'A medida',
+      showIva: false,
       highlight: false,
       items: ['Todo lo de Crece', 'Múltiples sedes', 'Soporte prioritario'],
     },

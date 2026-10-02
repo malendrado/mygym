@@ -38,6 +38,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -68,6 +69,7 @@ public class ReservationService {
     private final AppUserRepository appUserRepository;
     private final MemberService memberService;
     private final TvCheckinCodeRepository checkinCodeRepository;
+    private final WaitlistService waitlistService;
 
     @Transactional(readOnly = true)
     public List<GymBlockOccurrenceResponse> listOccurrences(Long gymId, Long memberId, LocalDate from, LocalDate to) {
@@ -88,6 +90,7 @@ public class ReservationService {
                 ? List.of()
                 : reservationRepository.findByGymBlockIdInAndClassDateBetweenAndStatus(
                         blockIds, from, to, ReservationStatus.BOOKED);
+        Set<String> myWaitlistedOccurrences = waitlistService.myWaitlistedOccurrences(memberId, from, to);
         Map<String, Integer> takenByOccurrence = new HashMap<>();
         Map<String, Long> myReservationIdByOccurrence = new HashMap<>();
         for (Reservation reservation : bookedInRange) {
@@ -111,6 +114,7 @@ public class ReservationService {
                         && isWithinBookingWindow(cancellationWindowHours, occurrenceDate, block.getStartTime());
                 boolean past = isPastOccurrence(occurrenceDate, block.getEndTime());
                 Long myReservationId = myReservationIdByOccurrence.get(key);
+                boolean waitlisted = myWaitlistedOccurrences.contains(key);
                 result.add(new GymBlockOccurrenceResponse(
                         block.getId(),
                         block.getLabel(),
@@ -125,7 +129,8 @@ public class ReservationService {
                         taken,
                         bookable,
                         past,
-                        myReservationId));
+                        myReservationId,
+                        waitlisted));
             }
         }
         result.sort(Comparator.comparing(GymBlockOccurrenceResponse::classDate)
@@ -268,7 +273,11 @@ public class ReservationService {
                 .classDate(request.classDate())
                 .status(ReservationStatus.BOOKED)
                 .build();
-        return toResponse(reservationRepository.save(reservation), block);
+        ReservationResponse response = toResponse(reservationRepository.save(reservation), block);
+        // Si venía de la lista de espera (o simplemente estaba anotado y consiguió cupo por su
+        // cuenta), ya no tiene sentido que siga esperando esta misma clase.
+        waitlistService.clearOnBooked(block.getId(), request.classDate(), memberId);
+        return response;
     }
 
     public void cancel(Long memberId, Long reservationId) {
@@ -282,6 +291,7 @@ public class ReservationService {
         requireWithinBookingWindow(cancellationWindowHours, reservation.getClassDate(), block.getStartTime());
         reservation.setStatus(ReservationStatus.CANCELLED);
         reservationRepository.save(reservation);
+        waitlistService.onSpotFreed(block.getId(), reservation.getClassDate());
     }
 
     // Vía de urgencia pedida explícitamente por el usuario: el socio llama al admin porque no
@@ -305,6 +315,7 @@ public class ReservationService {
         }
         reservation.setStatus(ReservationStatus.CANCELLED);
         reservationRepository.save(reservation);
+        waitlistService.onSpotFreed(block.getId(), reservation.getClassDate());
     }
 
     @Transactional(readOnly = true)

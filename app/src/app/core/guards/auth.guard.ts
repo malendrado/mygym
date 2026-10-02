@@ -1,7 +1,7 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
 import { AuthService } from '../services/auth.service';
-import { Role } from '../models/auth.model';
+import { Role, homeRouteForRole } from '../models/auth.model';
 
 // returnUrl: sin esto, alguien sin sesión que escanea el QR de asistencia de la TV (ver
 // tv-screen.ts/checkin.ts) hace login y cae en /member por defecto — perdiendo silenciosamente
@@ -23,6 +23,9 @@ export function roleGuard(...roles: Role[]): CanActivateFn {
     if (user === null) {
       return router.parseUrl('/login');
     }
-    return roles.includes(user.role) || router.parseUrl('/');
+    // A su propio panel, no a la landing pública a ciegas — la PWA instalada siempre abre en
+    // /member (start_url fijo del manifest), así que un SUPER_ADMIN/GYM_ADMIN con sesión
+    // todavía válida caía en la landing sin ninguna señal de que seguía logueado.
+    return roles.includes(user.role) || router.parseUrl(homeRouteForRole(user.role));
   };
 }

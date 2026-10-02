@@ -44,7 +44,11 @@ const PHOTO_STRIP_MIN_ITEMS = 8;
 // Colores fijos para diferenciar planes a simple vista en el roster — a propósito distinto del
 // acento único de marca del gym (que solo pinta UNA cosa): acá el objetivo es que dos socios
 // con planes distintos se distingan de lejos, así que el color mismo es la señal.
-const PLAN_PALETTE = ['#f97316', '#3b82f6', '#22c55e', '#ec4899', '#eab308', '#a855f7'];
+// Sin verde #22c55e a propósito: es el mismo verde fijo del check-in confirmado (ver
+// .tv-chip--confirmed en el SCSS) — un plan con ese verde se podía confundir con "ya vino",
+// hallazgo real al revisar la paleta con la skill de UX. Cian en su lugar, lejos del azul y del
+// verde de estado.
+const PLAN_PALETTE = ['#f97316', '#3b82f6', '#06b6d4', '#ec4899', '#eab308', '#a855f7'];
 
 // Una TV no tiene scroll — nada puede depender de más espacio del que existe. Lo que no cabe se
 // PAGINA (carrusel) en vez de achicarse o esconderse tras un "+N": clases en curso de a 2,
@@ -482,24 +486,33 @@ export class TvScreenPage implements OnDestroy {
     ctx.closePath();
   }
 
+  // Sin segundos: en el tile de reloj (ver tv-clock-tile en el SCSS) titilaban sin aportar nada
+  // — pedido explícito del usuario tras comparar alternativas.
   protected clockLabel(): string {
     return new Intl.DateTimeFormat('es-CL', {
       timeZone: 'America/Santiago',
       hour: '2-digit',
       minute: '2-digit',
-      second: '2-digit',
       hour12: false,
     }).format(this.now());
   }
 
-  protected dateLabel(): string {
+  // Separado de la fecha (día+mes) para el tile de dos líneas — antes era un solo string
+  // "Lunes, 28 de septiembre".
+  protected weekdayLabel(): string {
     const label = new Intl.DateTimeFormat('es-CL', {
       timeZone: 'America/Santiago',
       weekday: 'long',
+    }).format(this.now());
+    return label.charAt(0).toUpperCase() + label.slice(1);
+  }
+
+  protected dayMonthLabel(): string {
+    return new Intl.DateTimeFormat('es-CL', {
+      timeZone: 'America/Santiago',
       day: 'numeric',
       month: 'long',
     }).format(this.now());
-    return label.charAt(0).toUpperCase() + label.slice(1);
   }
 
   protected startLabel(occurrence: TvBlockOccurrence): string {
@@ -631,6 +644,15 @@ export class TvScreenPage implements OnDestroy {
     return Math.max(this.rosterNeedRem(occurrence.attendees.length) - SIDEBAR_ROSTER_MIN_REM, 0.1);
   }
 
+  // "Clase anterior" ya pasó — quien mira la TV le importa mucho más "próxima clase". Sin este
+  // descuento, un bloque anterior con más gente anotada que el siguiente le ganaba el alto extra
+  // (reparto puramente proporcional a cuánta gente tiene cada uno) y "Próxima clase" quedaba con
+  // chips más chicos y paginando más de lo necesario — reportado real con datos de prueba
+  // (anterior con 15 mostraba más gente por página que próxima con solo 10).
+  protected previousWeight(occurrence: TvBlockOccurrence): number {
+    return this.occurrenceWeight(occurrence) * 0.5;
+  }
+
   protected readonly sidebarNextWeight = computed(() =>
     this.sidebarNextBlocks().reduce((sum, occ) => sum + this.occurrenceWeight(occ), 0),
   );
@@ -664,6 +686,19 @@ export class TvScreenPage implements OnDestroy {
 
   protected planTextColor(planId: number | null): string {
     return solidFillTextColor(this.planColor(planId));
+  }
+
+  // Etiqueta de 2-3 letras para .tv-chip__plan-tag — se saca el prefijo genérico "Plan" (si lo
+  // tiene) para no colisionar dos planes distintos en las mismas 3 letras ("Plan Full" y
+  // "Plan Básico" darían las dos "PLA"), y se sacan tildes porque a ese tamaño se pierden igual.
+  protected planShort(planName: string): string {
+    const withoutPrefix = planName.replace(/^plan\s+/i, '').trim() || planName;
+    const letters = withoutPrefix
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .replace(/[^a-zA-Z]/g, '')
+      .toUpperCase();
+    return (letters || planName.toUpperCase()).slice(0, 3);
   }
 
   private santiagoParts(date: Date): { dateIso: string; hh: number; mm: number; ss: number } {

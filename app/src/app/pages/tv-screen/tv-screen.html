@@ -23,6 +23,9 @@
           } @else {
             <span class="tv-chip__initial">{{ a.firstName.charAt(0) }}</span>
           }
+          @if (a.planId != null && a.planName && fit.layout().tier.name !== 's') {
+            <span class="tv-chip__plan-tag">{{ planShort(a.planName) }}</span>
+          }
           @if (a.checkedIn) {
             <span class="tv-chip__checkmark" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
@@ -32,7 +35,7 @@
           }
         </span>
         <span class="tv-chip__text">
-          <span class="tv-chip__name">{{ chipName(a, fit.layout().tier.name) }}</span>
+          <span class="tv-chip__name" [style.color]="a.planId != null ? planTextColor(a.planId) : null">{{ chipName(a, fit.layout().tier.name) }}</span>
           @if (a.planName && fit.layout().tier.name !== 's') {
             <span class="tv-chip__plan" [style.background]="planColor(a.planId)" [style.color]="planTextColor(a.planId)">
               {{ a.planName }}
@@ -174,8 +177,13 @@
                   @if (isReconnecting()) {
                     <span class="tv-header__reconnecting">Reconectando…</span>
                   }
-                  <span class="tv-header__time">{{ clockLabel() }}</span>
-                  <span class="tv-header__date">{{ dateLabel() }}</span>
+                  <div class="tv-clock-tile tv-clock-tile--time">
+                    <span class="tv-header__time">{{ clockLabel() }}</span>
+                  </div>
+                  <div class="tv-clock-tile tv-clock-tile--date">
+                    <span class="tv-header__weekday">{{ weekdayLabel() }}</span>
+                    <span class="tv-header__date">{{ dayMonthLabel() }}</span>
+                  </div>
                 </div>
               </div>
             </header>
@@ -294,7 +302,7 @@
                 @if (showSidebar()) {
                   <aside class="tv-mini-stack">
                     @if (previousBlock(); as occ) {
-                      <article class="tv-mini-card" [style.flex-grow]="occurrenceWeight(occ)">
+                      <article class="tv-mini-card" [style.flex-grow]="previousWeight(occ)">
                         <p class="tv-mini-card__label">Clase anterior</p>
                         <ng-container
                           [ngTemplateOutlet]="miniHead"

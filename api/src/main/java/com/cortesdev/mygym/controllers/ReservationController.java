@@ -18,6 +18,7 @@ import com.cortesdev.mygym.services.FlowPaymentService;
 import com.cortesdev.mygym.services.GymService;
 import com.cortesdev.mygym.services.MemberService;
 import com.cortesdev.mygym.services.ReservationService;
+import com.cortesdev.mygym.services.WaitlistService;
 import jakarta.validation.Valid;
 import java.net.URI;
 import java.time.LocalDate;
@@ -45,6 +46,7 @@ public class ReservationController {
     private final GymService gymService;
     private final MemberService memberService;
     private final FlowPaymentService flowPaymentService;
+    private final WaitlistService waitlistService;
 
     @GetMapping("/gym")
     public PublicGymResponse myGym(@AuthenticationPrincipal Jwt jwt) {
@@ -132,6 +134,25 @@ public class ReservationController {
     @GetMapping("/reservations")
     public List<ReservationResponse> myReservations(@AuthenticationPrincipal Jwt jwt) {
         return reservationService.myReservations(AuthenticatedUser.from(jwt).userId());
+    }
+
+    // Lista de espera de una clase llena — ver WaitlistService. Reusa ReservationCreateRequest
+    // (mismos dos campos: gymBlockId + classDate) en vez de crear un DTO idéntico aparte.
+    @PostMapping("/waitlist")
+    public ResponseEntity<Void> joinWaitlist(
+            @AuthenticationPrincipal Jwt jwt, @Valid @RequestBody ReservationCreateRequest request) {
+        AuthenticatedUser user = AuthenticatedUser.from(jwt);
+        waitlistService.join(user.gymId(), user.userId(), request.gymBlockId(), request.classDate());
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/waitlist")
+    public ResponseEntity<Void> leaveWaitlist(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam Long gymBlockId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate classDate) {
+        waitlistService.leave(AuthenticatedUser.from(jwt).userId(), gymBlockId, classDate);
+        return ResponseEntity.noContent().build();
     }
 
     // Canjea el QR rotativo que muestra la TV del gym durante una clase en curso — confirma

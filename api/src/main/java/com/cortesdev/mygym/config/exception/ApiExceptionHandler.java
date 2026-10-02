@@ -26,11 +26,15 @@ import com.cortesdev.mygym.services.exception.InvalidThemeException;
 import com.cortesdev.mygym.services.exception.MemberNotFoundException;
 import com.cortesdev.mygym.services.exception.ReservationNotFoundException;
 import com.cortesdev.mygym.services.exception.NoActiveReservationException;
+import com.cortesdev.mygym.services.exception.InvalidWorkoutLogException;
+import com.cortesdev.mygym.services.exception.ProfesorNotFoundException;
 import com.cortesdev.mygym.services.exception.SubscriptionRequiredException;
 import com.cortesdev.mygym.services.exception.TooManyGymPhotosException;
 import com.cortesdev.mygym.services.exception.TvPairingCodeNotFoundException;
 import com.cortesdev.mygym.services.exception.TvScreenNotFoundException;
 import com.cortesdev.mygym.services.exception.UnauthorizedGoogleLoginException;
+import com.cortesdev.mygym.services.exception.WorkoutLogNotFoundException;
+import com.cortesdev.mygym.services.exception.WorkoutPlanNotFoundException;
 import java.net.URI;
 import java.time.Instant;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -171,6 +175,38 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     public ResponseEntity<ProblemDetail> handleReservationNotFound(ReservationNotFoundException ex) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
         problem.setTitle("Reserva no encontrada");
+        problem.setProperty("timestamp", Instant.now());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problem);
+    }
+
+    @ExceptionHandler(WorkoutPlanNotFoundException.class)
+    public ResponseEntity<ProblemDetail> handleWorkoutPlanNotFound(WorkoutPlanNotFoundException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+        problem.setTitle("Rutina no encontrada");
+        problem.setProperty("timestamp", Instant.now());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problem);
+    }
+
+    @ExceptionHandler(WorkoutLogNotFoundException.class)
+    public ResponseEntity<ProblemDetail> handleWorkoutLogNotFound(WorkoutLogNotFoundException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+        problem.setTitle("Registro no encontrado");
+        problem.setProperty("timestamp", Instant.now());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problem);
+    }
+
+    @ExceptionHandler(InvalidWorkoutLogException.class)
+    public ResponseEntity<ProblemDetail> handleInvalidWorkoutLog(InvalidWorkoutLogException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+        problem.setTitle("Registro inválido");
+        problem.setProperty("timestamp", Instant.now());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
+    }
+
+    @ExceptionHandler(ProfesorNotFoundException.class)
+    public ResponseEntity<ProblemDetail> handleProfesorNotFound(ProfesorNotFoundException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+        problem.setTitle("Profesor no encontrado");
         problem.setProperty("timestamp", Instant.now());
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problem);
     }

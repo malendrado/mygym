@@ -43,4 +43,10 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
      *  socios pedidos; el filtrado al período exacto de cada uno se hace en memoria. */
     List<Reservation> findByMemberIdInAndStatusAndClassDateBetween(
             List<Long> memberIds, ReservationStatus status, LocalDate from, LocalDate to);
+
+    /** Para WorkoutService.getPendingWorkout — candidatas a Memoria Viva (asistió de verdad).
+     *  El volumen por socio es chico, se filtra en memoria cuál es la más reciente sin log
+     *  todavía (ver WorkoutService), mismo criterio que el resto del proyecto para listas
+     *  acotadas por socio. */
+    List<Reservation> findByMemberIdAndCheckedInAtIsNotNullOrderByClassDateDesc(Long memberId);
 }

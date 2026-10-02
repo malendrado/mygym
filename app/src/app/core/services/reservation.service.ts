@@ -29,4 +29,13 @@ export class ReservationService {
   checkIn(code: string): Observable<{ classLabels: string[] }> {
     return this.http.post<{ classLabels: string[] }>(`${this.base}/checkin`, { code });
   }
+
+  /** Lista de espera de una clase llena — avisa por mail si se libera un cupo. */
+  joinWaitlist(payload: CreateReservationRequest): Observable<void> {
+    return this.http.post<void>(`${this.base}/waitlist`, payload);
+  }
+
+  leaveWaitlist(gymBlockId: number, classDate: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/waitlist`, { params: { gymBlockId, classDate } });
+  }
 }

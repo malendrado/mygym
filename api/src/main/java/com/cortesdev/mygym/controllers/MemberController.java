@@ -15,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -63,6 +64,15 @@ public class MemberController {
     @PostMapping("/{memberId}/revoke-plan")
     public ResponseEntity<Void> revokePlan(@AuthenticationPrincipal Jwt jwt, @PathVariable Long memberId) {
         gymService.revokePlan(AuthenticatedUser.from(jwt).gymId(), memberId);
+        return ResponseEntity.noContent().build();
+    }
+
+    /** Contraparte GYM_ADMIN de GymController.deleteMember — pedido explícito del usuario
+     *  (antes solo lo tenía SUPER_ADMIN). Borrado permanente: también borra sus reservas e
+     *  historial de pagos, ver MemberService.deleteMember. Irreversible. */
+    @DeleteMapping("/{memberId}")
+    public ResponseEntity<Void> deleteMember(@AuthenticationPrincipal Jwt jwt, @PathVariable Long memberId) {
+        memberService.deleteMember(AuthenticatedUser.from(jwt).gymId(), memberId);
         return ResponseEntity.noContent().build();
     }
 }

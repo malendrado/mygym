@@ -15,6 +15,7 @@ export interface GymBlockOccurrence {
   bookable: boolean;
   past: boolean;
   myReservationId: number | null;
+  waitlisted: boolean;
 }
 
 export type ReservationStatus = 'BOOKED' | 'CANCELLED';

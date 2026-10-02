@@ -57,7 +57,7 @@
 
     <ion-item>
       <ion-input
-        label="Precio mensual (CLP) *"
+        label="Precio mensual (CLP, + IVA) *"
         type="number"
         inputmode="numeric"
         formControlName="priceClp"
@@ -65,7 +65,7 @@
       />
     </ion-item>
     @if (form.controls.priceClp.value) {
-      <p class="price-preview">{{ formatClp(form.controls.priceClp.value) }} / mes</p>
+      <p class="price-preview">{{ formatClp(form.controls.priceClp.value) }} / mes + IVA</p>
     }
     @if (form.controls.priceClp.invalid && (form.controls.priceClp.dirty || form.controls.priceClp.touched)) {
       <ion-note color="danger">

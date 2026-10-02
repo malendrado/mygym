@@ -1,0 +1,40 @@
+.workout-plan-modal__label {
+  margin: 0.25rem 0 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--brand-text-dim);
+}
+
+.workout-plan-modal__memory {
+  border: 1px solid var(--brand-ink-surface-2);
+  border-radius: 14px;
+  padding: 0.75rem;
+  background: var(--brand-ink-surface);
+  margin-bottom: 1rem;
+}
+
+.workout-plan-modal__memory-date {
+  margin: 0 0 0.35rem;
+  font-size: 0.72rem;
+  color: var(--brand-text-dim);
+}
+
+.workout-plan-modal__memory-deviation {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+  color: var(--ion-color-warning, #f0ad4e);
+
+  ion-icon {
+    flex-shrink: 0;
+    margin-top: 0.15rem;
+  }
+}
+
+.workout-plan-modal__exercises {
+  margin: 0.5rem 0 0;
+  padding-left: 1.1rem;
+  font-size: 0.85rem;
+}

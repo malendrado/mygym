@@ -14,11 +14,23 @@ interface StoredSession {
 
 // Installed PWA: sessionStorage dies every time the app is closed, which would force a Google
 // login on every open. In a regular browser tab we keep sessionStorage (shared computers).
-function sessionStore(): Storage {
-  const installed =
+// UNA sola vez, no en cada login — bug real reportado: un socio se logueaba, cerraba la app,
+// volvía a abrir y la sesión persistía bien (escrita en localStorage); pero si adentro de esa
+// MISMA sesión de la app hacía logout y se reloguéaba como otro usuario (ej. super admin), esa
+// segunda sesión NO persistía. Sospecha: matchMedia('display-mode: standalone') se evalúa justo
+// después de volver del popup/redirect de Google, un momento donde el estado standalone de
+// Android puede leerse mal por un instante — evaluarlo una sola vez al arrancar la app (mucho
+// antes de que exista cualquier popup de Google) saca esa ventana de carrera por completo.
+function isStandaloneApp(): boolean {
+  return (
     window.matchMedia?.('(display-mode: standalone)').matches ||
-    (navigator as Navigator & { standalone?: boolean }).standalone === true;
-  return installed ? localStorage : sessionStorage;
+    (navigator as Navigator & { standalone?: boolean }).standalone === true
+  );
+}
+const IS_STANDALONE = isStandaloneApp();
+
+function sessionStore(): Storage {
+  return IS_STANDALONE ? localStorage : sessionStorage;
 }
 
 function isExpired(token: string): boolean {
@@ -79,7 +91,17 @@ export class AuthService {
     this._token = null;
     sessionStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem(STORAGE_KEY);
-    await this.socialAuthService.signOut().catch(() => {});
+    // Con un timeout — sin él, signOut() nunca resuelve NI rechaza en varios navegadores
+    // mobile y en el WebView de la app instalada (Capacitor): Google migró el SDK a FedCM y
+    // ese flujo se queda colgado ahí donde faltan third-party cookies / el permiso
+    // "identity-credentials-get" del iframe. El .catch(() => {}) de abajo no alcanza a cubrir
+    // eso — un throw se atrapa, un hang no. Nuestra sesión ya quedó limpia arriba, así que
+    // reportado real: "logout no hace nada" en mobile — el usuario quedaba pegado en la
+    // página esperando este await para siempre.
+    await Promise.race([
+      this.socialAuthService.signOut().catch(() => {}),
+      new Promise<void>((resolve) => setTimeout(resolve, 1500)),
+    ]);
   }
 
   private setSession(response: LoginResponse): void {
