@@ -5,6 +5,7 @@ import com.cortesdev.mygym.models.dto.BankTransferInfoResponse;
 import com.cortesdev.mygym.models.dto.CheckinRequest;
 import com.cortesdev.mygym.models.dto.CheckinResponse;
 import com.cortesdev.mygym.models.dto.GymBlockOccurrenceResponse;
+import com.cortesdev.mygym.models.dto.GymClosureNoticeResponse;
 import com.cortesdev.mygym.models.dto.GymPhotoResponse;
 import com.cortesdev.mygym.models.dto.MemberPlanResponse;
 import com.cortesdev.mygym.models.dto.MemberReservation;
@@ -15,6 +16,7 @@ import com.cortesdev.mygym.models.dto.ReservationResponse;
 import com.cortesdev.mygym.models.dto.CheckoutResponse;
 import com.cortesdev.mygym.security.AuthenticatedUser;
 import com.cortesdev.mygym.services.FlowPaymentService;
+import com.cortesdev.mygym.services.GymClosureService;
 import com.cortesdev.mygym.services.GymService;
 import com.cortesdev.mygym.services.MemberService;
 import com.cortesdev.mygym.services.ReservationService;
@@ -47,10 +49,18 @@ public class ReservationController {
     private final MemberService memberService;
     private final FlowPaymentService flowPaymentService;
     private final WaitlistService waitlistService;
+    private final GymClosureService gymClosureService;
 
     @GetMapping("/gym")
     public PublicGymResponse myGym(@AuthenticationPrincipal Jwt jwt) {
         return gymService.getPublicById(AuthenticatedUser.from(jwt).gymId());
+    }
+
+    // Banner de cierre de emergencia (ver GymClosureService) — 204 si no hay ninguno vigente ni próximo.
+    @GetMapping("/gym/closure-notice")
+    public ResponseEntity<GymClosureNoticeResponse> myClosureNotice(@AuthenticationPrincipal Jwt jwt) {
+        GymClosureNoticeResponse notice = gymClosureService.activeOrUpcomingNotice(AuthenticatedUser.from(jwt).gymId());
+        return notice == null ? ResponseEntity.noContent().build() : ResponseEntity.ok(notice);
     }
 
     @GetMapping("/membership")

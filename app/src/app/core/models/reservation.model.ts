@@ -17,6 +17,9 @@ export interface GymBlockOccurrence {
   myReservationId: number | null;
   waitlisted: boolean;
   myCheckedInAt: string | null;
+  /** true si esta ocurrencia cae dentro de un cierre de emergencia vigente (ver GymClosure) —
+   *  nunca reservable aunque capacity/ventana de reserva digan lo contrario. */
+  closed: boolean;
 }
 
 export type ReservationStatus = 'BOOKED' | 'CANCELLED';

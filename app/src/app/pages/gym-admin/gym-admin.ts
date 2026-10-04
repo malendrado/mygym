@@ -36,6 +36,7 @@ import {
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import {
+  banOutline,
   barbellOutline,
   businessOutline,
   bulbOutline,
@@ -94,6 +95,9 @@ import {
   FlowAccount,
   FlowAccountDetailsUpdateRequest,
   GymBlock,
+  GymClosure,
+  GymClosureCreateRequest,
+  GymClosurePreview,
   GymPhoto,
   GymPlan,
   UpdateGymBlockRequest,
@@ -109,6 +113,7 @@ import { BloqueFormModal, DAYS } from '../admin/gyms/bloque-form-modal/bloque-fo
 import { BloqueSeriesModal } from '../admin/gyms/bloque-series-modal/bloque-series-modal';
 import { PlanFormModal } from '../admin/gyms/plan-form-modal/plan-form-modal';
 import { MarkPaidModal } from '../admin/gyms/mark-paid-modal/mark-paid-modal';
+import { ClosureModal } from '../admin/gyms/closure-modal/closure-modal';
 import { ImportMembersModal } from '../admin/gyms/import-members-modal/import-members-modal';
 import { WorkoutPlanModal } from '../admin/gyms/workout-plan-modal/workout-plan-modal';
 import { registerClassCategoryIcons, resolveClassCategoryIcon } from '../../core/utils/class-category';
@@ -163,10 +168,11 @@ addIcons({
   'logo-google': logoGoogle,
   'barbell-outline': barbellOutline,
   'tv-outline': tvOutline,
+  'ban-outline': banOutline,
 });
 
 type Status = 'idle' | 'loading' | 'saving';
-type Section = 'general' | 'blocks' | 'plans' | 'members' | 'branding' | 'screens' | 'history';
+type Section = 'general' | 'blocks' | 'plans' | 'members' | 'branding' | 'screens' | 'history' | 'closures';
 
 // Segundo eje de filtro para la grilla de horarios (además del día) —
 // pedido del usuario tras encontrar la fusión de bloques consecutivos poco
@@ -241,6 +247,7 @@ const SECTION_LABELS: Record<Section, string> = {
   branding: 'Marca',
   screens: 'Pantallas',
   history: 'Historial',
+  closures: 'Cierres',
 };
 
 // Índice → DayOfWeek, para saber qué día de semana cae una fecha elegida a
@@ -391,6 +398,7 @@ const THEMED_ROOT_PROPERTIES = [
     BloqueSeriesModal,
     PlanFormModal,
     MarkPaidModal,
+    ClosureModal,
     ImportMembersModal,
     WorkoutPlanModal,
     QuantityStepper,
@@ -670,6 +678,15 @@ export class GymAdmin implements OnDestroy {
     name: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.minLength(2)] }),
   });
 
+  // Cierre de emergencia (ver GymClosureService) — pestaña Cierres.
+  protected readonly closures = signal<GymClosure[]>([]);
+  protected readonly isClosureModalOpen = signal(false);
+  protected readonly closurePreview = signal<GymClosurePreview | null>(null);
+  protected readonly closurePreviewing = signal(false);
+  protected readonly closurePreviewError = signal<string | null>(null);
+  protected readonly closureSaving = signal(false);
+  protected readonly liftingClosureId = signal<number | null>(null);
+
   protected readonly identityForm = new FormGroup({
     tagline: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(160)] }),
     description: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(600)] }),
@@ -725,6 +742,7 @@ export class GymAdmin implements OnDestroy {
     this.loadMembers();
     this.loadPhotos();
     this.loadTvScreens();
+    this.loadClosures();
     if (!this.isProfesor()) {
       this.loadProfesores();
     }
@@ -2004,6 +2022,91 @@ export class GymAdmin implements OnDestroy {
         this.handleWriteError(() => this.showToast('No pudimos desvincular la pantalla.', 'danger'));
       },
     });
+  }
+
+  private loadClosures(): void {
+    this.gymService.listMyClosures().subscribe({
+      next: (closures) => this.closures.set(closures),
+      error: () => this.showToast('No pudimos cargar los cierres. Intenta nuevamente.', 'danger'),
+    });
+  }
+
+  protected openClosureModal(): void {
+    this.closurePreview.set(null);
+    this.closurePreviewError.set(null);
+    this.isClosureModalOpen.set(true);
+  }
+
+  protected closeClosureModal(): void {
+    this.isClosureModalOpen.set(false);
+  }
+
+  protected requestClosurePreview(request: GymClosureCreateRequest): void {
+    this.closurePreview.set(null);
+    this.closurePreviewError.set(null);
+    this.closurePreviewing.set(true);
+    this.gymService.previewMyClosure(request).subscribe({
+      next: (preview) => {
+        this.closurePreviewing.set(false);
+        this.closurePreview.set(preview);
+      },
+      error: (err) => {
+        this.closurePreviewing.set(false);
+        this.closurePreviewError.set(err?.message || 'No pudimos calcular el impacto. Intenta nuevamente.');
+      },
+    });
+  }
+
+  protected confirmClosure(request: GymClosureCreateRequest): void {
+    this.closureSaving.set(true);
+    this.gymService.createMyClosure(request).subscribe({
+      next: (closure) => {
+        this.closureSaving.set(false);
+        this.isClosureModalOpen.set(false);
+        this.closures.update((list) => [closure, ...list]);
+        this.showToast(
+          `Gimnasio cerrado: ${closure.cancelledReservationsCount} reserva(s) canceladas, ${closure.affectedMembersCount} socio(s) van a recibir un email.`,
+        );
+      },
+      error: (err) => {
+        this.closureSaving.set(false);
+        this.handleWriteError(() => this.showToast(err.message || 'No pudimos aplicar el cierre. Intenta nuevamente.', 'danger'));
+      },
+    });
+  }
+
+  protected async liftClosure(closure: GymClosure): Promise<void> {
+    const confirmed = await this.confirmAction(
+      'Levantar cierre',
+      '¿Volver a permitir reservas desde hoy? Las reservas ya canceladas por este cierre no se restauran.',
+      'Levantar',
+    );
+    if (!confirmed) {
+      return;
+    }
+    this.liftingClosureId.set(closure.id);
+    this.gymService.liftMyClosure(closure.id).subscribe({
+      next: () => {
+        this.liftingClosureId.set(null);
+        this.loadClosures();
+        this.showToast('Cierre levantado — ya se puede volver a reservar desde hoy.');
+      },
+      error: () => {
+        this.liftingClosureId.set(null);
+        this.handleWriteError(() => this.showToast('No pudimos levantar el cierre.', 'danger'));
+      },
+    });
+  }
+
+  protected closureStatus(closure: GymClosure): { label: string; color: string } {
+    const today = todayIsoDate();
+    if (!closure.active) {
+      return closure.liftedAt ? { label: 'Levantado', color: 'medium' } : { label: 'Finalizado', color: 'medium' };
+    }
+    if (today < closure.startDate) {
+      return { label: 'Programado', color: 'warning' };
+    }
+    return { label: 'Activo', color: 'danger' };
   }
 
   // Mismo criterio que lastLoginLabel/demoExpiryLabel en gym-form.ts (super-admin) — "última

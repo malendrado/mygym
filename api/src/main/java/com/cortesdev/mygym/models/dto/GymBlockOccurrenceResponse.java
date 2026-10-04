@@ -21,4 +21,5 @@ public record GymBlockOccurrenceResponse(
         boolean past,
         Long myReservationId,
         boolean waitlisted,
-        Instant myCheckedInAt) {}
+        Instant myCheckedInAt,
+        boolean closed) {}

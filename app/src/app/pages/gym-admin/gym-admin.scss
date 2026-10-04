@@ -2,6 +2,17 @@ ion-content {
   --background: var(--gym-panel-bg, var(--brand-ink));
 }
 
+.closure-item-label {
+  ion-badge {
+    margin-left: 0.4rem;
+    vertical-align: middle;
+  }
+}
+
+.closure-item-meta {
+  font-size: 0.78rem;
+}
+
 .gym-admin-loading {
   display: flex;
   align-items: center;

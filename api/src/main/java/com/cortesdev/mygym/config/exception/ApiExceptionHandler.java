@@ -16,7 +16,10 @@ import com.cortesdev.mygym.services.exception.DuplicateSlugException;
 import com.cortesdev.mygym.services.exception.FlowNotConfiguredException;
 import com.cortesdev.mygym.services.exception.ForbiddenGymAccessException;
 import com.cortesdev.mygym.services.exception.GymBlockNotFoundException;
+import com.cortesdev.mygym.services.exception.GymClosedException;
+import com.cortesdev.mygym.services.exception.GymClosureNotFoundException;
 import com.cortesdev.mygym.services.exception.GymNotFoundException;
+import com.cortesdev.mygym.services.exception.InvalidClosureRequestException;
 import com.cortesdev.mygym.services.exception.GymPhotoNotFoundException;
 import com.cortesdev.mygym.services.exception.GymPlanNotFoundException;
 import com.cortesdev.mygym.services.exception.InvalidBlockScheduleException;
@@ -27,6 +30,7 @@ import com.cortesdev.mygym.services.exception.InvalidOrExpiredTokenException;
 import com.cortesdev.mygym.services.exception.InvalidRutException;
 import com.cortesdev.mygym.services.exception.InvalidThemeException;
 import com.cortesdev.mygym.services.exception.MemberNotFoundException;
+import com.cortesdev.mygym.services.exception.MonthlyQuotaExceededException;
 import com.cortesdev.mygym.services.exception.ReservationNotFoundException;
 import com.cortesdev.mygym.services.exception.NoActiveReservationException;
 import com.cortesdev.mygym.services.exception.InvalidWorkoutLogException;
@@ -389,6 +393,38 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
         problem.setTitle("Reserva duplicada");
         problem.setProperty("timestamp", Instant.now());
         return ResponseEntity.status(HttpStatus.CONFLICT).body(problem);
+    }
+
+    @ExceptionHandler(GymClosureNotFoundException.class)
+    public ResponseEntity<ProblemDetail> handleGymClosureNotFound(GymClosureNotFoundException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+        problem.setTitle("Cierre no encontrado");
+        problem.setProperty("timestamp", Instant.now());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problem);
+    }
+
+    @ExceptionHandler(GymClosedException.class)
+    public ResponseEntity<ProblemDetail> handleGymClosed(GymClosedException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+        problem.setTitle("Gimnasio cerrado");
+        problem.setProperty("timestamp", Instant.now());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(problem);
+    }
+
+    @ExceptionHandler(MonthlyQuotaExceededException.class)
+    public ResponseEntity<ProblemDetail> handleMonthlyQuotaExceeded(MonthlyQuotaExceededException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+        problem.setTitle("Cupo mensual agotado");
+        problem.setProperty("timestamp", Instant.now());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(problem);
+    }
+
+    @ExceptionHandler(InvalidClosureRequestException.class)
+    public ResponseEntity<ProblemDetail> handleInvalidClosureRequest(InvalidClosureRequestException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+        problem.setTitle("Cierre inválido");
+        problem.setProperty("timestamp", Instant.now());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
     }
 
     @ExceptionHandler(Exception.class)

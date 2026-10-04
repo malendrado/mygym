@@ -390,3 +390,44 @@ export interface BlockOccurrenceAttendees {
   classDate: string;
   attendees: Attendee[];
 }
+
+/** Cierre de emergencia de gimnasio (ver GymClosureService) — rango de fechas completo
+ *  (wholeDays=true) o clases puntuales (wholeDays=false, blockIds con los bloques elegidos). */
+export interface GymClosureCreateRequest {
+  startDate: string;
+  endDate: string;
+  wholeDays: boolean;
+  blockIds: number[];
+  reason: string;
+}
+
+export interface GymClosurePreview {
+  cancelledReservationsCount: number;
+  affectedMembersCount: number;
+}
+
+export interface GymClosure {
+  id: number;
+  startDate: string;
+  endDate: string;
+  wholeDays: boolean;
+  blockIds: number[];
+  reason: string;
+  createdByEmail: string;
+  createdByRole: string;
+  createdAt: string;
+  liftedAt: string | null;
+  active: boolean;
+  cancelledReservationsCount: number;
+  affectedMembersCount: number;
+  emailsSent: number;
+  emailsFailed: number;
+}
+
+/** Banner de /member cuando el gym del socio tiene un cierre vigente o próximo. */
+export interface GymClosureNotice {
+  startDate: string;
+  endDate: string;
+  reason: string;
+  wholeDays: boolean;
+}

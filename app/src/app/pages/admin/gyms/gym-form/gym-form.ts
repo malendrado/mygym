@@ -38,6 +38,7 @@ import {
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import {
+  banOutline,
   barbellOutline,
   businessOutline,
   calendarOutline,
@@ -90,6 +91,9 @@ import {
   FlowAccountUpdateRequest,
   Gym,
   GymBlock,
+  GymClosure,
+  GymClosureCreateRequest,
+  GymClosurePreview,
   GymPhoto,
   GymPlan,
   UpdateGymBlockRequest,
@@ -103,6 +107,7 @@ import { BloqueFormModal, DAYS } from '../bloque-form-modal/bloque-form-modal';
 import { BloqueSeriesModal } from '../bloque-series-modal/bloque-series-modal';
 import { PlanFormModal } from '../plan-form-modal/plan-form-modal';
 import { MarkPaidModal } from '../mark-paid-modal/mark-paid-modal';
+import { ClosureModal } from '../closure-modal/closure-modal';
 import { QuantityStepper } from '../../../../core/components/quantity-stepper/quantity-stepper';
 import { registerClassCategoryIcons, resolveClassCategoryIcon } from '../../../../core/utils/class-category';
 import { formatRut, rutFormatValidator } from '../../../../core/utils/rut';
@@ -152,11 +157,12 @@ addIcons({
   'person-circle-outline': personCircleOutline,
   'warning-outline': warningOutline,
   'tv-outline': tvOutline,
+  'ban-outline': banOutline,
 });
 
 type Status = 'idle' | 'loading' | 'saving' | 'error';
 type SuggestStatus = 'idle' | 'loading' | 'error';
-type Section = 'general' | 'blocks' | 'plans' | 'members' | 'branding' | 'flow' | 'screens' | 'history';
+type Section = 'general' | 'blocks' | 'plans' | 'members' | 'branding' | 'flow' | 'screens' | 'history' | 'closures';
 
 // Mismo criterio que gym-admin.ts (implementación paralela, no compartida)
 // — segundo eje de filtro para la grilla de horarios, con tooltip que
@@ -226,6 +232,7 @@ const SECTION_LABELS: Record<Section, string> = {
   flow: 'Pago Online',
   screens: 'Pantallas',
   history: 'Historial',
+  closures: 'Cierres',
 };
 
 // Mismo criterio que gym-admin.ts (implementación paralela, no compartida).
@@ -368,6 +375,7 @@ const THEMED_ROOT_PROPERTIES = [
     BloqueSeriesModal,
     PlanFormModal,
     MarkPaidModal,
+    ClosureModal,
     QuantityStepper,
   ],
   templateUrl: './gym-form.html',
@@ -618,6 +626,16 @@ export class GymForm implements OnDestroy {
     name: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.minLength(2)] }),
   });
 
+  // Cierre de emergencia (ver GymClosureService) — pestaña Cierres, mismo mecanismo que
+  // gym-admin.ts (implementación paralela, gymId explícito en vez de por JWT).
+  protected readonly closures = signal<GymClosure[]>([]);
+  protected readonly isClosureModalOpen = signal(false);
+  protected readonly closurePreview = signal<GymClosurePreview | null>(null);
+  protected readonly closurePreviewing = signal(false);
+  protected readonly closurePreviewError = signal<string | null>(null);
+  protected readonly closureSaving = signal(false);
+  protected readonly liftingClosureId = signal<number | null>(null);
+
   protected readonly suggestStatus = signal<SuggestStatus>('idle');
   protected readonly brandingSuggestion = signal<BrandingSuggestion | null>(null);
   protected readonly safeSuggestedLogo = computed(() => {
@@ -821,6 +839,7 @@ export class GymForm implements OnDestroy {
         this.loadPhotos(id);
         this.loadTvScreens(id);
         this.loadFlowAccount(id);
+        this.loadClosures(id);
       },
       error: () => {
         this.status.set('error');
@@ -2066,6 +2085,103 @@ export class GymForm implements OnDestroy {
         this.showToast('No pudimos desvincular la pantalla.', 'danger');
       },
     });
+  }
+
+  private loadClosures(id: number): void {
+    this.gymService.listClosures(id).subscribe({
+      next: (closures) => this.closures.set(closures),
+      error: () => this.showToast('No pudimos cargar los cierres. Intenta nuevamente.', 'danger'),
+    });
+  }
+
+  protected openClosureModal(): void {
+    this.closurePreview.set(null);
+    this.closurePreviewError.set(null);
+    this.isClosureModalOpen.set(true);
+  }
+
+  protected closeClosureModal(): void {
+    this.isClosureModalOpen.set(false);
+  }
+
+  protected requestClosurePreview(request: GymClosureCreateRequest): void {
+    const id = this.gymId();
+    if (id === null) {
+      return;
+    }
+    this.closurePreview.set(null);
+    this.closurePreviewError.set(null);
+    this.closurePreviewing.set(true);
+    this.gymService.previewClosure(id, request).subscribe({
+      next: (preview) => {
+        this.closurePreviewing.set(false);
+        this.closurePreview.set(preview);
+      },
+      error: (err) => {
+        this.closurePreviewing.set(false);
+        this.closurePreviewError.set(err?.message || 'No pudimos calcular el impacto. Intenta nuevamente.');
+      },
+    });
+  }
+
+  protected confirmClosure(request: GymClosureCreateRequest): void {
+    const id = this.gymId();
+    if (id === null) {
+      return;
+    }
+    this.closureSaving.set(true);
+    this.gymService.createClosure(id, request).subscribe({
+      next: (closure) => {
+        this.closureSaving.set(false);
+        this.isClosureModalOpen.set(false);
+        this.closures.update((list) => [closure, ...list]);
+        this.showToast(
+          `Gimnasio cerrado: ${closure.cancelledReservationsCount} reserva(s) canceladas, ${closure.affectedMembersCount} socio(s) van a recibir un email.`,
+        );
+      },
+      error: (err) => {
+        this.closureSaving.set(false);
+        this.showToast(err.message || 'No pudimos aplicar el cierre. Intenta nuevamente.', 'danger');
+      },
+    });
+  }
+
+  protected async liftClosure(closure: GymClosure): Promise<void> {
+    const id = this.gymId();
+    if (id === null) {
+      return;
+    }
+    const confirmed = await this.confirmAction(
+      'Levantar cierre',
+      '¿Volver a permitir reservas desde hoy? Las reservas ya canceladas por este cierre no se restauran.',
+      'Levantar',
+    );
+    if (!confirmed) {
+      return;
+    }
+    this.liftingClosureId.set(closure.id);
+    this.gymService.liftClosure(id, closure.id).subscribe({
+      next: () => {
+        this.liftingClosureId.set(null);
+        this.loadClosures(id);
+        this.showToast('Cierre levantado — ya se puede volver a reservar desde hoy.');
+      },
+      error: () => {
+        this.liftingClosureId.set(null);
+        this.showToast('No pudimos levantar el cierre.', 'danger');
+      },
+    });
+  }
+
+  protected closureStatus(closure: GymClosure): { label: string; color: string } {
+    const today = todayIsoDate();
+    if (!closure.active) {
+      return closure.liftedAt ? { label: 'Levantado', color: 'medium' } : { label: 'Finalizado', color: 'medium' };
+    }
+    if (today < closure.startDate) {
+      return { label: 'Programado', color: 'warning' };
+    }
+    return { label: 'Activo', color: 'danger' };
   }
 
   // Copiado de gym-admin.ts (implementación paralela, no compartida — mismo criterio que

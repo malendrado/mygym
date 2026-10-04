@@ -24,6 +24,10 @@ import {
   GymSummary,
   GymConfigUpdateRequest,
   GymDeletionAudit,
+  GymClosure,
+  GymClosureCreateRequest,
+  GymClosureNotice,
+  GymClosurePreview,
   GymDisconnectRequest,
   GymIdentityUpdateRequest,
   GymPhoto,
@@ -101,6 +105,11 @@ export class GymService {
    *  expuestos en la página pública de alta, solo acá para el socio autenticado. */
   getMyBankTransferInfo(): Observable<BankTransferInfo> {
     return this.http.get<BankTransferInfo>(`${this.meBase}/gym/bank-transfer`);
+  }
+
+  /** Cierre de emergencia vigente o próximo del gym del socio logueado, si hay alguno — null si no hay. */
+  getMyClosureNotice(): Observable<GymClosureNotice | null> {
+    return this.http.get<GymClosureNotice>(`${this.meBase}/gym/closure-notice`, { observe: 'body' });
   }
 
   /** Quién más reservó una clase puntual — vista reducida (sin email) para el propio socio. */
@@ -304,6 +313,23 @@ export class GymService {
     return this.http.delete<void>(`${this.base}/${gymId}/tv-screens/${screenId}`);
   }
 
+  /** Cierre de emergencia (ver GymClosureService) — contraparte SUPER_ADMIN, gymId por path. */
+  listClosures(gymId: number): Observable<GymClosure[]> {
+    return this.http.get<GymClosure[]>(`${this.base}/${gymId}/closures`);
+  }
+
+  previewClosure(gymId: number, payload: GymClosureCreateRequest): Observable<GymClosurePreview> {
+    return this.http.post<GymClosurePreview>(`${this.base}/${gymId}/closures/preview`, payload);
+  }
+
+  createClosure(gymId: number, payload: GymClosureCreateRequest): Observable<GymClosure> {
+    return this.http.post<GymClosure>(`${this.base}/${gymId}/closures`, payload);
+  }
+
+  liftClosure(gymId: number, closureId: number): Observable<void> {
+    return this.http.post<void>(`${this.base}/${gymId}/closures/${closureId}/lift`, {});
+  }
+
   /** Desvinculación permanente — borra TODO el gym (ver GymDisconnectionService). Irreversible. */
   disconnectGym(gymId: number, payload: GymDisconnectRequest): Observable<GymDeletionAudit> {
     return this.http.post<GymDeletionAudit>(`${this.base}/${gymId}/disconnect`, payload);
@@ -388,5 +414,22 @@ export class GymService {
 
   deleteMyPhoto(photoId: number): Observable<void> {
     return this.http.delete<void>(`${this.myGymBase}/photos/${photoId}`);
+  }
+
+  /** Cierre de emergencia (ver GymClosureService) — el dueño del gym cierra su propio gimnasio. */
+  listMyClosures(): Observable<GymClosure[]> {
+    return this.http.get<GymClosure[]>(`${this.myGymBase}/closures`);
+  }
+
+  previewMyClosure(payload: GymClosureCreateRequest): Observable<GymClosurePreview> {
+    return this.http.post<GymClosurePreview>(`${this.myGymBase}/closures/preview`, payload);
+  }
+
+  createMyClosure(payload: GymClosureCreateRequest): Observable<GymClosure> {
+    return this.http.post<GymClosure>(`${this.myGymBase}/closures`, payload);
+  }
+
+  liftMyClosure(closureId: number): Observable<void> {
+    return this.http.post<void>(`${this.myGymBase}/closures/${closureId}/lift`, {});
   }
 }

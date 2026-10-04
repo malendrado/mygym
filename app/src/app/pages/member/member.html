@@ -43,6 +43,16 @@
         Así ve la app un socio de tu gimnasio — datos de ejemplo, solo lectura.
       </div>
     }
+    @if (closureNotice(); as notice) {
+      <div class="closure-notice-banner">
+        <ion-icon name="ban-outline" aria-hidden="true"></ion-icon>
+        <span>
+          {{ gym()?.name ?? 'El gimnasio' }} está cerrado
+          {{ notice.startDate === notice.endDate ? 'el ' + notice.startDate : 'del ' + notice.startDate + ' al ' + notice.endDate }}
+          por: {{ notice.reason }}.
+        </span>
+      </div>
+    }
     @if (photoStrip().length) {
       <div class="gym-photo-strip" aria-hidden="true">
         <div class="gym-photo-strip__track">
@@ -92,7 +102,11 @@
     <p class="section-hook">Elige un día y reserva tu clase en segundos.</p>
 
     <section class="membership">
-      @if (checkoutPending()) {
+      @if (!membershipLoaded() && !checkoutPending()) {
+        <div class="membership-status membership-status--pending">
+          <ion-spinner name="crescent"></ion-spinner>
+        </div>
+      } @else if (checkoutPending()) {
         <div class="membership-status membership-status--pending">
           <ion-spinner name="crescent"></ion-spinner>
           <p>Confirmando tu pago con Flow.cl...</p>
@@ -393,6 +407,8 @@
                     }
                   } @else if (occurrence.past) {
                     <span class="class-tile__note">Ya pasó</span>
+                  } @else if (occurrence.closed) {
+                    <ion-badge color="danger">Cerrado</ion-badge>
                   } @else if (!canBook()) {
                     <button type="button" class="class-tile__link" (click)="scrollToPlans()">Elegir plan</button>
                   } @else if (quotaExhausted()) {
@@ -464,6 +480,14 @@
           <span class="booking-teaser__cta-body">
             Así se ve tu calendario de clases — se desbloquea apenas Flow confirme el pago.
           </span>
+        </span>
+      </span>
+    } @else if (!membershipLoaded()) {
+      <!-- Mismo criterio que arriba (.membership): mientras no sepamos si ya tiene un plan
+           activo, nunca asumir "sin plan" — evita el mismo parpadeo acá abajo. -->
+      <span class="booking-teaser__cta booking-teaser__cta--static">
+        <span class="booking-teaser__cta-card">
+          <ion-spinner name="crescent"></ion-spinner>
         </span>
       </span>
     } @else if (bookingLocked()) {
@@ -629,6 +653,12 @@
           <ion-spinner name="crescent"></ion-spinner>
           <span class="booking-teaser__cta-title">Confirmando tu pago</span>
           <span class="booking-teaser__cta-body">Tus reservas se desbloquean apenas Flow confirme el pago.</span>
+        </span>
+      </span>
+    } @else if (!membershipLoaded()) {
+      <span class="booking-teaser__cta booking-teaser__cta--static">
+        <span class="booking-teaser__cta-card">
+          <ion-spinner name="crescent"></ion-spinner>
         </span>
       </span>
     } @else if (bookingLocked()) {

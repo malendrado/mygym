@@ -72,6 +72,12 @@
         <ion-icon name="calendar-outline" aria-hidden="true"></ion-icon>
         <ion-label>Historial</ion-label>
       </ion-segment-button>
+      @if (!isProfesor()) {
+        <ion-segment-button value="closures">
+          <ion-icon name="ban-outline" aria-hidden="true"></ion-icon>
+          <ion-label>Cierres</ion-label>
+        </ion-segment-button>
+      }
     </ion-segment>
   </ion-toolbar>
 </ion-header>
@@ -1488,6 +1494,73 @@
         }
       </ion-card-content>
     </ion-card>
+  } @else if (section() === 'closures') {
+    <ion-card>
+      <ion-card-header class="card-header-row">
+        <ion-card-title>
+          <ion-icon name="ban-outline" aria-hidden="true"></ion-icon>
+          Cierre de emergencia
+        </ion-card-title>
+        <ion-button fill="outline" color="danger" (click)="openClosureModal()">Cerrar gimnasio</ion-button>
+      </ion-card-header>
+      <ion-card-content>
+        <p class="item-hint">
+          Úsalo solo por fuerza mayor (seguridad, corte de servicios, emergencia). Cancela las
+          reservas futuras afectadas, devuelve el cupo a quien tenía plan limitado, y avisa por
+          email a cada socio con el motivo.
+        </p>
+
+        <ion-list lines="full">
+          @for (closure of closures(); track closure.id) {
+            <ion-item>
+              <ion-icon name="ban-outline" slot="start" aria-hidden="true"></ion-icon>
+              <ion-label class="closure-item-label">
+                {{ closure.startDate === closure.endDate ? closure.startDate : closure.startDate + ' al ' + closure.endDate }}
+                <ion-badge [color]="closureStatus(closure).color">{{ closureStatus(closure).label }}</ion-badge>
+                <p>{{ closure.reason }}</p>
+                <p class="closure-item-meta">
+                  {{ closure.wholeDays ? 'Día completo' : closure.blockIds.length + ' clase(s) puntual(es)' }}
+                  · {{ closure.cancelledReservationsCount }} reserva(s) canceladas · {{ closure.affectedMembersCount }} socio(s) avisados
+                </p>
+              </ion-label>
+              @if (closureStatus(closure).label === 'Activo') {
+                <ion-button fill="clear" (click)="liftClosure(closure)" [disabled]="liftingClosureId() === closure.id">
+                  {{ liftingClosureId() === closure.id ? 'Levantando...' : 'Levantar' }}
+                </ion-button>
+              }
+            </ion-item>
+          } @empty {
+            <div class="admins-empty">
+              <ion-icon name="ban-outline" aria-hidden="true"></ion-icon>
+              <p>Nunca cerraste este gimnasio — ojalá siga siendo así.</p>
+            </div>
+          }
+        </ion-list>
+      </ion-card-content>
+    </ion-card>
+
+    <ion-modal
+      class="wide-modal"
+      [isOpen]="isClosureModalOpen()"
+      (didDismiss)="closeClosureModal()"
+      [style.--ion-color-primary]="themeColor()"
+      [style.--ion-color-primary-contrast]="themeContrast()"
+      [style.--brand-accent]="themeColor()"
+      [style.--brand-accent-contrast]="themeContrast()"
+    >
+      <ng-template>
+        <app-closure-modal
+          [blocks]="blocks()"
+          [previewResult]="closurePreview()"
+          [previewing]="closurePreviewing()"
+          [previewError]="closurePreviewError()"
+          [saving]="closureSaving()"
+          (preview)="requestClosurePreview($event)"
+          (confirmed)="confirmClosure($event)"
+          (dismiss)="closeClosureModal()"
+        />
+      </ng-template>
+    </ion-modal>
   }
 </ion-content>
 }

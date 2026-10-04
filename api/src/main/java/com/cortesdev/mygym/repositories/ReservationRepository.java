@@ -49,4 +49,7 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
      *  todavía (ver WorkoutService), mismo criterio que el resto del proyecto para listas
      *  acotadas por socio. */
     List<Reservation> findByMemberIdAndCheckedInAtIsNotNullOrderByClassDateDesc(Long memberId);
+
+    /** Para ClosureNotificationService — todas las reservas que un cierre puntual canceló. */
+    List<Reservation> findByCancelledByClosureId(Long closureId);
 }

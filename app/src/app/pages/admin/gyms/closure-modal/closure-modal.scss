@@ -1,0 +1,163 @@
+.closure-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin: 0 0 1rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--ion-color-danger);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--ion-color-danger) 12%, var(--brand-ink-surface));
+  color: var(--brand-text);
+  font-size: 0.85rem;
+  line-height: 1.4;
+
+  ion-icon {
+    flex-shrink: 0;
+    margin-top: 0.1rem;
+    color: var(--ion-color-danger);
+    font-size: 1.1rem;
+  }
+}
+
+.closure-dates {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+
+  @media (min-width: 480px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.closure-date-input {
+  margin-top: 0.35rem;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--brand-ink-surface-2);
+  border-radius: 10px;
+  background: var(--brand-ink-surface);
+  color: var(--brand-text);
+  font-family: inherit;
+  font-size: 0.9rem;
+  min-height: 44px;
+  width: 100%;
+}
+
+.section-label {
+  font-weight: 600;
+  margin: 0.75rem 0 0.35rem;
+  color: var(--brand-text-dim);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.closure-scope {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.closure-scope-option {
+  flex: 1;
+  text-align: center;
+  border: 1px solid var(--brand-ink-surface-2);
+  background: transparent;
+  color: var(--brand-text);
+  border-radius: 12px;
+  padding: 0.65rem 0.5rem;
+  min-height: 44px;
+  font-family: var(--brand-font-display);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+
+  &:hover {
+    border-color: var(--ion-color-primary, var(--brand-accent));
+  }
+
+  &--selected {
+    background: var(--ion-color-primary, var(--brand-accent));
+    border-color: var(--ion-color-primary, var(--brand-accent));
+    color: var(--ion-color-primary-contrast, var(--brand-accent-contrast));
+    font-weight: 600;
+  }
+}
+
+// Mismo lenguaje visual que .day-chip de bloque-form-modal/plan-form-modal (duplicado a
+// propósito, ver criterio ya establecido en ese par de archivos).
+.day-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.day-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid var(--brand-ink-surface-2);
+  background: transparent;
+  color: var(--brand-text);
+  border-radius: 999px;
+  padding: 0.5rem 0.9rem;
+  min-height: 44px;
+  font-family: var(--brand-font-display);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+
+  &:hover {
+    border-color: var(--ion-color-primary, var(--brand-accent));
+  }
+
+  &--selected {
+    background: var(--ion-color-primary, var(--brand-accent));
+    border-color: var(--ion-color-primary, var(--brand-accent));
+    color: var(--ion-color-primary-contrast, var(--brand-accent-contrast));
+    font-weight: 600;
+  }
+}
+
+.closure-confirm-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 1rem;
+  font-family: var(--brand-font-heading);
+  font-size: 1rem;
+  color: var(--brand-text);
+
+  ion-icon {
+    color: var(--ion-color-danger);
+    font-size: 1.2rem;
+  }
+}
+
+.closure-impact {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.6rem;
+  margin-bottom: 0.75rem;
+}
+
+.closure-impact__stat {
+  border: 1px solid var(--brand-ink-surface-2);
+  border-radius: 14px;
+  padding: 0.9rem;
+  background: var(--brand-ink-surface);
+  text-align: center;
+
+  strong {
+    display: block;
+    font-family: var(--brand-font-mono);
+    font-size: 1.6rem;
+    color: var(--ion-color-danger);
+  }
+
+  span {
+    font-size: 0.78rem;
+    color: var(--brand-text-dim);
+  }
+}

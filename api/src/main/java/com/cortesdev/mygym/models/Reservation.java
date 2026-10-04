@@ -43,6 +43,10 @@ public class Reservation {
     // sigue null), no es un status aparte — ver ReservationService.checkIn.
     private Instant checkedInAt;
 
+    /** Null = cancelada por el socio o por el admin a mano. No-null = cancelada por un cierre de
+     *  emergencia (ver GymClosureService) — permite saber el motivo real de la cancelación. */
+    private Long cancelledByClosureId;
+
     private Instant createdAt;
 
     private Instant updatedAt;

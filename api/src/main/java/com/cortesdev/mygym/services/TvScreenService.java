@@ -87,6 +87,7 @@ public class TvScreenService {
     private final GymPlanRepository gymPlanRepository;
     private final ReservationService reservationService;
     private final TvCheckinCodeRepository checkinCodeRepository;
+    private final GymClosureService gymClosureService;
 
     public TvPairingCreateResponse createPairingCode() {
         Instant now = Instant.now();
@@ -166,14 +167,22 @@ public class TvScreenService {
         List<GymBlock> activeBlocks =
                 gymBlockRepository.findByGymId(gym.getId()).stream().filter(GymBlock::isActive).toList();
 
+        // Cierre de emergencia (ver GymClosureService) — una clase cerrada desaparece del todo de
+        // la TV (nunca se muestra "Cerrado" acá, a diferencia de /member): si currentBlocks queda
+        // vacío por esto, la TV tampoco pide código de check-in (ver tv-screen.ts, solo lo pide
+        // cuando hay alguna clase en curso), así que el QR deja de emitirse solo.
+        GymClosureService.ClosureSchedule closures =
+                gymClosureService.scheduleFor(gym.getId(), nowZoned.toLocalDate(), nowZoned.toLocalDate().plusDays(7));
+
         List<GymBlock> currentBlocks = activeBlocks.stream()
                 .filter(b -> b.getDayOfWeek() == nowZoned.getDayOfWeek())
                 .filter(b -> !nowZoned.toLocalTime().isBefore(b.getStartTime())
                         && nowZoned.toLocalTime().isBefore(b.getEndTime()))
+                .filter(b -> !closures.isClosed(b.getId(), nowZoned.toLocalDate()))
                 .sorted(Comparator.comparing(GymBlock::getStartTime))
                 .toList();
 
-        NextOccurrence next = findNextOccurrence(activeBlocks, nowZoned);
+        NextOccurrence next = findNextOccurrence(activeBlocks, nowZoned, closures);
 
         List<GymPhotoResponse> photos = gymPhotoRepository.findByGymIdOrderBySortOrderAsc(gym.getId()).stream()
                 .map(p -> new GymPhotoResponse(p.getId(), p.getData(), p.getCaption()))
@@ -187,6 +196,7 @@ public class TvScreenService {
         GymBlock previousBlock = activeBlocks.stream()
                 .filter(b -> b.getDayOfWeek() == nowZoned.getDayOfWeek())
                 .filter(b -> b.getEndTime().isBefore(nowZoned.toLocalTime()))
+                .filter(b -> !closures.isClosed(b.getId(), nowZoned.toLocalDate()))
                 .max(Comparator.comparing(GymBlock::getStartTime))
                 .orElse(null);
 
@@ -240,13 +250,15 @@ public class TvScreenService {
     // Busca, desde hoy y hasta 7 días hacia adelante, el/los bloque(s) con el startTime más
     // próximo que todavía no arrancó — puede haber más de uno si hay clases simultáneas (mismo
     // día, misma hora, dos instructores/categorías distintas), ver punto 2 del diseño.
-    private NextOccurrence findNextOccurrence(List<GymBlock> activeBlocks, ZonedDateTime nowZoned) {
+    private NextOccurrence findNextOccurrence(
+            List<GymBlock> activeBlocks, ZonedDateTime nowZoned, GymClosureService.ClosureSchedule closures) {
         for (int dayOffset = 0; dayOffset <= 7; dayOffset++) {
             LocalDate candidateDate = nowZoned.toLocalDate().plusDays(dayOffset);
             boolean isToday = dayOffset == 0;
             List<GymBlock> dayBlocks = activeBlocks.stream()
                     .filter(b -> b.getDayOfWeek() == candidateDate.getDayOfWeek())
                     .filter(b -> !isToday || b.getStartTime().isAfter(nowZoned.toLocalTime()))
+                    .filter(b -> !closures.isClosed(b.getId(), candidateDate))
                     .sorted(Comparator.comparing(GymBlock::getStartTime))
                     .toList();
             if (!dayBlocks.isEmpty()) {

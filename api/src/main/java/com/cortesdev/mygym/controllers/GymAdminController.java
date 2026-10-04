@@ -12,6 +12,9 @@ import com.cortesdev.mygym.models.dto.BlockUpdateRequest;
 import com.cortesdev.mygym.models.dto.BankTransferUpdateRequest;
 import com.cortesdev.mygym.models.dto.FlowAccountDetailsUpdateRequest;
 import com.cortesdev.mygym.models.dto.FlowAccountResponse;
+import com.cortesdev.mygym.models.dto.GymClosureCreateRequest;
+import com.cortesdev.mygym.models.dto.GymClosurePreviewResponse;
+import com.cortesdev.mygym.models.dto.GymClosureResponse;
 import com.cortesdev.mygym.models.dto.GymIdentityUpdateRequest;
 import com.cortesdev.mygym.models.dto.GymLogoUpdateRequest;
 import com.cortesdev.mygym.models.dto.GymPhotoCreateRequest;
@@ -22,6 +25,7 @@ import com.cortesdev.mygym.models.dto.PlanResponse;
 import com.cortesdev.mygym.models.dto.PlanUpdateRequest;
 import com.cortesdev.mygym.models.dto.ThemeUpdateRequest;
 import com.cortesdev.mygym.security.AuthenticatedUser;
+import com.cortesdev.mygym.services.GymClosureService;
 import com.cortesdev.mygym.services.GymService;
 import com.cortesdev.mygym.services.ReservationService;
 import jakarta.validation.Valid;
@@ -56,6 +60,7 @@ public class GymAdminController {
 
     private final GymService gymService;
     private final ReservationService reservationService;
+    private final GymClosureService gymClosureService;
 
     @GetMapping
     public GymResponse getMyGym(@AuthenticationPrincipal Jwt jwt) {
@@ -234,6 +239,32 @@ public class GymAdminController {
     @DeleteMapping("/photos/{photoId}")
     public ResponseEntity<Void> removeMyPhoto(@AuthenticationPrincipal Jwt jwt, @PathVariable Long photoId) {
         gymService.removePhoto(AuthenticatedUser.from(jwt).gymId(), photoId);
+        return ResponseEntity.noContent().build();
+    }
+
+    // Cierre de emergencia (ver GymClosureService) — el dueño del gym cierra su propio gimnasio.
+    @GetMapping("/closures")
+    public List<GymClosureResponse> listMyClosures(@AuthenticationPrincipal Jwt jwt) {
+        return gymClosureService.list(AuthenticatedUser.from(jwt).gymId());
+    }
+
+    @PostMapping("/closures/preview")
+    public GymClosurePreviewResponse previewMyClosure(
+            @AuthenticationPrincipal Jwt jwt, @Valid @RequestBody GymClosureCreateRequest request) {
+        return gymClosureService.preview(AuthenticatedUser.from(jwt).gymId(), request);
+    }
+
+    @PostMapping("/closures")
+    public ResponseEntity<GymClosureResponse> createMyClosure(
+            @AuthenticationPrincipal Jwt jwt, @Valid @RequestBody GymClosureCreateRequest request) {
+        AuthenticatedUser user = AuthenticatedUser.from(jwt);
+        GymClosureResponse closure = gymClosureService.create(user.gymId(), request, user.email(), user.role());
+        return ResponseEntity.created(URI.create("/api/gym-admin/gym/closures/" + closure.id())).body(closure);
+    }
+
+    @PostMapping("/closures/{closureId}/lift")
+    public ResponseEntity<Void> liftMyClosure(@AuthenticationPrincipal Jwt jwt, @PathVariable Long closureId) {
+        gymClosureService.lift(AuthenticatedUser.from(jwt).gymId(), closureId);
         return ResponseEntity.noContent().build();
     }
 }

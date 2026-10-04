@@ -10,6 +10,9 @@ import com.cortesdev.mygym.models.dto.BlockCreateRequest;
 import com.cortesdev.mygym.models.dto.BlockCreateResult;
 import com.cortesdev.mygym.models.dto.FlowAccountResponse;
 import com.cortesdev.mygym.models.dto.FlowAccountUpdateRequest;
+import com.cortesdev.mygym.models.dto.GymClosureCreateRequest;
+import com.cortesdev.mygym.models.dto.GymClosurePreviewResponse;
+import com.cortesdev.mygym.models.dto.GymClosureResponse;
 import com.cortesdev.mygym.models.dto.BlockOccurrenceAttendeesResponse;
 import com.cortesdev.mygym.models.dto.BlockResponse;
 import com.cortesdev.mygym.models.dto.BlockUpdateRequest;
@@ -37,6 +40,7 @@ import com.cortesdev.mygym.models.dto.TvScreenClaimRequest;
 import com.cortesdev.mygym.models.dto.TvScreenResponse;
 import com.cortesdev.mygym.security.AuthenticatedUser;
 import com.cortesdev.mygym.services.BrandingSuggestionService;
+import com.cortesdev.mygym.services.GymClosureService;
 import com.cortesdev.mygym.services.GymDisconnectionService;
 import com.cortesdev.mygym.services.GymService;
 import com.cortesdev.mygym.services.MemberService;
@@ -72,6 +76,7 @@ public class GymController {
     private final ReservationService reservationService;
     private final GymDisconnectionService gymDisconnectionService;
     private final TvScreenService tvScreenService;
+    private final GymClosureService gymClosureService;
 
     @PostMapping("/suggest-branding")
     public BrandingSuggestionResponse suggestBranding(@Valid @RequestBody BrandingSuggestionRequest request) {
@@ -373,5 +378,32 @@ public class GymController {
     @GetMapping("/deletion-audits")
     public List<GymDeletionAuditResponse> listDeletionAudits() {
         return gymDisconnectionService.listAudits();
+    }
+
+    // Cierre de emergencia (ver GymClosureService) — contraparte SUPER_ADMIN de
+    // GymAdminController, mismo backend, gymId por path.
+    @GetMapping("/{id}/closures")
+    public List<GymClosureResponse> listClosures(@PathVariable Long id) {
+        return gymClosureService.list(id);
+    }
+
+    @PostMapping("/{id}/closures/preview")
+    public GymClosurePreviewResponse previewClosure(
+            @PathVariable Long id, @Valid @RequestBody GymClosureCreateRequest request) {
+        return gymClosureService.preview(id, request);
+    }
+
+    @PostMapping("/{id}/closures")
+    public ResponseEntity<GymClosureResponse> createClosure(
+            @PathVariable Long id, @Valid @RequestBody GymClosureCreateRequest request, @AuthenticationPrincipal Jwt jwt) {
+        AuthenticatedUser user = AuthenticatedUser.from(jwt);
+        GymClosureResponse closure = gymClosureService.create(id, request, user.email(), user.role());
+        return ResponseEntity.created(URI.create("/api/gyms/" + id + "/closures/" + closure.id())).body(closure);
+    }
+
+    @PostMapping("/{id}/closures/{closureId}/lift")
+    public ResponseEntity<Void> liftClosure(@PathVariable Long id, @PathVariable Long closureId) {
+        gymClosureService.lift(id, closureId);
+        return ResponseEntity.noContent().build();
     }
 }

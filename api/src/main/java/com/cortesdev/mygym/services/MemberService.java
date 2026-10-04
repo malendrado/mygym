@@ -175,6 +175,30 @@ public class MemberService {
         return "ACTIVE".equals(status) || "EXPIRING_SOON".equals(status);
     }
 
+    // Segundo gate real de ReservationService.book(), separado de hasActiveMembership: un socio
+    // con plan de cupo limitado podía seguir reservando clases pasado su límite mensual llamando
+    // directo a la API — el frontend sí lo bloqueaba (member.ts quotaExhausted) pero el backend
+    // nunca lo chequeaba. Reusa el mismo criterio de período [paidAt, paidAt+1mes) que
+    // membershipStatus/toResponses, nunca lo duplica.
+    public boolean hasQuotaAvailable(AppUser user) {
+        Long planId = user.getPlanId();
+        Instant paidAt = user.getPaidAt();
+        if (planId == null || paidAt == null) {
+            return true;
+        }
+        GymPlan plan = gymPlanRepository.findById(planId).orElse(null);
+        if (plan == null || plan.getMonthlyClasses() == null) {
+            return true;
+        }
+        ZonedDateTime start = paidAt.atZone(GYM_ZONE);
+        LocalDate periodStart = start.toLocalDate();
+        LocalDate periodEndInclusive = start.plusMonths(1).toLocalDate().minusDays(1);
+        int used = reservationRepository.countByMemberIdAndStatusAndClassDateBetween(
+                user.getId(), ReservationStatus.BOOKED, periodStart, periodEndInclusive);
+        int usedAtImport = user.getUsedSessionsAtImport() != null ? user.getUsedSessionsAtImport() : 0;
+        return used + usedAtImport < plan.getMonthlyClasses();
+    }
+
     private String membershipStatus(AppUser user) {
         Instant paidAt = user.getPaidAt();
         if (paidAt == null) {

@@ -22,8 +22,10 @@ import com.cortesdev.mygym.services.exception.BookingWindowClosedException;
 import com.cortesdev.mygym.services.exception.CapacityExceededException;
 import com.cortesdev.mygym.services.exception.CheckinCodeNotFoundException;
 import com.cortesdev.mygym.services.exception.GymBlockNotFoundException;
+import com.cortesdev.mygym.services.exception.GymClosedException;
 import com.cortesdev.mygym.services.exception.GymNotFoundException;
 import com.cortesdev.mygym.services.exception.MemberNotFoundException;
+import com.cortesdev.mygym.services.exception.MonthlyQuotaExceededException;
 import com.cortesdev.mygym.services.exception.NoActiveReservationException;
 import com.cortesdev.mygym.services.exception.ReservationNotFoundException;
 import com.cortesdev.mygym.services.exception.SubscriptionRequiredException;
@@ -71,6 +73,7 @@ public class ReservationService {
     private final MemberService memberService;
     private final TvCheckinCodeRepository checkinCodeRepository;
     private final WaitlistService waitlistService;
+    private final GymClosureService gymClosureService;
 
     @Transactional(readOnly = true)
     public List<GymBlockOccurrenceResponse> listOccurrences(Long gymId, Long memberId, LocalDate from, LocalDate to) {
@@ -92,6 +95,7 @@ public class ReservationService {
                 : reservationRepository.findByGymBlockIdInAndClassDateBetweenAndStatus(
                         blockIds, from, to, ReservationStatus.BOOKED);
         Set<String> myWaitlistedOccurrences = waitlistService.myWaitlistedOccurrences(memberId, from, to);
+        GymClosureService.ClosureSchedule closures = gymClosureService.scheduleFor(gymId, from, to);
         Map<String, Integer> takenByOccurrence = new HashMap<>();
         Map<String, Long> myReservationIdByOccurrence = new HashMap<>();
         Map<String, Instant> myCheckedInAtByOccurrence = new HashMap<>();
@@ -113,7 +117,9 @@ public class ReservationService {
                 LocalDate occurrenceDate = date;
                 String key = occurrenceKey(block.getId(), occurrenceDate);
                 int taken = takenByOccurrence.getOrDefault(key, 0);
-                boolean bookable = taken < block.getCapacity()
+                boolean closed = closures.isClosed(block.getId(), occurrenceDate);
+                boolean bookable = !closed
+                        && taken < block.getCapacity()
                         && isWithinBookingWindow(cancellationWindowHours, occurrenceDate, block.getStartTime());
                 boolean past = isPastOccurrence(occurrenceDate, block.getEndTime());
                 Long myReservationId = myReservationIdByOccurrence.get(key);
@@ -134,7 +140,8 @@ public class ReservationService {
                         past,
                         myReservationId,
                         waitlisted,
-                        myCheckedInAtByOccurrence.get(key)));
+                        myCheckedInAtByOccurrence.get(key),
+                        closed));
             }
         }
         result.sort(Comparator.comparing(GymBlockOccurrenceResponse::classDate)
@@ -248,6 +255,11 @@ public class ReservationService {
         }
         requireWithinBookingWindow(cancellationWindowHours, request.classDate(), block.getStartTime());
 
+        String closedReason = gymClosureService.closedReasonFor(gymId, block.getId(), request.classDate());
+        if (closedReason != null) {
+            throw new GymClosedException(closedReason);
+        }
+
         reservationRepository
                 .findByGymBlockIdAndClassDateAndMemberIdAndStatus(
                         block.getId(), request.classDate(), memberId, ReservationStatus.BOOKED)
@@ -269,6 +281,9 @@ public class ReservationService {
                 .orElseThrow(() -> new MemberNotFoundException(memberId));
         if (!memberService.hasActiveMembership(member)) {
             throw new SubscriptionRequiredException("Necesitas un plan activo para reservar clases");
+        }
+        if (!memberService.hasQuotaAvailable(member)) {
+            throw new MonthlyQuotaExceededException();
         }
 
         Reservation reservation = Reservation.builder()

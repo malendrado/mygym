@@ -25,6 +25,7 @@ import { InstallBanner } from './install-banner/install-banner';
 import {
   addCircleOutline,
   alertCircleOutline,
+  banOutline,
   barbellOutline,
   calendarOutline,
   checkmarkDoneOutline,
@@ -50,7 +51,7 @@ import { GymService } from '../../core/services/gym.service';
 import { ReservationService } from '../../core/services/reservation.service';
 import { WorkoutService } from '../../core/services/workout.service';
 import { GymBlockOccurrence, Reservation } from '../../core/models/reservation.model';
-import { BankTransferInfo, GymPhoto, MemberPlan, PublicGym } from '../../core/models/gym.model';
+import { BankTransferInfo, GymClosureNotice, GymPhoto, MemberPlan, PublicGym } from '../../core/models/gym.model';
 import { AttendeeSummary } from '../../core/models/member.model';
 import { ExerciseLogEntry, MemberWorkoutLog, PendingWorkout, SaveWorkoutLogRequest } from '../../core/models/workout.model';
 import { deriveSurfaceTint, ensureMinContrastColor, syncThemeOverrides } from '../../core/utils/gym-theme';
@@ -87,6 +88,7 @@ addIcons({
   'information-circle-outline': informationCircleOutline,
   'create-outline': createOutline,
   'qr-code-outline': qrCodeOutline,
+  'ban-outline': banOutline,
 });
 
 type Status = 'idle' | 'loading' | 'error';
@@ -316,6 +318,10 @@ export class MemberPage {
   // El gym puede escribir su propia frase (Gym.tagline) — si no lo hizo, cae a una genérica motivacional.
   protected readonly quote = computed(() => this.gym()?.tagline || this.fallbackQuote);
 
+  // Cierre de emergencia (ver GymClosureService) — banner con el motivo + clases marcadas
+  // "Cerrado" (occurrence.closed, ver member.html). Nunca aplica en demo preview.
+  protected readonly closureNotice = signal<GymClosureNotice | null>(null);
+
   protected readonly photos = signal<GymPhoto[]>([]);
   // Tira de fotos del gimnasio en el header — antes el header no tenía nada
   // más que el nombre, pedido explícito de hacerlo más notorio sin
@@ -350,6 +356,13 @@ export class MemberPage {
     classesUsed: 0,
     paidAt: null,
   });
+  // Bug real reportado por el usuario: al reabrir la app ya logueada (PWA o pestaña con sesión
+  // guardada), la pantalla "parpadeaba" mostrando primero "Elige tu plan" (el estado por defecto
+  // de `membership` de arriba, antes de que responda GET /api/me/membership) y recién después
+  // el plan real ya activo — el socio alcanzaba a leer "elige tu plan" durante una fracción de
+  // segundo aunque ya tuviera uno. Gate explícito: mientras esto siga en false, el template
+  // muestra un spinner neutro en vez de asumir "sin plan" (ver member.html, sección .membership).
+  protected readonly membershipLoaded = signal(false);
   // true al volver de Flow.cl (?checkout=return) mientras esperamos que el
   // webhook confirme — la redirección del navegador siempre llega antes que
   // la confirmación server-to-server, así que no alcanza con un solo
@@ -740,6 +753,7 @@ export class MemberPage {
     this.loadPhotos();
     this.loadOccurrences();
     this.loadMyReservations();
+    this.loadClosureNotice();
     this.startBookingDemo();
 
     // Modo claro necesita más que --member-bg/--member-card (bindeadas inline abajo) —
@@ -1160,6 +1174,7 @@ export class MemberPage {
           this.demoMemberName.set(member.name);
         }
         if (!member.planId || !member.paidAt) {
+          this.membershipLoaded.set(true);
           return;
         }
         const status = member.membershipStatus === 'EXPIRED' ? 'past_due' : 'active';
@@ -1185,10 +1200,12 @@ export class MemberPage {
         if (status === 'active') {
           this.loadOccurrences();
         }
+        this.membershipLoaded.set(true);
       },
       error: () => {
         // Best-effort: sin datos reales, se queda en "none" (el estado por
         // defecto) — el socio puede seguir viendo la pantalla de elegir plan.
+        this.membershipLoaded.set(true);
       },
     });
   }
@@ -1246,6 +1263,16 @@ export class MemberPage {
     ).subscribe({
       next: (reservations) => this.myReservations.set(reservations),
       error: () => this.status.set('error'),
+    });
+  }
+
+  private loadClosureNotice(): void {
+    if (this.isDemoPreview) {
+      return;
+    }
+    this.gymService.getMyClosureNotice().subscribe({
+      next: (notice) => this.closureNotice.set(notice),
+      error: () => this.closureNotice.set(null),
     });
   }
 

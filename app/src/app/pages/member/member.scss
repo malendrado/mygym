@@ -1196,6 +1196,25 @@ ion-segment-button.segment-button-checked {
   }
 }
 
+// Cierre de emergencia (ver GymClosureService) — mismo lenguaje visual que
+// .demo-preview-banner, pero en rojo (es un aviso serio, no informativo).
+.closure-notice-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1rem;
+  background: color-mix(in srgb, var(--ion-color-danger) 18%, transparent);
+  color: var(--brand-text);
+  font-size: 0.8rem;
+  font-weight: 500;
+
+  ion-icon {
+    flex-shrink: 0;
+    color: var(--ion-color-danger);
+    font-size: 1rem;
+  }
+}
+
 // ---- "Memoria Viva": pestaña Rutina ----
 
 .workout-day-picker {

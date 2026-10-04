@@ -437,6 +437,66 @@ public class MemberLifecycleEmailService {
                         + escapeHtml(block.getLabel()) + " en " + escapeHtml(gym.getName()) + ".");
     }
 
+    // Cierre de emergencia (ver GymClosureService) — un solo mail por socio con TODAS sus clases
+    // canceladas de ese cierre (no uno por reserva), igual que el resto de esta clase nunca manda
+    // más de un email por evento real.
+    public void sendClosureCancellationMember(
+            Gym gym, AppUser member, String reason, List<String> cancelledClassLabels, boolean quotaRefunded) {
+        String headline = gym.getName() + " canceló tus clases reservadas";
+        StringBuilder body = new StringBuilder();
+        body.append("<p style=\"margin:0 0 12px;\">Por ")
+                .append(escapeHtml(reason))
+                .append(", tuvimos que cancelar ")
+                .append(cancelledClassLabels.size() == 1 ? "tu clase reservada" : "tus clases reservadas")
+                .append(" en <strong style=\"color:#eaf6f7;\">")
+                .append(escapeHtml(gym.getName()))
+                .append("</strong>:</p>");
+        body.append("<ul style=\"margin:0 0 12px; padding-left:18px; color:#eaf6f7;\">");
+        for (String label : cancelledClassLabels) {
+            body.append("<li style=\"margin-bottom:4px;\">").append(escapeHtml(label)).append("</li>");
+        }
+        body.append("</ul>");
+        if (quotaRefunded) {
+            body.append("<p style=\"margin:0;\">No te preocupes por tu cupo — ya se te devolvió, no cuenta como clase usada este mes.</p>");
+        } else {
+            body.append("<p style=\"margin:0;\">Puedes reservar otra clase cuando quieras.</p>");
+        }
+        send(
+                gym,
+                member.getEmail(),
+                "Clases canceladas en " + gym.getName(),
+                "Cierre del gimnasio",
+                headline,
+                body.toString(),
+                "Ver mis clases",
+                LOGIN_URL,
+                "Recibiste este correo porque tenías una reserva en " + escapeHtml(gym.getName()) + " durante un cierre.");
+    }
+
+    // Aviso al admin del gym cuando el CIERRE lo declaró el super-admin (soporte/seguridad) — si
+    // lo declaró el propio admin, no tiene sentido avisarle de su propia acción (ver
+    // ClosureNotificationService).
+    public void sendClosureNoticeAdmin(
+            Gym gym, String reason, LocalDate startDate, LocalDate endDate, List<String> adminEmails) {
+        String when = startDate.equals(endDate) ? startDate.toString() : startDate + " al " + endDate;
+        String headline = gym.getName() + " fue cerrado temporalmente";
+        String body = "<p style=\"margin:0 0 12px;\">Se cerró " + escapeHtml(gym.getName()) + " (" + when + ") por: "
+                + escapeHtml(reason) + ".</p>"
+                + "<p style=\"margin:0;\">Las reservas afectadas ya se cancelaron y se notificó a los socios.</p>";
+        for (String adminEmail : adminEmails) {
+            send(
+                    gym,
+                    adminEmail,
+                    "Cierre aplicado en " + gym.getName(),
+                    "Cierre del gimnasio",
+                    headline,
+                    body,
+                    "Ver mi panel",
+                    LOGIN_URL,
+                    "Recibiste este correo porque administras " + escapeHtml(gym.getName()) + " en mygym.");
+        }
+    }
+
     private void send(
             Gym gym,
             String to,

@@ -92,6 +92,14 @@ public class WaitlistService {
                 .ifPresent(waitlistRepository::delete);
     }
 
+    /** Cierre de emergencia (ver GymClosureService) — a diferencia de onSpotFreed, acá NUNCA se
+     *  avisa a nadie: la clase sigue cerrada, avisar "se liberó un cupo" sería falso. */
+    public void clearForClosure(Long gymBlockId, LocalDate classDate) {
+        waitlistRepository
+                .findByGymBlockIdAndClassDateOrderByCreatedAtAsc(gymBlockId, classDate)
+                .forEach(waitlistRepository::delete);
+    }
+
     /** Se cancela una reserva → puede haber liberado 1 o más cupos (si varias se cancelan
      *  seguidas antes de que corra el escalamiento) — le da la ventana de ventaja a tantos de
      *  la cabeza de la lista como cupos reales queden libres ahora mismo. */

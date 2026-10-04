@@ -1,0 +1,141 @@
+<div class="ion-page">
+<ion-header>
+  <ion-toolbar>
+    <ion-title>
+      <ion-icon name="ban-outline" aria-hidden="true"></ion-icon>
+      Cerrar gimnasio
+    </ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="cancel()">Cerrar</ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  @if (step() === 'form') {
+    <p class="closure-warning">
+      <ion-icon name="warning-outline" aria-hidden="true"></ion-icon>
+      Esto cancela las reservas futuras afectadas y avisa por email a cada socio — bloquea nuevas reservas mientras dure.
+    </p>
+
+    <form [formGroup]="form">
+      <div class="closure-dates">
+        <ion-item lines="none">
+          <ion-label position="stacked">Desde</ion-label>
+          <input type="date" class="closure-date-input" formControlName="startDate" />
+        </ion-item>
+        <ion-item lines="none">
+          <ion-label position="stacked">Hasta</ion-label>
+          <input type="date" class="closure-date-input" formControlName="endDate" />
+        </ion-item>
+      </div>
+      @if (form.controls.endDate.value < form.controls.startDate.value) {
+        <ion-note color="danger">La fecha de término no puede ser anterior a la de inicio.</ion-note>
+      }
+
+      <p class="section-label">Alcance del cierre</p>
+      <div class="closure-scope">
+        <button
+          type="button"
+          class="closure-scope-option"
+          [class.closure-scope-option--selected]="form.controls.wholeDays.value"
+          (click)="toggleScope(true)"
+        >
+          Días completos
+        </button>
+        <button
+          type="button"
+          class="closure-scope-option"
+          [class.closure-scope-option--selected]="!form.controls.wholeDays.value"
+          (click)="toggleScope(false)"
+        >
+          Clases puntuales
+        </button>
+      </div>
+
+      @if (!form.controls.wholeDays.value) {
+        <p class="item-hint">Elige qué clases quedan cerradas dentro del rango de fechas de arriba.</p>
+        <div class="day-chips">
+          @for (block of blocksList(); track block.id) {
+            <button
+              type="button"
+              class="day-chip"
+              [class.day-chip--selected]="selectedBlockIds().has(block.id)"
+              (click)="toggleBlock(block.id)"
+            >
+              {{ block.label }}
+            </button>
+          }
+        </div>
+        @if (selectedBlockIds().size === 0) {
+          <ion-note color="danger">Elige al menos una clase.</ion-note>
+        }
+      }
+
+      <ion-item lines="none">
+        <ion-textarea
+          label="Motivo del cierre *"
+          labelPlacement="stacked"
+          formControlName="reason"
+          placeholder="Ej: corte de luz programado, falla de seguridad, fuerza mayor..."
+          autoGrow="true"
+          rows="3"
+          maxlength="500"
+        />
+      </ion-item>
+      @if (form.controls.reason.invalid && (form.controls.reason.dirty || form.controls.reason.touched)) {
+        <ion-note color="danger">Tienes que explicar el motivo — se lo vamos a mostrar a cada socio afectado.</ion-note>
+      }
+    </form>
+  } @else {
+    <p class="closure-confirm-title">
+      <ion-icon name="alert-circle-outline" aria-hidden="true"></ion-icon>
+      Revisa el impacto antes de confirmar
+    </p>
+    @if (isPreviewing()) {
+      <p class="item-hint">Calculando cuántas reservas se verían afectadas...</p>
+    } @else if (previewErrorValue()) {
+      <ion-note color="danger">{{ previewErrorValue() }}</ion-note>
+    } @else if (previewResultValue(); as preview) {
+      <div class="closure-impact">
+        <div class="closure-impact__stat">
+          <strong>{{ preview.cancelledReservationsCount }}</strong>
+          <span>{{ preview.cancelledReservationsCount === 1 ? 'reserva se va a cancelar' : 'reservas se van a cancelar' }}</span>
+        </div>
+        <div class="closure-impact__stat">
+          <strong>{{ preview.affectedMembersCount }}</strong>
+          <span>{{ preview.affectedMembersCount === 1 ? 'socio va a recibir un email' : 'socios van a recibir un email' }}</span>
+        </div>
+      </div>
+      @if (preview.cancelledReservationsCount === 0) {
+        <p class="item-hint">No hay reservas futuras en este rango — el cierre solo va a bloquear nuevas reservas.</p>
+      }
+    }
+  }
+</ion-content>
+
+<ion-footer>
+  <ion-toolbar>
+    @if (step() === 'form') {
+      <ion-button type="button" expand="block" [disabled]="!canAskPreview()" (click)="askPreview()">
+        Ver impacto
+      </ion-button>
+    } @else {
+      <ion-buttons slot="start">
+        <ion-button type="button" [disabled]="isSaving()" (click)="backToForm()">Volver</ion-button>
+      </ion-buttons>
+      <ion-buttons slot="end">
+        <ion-button
+          type="button"
+          color="danger"
+          strong
+          [disabled]="isPreviewing() || isSaving() || !!previewErrorValue()"
+          (click)="confirm()"
+        >
+          {{ isSaving() ? 'Cerrando...' : 'Confirmar cierre' }}
+        </ion-button>
+      </ion-buttons>
+    }
+  </ion-toolbar>
+</ion-footer>
+</div>

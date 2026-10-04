@@ -1,0 +1,125 @@
+package com.cortesdev.mygym.services;
+
+import com.cortesdev.mygym.models.AppUser;
+import com.cortesdev.mygym.models.Gym;
+import com.cortesdev.mygym.models.GymBlock;
+import com.cortesdev.mygym.models.GymClosure;
+import com.cortesdev.mygym.models.GymPlan;
+import com.cortesdev.mygym.models.Reservation;
+import com.cortesdev.mygym.models.Role;
+import com.cortesdev.mygym.repositories.AppUserRepository;
+import com.cortesdev.mygym.repositories.GymBlockRepository;
+import com.cortesdev.mygym.repositories.GymClosureRepository;
+import com.cortesdev.mygym.repositories.GymPlanRepository;
+import com.cortesdev.mygym.repositories.GymRepository;
+import com.cortesdev.mygym.repositories.ReservationRepository;
+import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+/**
+ * Manda los emails de un cierre YA CONFIRMADO, fuera de la transacción que canceló las reservas
+ * (ver GymClosureService.create, afterCommit) — mandar un email por socio afectado dentro de esa
+ * misma transacción dejaría una conexión del pool de 5 tomada todo el tiempo que tarde el loop
+ * completo. Corre en un executor propio (ver AsyncConfig) para no competir por hilos con
+ * requests normales.
+ */
+@Service
+@RequiredArgsConstructor
+public class ClosureNotificationService {
+
+    private static final Logger log = LoggerFactory.getLogger(ClosureNotificationService.class);
+    private static final DateTimeFormatter CLASS_DATE_FORMAT =
+            DateTimeFormatter.ofPattern("EEEE d 'de' MMMM", new Locale("es", "CL"));
+
+    private final GymClosureRepository gymClosureRepository;
+    private final GymRepository gymRepository;
+    private final ReservationRepository reservationRepository;
+    private final AppUserRepository appUserRepository;
+    private final GymBlockRepository gymBlockRepository;
+    private final GymPlanRepository gymPlanRepository;
+    private final MemberLifecycleEmailService emailService;
+
+    @Async("closureNotificationExecutor")
+    @Transactional
+    public void notify(Long closureId, Role createdByRole) {
+        GymClosure closure = gymClosureRepository.findById(closureId).orElse(null);
+        if (closure == null) {
+            return;
+        }
+        Gym gym = gymRepository.findById(closure.getGymId()).orElse(null);
+        if (gym == null) {
+            return;
+        }
+
+        List<Reservation> cancelled = reservationRepository.findByCancelledByClosureId(closureId);
+        Map<Long, List<Reservation>> byMember =
+                cancelled.stream().collect(Collectors.groupingBy(Reservation::getMemberId));
+        List<Long> blockIds = cancelled.stream().map(Reservation::getGymBlockId).distinct().toList();
+        Map<Long, GymBlock> blocksById = blockIds.isEmpty()
+                ? Map.of()
+                : gymBlockRepository.findAllById(blockIds).stream()
+                        .collect(Collectors.toMap(GymBlock::getId, b -> b));
+
+        int sent = 0;
+        int failed = 0;
+        for (Map.Entry<Long, List<Reservation>> entry : byMember.entrySet()) {
+            AppUser member = appUserRepository.findById(entry.getKey()).orElse(null);
+            if (member == null) {
+                failed++;
+                continue;
+            }
+            List<String> labels = entry.getValue().stream()
+                    .sorted(Comparator.comparing(Reservation::getClassDate))
+                    .map(r -> {
+                        GymBlock block = blocksById.get(r.getGymBlockId());
+                        String label = block != null ? block.getLabel() : "tu clase";
+                        return label + " — " + CLASS_DATE_FORMAT.format(r.getClassDate());
+                    })
+                    .toList();
+            boolean quotaRefunded = hasLimitedPlan(member);
+            try {
+                emailService.sendClosureCancellationMember(gym, member, closure.getReason(), labels, quotaRefunded);
+                sent++;
+            } catch (Exception e) {
+                log.error("Falló el email de cierre para el socio {}: {}", member.getId(), e.getMessage());
+                failed++;
+            }
+        }
+
+        if (createdByRole == Role.SUPER_ADMIN) {
+            List<String> adminEmails = appUserRepository.findByGymIdAndRole(gym.getId(), Role.GYM_ADMIN).stream()
+                    .filter(AppUser::isActive)
+                    .map(AppUser::getEmail)
+                    .toList();
+            if (!adminEmails.isEmpty()) {
+                try {
+                    emailService.sendClosureNoticeAdmin(
+                            gym, closure.getReason(), closure.getStartDate(), closure.getEndDate(), adminEmails);
+                } catch (Exception e) {
+                    log.error("Falló el aviso de cierre al admin del gym {}: {}", gym.getId(), e.getMessage());
+                }
+            }
+        }
+
+        closure.setEmailsSent(sent);
+        closure.setEmailsFailed(failed);
+        gymClosureRepository.save(closure);
+    }
+
+    private boolean hasLimitedPlan(AppUser member) {
+        if (member.getPlanId() == null) {
+            return false;
+        }
+        return gymPlanRepository.findById(member.getPlanId()).map(GymPlan::getMonthlyClasses).isPresent();
+    }
+}
