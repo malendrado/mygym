@@ -128,19 +128,19 @@ export class Landing implements OnInit, AfterViewInit, OnDestroy {
   protected readonly features: Feature[] = [
     {
       title: 'Reservas y clases',
-      body: 'Agenda por bloques horarios, control de aforo y lista de espera automática cuando un cupo se libera.',
+      body: 'Agenda por bloques horarios, control de cupos y lista de espera: si alguien cancela, le avisamos por email a quien estaba esperando.',
       span: 'large',
       tint: 'surface',
     },
     {
       title: 'Membresías y cobros',
-      body: 'Estados reales: activa, de prueba, congelada. Recordatorios automáticos antes del vencimiento.',
+      body: 'Cuatro estados claros: activo, por vencer, vencido y sin pago. Recordatorio automático por email antes de que venza el plan.',
       span: 'large',
       tint: 'surface-2',
     },
     {
-      title: 'Control de acceso',
-      body: 'Torniquete, QR o huella. El acceso se corta solo si la membresía está impaga.',
+      title: 'Check-in con QR',
+      body: 'La TV de la recepción muestra un QR que se renueva solo; el socio lo escanea y queda marcada su asistencia. Sin plan al día, no puede reservar.',
       span: 'small',
       tint: 'surface',
     },
@@ -151,20 +151,20 @@ export class Landing implements OnInit, AfterViewInit, OnDestroy {
       tint: 'surface-2',
     },
     {
-      title: 'Reportes',
-      body: 'Ingresos, clientes activos y qué planes funcionan mejor, sin armar una planilla a mano.',
+      title: 'Importa tu planilla',
+      body: 'Sube tu Excel de socios con su plan y las clases que ya usaron. Te mostramos fila por fila qué quedó bien y qué revisar.',
       span: 'small',
       tint: 'accent',
     },
     {
       title: 'Pagos online',
-      body: 'Webpay, Mercado Pago, transferencia. Tu socio paga como prefiera.',
+      body: 'Tu socio paga en línea con Flow (Webpay y otros medios) o te transfiere directo; la transferencia la confirmas con un clic.',
       span: 'small',
       tint: 'surface-2',
     },
     {
       title: 'App para socios',
-      body: 'Reservan su clase, ven su plan y pagan desde el celular, sin llamarte a ti.',
+      body: 'Se instala en el celular como una app. Entran con Google o con email y contraseña, reservan, ven su plan y pagan sin llamarte.',
       span: 'small',
       tint: 'surface',
     },
@@ -191,7 +191,7 @@ export class Landing implements OnInit, AfterViewInit, OnDestroy {
     {
       icon: 'card-outline',
       title: 'Paga cuando quieras',
-      body: 'Renuevas tu plan desde el celular, a la hora que sea, con el medio de pago que ya usas.',
+      body: 'Renuevas tu plan desde el celular, a la hora que sea: en línea o por transferencia.',
     },
     {
       icon: 'pulse-outline',
@@ -201,7 +201,7 @@ export class Landing implements OnInit, AfterViewInit, OnDestroy {
     {
       icon: 'notifications-outline',
       title: 'Te avisamos antes, no después',
-      body: 'Un aviso si se libera un cupo en tu clase favorita, o si tu plan está por vencer.',
+      body: 'Un aviso si se libera un cupo en la clase que estabas esperando, o si tu plan está por vencer.',
     },
     {
       icon: 'barbell-outline',
@@ -220,27 +220,27 @@ export class Landing implements OnInit, AfterViewInit, OnDestroy {
   ];
 
   protected readonly membershipStates: MembershipState[] = [
-    { label: 'Activa', tone: 'active', body: 'Al día, reserva sin restricciones.' },
-    { label: 'De prueba', tone: 'trial', body: 'Acceso limitado mientras decide quedarse.' },
-    { label: 'Congelada', tone: 'frozen', body: 'Pausada a pedido del socio, sin perder la antigüedad.' },
-    { label: 'Impaga', tone: 'unpaid', body: 'El acceso se corta solo hasta que se regulariza.' },
+    { label: 'Activo', tone: 'active', body: 'Plan pagado y al día: reserva sin restricciones.' },
+    { label: 'Por vencer', tone: 'trial', body: 'Vence en los próximos días; le llega un recordatorio por email antes.' },
+    { label: 'Vencido', tone: 'unpaid', body: 'Se le pasó la fecha: no puede reservar hasta renovar su plan.' },
+    { label: 'Sin pago', tone: 'frozen', body: 'Ya tiene su cuenta, pero todavía no paga ningún plan.' },
   ];
 
   protected readonly steps: Step[] = [
     {
       icon: 'business-outline',
       title: 'Carga tu gimnasio',
-      body: 'Bloques horarios, planes y sedes. Quince minutos, no una migración de meses.',
+      body: 'Bloques horarios, planes, tu logo y tus colores. Quince minutos, no una migración de meses.',
     },
     {
       icon: 'people-outline',
       title: 'Invita a tus socios',
-      body: 'Cada socio arma su cuenta y ve su plan, sus clases y su historial de pagos.',
+      body: 'Agrégalos a mano, súbelos desde Excel o comparte tu link. Entran con Google o con email y contraseña.',
     },
     {
       icon: 'card-outline',
       title: 'Comienza a cobrar',
-      body: 'Membresías, sesiones sueltas o productos, todo por los medios de pago que ya usas.',
+      body: 'Tus socios pagan su plan mensual en línea o por transferencia, y tú ves quién está al día.',
     },
   ];
 
@@ -248,7 +248,7 @@ export class Landing implements OnInit, AfterViewInit, OnDestroy {
     {
       question: '¿Tengo que migrar mis datos actuales?',
       answer:
-        'Importamos tu planilla de socios y planes en la puesta en marcha, no arrancas de cero ni cargas todo a mano.',
+        'Puedes subir tu planilla de socios desde Excel, con su plan y las clases que ya usaron. No arrancas de cero ni cargas todo a mano.',
     },
     {
       question: '¿Cuánto tarda en estar funcionando?',
@@ -256,8 +256,9 @@ export class Landing implements OnInit, AfterViewInit, OnDestroy {
         'La carga inicial de gimnasio, planes y horarios se hace en una sesión. Tus socios pueden empezar a reservar el mismo día.',
     },
     {
-      question: '¿Sirve si tengo más de una sede?',
-      answer: 'Sí, cada sede tiene sus propios horarios y cupos, pero se administra todo desde una sola cuenta.',
+      question: '¿Mis socios necesitan una cuenta de Google?',
+      answer:
+        'No. Pueden entrar con su cuenta de Google o crear su cuenta con email y contraseña; si la olvidan, la recuperan desde su correo.',
     },
     {
       question: '¿Puedo cambiar de plan o cancelar?',
@@ -294,7 +295,7 @@ export class Landing implements OnInit, AfterViewInit, OnDestroy {
       price: '$69.990',
       showIva: true,
       highlight: true,
-      items: ['Todo lo de Empieza', 'Control de acceso', 'Reportes', 'Pagos online'],
+      items: ['Todo lo de Empieza', 'Pagos online con Flow', 'Pantalla de TV con check-in QR', 'Memoria Viva'],
     },
     {
       name: 'Escala',
@@ -302,7 +303,7 @@ export class Landing implements OnInit, AfterViewInit, OnDestroy {
       price: 'A medida',
       showIva: false,
       highlight: false,
-      items: ['Todo lo de Crece', 'Múltiples sedes', 'Soporte prioritario'],
+      items: ['Todo lo de Crece', 'Soporte prioritario', 'Funciones a la medida'],
     },
   ];
 

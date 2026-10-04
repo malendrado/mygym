@@ -138,7 +138,9 @@
   }
 
   .nav-links a { text-decoration: none; }
-  .nav-links a:hover { color: var(--text); }
+  @media (hover: hover) and (pointer: fine) {
+    .nav-links a:hover { color: var(--text); }
+  }
 
   @media (min-width: 860px) {
     .nav-links { display: flex; }
@@ -168,7 +170,9 @@
     color: var(--accent-contrast);
   }
 
-  .btn--accent:hover { filter: brightness(1.06); }
+  @media (hover: hover) and (pointer: fine) {
+    .btn--accent:hover { filter: brightness(1.06); }
+  }
 
   .btn--ghost {
     background: transparent;
@@ -176,7 +180,9 @@
     border: 1px solid var(--ink-surface-3);
   }
 
-  .btn--ghost:hover { border-color: var(--accent); }
+  @media (hover: hover) and (pointer: fine) {
+    .btn--ghost:hover { border-color: var(--accent); }
+  }
 
   .btn--sm { padding: 0.55rem 1rem; font-size: 0.85rem; min-height: 38px; }
 
@@ -185,7 +191,9 @@
     color: var(--accent);
   }
 
-  .btn--dark:hover { filter: brightness(1.4); }
+  @media (hover: hover) and (pointer: fine) {
+    .btn--dark:hover { filter: brightness(1.4); }
+  }
 
   /* ---------- Banda diferencial ---------- */
   /* Pedido explícito del usuario: un sello propio, contraste invertido a
@@ -885,10 +893,14 @@
 
   .footer-links { display: flex; flex-wrap: wrap; align-items: center; gap: 1.25rem; }
   .footer-links a { color: var(--text-dim); text-decoration: none; }
-  .footer-links a:hover { color: var(--accent); text-decoration: underline; }
+  @media (hover: hover) and (pointer: fine) {
+    .footer-links a:hover { color: var(--accent); text-decoration: underline; }
+  }
 
   footer .container > span a { color: inherit; }
-  footer .container > span a:hover { color: var(--accent); }
+  @media (hover: hover) and (pointer: fine) {
+    footer .container > span a:hover { color: var(--accent); }
+  }
 
   /* Mismo mashup Instagram + mark de mygym que la landing: en reposo es el glyph clásico de
      Instagram; al hover el puntito de flash se convierte en el mark de mygym con un pop. */
@@ -916,15 +928,23 @@
     transform: scale(0.4) rotate(-15deg);
     transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
-  .footer-social:hover, .footer-social:focus-visible {
+  .footer-social:focus-visible {
     color: var(--accent);
     border-color: var(--accent);
     transform: translateY(-2px);
   }
-  .footer-social:hover .footer-social-ig-dot,
   .footer-social:focus-visible .footer-social-ig-dot { opacity: 0; }
-  .footer-social:hover .footer-social-badge,
   .footer-social:focus-visible .footer-social-badge { opacity: 1; transform: scale(1) rotate(0deg); }
+
+  @media (hover: hover) and (pointer: fine) {
+    .footer-social:hover {
+      color: var(--accent);
+      border-color: var(--accent);
+      transform: translateY(-2px);
+    }
+    .footer-social:hover .footer-social-ig-dot { opacity: 0; }
+    .footer-social:hover .footer-social-badge { opacity: 1; transform: scale(1) rotate(0deg); }
+  }
 
   @media (prefers-reduced-motion: reduce) {
     .footer-social, .footer-social-badge, .footer-social-ig-dot { transition: none; }
@@ -1070,8 +1090,8 @@
       <div class="step">
         <div class="step__num">2</div>
         <h3>Invitas a tus socios</h3>
-        <p>De a uno desde tu panel, o compartiendo tu link — entran con su cuenta de Google,
-          sin contraseñas que se olvidan.</p>
+        <p>De a uno desde tu panel, subiendo tu Excel, o compartiendo tu link — entran con su
+          cuenta de Google o con email y contraseña, como prefieran.</p>
       </div>
       <div class="step">
         <div class="step__num">3</div>
@@ -1317,13 +1337,14 @@
           <button class="accordion-trigger">
             <span class="accordion-trigger__title">
               <span class="accordion-trigger__icon">🔑</span>
-              <b>Login con Google</b>
+              <b>Entra como prefieras</b>
             </span>
             <svg class="accordion-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
           </button>
           <div class="accordion-panel"><div><div class="accordion-body">
-            Ninguna contraseña nueva que recordar — la misma cuenta de Google que ya usa todos los días.
-            <span class="accordion-benefit">✓ Un clic para entrar, nunca un "olvidé mi clave"</span>
+            Con la misma cuenta de Google que ya usa todos los días, o con su propio email y contraseña
+            — y si la olvida, la recupera solo desde su correo.
+            <span class="accordion-benefit">✓ Nunca se queda afuera por no tener (o no querer usar) Google</span>
           </div></div></div>
         </div>
         <div class="accordion-item">
@@ -1445,8 +1466,9 @@
       </div>
       <div class="security-card">
         <div class="security-card__icon">🔐</div>
-        <h3>Sin contraseñas propias</h3>
-        <p>Autenticación con Google (OAuth) — mygym nunca guarda ni gestiona contraseñas de nadie.</p>
+        <h3>Contraseñas nunca en texto plano</h3>
+        <p>Login con Google (OAuth) o con email y contraseña — si eligen contraseña, se guarda
+          siempre cifrada (BCrypt), nunca en texto plano.</p>
       </div>
       <div class="security-card">
         <div class="security-card__icon">🧹</div>
@@ -1468,7 +1490,7 @@
       <div class="stack-chip"><b>Spring Boot 3.5 / Java 21</b><span>Backend en capas, tipado y probado</span></div>
       <div class="stack-chip"><b>PostgreSQL (Supabase)</b><span>Con Row Level Security activo</span></div>
       <div class="stack-chip"><b>Railway + Vercel</b><span>Backend y frontend en infraestructura real</span></div>
-      <div class="stack-chip"><b>Google OAuth</b><span>Login sin contraseñas propias</span></div>
+      <div class="stack-chip"><b>Google OAuth + email/contraseña</b><span>Dos formas de entrar, contraseñas siempre cifradas</span></div>
       <div class="stack-chip"><b>Resend</b><span>Emails transaccionales reales</span></div>
       <div class="stack-chip"><b>Capacitor 8</b><span>Camino directo a apps iOS/Android nativas</span></div>
       <div class="stack-chip"><b>Multi-tenant real</b><span>Un despliegue sirve a todos los gimnasios</span></div>
