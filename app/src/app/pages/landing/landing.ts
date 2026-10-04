@@ -145,6 +145,12 @@ export class Landing implements OnInit, AfterViewInit, OnDestroy {
       tint: 'surface',
     },
     {
+      title: 'Cierre de emergencia',
+      body: 'Por fuerza mayor o un problema de seguridad: cancela las clases afectadas, devuelve el cupo y avisa a cada socio por email, todo en un clic.',
+      span: 'small',
+      tint: 'surface-2',
+    },
+    {
       title: 'Reportes',
       body: 'Ingresos, clientes activos y qué planes funcionan mejor, sin armar una planilla a mano.',
       span: 'small',

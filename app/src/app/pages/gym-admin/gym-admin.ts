@@ -2060,7 +2060,14 @@ export class GymAdmin implements OnDestroy {
       },
       error: (err) => {
         this.closurePreviewing.set(false);
-        this.closurePreviewError.set(err?.message || 'No pudimos calcular el impacto. Intenta nuevamente.');
+        // Mismo criterio que handleWriteError, pero el mensaje va DENTRO del modal (nota inline)
+        // en vez de un toast — con el modal abierto tapando la pantalla, un toast de fondo puede
+        // pasar desapercibido y la vista de confirmación quedaría en blanco sin esto.
+        this.closurePreviewError.set(
+          this.isDemoAdmin()
+            ? 'Estás en una cuenta demo — esta acción está deshabilitada a propósito.'
+            : err?.message || 'No pudimos calcular el impacto. Intenta nuevamente.',
+        );
       },
     });
   }
@@ -2131,7 +2138,11 @@ export class GymAdmin implements OnDestroy {
       },
       error: (err) => {
         this.editClosurePreviewing.set(false);
-        this.editClosurePreviewError.set(err?.message || 'No pudimos calcular el impacto. Intenta nuevamente.');
+        this.editClosurePreviewError.set(
+          this.isDemoAdmin()
+            ? 'Estás en una cuenta demo — esta acción está deshabilitada a propósito.'
+            : err?.message || 'No pudimos calcular el impacto. Intenta nuevamente.',
+        );
       },
     });
   }

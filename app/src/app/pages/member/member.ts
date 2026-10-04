@@ -178,6 +178,18 @@ function pad2(n: number): string {
   return n.toString().padStart(2, '0');
 }
 
+/** Saca filas de 7 celdas completamente vacías del INICIO de la grilla. Pasan cuando el período
+ *  pagado (`from`) empieza a mitad de mes: el cálculo arma el mes calendario completo y deja los
+ *  días previos a `from` como `null` (fuera del período), lo que puede generar varias semanas
+ *  enteras en blanco antes del primer día real — nada que mostrar, solo espacio muerto. */
+function trimLeadingEmptyRows<T>(cells: (T | null)[]): (T | null)[] {
+  let start = 0;
+  while (start + 7 <= cells.length && cells.slice(start, start + 7).every((cell) => cell === null)) {
+    start += 7;
+  }
+  return cells.slice(start);
+}
+
 /** Instant ISO del backend ("2026-09-16T17:35:38Z") → "YYYY-MM-DD" en hora de Chile, mismo formato que `todayIso`. */
 function toChileIsoDate(instantIso: string): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Santiago' }).format(new Date(instantIso));
@@ -194,6 +206,12 @@ function addDaysIso(dateIso: string, days: number): string {
   const [y, m, d] = dateIso.split('-').map(Number);
   const date = new Date(y, m - 1, d + days);
   return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+}
+
+/** "YYYY-MM-DD" → "7 de octubre", mismo formato que ya usa `renewsOnLabel`. */
+function dayMonthLabel(dateIso: string): string {
+  const [y, m, d] = dateIso.split('-').map(Number);
+  return new Intl.DateTimeFormat('es-CL', { day: 'numeric', month: 'long' }).format(new Date(y, m - 1, d));
 }
 
 function monthYearLabel(year: number, month: number): string {
@@ -321,6 +339,16 @@ export class MemberPage {
   // Cierre de emergencia (ver GymClosureService) — banner con el motivo + clases marcadas
   // "Cerrado" (occurrence.closed, ver member.html). Nunca aplica en demo preview.
   protected readonly closureNotice = signal<GymClosureNotice | null>(null);
+  // El backend manda startDate/endDate en ISO — formateados igual que renewsOnLabel() para no
+  // mostrar fechas crudas tipo "2026-10-07" en el banner (detectado en auditoría UX 2026-10-04).
+  protected readonly closureDatesLabel = computed(() => {
+    const notice = this.closureNotice();
+    if (!notice) {
+      return '';
+    }
+    const start = dayMonthLabel(notice.startDate);
+    return notice.startDate === notice.endDate ? `el ${start}` : `del ${start} al ${dayMonthLabel(notice.endDate)}`;
+  });
 
   protected readonly photos = signal<GymPhoto[]>([]);
   // Tira de fotos del gimnasio en el header — antes el header no tenía nada
@@ -538,7 +566,7 @@ export class MemberPage {
       while (cells.length % 7 !== 0) {
         cells.push(null);
       }
-      return cells;
+      return trimLeadingEmptyRows(cells);
     }
 
     const { from, to } = range;
@@ -565,7 +593,7 @@ export class MemberPage {
     while (cells.length % 7 !== 0) {
       cells.push(null);
     }
-    return cells;
+    return trimLeadingEmptyRows(cells);
   });
 
   // La grilla completa (hasta 2 meses parciales) empuja demasiado abajo la lista de clases del

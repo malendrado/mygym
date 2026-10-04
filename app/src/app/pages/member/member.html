@@ -47,9 +47,7 @@
       <div class="closure-notice-banner">
         <ion-icon name="ban-outline" aria-hidden="true"></ion-icon>
         <span>
-          {{ gym()?.name ?? 'El gimnasio' }} está cerrado
-          {{ notice.startDate === notice.endDate ? 'el ' + notice.startDate : 'del ' + notice.startDate + ' al ' + notice.endDate }}
-          por: {{ notice.reason }}.
+          {{ gym()?.name ?? 'El gimnasio' }} está cerrado {{ closureDatesLabel() }} por: {{ notice.reason }}.
         </span>
       </div>
     }
