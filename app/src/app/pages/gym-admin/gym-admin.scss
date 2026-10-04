@@ -13,6 +13,11 @@ ion-content {
   font-size: 0.78rem;
 }
 
+.closure-item-actions {
+  display: flex;
+  flex-direction: column;
+}
+
 .gym-admin-loading {
   display: flex;
   align-items: center;

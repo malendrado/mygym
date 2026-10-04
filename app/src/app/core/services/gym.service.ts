@@ -28,6 +28,7 @@ import {
   GymClosureCreateRequest,
   GymClosureNotice,
   GymClosurePreview,
+  GymClosureUpdateRequest,
   GymDisconnectRequest,
   GymIdentityUpdateRequest,
   GymPhoto,
@@ -330,6 +331,14 @@ export class GymService {
     return this.http.post<void>(`${this.base}/${gymId}/closures/${closureId}/lift`, {});
   }
 
+  previewUpdateClosure(gymId: number, closureId: number, payload: GymClosureUpdateRequest): Observable<GymClosurePreview> {
+    return this.http.post<GymClosurePreview>(`${this.base}/${gymId}/closures/${closureId}/preview-update`, payload);
+  }
+
+  updateClosure(gymId: number, closureId: number, payload: GymClosureUpdateRequest): Observable<GymClosure> {
+    return this.http.put<GymClosure>(`${this.base}/${gymId}/closures/${closureId}`, payload);
+  }
+
   /** Desvinculación permanente — borra TODO el gym (ver GymDisconnectionService). Irreversible. */
   disconnectGym(gymId: number, payload: GymDisconnectRequest): Observable<GymDeletionAudit> {
     return this.http.post<GymDeletionAudit>(`${this.base}/${gymId}/disconnect`, payload);
@@ -431,5 +440,13 @@ export class GymService {
 
   liftMyClosure(closureId: number): Observable<void> {
     return this.http.post<void>(`${this.myGymBase}/closures/${closureId}/lift`, {});
+  }
+
+  previewUpdateMyClosure(closureId: number, payload: GymClosureUpdateRequest): Observable<GymClosurePreview> {
+    return this.http.post<GymClosurePreview>(`${this.myGymBase}/closures/${closureId}/preview-update`, payload);
+  }
+
+  updateMyClosure(closureId: number, payload: GymClosureUpdateRequest): Observable<GymClosure> {
+    return this.http.put<GymClosure>(`${this.myGymBase}/closures/${closureId}`, payload);
   }
 }

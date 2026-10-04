@@ -15,6 +15,7 @@ import com.cortesdev.mygym.models.dto.FlowAccountResponse;
 import com.cortesdev.mygym.models.dto.GymClosureCreateRequest;
 import com.cortesdev.mygym.models.dto.GymClosurePreviewResponse;
 import com.cortesdev.mygym.models.dto.GymClosureResponse;
+import com.cortesdev.mygym.models.dto.GymClosureUpdateRequest;
 import com.cortesdev.mygym.models.dto.GymIdentityUpdateRequest;
 import com.cortesdev.mygym.models.dto.GymLogoUpdateRequest;
 import com.cortesdev.mygym.models.dto.GymPhotoCreateRequest;
@@ -266,5 +267,17 @@ public class GymAdminController {
     public ResponseEntity<Void> liftMyClosure(@AuthenticationPrincipal Jwt jwt, @PathVariable Long closureId) {
         gymClosureService.lift(AuthenticatedUser.from(jwt).gymId(), closureId);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/closures/{closureId}/preview-update")
+    public GymClosurePreviewResponse previewUpdateMyClosure(
+            @AuthenticationPrincipal Jwt jwt, @PathVariable Long closureId, @Valid @RequestBody GymClosureUpdateRequest request) {
+        return gymClosureService.previewUpdate(AuthenticatedUser.from(jwt).gymId(), closureId, request);
+    }
+
+    @PutMapping("/closures/{closureId}")
+    public GymClosureResponse updateMyClosure(
+            @AuthenticationPrincipal Jwt jwt, @PathVariable Long closureId, @Valid @RequestBody GymClosureUpdateRequest request) {
+        return gymClosureService.update(AuthenticatedUser.from(jwt).gymId(), closureId, request);
     }
 }

@@ -1523,10 +1523,13 @@
                   · {{ closure.cancelledReservationsCount }} reserva(s) canceladas · {{ closure.affectedMembersCount }} socio(s) avisados
                 </p>
               </ion-label>
-              @if (closureStatus(closure).label === 'Activo') {
-                <ion-button fill="clear" (click)="liftClosure(closure)" [disabled]="liftingClosureId() === closure.id">
-                  {{ liftingClosureId() === closure.id ? 'Levantando...' : 'Levantar' }}
-                </ion-button>
+              @if (closure.editable) {
+                <div class="closure-item-actions">
+                  <ion-button fill="clear" (click)="openEditClosureModal(closure)">Editar</ion-button>
+                  <ion-button fill="clear" (click)="liftClosure(closure)" [disabled]="liftingClosureId() === closure.id">
+                    {{ liftingClosureId() === closure.id ? 'Levantando...' : 'Levantar' }}
+                  </ion-button>
+                </div>
               }
             </ion-item>
           } @empty {
@@ -1558,6 +1561,29 @@
           (preview)="requestClosurePreview($event)"
           (confirmed)="confirmClosure($event)"
           (dismiss)="closeClosureModal()"
+        />
+      </ng-template>
+    </ion-modal>
+
+    <ion-modal
+      class="wide-modal"
+      [isOpen]="editingClosure() !== null"
+      (didDismiss)="closeEditClosureModal()"
+      [style.--ion-color-primary]="themeColor()"
+      [style.--ion-color-primary-contrast]="themeContrast()"
+      [style.--brand-accent]="themeColor()"
+      [style.--brand-accent-contrast]="themeContrast()"
+    >
+      <ng-template>
+        <app-edit-closure-modal
+          [closure]="editingClosure()"
+          [previewResult]="editClosurePreview()"
+          [previewing]="editClosurePreviewing()"
+          [previewError]="editClosurePreviewError()"
+          [saving]="editClosureSaving()"
+          (preview)="requestEditClosurePreview($event)"
+          (confirmed)="confirmEditClosure($event)"
+          (dismiss)="closeEditClosureModal()"
         />
       </ng-template>
     </ion-modal>

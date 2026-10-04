@@ -401,6 +401,13 @@ export interface GymClosureCreateRequest {
   reason: string;
 }
 
+/** Editar un cierre ya creado — a propósito solo endDate+reason (ver GymClosureService.update):
+ *  el alcance (wholeDays/blockIds) y startDate quedan fijos desde la creación. */
+export interface GymClosureUpdateRequest {
+  endDate: string;
+  reason: string;
+}
+
 export interface GymClosurePreview {
   cancelledReservationsCount: number;
   affectedMembersCount: number;
@@ -418,6 +425,8 @@ export interface GymClosure {
   createdAt: string;
   liftedAt: string | null;
   active: boolean;
+  /** Mientras no se haya levantado y su rango no haya terminado del todo — habilita "Editar". */
+  editable: boolean;
   cancelledReservationsCount: number;
   affectedMembersCount: number;
   emailsSent: number;

@@ -16,6 +16,7 @@ public record GymClosureResponse(
         Instant createdAt,
         Instant liftedAt,
         boolean active,
+        boolean editable,
         int cancelledReservationsCount,
         int affectedMembersCount,
         int emailsSent,

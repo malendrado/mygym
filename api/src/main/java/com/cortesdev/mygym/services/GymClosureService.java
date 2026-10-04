@@ -11,6 +11,7 @@ import com.cortesdev.mygym.models.dto.GymClosureCreateRequest;
 import com.cortesdev.mygym.models.dto.GymClosureNoticeResponse;
 import com.cortesdev.mygym.models.dto.GymClosurePreviewResponse;
 import com.cortesdev.mygym.models.dto.GymClosureResponse;
+import com.cortesdev.mygym.models.dto.GymClosureUpdateRequest;
 import com.cortesdev.mygym.repositories.GymBlockRepository;
 import com.cortesdev.mygym.repositories.GymClosureBlockRepository;
 import com.cortesdev.mygym.repositories.GymClosureRepository;
@@ -140,6 +141,25 @@ public class GymClosureService {
         return summarize(resolveAffectedOccurrences(gymId, request));
     }
 
+    /** Vista previa de EDITAR: solo importa el tramo que se agrega (si se alarga el cierre) — si
+     *  se acorta o el motivo queda igual, no hay ningún impacto nuevo que mostrar (0/0). */
+    @Transactional(readOnly = true)
+    public GymClosurePreviewResponse previewUpdate(Long gymId, Long closureId, GymClosureUpdateRequest request) {
+        GymClosure closure = findEditable(gymId, closureId);
+        validateUpdate(closure, request);
+        if (!request.endDate().isAfter(closure.getEndDate())) {
+            return new GymClosurePreviewResponse(0, 0);
+        }
+        List<Long> blockIds = closure.isWholeDays()
+                ? null
+                : gymClosureBlockRepository.findByClosureId(closure.getId()).stream()
+                        .map(GymClosureBlock::getGymBlockId)
+                        .toList();
+        List<AffectedOccurrence> newOccurrences = resolveOccurrencesInRange(
+                gymId, closure.isWholeDays(), blockIds, closure.getEndDate().plusDays(1), request.endDate());
+        return summarize(newOccurrences);
+    }
+
     public GymClosureResponse create(Long gymId, GymClosureCreateRequest request, String createdByEmail, Role createdByRole) {
         gymRepository.findById(gymId).orElseThrow(() -> new GymNotFoundException(gymId));
         List<AffectedOccurrence> occurrences = resolveAffectedOccurrences(gymId, request);
@@ -191,6 +211,89 @@ public class GymClosureService {
         return toResponse(closure);
     }
 
+    /**
+     * Edita un cierre todavía vigente/programado — endDate (acortar o alargar) y/o el motivo.
+     * Acortar nunca restaura reservas ya canceladas (decisión explícita del usuario: "aunque no
+     * se pierdan las reservas"), solo deja de bloquear los días que quedan afuera del nuevo
+     * rango. Alargar sí cancela y avisa SOLO a los socios de los días nuevos — nunca re-manda el
+     * aviso a quien ya había sido notificado en la creación original (ver
+     * ClosureNotificationService.notifyIncremental).
+     */
+    public GymClosureResponse update(Long gymId, Long closureId, GymClosureUpdateRequest request) {
+        GymClosure closure = findEditable(gymId, closureId);
+        validateUpdate(closure, request);
+
+        LocalDate oldEndDate = closure.getEndDate();
+        closure.setReason(request.reason().trim());
+
+        List<Long> newReservationIds = List.of();
+        if (request.endDate().isAfter(oldEndDate)) {
+            List<Long> blockIds = closure.isWholeDays()
+                    ? null
+                    : gymClosureBlockRepository.findByClosureId(closure.getId()).stream()
+                            .map(GymClosureBlock::getGymBlockId)
+                            .toList();
+            List<AffectedOccurrence> newOccurrences =
+                    resolveOccurrencesInRange(gymId, closure.isWholeDays(), blockIds, oldEndDate.plusDays(1), request.endDate());
+
+            Map<Long, List<Reservation>> cancelledByMember = new HashMap<>();
+            List<Long> ids = new ArrayList<>();
+            for (AffectedOccurrence occurrence : newOccurrences) {
+                List<Reservation> booked = reservationRepository.findByGymBlockIdAndClassDateAndStatus(
+                        occurrence.block().getId(), occurrence.date(), ReservationStatus.BOOKED);
+                for (Reservation reservation : booked) {
+                    if (isAlreadyStartedOrCheckedIn(reservation, occurrence.block())) {
+                        continue;
+                    }
+                    reservation.setStatus(ReservationStatus.CANCELLED);
+                    reservation.setCancelledByClosureId(closure.getId());
+                    reservationRepository.save(reservation);
+                    ids.add(reservation.getId());
+                    cancelledByMember.computeIfAbsent(reservation.getMemberId(), k -> new ArrayList<>()).add(reservation);
+                }
+                waitlistService.clearForClosure(occurrence.block().getId(), occurrence.date());
+            }
+            closure.setCancelledReservationsCount(
+                    closure.getCancelledReservationsCount() + cancelledByMember.values().stream().mapToInt(List::size).sum());
+            closure.setAffectedMembersCount(closure.getAffectedMembersCount() + cancelledByMember.size());
+            newReservationIds = ids;
+        }
+
+        closure.setEndDate(request.endDate());
+        gymClosureRepository.save(closure);
+
+        if (!newReservationIds.isEmpty()) {
+            Long id = closure.getId();
+            List<Long> idsCopy = newReservationIds;
+            registerAfterCommit(() -> closureNotificationService.notifyIncremental(id, idsCopy));
+        }
+
+        return toResponse(closure);
+    }
+
+    private GymClosure findEditable(Long gymId, Long closureId) {
+        GymClosure closure = gymClosureRepository
+                .findByIdAndGymId(closureId, gymId)
+                .orElseThrow(() -> new GymClosureNotFoundException(closureId));
+        if (!closure.isEditable()) {
+            throw new InvalidClosureRequestException("Este cierre ya no se puede editar (ya terminó o fue levantado)");
+        }
+        return closure;
+    }
+
+    private void validateUpdate(GymClosure closure, GymClosureUpdateRequest request) {
+        if (request.reason() == null || request.reason().trim().isEmpty()) {
+            throw new InvalidClosureRequestException("Tienes que explicar el motivo del cierre");
+        }
+        if (request.reason().trim().length() > MAX_REASON_LENGTH) {
+            throw new InvalidClosureRequestException(
+                    "El motivo es demasiado largo (máximo " + MAX_REASON_LENGTH + " caracteres)");
+        }
+        if (request.endDate().isBefore(closure.getStartDate())) {
+            throw new InvalidClosureRequestException("La fecha de término no puede ser anterior al inicio del cierre");
+        }
+    }
+
     public void lift(Long gymId, Long closureId) {
         GymClosure closure = gymClosureRepository
                 .findByIdAndGymId(closureId, gymId)
@@ -223,24 +326,39 @@ public class GymClosureService {
 
     private List<AffectedOccurrence> resolveAffectedOccurrences(Long gymId, GymClosureCreateRequest request) {
         validate(request);
-        List<GymBlock> blocks =
-                gymBlockRepository.findByGymId(gymId).stream().filter(GymBlock::isActive).toList();
-        Set<Long> blockIds = request.wholeDays() ? null : distinctBlockIds(request);
-        if (blockIds != null) {
-            Set<Long> gymBlockIds = blocks.stream().map(GymBlock::getId).collect(Collectors.toSet());
-            for (Long id : blockIds) {
+        if (!request.wholeDays()) {
+            Set<Long> gymBlockIds = gymBlockRepository.findByGymId(gymId).stream()
+                    .filter(GymBlock::isActive)
+                    .map(GymBlock::getId)
+                    .collect(Collectors.toSet());
+            for (Long id : distinctBlockIds(request)) {
                 if (!gymBlockIds.contains(id)) {
                     throw new InvalidClosureRequestException("Uno de los bloques elegidos no pertenece a este gimnasio");
                 }
             }
         }
+        List<Long> blockIds = request.wholeDays() ? null : List.copyOf(distinctBlockIds(request));
+        return resolveOccurrencesInRange(gymId, request.wholeDays(), blockIds, request.startDate(), request.endDate());
+    }
+
+    /** Compartido por create/preview (rango completo del request) y por update/previewUpdate
+     *  (solo el tramo nuevo que se agrega al alargar) — mismo criterio de día de semana, nunca
+     *  duplicado. `blockIds` null = todos los bloques (wholeDays). */
+    private List<AffectedOccurrence> resolveOccurrencesInRange(
+            Long gymId, boolean wholeDays, List<Long> blockIds, LocalDate from, LocalDate to) {
+        if (from.isAfter(to)) {
+            return List.of();
+        }
+        List<GymBlock> blocks =
+                gymBlockRepository.findByGymId(gymId).stream().filter(GymBlock::isActive).toList();
+        Set<Long> blockIdSet = wholeDays || blockIds == null ? null : new HashSet<>(blockIds);
 
         List<AffectedOccurrence> occurrences = new ArrayList<>();
         for (GymBlock block : blocks) {
-            if (blockIds != null && !blockIds.contains(block.getId())) {
+            if (blockIdSet != null && !blockIdSet.contains(block.getId())) {
                 continue;
             }
-            for (LocalDate date = request.startDate(); !date.isAfter(request.endDate()); date = date.plusDays(1)) {
+            for (LocalDate date = from; !date.isAfter(to); date = date.plusDays(1)) {
                 if (date.getDayOfWeek() != block.getDayOfWeek()) {
                     continue;
                 }
@@ -315,6 +433,7 @@ public class GymClosureService {
                 closure.getCreatedAt(),
                 closure.getLiftedAt(),
                 active,
+                closure.isEditable(),
                 closure.getCancelledReservationsCount(),
                 closure.getAffectedMembersCount(),
                 closure.getEmailsSent(),

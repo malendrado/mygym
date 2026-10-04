@@ -76,4 +76,10 @@ public class GymClosure {
     public boolean isActiveOn(LocalDate date) {
         return !date.isBefore(startDate) && !date.isAfter(effectiveEndDate());
     }
+
+    /** Editable mientras no se haya levantado y su rango no haya terminado del todo — un cierre
+     *  "programado" (todavía no arranca) también es editable, no solo uno ya activo. */
+    public boolean isEditable() {
+        return liftedAt == null && !LocalDate.now(GYM_ZONE).isAfter(effectiveEndDate());
+    }
 }

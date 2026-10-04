@@ -1,0 +1,97 @@
+<div class="ion-page">
+<ion-header>
+  <ion-toolbar>
+    <ion-title>
+      <ion-icon name="create-outline" aria-hidden="true"></ion-icon>
+      Editar cierre
+    </ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="cancel()">Cerrar</ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  @if (closureValue(); as closure) {
+    @if (step() === 'form') {
+      <div class="edit-closure-fixed">
+        <p><strong>Desde:</strong> {{ closure.startDate }}</p>
+        <p><strong>Alcance:</strong> {{ scopeLabel() }}</p>
+      </div>
+      <p class="item-hint">La fecha de inicio y el alcance no se pueden cambiar — si necesitas otro alcance, levanta este cierre y crea uno nuevo.</p>
+
+      <form [formGroup]="form">
+        <ion-item lines="none">
+          <ion-label position="stacked">Hasta</ion-label>
+          <input type="date" class="edit-closure-date-input" [min]="closure.startDate" formControlName="endDate" />
+        </ion-item>
+
+        <ion-item lines="none">
+          <ion-textarea
+            label="Motivo del cierre *"
+            labelPlacement="stacked"
+            formControlName="reason"
+            autoGrow="true"
+            rows="3"
+            maxlength="500"
+          />
+        </ion-item>
+        @if (form.controls.reason.invalid && (form.controls.reason.dirty || form.controls.reason.touched)) {
+          <ion-note color="danger">Tienes que explicar el motivo.</ion-note>
+        }
+      </form>
+    } @else {
+      <p class="closure-confirm-title">
+        <ion-icon name="alert-circle-outline" aria-hidden="true"></ion-icon>
+        Revisa el impacto antes de confirmar
+      </p>
+      @if (isPreviewing()) {
+        <p class="item-hint">Calculando el impacto del cambio...</p>
+      } @else if (previewErrorValue()) {
+        <ion-note color="danger">{{ previewErrorValue() }}</ion-note>
+      } @else if (previewResultValue(); as preview) {
+        @if (preview.cancelledReservationsCount > 0) {
+          <div class="closure-impact">
+            <div class="closure-impact__stat">
+              <strong>{{ preview.cancelledReservationsCount }}</strong>
+              <span>{{ preview.cancelledReservationsCount === 1 ? 'reserva se va a cancelar' : 'reservas se van a cancelar' }}</span>
+            </div>
+            <div class="closure-impact__stat">
+              <strong>{{ preview.affectedMembersCount }}</strong>
+              <span>{{ preview.affectedMembersCount === 1 ? 'socio va a recibir un email' : 'socios van a recibir un email' }}</span>
+            </div>
+          </div>
+          <p class="item-hint">Son solo los días nuevos que se agregan al alargar el cierre — lo ya cancelado antes no cambia.</p>
+        } @else {
+          <p class="item-hint">
+            Este cambio no cancela ninguna reserva adicional
+            @if (!isExtending()) {
+              — las clases que queden fuera del nuevo rango se vuelven a poder reservar desde hoy, pero las reservas que ya se
+              cancelaron antes no se restauran.
+            }
+          </p>
+        }
+      }
+    }
+  }
+</ion-content>
+
+<ion-footer>
+  <ion-toolbar>
+    @if (step() === 'form') {
+      <ion-button type="button" expand="block" [disabled]="!canAskPreview()" (click)="askPreview()">
+        Ver impacto
+      </ion-button>
+    } @else {
+      <ion-buttons slot="start">
+        <ion-button type="button" [disabled]="isSaving()" (click)="backToForm()">Volver</ion-button>
+      </ion-buttons>
+      <ion-buttons slot="end">
+        <ion-button type="button" strong [disabled]="isPreviewing() || isSaving() || !!previewErrorValue()" (click)="confirm()">
+          {{ isSaving() ? 'Guardando...' : 'Confirmar cambio' }}
+        </ion-button>
+      </ion-buttons>
+    }
+  </ion-toolbar>
+</ion-footer>
+</div>

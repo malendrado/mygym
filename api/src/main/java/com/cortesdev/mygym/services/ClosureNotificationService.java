@@ -116,6 +116,64 @@ public class ClosureNotificationService {
         gymClosureRepository.save(closure);
     }
 
+    /**
+     * Cierre ALARGADO (ver GymClosureService.update) — a diferencia de {@link #notify}, acá NUNCA
+     * se re-consulta todo lo cancelado por el cierre: solo se avisa a los socios de las reservas
+     * puntuales que esta edición acaba de cancelar, nunca a quien ya había sido notificado en la
+     * creación original (evita mandar el mismo email dos veces). Tampoco avisa al admin del gym
+     * — eso solo pasa una vez, en la creación.
+     */
+    @Async("closureNotificationExecutor")
+    @Transactional
+    public void notifyIncremental(Long closureId, List<Long> reservationIds) {
+        GymClosure closure = gymClosureRepository.findById(closureId).orElse(null);
+        if (closure == null || reservationIds.isEmpty()) {
+            return;
+        }
+        Gym gym = gymRepository.findById(closure.getGymId()).orElse(null);
+        if (gym == null) {
+            return;
+        }
+
+        List<Reservation> cancelled = reservationRepository.findAllById(reservationIds);
+        Map<Long, List<Reservation>> byMember =
+                cancelled.stream().collect(Collectors.groupingBy(Reservation::getMemberId));
+        List<Long> blockIds = cancelled.stream().map(Reservation::getGymBlockId).distinct().toList();
+        Map<Long, GymBlock> blocksById = blockIds.isEmpty()
+                ? Map.of()
+                : gymBlockRepository.findAllById(blockIds).stream()
+                        .collect(Collectors.toMap(GymBlock::getId, b -> b));
+
+        int sent = 0;
+        int failed = 0;
+        for (Map.Entry<Long, List<Reservation>> entry : byMember.entrySet()) {
+            AppUser member = appUserRepository.findById(entry.getKey()).orElse(null);
+            if (member == null) {
+                failed++;
+                continue;
+            }
+            List<String> labels = entry.getValue().stream()
+                    .sorted(Comparator.comparing(Reservation::getClassDate))
+                    .map(r -> {
+                        GymBlock block = blocksById.get(r.getGymBlockId());
+                        String label = block != null ? block.getLabel() : "tu clase";
+                        return label + " — " + CLASS_DATE_FORMAT.format(r.getClassDate());
+                    })
+                    .toList();
+            try {
+                emailService.sendClosureCancellationMember(gym, member, closure.getReason(), labels, hasLimitedPlan(member));
+                sent++;
+            } catch (Exception e) {
+                log.error("Falló el email de cierre (alargado) para el socio {}: {}", member.getId(), e.getMessage());
+                failed++;
+            }
+        }
+
+        closure.setEmailsSent(closure.getEmailsSent() + sent);
+        closure.setEmailsFailed(closure.getEmailsFailed() + failed);
+        gymClosureRepository.save(closure);
+    }
+
     private boolean hasLimitedPlan(AppUser member) {
         if (member.getPlanId() == null) {
             return false;

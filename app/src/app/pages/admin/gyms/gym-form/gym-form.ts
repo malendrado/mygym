@@ -94,6 +94,7 @@ import {
   GymClosure,
   GymClosureCreateRequest,
   GymClosurePreview,
+  GymClosureUpdateRequest,
   GymPhoto,
   GymPlan,
   UpdateGymBlockRequest,
@@ -108,6 +109,7 @@ import { BloqueSeriesModal } from '../bloque-series-modal/bloque-series-modal';
 import { PlanFormModal } from '../plan-form-modal/plan-form-modal';
 import { MarkPaidModal } from '../mark-paid-modal/mark-paid-modal';
 import { ClosureModal } from '../closure-modal/closure-modal';
+import { EditClosureModal } from '../edit-closure-modal/edit-closure-modal';
 import { QuantityStepper } from '../../../../core/components/quantity-stepper/quantity-stepper';
 import { registerClassCategoryIcons, resolveClassCategoryIcon } from '../../../../core/utils/class-category';
 import { formatRut, rutFormatValidator } from '../../../../core/utils/rut';
@@ -376,6 +378,7 @@ const THEMED_ROOT_PROPERTIES = [
     PlanFormModal,
     MarkPaidModal,
     ClosureModal,
+    EditClosureModal,
     QuantityStepper,
   ],
   templateUrl: './gym-form.html',
@@ -635,6 +638,11 @@ export class GymForm implements OnDestroy {
   protected readonly closurePreviewError = signal<string | null>(null);
   protected readonly closureSaving = signal(false);
   protected readonly liftingClosureId = signal<number | null>(null);
+  protected readonly editingClosure = signal<GymClosure | null>(null);
+  protected readonly editClosurePreview = signal<GymClosurePreview | null>(null);
+  protected readonly editClosurePreviewing = signal(false);
+  protected readonly editClosurePreviewError = signal<string | null>(null);
+  protected readonly editClosureSaving = signal(false);
 
   protected readonly suggestStatus = signal<SuggestStatus>('idle');
   protected readonly brandingSuggestion = signal<BrandingSuggestion | null>(null);
@@ -2169,6 +2177,58 @@ export class GymForm implements OnDestroy {
       error: () => {
         this.liftingClosureId.set(null);
         this.showToast('No pudimos levantar el cierre.', 'danger');
+      },
+    });
+  }
+
+  protected openEditClosureModal(closure: GymClosure): void {
+    this.editClosurePreview.set(null);
+    this.editClosurePreviewError.set(null);
+    this.editingClosure.set(closure);
+  }
+
+  protected closeEditClosureModal(): void {
+    this.editingClosure.set(null);
+  }
+
+  protected requestEditClosurePreview(request: GymClosureUpdateRequest): void {
+    const id = this.gymId();
+    const closure = this.editingClosure();
+    if (id === null || !closure) {
+      return;
+    }
+    this.editClosurePreview.set(null);
+    this.editClosurePreviewError.set(null);
+    this.editClosurePreviewing.set(true);
+    this.gymService.previewUpdateClosure(id, closure.id, request).subscribe({
+      next: (preview) => {
+        this.editClosurePreviewing.set(false);
+        this.editClosurePreview.set(preview);
+      },
+      error: (err) => {
+        this.editClosurePreviewing.set(false);
+        this.editClosurePreviewError.set(err?.message || 'No pudimos calcular el impacto. Intenta nuevamente.');
+      },
+    });
+  }
+
+  protected confirmEditClosure(request: GymClosureUpdateRequest): void {
+    const id = this.gymId();
+    const closure = this.editingClosure();
+    if (id === null || !closure) {
+      return;
+    }
+    this.editClosureSaving.set(true);
+    this.gymService.updateClosure(id, closure.id, request).subscribe({
+      next: (updated) => {
+        this.editClosureSaving.set(false);
+        this.editingClosure.set(null);
+        this.closures.update((list) => list.map((c) => (c.id === updated.id ? updated : c)));
+        this.showToast('Cierre actualizado.');
+      },
+      error: (err) => {
+        this.editClosureSaving.set(false);
+        this.showToast(err.message || 'No pudimos editar el cierre. Intenta nuevamente.', 'danger');
       },
     });
   }

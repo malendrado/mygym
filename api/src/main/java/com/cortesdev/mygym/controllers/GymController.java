@@ -13,6 +13,7 @@ import com.cortesdev.mygym.models.dto.FlowAccountUpdateRequest;
 import com.cortesdev.mygym.models.dto.GymClosureCreateRequest;
 import com.cortesdev.mygym.models.dto.GymClosurePreviewResponse;
 import com.cortesdev.mygym.models.dto.GymClosureResponse;
+import com.cortesdev.mygym.models.dto.GymClosureUpdateRequest;
 import com.cortesdev.mygym.models.dto.BlockOccurrenceAttendeesResponse;
 import com.cortesdev.mygym.models.dto.BlockResponse;
 import com.cortesdev.mygym.models.dto.BlockUpdateRequest;
@@ -405,5 +406,17 @@ public class GymController {
     public ResponseEntity<Void> liftClosure(@PathVariable Long id, @PathVariable Long closureId) {
         gymClosureService.lift(id, closureId);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/closures/{closureId}/preview-update")
+    public GymClosurePreviewResponse previewUpdateClosure(
+            @PathVariable Long id, @PathVariable Long closureId, @Valid @RequestBody GymClosureUpdateRequest request) {
+        return gymClosureService.previewUpdate(id, closureId, request);
+    }
+
+    @PutMapping("/{id}/closures/{closureId}")
+    public GymClosureResponse updateClosure(
+            @PathVariable Long id, @PathVariable Long closureId, @Valid @RequestBody GymClosureUpdateRequest request) {
+        return gymClosureService.update(id, closureId, request);
     }
 }
