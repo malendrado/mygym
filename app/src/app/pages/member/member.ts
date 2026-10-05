@@ -907,16 +907,25 @@ export class MemberPage {
           title: 'Reserva en segundos',
           body: 'Tu socio ve los cupos libres de cada clase y reserva con un toque.',
           targetSelector: '[data-tour="reserve-book"]',
+          // "Hoy" puede no tener nada reservable (la clase de hoy ya pasó, o cae en un día sin
+          // bloques) según a qué hora real se abra la demo — en vez de depender de que "hoy"
+          // tenga algo, se navega al día más próximo que sí tenga una clase reservable real.
+          beforeShow: () => this.goToNearestBookableDate(),
         },
         {
           title: 'Ve quién más va',
           body: 'Factor social: tu socio ve a sus compañeros anotados en la misma clase — refuerza que vuelva.',
           targetSelector: '[data-tour="class-attendees"]',
+          // Este paso necesita una clase que ya tenga al menos un anotado (si no, el link "Ver
+          // quién va" ni se renderiza) — no alcanza con "reservable a secas" como el paso anterior.
+          beforeShow: () => this.goToNearestBookableDateWithAttendees(),
         },
         {
           title: 'Si está llena, se anota',
           body: 'Cuando una clase no tiene cupo, se anota en la lista de espera, le avisamos apenas se libera uno, y puede salir de la lista cuando quiera.',
           targetSelector: '[data-tour="waitlist-join"]',
+          // Este paso necesita específicamente una clase LLENA, no solo reservable.
+          beforeShow: () => this.goToNearestFullDate(),
         },
         {
           title: 'Elige su plan y paga, con todo claro',
@@ -962,6 +971,40 @@ export class MemberPage {
     }
     this.tourSeen.markMemberTourSeen();
     this.tourService.start(sectionTour.tour, sectionTour.steps);
+  }
+
+  // Usados solo por el tour guiado (ver sectionTours arriba) — navegan el calendario a un día
+  // real con el tipo de clase que ese paso necesita mostrar, en vez de asumir que "hoy" sirve
+  // (la clase de hoy puede ya haber pasado, o caer un día sin bloques, según la hora real en que
+  // se abra la demo). Si no encuentran nada, no tocan la fecha — el overlay ya sabe mostrar la
+  // tarjeta centrada sin spotlight cuando el target no existe.
+  private goToNearestBookableDate(): void {
+    const match = this.occurrences()
+      .filter((o) => !o.past && !this.isCapacityFull(o))
+      .sort((a, b) => a.classDate.localeCompare(b.classDate))[0];
+    if (match) {
+      this.selectedDate.set(match.classDate);
+    }
+  }
+
+  private goToNearestBookableDateWithAttendees(): void {
+    const withAttendees = this.occurrences()
+      .filter((o) => !o.past && !this.isCapacityFull(o) && o.taken > 0)
+      .sort((a, b) => a.classDate.localeCompare(b.classDate))[0];
+    if (withAttendees) {
+      this.selectedDate.set(withAttendees.classDate);
+    } else {
+      this.goToNearestBookableDate();
+    }
+  }
+
+  private goToNearestFullDate(): void {
+    const match = this.occurrences()
+      .filter((o) => !o.past && this.isCapacityFull(o))
+      .sort((a, b) => a.classDate.localeCompare(b.classDate))[0];
+    if (match) {
+      this.selectedDate.set(match.classDate);
+    }
   }
 
   // ---- "Memoria Viva": pestaña Rutina — ver WorkoutService (backend) para los 3 estados

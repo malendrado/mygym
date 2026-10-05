@@ -62,6 +62,8 @@ export class TourOverlay {
   private quietTimeout?: ReturnType<typeof setTimeout>;
   private maxWaitTimeout?: ReturnType<typeof setTimeout>;
   private onSettleScroll?: () => void;
+  private settleScrollEl: HTMLElement | null = null;
+  private settleToken = 0;
 
   constructor() {
     effect(() => {
@@ -120,38 +122,55 @@ export class TourOverlay {
         behavior: this.prefersReducedMotion ? 'auto' : 'smooth',
       });
     }
-    this.waitForScrollSettle();
+    this.waitForScrollSettle(target);
   }
 
   // Detecta el fin real del scroll por quietud (sin más eventos 'scroll' durante
-  // SETTLE_QUIET_MS), no por un tiempo adivinado — un scroll largo (lista de 28 socios) puede
-  // tardar más de 1 segundo en asentarse, y cualquier techo fijo corto corta la medición a
-  // mitad de camino (bug real reportado 2026-10-05: el hueco del spotlight no coincidía con el
-  // botón real). 'scroll' no burbujea, pero sí pasa por la fase de captura de cualquier
-  // ancestro — por eso se escucha en document con useCapture=true, así se detecta el scroll
-  // interno de ion-content sin tener que ubicar ese elemento a mano.
-  private waitForScrollSettle(): void {
+  // SETTLE_QUIET_MS), no por un tiempo adivinado — un scroll largo (ej. el último socio "Sin
+  // pago" en una lista de 28, o volver a ver el tour una segunda vez desde más abajo en la
+  // página) puede tardar más de 1 segundo en asentarse.
+  //
+  // El primer intento escuchaba 'scroll' en document con useCapture=true, asumiendo que eso
+  // alcanzaba para "ver" el scroll interno de ion-content aunque viva en su shadow DOM. Error:
+  // el evento 'scroll' tiene composed:false por spec — nunca cruza un shadow boundary, ni
+  // siquiera en fase de captura. El listener en document jamás recibía un solo evento real; el
+  // único "settle" que disparaba era el timeout de respaldo inicial, que a veces medía a mitad
+  // de camino (bug real reportado 2026-10-05: el hueco del spotlight quedaba en otra posición
+  // que la tarjeta, sobre todo al volver a ver un tour ya visto una vez, con la página scrolleada
+  // desde la vuelta anterior). Fix real: `ion-content.getScrollElement()` devuelve el div
+  // scrolleable de verdad (confirmado: sí emite 'scroll' en vivo) — se escucha ahí directo.
+  private async waitForScrollSettle(target: Element | null): Promise<void> {
+    const token = ++this.settleToken;
+    const ionContent = target?.closest('ion-content') as (HTMLElement & { getScrollElement?: () => Promise<HTMLElement> }) | null;
+    const scrollEl = (await ionContent?.getScrollElement?.()) ?? null;
+    if (token !== this.settleToken) {
+      return; // Ya empezó un paso nuevo mientras esperábamos este await — descartar.
+    }
+
     const finish = () => {
       this.cancelScrollSettle();
       this.measureAndPosition();
       this.visible.set(true);
     };
+    this.settleScrollEl = scrollEl;
     this.onSettleScroll = () => {
       clearTimeout(this.quietTimeout);
       this.quietTimeout = setTimeout(finish, SETTLE_QUIET_MS);
     };
-    document.addEventListener('scroll', this.onSettleScroll, true);
+    scrollEl?.addEventListener('scroll', this.onSettleScroll);
     this.quietTimeout = setTimeout(finish, SETTLE_QUIET_MS);
     this.maxWaitTimeout = setTimeout(finish, SETTLE_MAX_WAIT_MS);
   }
 
   private cancelScrollSettle(): void {
+    ++this.settleToken;
     clearTimeout(this.quietTimeout);
     clearTimeout(this.maxWaitTimeout);
-    if (this.onSettleScroll) {
-      document.removeEventListener('scroll', this.onSettleScroll, true);
-      this.onSettleScroll = undefined;
+    if (this.onSettleScroll && this.settleScrollEl) {
+      this.settleScrollEl.removeEventListener('scroll', this.onSettleScroll);
     }
+    this.onSettleScroll = undefined;
+    this.settleScrollEl = null;
   }
 
   private measureAndPosition(): void {

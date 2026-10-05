@@ -884,6 +884,14 @@ export class GymAdmin implements OnDestroy {
           title: 'Crea tus clases',
           body: 'Cada bloque es una clase recurrente: día, horario y cupo.',
           targetSelector: '[data-tour="blocks-add"]',
+          // Por defecto la pestaña precarga el filtro de HOY/AHORA — si al gimnasio demo real
+          // le toca un día/franja sin bloques, los pasos 4 y 5 (editar, ver quién reservó) no
+          // tienen nada que iluminar. El tour necesita ver TODOS los bloques, no el recorte del
+          // momento real en que alguien lo esté mirando.
+          beforeShow: () => {
+            this.selectedDay.set(null);
+            this.selectedTimeBand.set(null);
+          },
         },
         {
           title: 'Arma tu grilla semanal de una sola vez',
