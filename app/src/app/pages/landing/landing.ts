@@ -295,7 +295,12 @@ export class Landing implements OnInit, AfterViewInit, OnDestroy {
       price: '$69.990',
       showIva: true,
       highlight: true,
-      items: ['Todo lo de Empieza', 'Pagos online con Flow', 'Pantalla de TV con check-in QR', 'Memoria Viva'],
+      items: [
+        'Incluye todo el plan Empieza',
+        'Pagos online con Flow',
+        'Pantalla de TV con check-in QR',
+        'Memoria Viva',
+      ],
     },
     {
       name: 'Escala',
@@ -303,7 +308,7 @@ export class Landing implements OnInit, AfterViewInit, OnDestroy {
       price: 'A medida',
       showIva: false,
       highlight: false,
-      items: ['Todo lo de Crece', 'Soporte prioritario', 'Funciones a la medida'],
+      items: ['Incluye todo el plan Crece', 'Soporte prioritario', 'Funciones a la medida'],
     },
   ];
 
