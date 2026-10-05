@@ -26,4 +26,8 @@ public interface AppUserRepository extends JpaRepository<AppUser, Long> {
 
     /** Usado por MembershipReminderJob — solo socios que alguna vez pagaron. */
     List<AppUser> findByRoleAndPaidAtIsNotNull(Role role);
+
+    /** Para la vista "Administradores" del super-admin — super-admins (sin gym_id) y gym-admins
+     *  de todos los gimnasios, cada una en su propia consulta por rol. */
+    List<AppUser> findByRole(Role role);
 }

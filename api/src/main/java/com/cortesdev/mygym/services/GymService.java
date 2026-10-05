@@ -9,6 +9,7 @@ import com.cortesdev.mygym.models.GymPlan;
 import com.cortesdev.mygym.models.Role;
 import com.cortesdev.mygym.models.dto.AdminCreateRequest;
 import com.cortesdev.mygym.models.dto.AdminResponse;
+import com.cortesdev.mygym.models.dto.GymAdminListItemResponse;
 import com.cortesdev.mygym.models.dto.AdminStatusUpdateRequest;
 import com.cortesdev.mygym.models.dto.BlockCreateRequest;
 import com.cortesdev.mygym.models.dto.BlockCreateResult;
@@ -58,9 +59,12 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Locale;
+import java.util.Objects;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -496,6 +500,43 @@ public class GymService {
                 .filter(u -> u.getRole() == Role.PROFESOR)
                 .orElseThrow(() -> new ProfesorNotFoundException(gymId, userId));
         appUserRepository.delete(profesor);
+    }
+
+    /** Vista "Administradores" del super-admin — solo lectura, cruza todos los gimnasios. Pedido
+     *  explícito del usuario (2026-10-05): poder VER quiénes son super-admin y qué gym-admin
+     *  pertenece a cada gimnasio, sin necesidad de abrir la ficha de cada gimnasio una por una.
+     *  Sin alta/edición/borrado acá a propósito — eso sigue siendo responsabilidad de cada
+     *  gimnasio (addAdmin/removeAdmin) o, para super-admins, un alta manual directo en la base
+     *  (decisión ya tomada, ver mygym_architecture: "sin autoregistro para ningún rol admin").
+     */
+    @Transactional(readOnly = true)
+    public List<AdminResponse> listSuperAdmins() {
+        return appUserRepository.findByRole(Role.SUPER_ADMIN).stream().map(this::toResponse).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<GymAdminListItemResponse> listAllGymAdmins() {
+        List<AppUser> admins = appUserRepository.findByRole(Role.GYM_ADMIN);
+        List<Long> gymIds = admins.stream().map(AppUser::getGymId).filter(Objects::nonNull).distinct().toList();
+        Map<Long, Gym> gymsById =
+                gymRepository.findAllById(gymIds).stream().collect(Collectors.toMap(Gym::getId, g -> g));
+        return admins.stream()
+                .map(admin -> {
+                    Gym gym = gymsById.get(admin.getGymId());
+                    return new GymAdminListItemResponse(
+                            admin.getId(),
+                            admin.getName(),
+                            admin.getEmail(),
+                            admin.isActive(),
+                            admin.getPhotoUrl(),
+                            admin.getCreatedAt(),
+                            admin.getLastLoginAt(),
+                            admin.getGymId(),
+                            gym != null ? gym.getName() : null,
+                            gym != null ? gym.getSlug() : null);
+                })
+                .sorted(Comparator.comparing(a -> a.gymName() == null ? "" : a.gymName()))
+                .toList();
     }
 
     // Acceso de solo-lectura a la demo comercial (ver Role.DEMO_ADMIN / SecurityConfig). Reusa

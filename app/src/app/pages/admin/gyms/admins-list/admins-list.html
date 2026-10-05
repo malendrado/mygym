@@ -1,0 +1,88 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/admin/gyms" text="Gimnasios" />
+    </ion-buttons>
+    <ion-title>Administradores</ion-title>
+  </ion-toolbar>
+  <ion-toolbar>
+    <ion-segment [value]="tab()" (ionChange)="setTab($any($event.detail.value))">
+      <ion-segment-button value="super">
+        <ion-icon name="shield-checkmark-outline" aria-hidden="true"></ion-icon>
+        <ion-label>Super-admins ({{ superAdmins().length }})</ion-label>
+      </ion-segment-button>
+      <ion-segment-button value="gym">
+        <ion-icon name="people-outline" aria-hidden="true"></ion-icon>
+        <ion-label>Admins de gimnasios ({{ gymAdmins().length }})</ion-label>
+      </ion-segment-button>
+    </ion-segment>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="admins-content">
+  @if (status() === 'loading') {
+    <div class="admins-loading"><ion-spinner name="crescent"></ion-spinner></div>
+  } @else if (status() === 'error') {
+    <ion-text color="danger"><p>No pudimos cargar los administradores. Intenta nuevamente.</p></ion-text>
+  } @else if (tab() === 'super') {
+    @if (superAdmins().length === 0) {
+      <div class="admins-empty">
+        <ion-icon name="shield-checkmark-outline" aria-hidden="true"></ion-icon>
+        <p>No hay super-admins para mostrar.</p>
+      </div>
+    } @else {
+      <div class="admin-list">
+        @for (admin of superAdmins(); track admin.id) {
+          <div class="admin-card">
+            @if (admin.photoUrl) {
+              <img [src]="admin.photoUrl" alt="" class="admin-card__avatar" />
+            } @else {
+              <div class="admin-card__avatar admin-card__avatar--placeholder">{{ initials(admin.name) }}</div>
+            }
+            <div class="admin-card__info">
+              <p class="admin-card__name">{{ admin.name }}</p>
+              <p class="admin-card__email">{{ admin.email }}</p>
+              <p class="admin-card__meta">{{ admin.lastLoginAt ? ('Entró por última vez: ' + formatDate(admin.lastLoginAt)) : 'Nunca entró' }}</p>
+            </div>
+          </div>
+        }
+      </div>
+    }
+  } @else {
+    @if (gymAdmins().length === 0) {
+      <div class="admins-empty">
+        <ion-icon name="people-outline" aria-hidden="true"></ion-icon>
+        <p>No hay administradores de gimnasio para mostrar.</p>
+      </div>
+    } @else {
+      <div class="admin-list">
+        @for (admin of gymAdmins(); track admin.id) {
+          <div class="admin-card" [class.admin-card--inactive]="!admin.active">
+            @if (admin.photoUrl) {
+              <img [src]="admin.photoUrl" alt="" class="admin-card__avatar" />
+            } @else {
+              <div class="admin-card__avatar admin-card__avatar--placeholder">{{ initials(admin.name) }}</div>
+            }
+            <div class="admin-card__info">
+              <p class="admin-card__name">
+                {{ admin.name }}
+                @if (!admin.active) {
+                  <span class="admin-card__badge">Inactivo</span>
+                }
+              </p>
+              <p class="admin-card__email">{{ admin.email }}</p>
+              <p class="admin-card__meta">
+                @if (admin.gymName) {
+                  <span class="admin-card__gym">{{ admin.gymName }}</span>
+                } @else {
+                  <span class="admin-card__gym-missing">Sin gimnasio asignado</span>
+                }
+                · {{ admin.lastLoginAt ? ('entró por última vez ' + formatDate(admin.lastLoginAt)) : 'nunca entró' }}
+              </p>
+            </div>
+          </div>
+        }
+      </div>
+    }
+  }
+</ion-content>

@@ -84,6 +84,10 @@ export const webRoutes: Routes = [
           import('./pages/admin/gyms/deletion-audits/deletion-audits').then((m) => m.DeletionAudits),
       },
       {
+        path: 'admins',
+        loadComponent: () => import('./pages/admin/gyms/admins-list/admins-list').then((m) => m.AdminsList),
+      },
+      {
         path: ':publicId',
         loadComponent: () => import('./pages/admin/gyms/gym-form/gym-form').then((m) => m.GymForm),
       },

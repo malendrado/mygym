@@ -23,6 +23,7 @@ import {
   GymBlock,
   GymSummary,
   GymConfigUpdateRequest,
+  GymAdminListItem,
   GymDeletionAudit,
   GymClosure,
   GymClosureCreateRequest,
@@ -358,6 +359,15 @@ export class GymService {
 
   listDeletionAudits(): Observable<GymDeletionAudit[]> {
     return this.http.get<GymDeletionAudit[]>(`${this.base}/deletion-audits`);
+  }
+
+  /** Vista "Administradores" del super-admin — solo lectura, cruza todos los gimnasios. */
+  listSuperAdmins(): Observable<Admin[]> {
+    return this.http.get<Admin[]>(`${this.base}/super-admins`);
+  }
+
+  listAllGymAdmins(): Observable<GymAdminListItem[]> {
+    return this.http.get<GymAdminListItem[]>(`${this.base}/admins`);
   }
 
   /** Scoped to the logged-in gym owner's own gym (GYM_ADMIN) — gymId comes from their JWT, not the URL. */

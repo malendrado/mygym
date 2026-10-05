@@ -10,6 +10,7 @@ import com.cortesdev.mygym.models.dto.BlockCreateRequest;
 import com.cortesdev.mygym.models.dto.BlockCreateResult;
 import com.cortesdev.mygym.models.dto.FlowAccountResponse;
 import com.cortesdev.mygym.models.dto.FlowAccountUpdateRequest;
+import com.cortesdev.mygym.models.dto.GymAdminListItemResponse;
 import com.cortesdev.mygym.models.dto.GymClosureCreateRequest;
 import com.cortesdev.mygym.models.dto.GymClosurePreviewResponse;
 import com.cortesdev.mygym.models.dto.GymClosureResponse;
@@ -379,6 +380,17 @@ public class GymController {
     @GetMapping("/deletion-audits")
     public List<GymDeletionAuditResponse> listDeletionAudits() {
         return gymDisconnectionService.listAudits();
+    }
+
+    /** Vista "Administradores" del super-admin — solo lectura, ver GymService.listSuperAdmins. */
+    @GetMapping("/super-admins")
+    public List<AdminResponse> listSuperAdmins() {
+        return gymService.listSuperAdmins();
+    }
+
+    @GetMapping("/admins")
+    public List<GymAdminListItemResponse> listAllGymAdmins() {
+        return gymService.listAllGymAdmins();
     }
 
     // Cierre de emergencia (ver GymClosureService) — contraparte SUPER_ADMIN de

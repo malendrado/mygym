@@ -246,6 +246,22 @@ export interface Admin {
   memberTourStep: number | null;
 }
 
+/** Fila de la vista "Administradores" del super-admin (GET /api/gyms/admins) — a diferencia de
+ *  Admin (scoped a un solo gym), cada fila trae su propio gymName/gymSlug porque mezcla
+ *  gym-admins de gimnasios distintos. */
+export interface GymAdminListItem {
+  id: number;
+  name: string;
+  email: string;
+  active: boolean;
+  photoUrl: string | null;
+  createdAt: string;
+  lastLoginAt: string | null;
+  gymId: number | null;
+  gymName: string | null;
+  gymSlug: string | null;
+}
+
 export interface CreateGymRequest {
   name: string;
   slug: string;

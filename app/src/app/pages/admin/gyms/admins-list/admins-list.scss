@@ -1,0 +1,117 @@
+.admins-content {
+  --background: var(--brand-ink);
+  --padding-start: 1.25rem;
+  --padding-end: 1.25rem;
+  --padding-top: 1.5rem;
+  --padding-bottom: 3rem;
+}
+
+.admins-loading {
+  display: flex;
+  justify-content: center;
+  padding: 3rem 0;
+}
+
+.admins-empty {
+  text-align: center;
+  padding: 3rem 1.5rem;
+  border: 1px dashed var(--brand-ink-surface-2);
+  border-radius: 16px;
+
+  ion-icon {
+    font-size: 2.5rem;
+    color: var(--brand-text-dim);
+  }
+
+  p {
+    margin: 0.75rem 0 0;
+    color: var(--brand-text-dim);
+  }
+}
+
+.admin-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.admin-card {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  border: 1px solid var(--brand-ink-surface-2);
+  border-radius: 14px;
+  padding: 0.85rem 1.1rem;
+  background: var(--brand-ink-surface);
+
+  &--inactive {
+    opacity: 0.6;
+  }
+
+  &__avatar {
+    flex-shrink: 0;
+    width: 42px;
+    height: 42px;
+    border-radius: 999px;
+    object-fit: cover;
+
+    &--placeholder {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--brand-ink-surface-2);
+      color: var(--brand-accent);
+      font-family: var(--brand-font-heading);
+      font-weight: 700;
+      font-size: 0.95rem;
+    }
+  }
+
+  &__info {
+    min-width: 0;
+  }
+
+  &__name {
+    margin: 0;
+    font-weight: 600;
+    font-size: 0.95rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  &__email {
+    margin: 0.1rem 0 0;
+    font-size: 0.82rem;
+    color: var(--brand-text-dim);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__meta {
+    margin: 0.25rem 0 0;
+    font-size: 0.78rem;
+    color: var(--brand-text-dim);
+  }
+
+  &__gym {
+    color: var(--brand-text);
+    font-weight: 600;
+  }
+
+  &__gym-missing {
+    color: var(--ion-color-danger);
+  }
+
+  &__badge {
+    font-size: 0.68rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ion-color-danger);
+    border: 1px solid var(--ion-color-danger);
+    border-radius: 999px;
+    padding: 0.1rem 0.5rem;
+  }
+}
