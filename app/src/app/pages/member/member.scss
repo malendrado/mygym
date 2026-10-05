@@ -1181,6 +1181,7 @@ ion-segment-button.segment-button-checked {
 // deja claro que lo que se está mirando es una demostración, no la cuenta del prospecto.
 .demo-preview-banner {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.4rem;
   padding: 0.5rem 1rem;
@@ -1188,6 +1189,15 @@ ion-segment-button.segment-button-checked {
   color: var(--brand-text);
   font-size: 0.8rem;
   font-weight: 500;
+
+  &__text {
+    flex: 1 1 200px;
+  }
+
+  ion-button {
+    flex-shrink: 0;
+    margin: 0;
+  }
 
   ion-icon {
     flex-shrink: 0;

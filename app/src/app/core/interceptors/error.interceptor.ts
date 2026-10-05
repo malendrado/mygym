@@ -10,7 +10,7 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
   return next(req).pipe(
     catchError((err: HttpErrorResponse) => {
       // 410: el acceso a la demo (Role.DEMO_ADMIN) venció — ver DemoAccessService/
-      // DemoAccessExpiryFilter en el backend. Pasa tanto en el primer login después de las 48h
+      // DemoAccessExpiryFilter en el backend. Pasa tanto en el primer login después de los 7 días
       // como a mitad de una sesión ya abierta (el JWT en sí dura 30 días). Nunca dejamos que
       // esto siga como un error más: se limpia la sesión acá mismo y se manda al formulario de
       // contacto — swallow total (EMPTY) para que ningún subscriber downstream compita

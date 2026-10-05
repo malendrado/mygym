@@ -236,10 +236,14 @@ export interface Admin {
   /** Foto de perfil de Google — null si nunca se logueó con Google. */
   photoUrl: string | null;
   /** Cuándo se creó este acceso — para un demo admin, también "cuándo se invitó". El vencimiento
-   *  a 48h de la demo se calcula acá en el frontend a partir de este campo. */
+   *  a 7 días de la demo se calcula acá en el frontend a partir de este campo. */
   createdAt: string;
   /** Null si nunca entró con Google. */
   lastLoginAt: string | null;
+  /** Paso más alto alcanzado en cada tour guiado de la demo — null si todavía no lo abrió.
+   *  Solo aplica a un DEMO_ADMIN, siempre null para un admin real. */
+  adminTourStep: number | null;
+  memberTourStep: number | null;
 }
 
 export interface CreateGymRequest {

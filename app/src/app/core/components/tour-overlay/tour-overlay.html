@@ -1,0 +1,50 @@
+@if (tourService.isOpen() && tourService.currentStep(); as step) {
+  <div class="tour-overlay" role="dialog" aria-modal="true" [attr.aria-label]="step.title">
+    @if (rect(); as r) {
+      <div
+        class="tour-overlay__hole"
+        [style.top.px]="r.top"
+        [style.left.px]="r.left"
+        [style.width.px]="r.width"
+        [style.height.px]="r.height"
+      ></div>
+    } @else {
+      <div class="tour-overlay__backdrop"></div>
+    }
+
+    <div
+      class="tour-card"
+      [class.tour-card--visible]="visible()"
+      [class.tour-card--above]="cardPlacement() === 'above'"
+      [style.top]="cardStyle().top"
+      [style.bottom]="cardStyle().bottom"
+      [style.left]="cardStyle().left"
+    >
+      <div class="tour-card__header">
+        <span class="tour-card__step">Paso {{ tourService.currentIndex() + 1 }} de {{ tourService.totalSteps() }}</span>
+        <button type="button" class="tour-card__close" (click)="skip()" aria-label="Saltar el tour">
+          <ion-icon name="close-outline" aria-hidden="true"></ion-icon>
+        </button>
+      </div>
+      <h3 class="tour-card__title">{{ step.title }}</h3>
+      <p class="tour-card__body">{{ step.body }}</p>
+      <div class="tour-card__actions">
+        <ion-button fill="clear" size="small" (click)="skip()">Saltar</ion-button>
+        <div class="tour-card__nav">
+          @if (!tourService.isFirstStep()) {
+            <ion-button fill="outline" size="small" (click)="back()">
+              <ion-icon name="arrow-back-outline" slot="start" aria-hidden="true"></ion-icon>
+              Atrás
+            </ion-button>
+          }
+          <ion-button size="small" (click)="next()">
+            {{ tourService.isLastStep() ? 'Listo' : 'Siguiente' }}
+            @if (!tourService.isLastStep()) {
+              <ion-icon name="arrow-forward-outline" slot="end" aria-hidden="true"></ion-icon>
+            }
+          </ion-button>
+        </div>
+      </div>
+    </div>
+  </div>
+}

@@ -35,6 +35,10 @@
         <ion-icon name="eye-outline" slot="start" aria-hidden="true"></ion-icon>
         Ver como socio
       </ion-button>
+      <ion-button size="small" [fill]="tourSeen.adminTourSeen() ? 'outline' : 'solid'" (click)="startAdminTour()">
+        <ion-icon name="play-outline" slot="start" aria-hidden="true"></ion-icon>
+        Ver tour
+      </ion-button>
     </div>
   }
   <div class="admin-identity-bar">{{ adminFirstName() }} · {{ sectionLabel() }}</div>
@@ -114,6 +118,19 @@
         <p class="gym-detail-stat__label">Login con Google</p>
       </div>
     </div>
+
+    @if (isDemoAdmin()) {
+      <ion-card class="demo-cta-card" data-tour="demo-cta">
+        <ion-card-content>
+          <p class="demo-cta-card__title">¿Quieres esto para tu gimnasio?</p>
+          <p class="item-hint">Escríbenos y lo conversamos — sin compromiso.</p>
+          <ion-button class="demo-cta-card__link" [href]="demoWhatsappUrl" target="_blank" rel="noopener">
+            <ion-icon name="logo-whatsapp" slot="start" aria-hidden="true"></ion-icon>
+            Quiero esto para mi gimnasio
+          </ion-button>
+        </ion-card-content>
+      </ion-card>
+    }
 
     <p class="member-stats-heading">
       <ion-icon name="people-outline" aria-hidden="true"></ion-icon>
@@ -414,7 +431,7 @@
           <ion-button size="small" fill="outline" (click)="openSeriesModal()" [disabled]="seriesCreating()">
             {{ seriesCreating() ? 'Generando...' : 'Generar bloques' }}
           </ion-button>
-          <ion-button size="small" (click)="openAddBlock()" [disabled]="seriesCreating()">Agregar bloque</ion-button>
+          <ion-button data-tour="blocks-add" size="small" (click)="openAddBlock()" [disabled]="seriesCreating()">Agregar bloque</ion-button>
         </div>
       </ion-card-header>
       <ion-card-content>
@@ -596,7 +613,7 @@
           Planes de membresía
         </ion-card-title>
         <div class="card-header-row__actions">
-          <ion-button size="small" (click)="openAddPlan()">Agregar plan</ion-button>
+          <ion-button data-tour="plans-add" size="small" (click)="openAddPlan()">Agregar plan</ion-button>
         </div>
       </ion-card-header>
       <ion-card-content>
@@ -661,7 +678,7 @@
       <ion-icon name="people-outline" aria-hidden="true"></ion-icon>
       Estado de tus socios
     </p>
-    <div class="member-stats">
+    <div class="member-stats" data-tour="members-stats">
       <div
         class="member-stat member-stat--active"
         role="button"
@@ -1072,7 +1089,7 @@
       </ion-card-content>
     </ion-card>
 
-    <ion-card>
+    <ion-card data-tour="branding-color">
       <ion-card-header class="card-header-row">
         <ion-card-title>
           <ion-icon name="color-palette-outline" aria-hidden="true"></ion-icon>
@@ -1230,7 +1247,7 @@
     </ion-card>
   } @else if (section() === 'screens') {
     @if (isDemoAdmin()) {
-      <ion-card class="tv-preview-card">
+      <ion-card class="tv-preview-card" data-tour="screens-tv">
         <ion-card-header>
           <ion-card-title>
             <ion-icon name="tv-outline" aria-hidden="true"></ion-icon>
@@ -1315,7 +1332,7 @@
       </ion-card-content>
     </ion-card>
   } @else if (section() === 'history') {
-    <ion-card>
+    <ion-card data-tour="history">
       <ion-card-header>
         <ion-card-title>
           <ion-icon name="calendar-outline" aria-hidden="true"></ion-icon>
@@ -1501,7 +1518,7 @@
           <ion-icon name="ban-outline" aria-hidden="true"></ion-icon>
           Cierre de emergencia
         </ion-card-title>
-        <ion-button fill="outline" color="danger" (click)="openClosureModal()">Cerrar gimnasio</ion-button>
+        <ion-button data-tour="closures-open" fill="outline" color="danger" (click)="openClosureModal()">Cerrar gimnasio</ion-button>
       </ion-card-header>
       <ion-card-content>
         <p class="item-hint">
@@ -1589,4 +1606,5 @@
     </ion-modal>
   }
 </ion-content>
+<app-tour-overlay />
 }

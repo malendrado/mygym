@@ -32,6 +32,21 @@ export class LegalFaq {
           answer:
             'Sí. Puedes subir tu logo, elegir tu color y personalizar la información de tu gimnasio (fotos, descripción, redes sociales, WhatsApp).',
         },
+        {
+          question: '¿En qué se diferencia mygym de otro software de gestión de gimnasios?',
+          answer:
+            'mygym está pensado para la realidad de un gimnasio en Chile: pagas en pesos chilenos, tus socios pagan con Webpay o transferencia, y el soporte es en español. Además tiene funciones pensadas para el día a día de un box: pantalla de TV en la recepción con check-in por código QR (sin comprar ningún equipo), cierre de emergencia con un clic por fuerza mayor, y una lista de espera que avisa por email apenas se libera un cupo.',
+        },
+        {
+          question: '¿Puedo probar mygym antes de contratarlo?',
+          answer:
+            'Sí. Te damos acceso por 7 días a una demo: un gimnasio de ejemplo, con datos ficticios, para que recorras el panel de administración y la vista de tus socios tal como funcionan de verdad. Es de solo lectura: puedes explorar todo, pero nada de lo que hagas se guarda.',
+        },
+        {
+          question: '¿Tengo que cargar a mano todos mis socios?',
+          answer:
+            'No. Puedes subir tu planilla de socios desde Excel, con su plan y las clases que ya usaron, y te mostramos fila por fila qué quedó bien y qué hay que revisar antes de confirmar la carga.',
+        },
       ],
     },
     {
@@ -55,7 +70,7 @@ export class LegalFaq {
         {
           question: '¿mygym cobra alguna comisión sobre lo que pagan mis socios?',
           answer:
-            'No. mygym no cobra comisión por socio ni por transacción — pagas un valor fijo mensual según el plan que corresponda a la cantidad de socios activos de tu gimnasio: Empieza (hasta 100 socios, $39.990/mes), Crece (hasta 400 socios, $69.990/mes) o Escala (más de 400 socios, precio a medida). Puedes subir o bajar de plan cuando lo necesites.',
+            'No. mygym no cobra comisión por socio ni por transacción — pagas un valor fijo mensual según el plan que corresponda a la cantidad de socios activos de tu gimnasio: Empieza (hasta 100 socios, $29.990/mes + IVA), Crece (hasta 400 socios, $59.990/mes + IVA) o Escala (más de 400 socios, precio a medida). Puedes subir o bajar de plan cuando lo necesites.',
         },
       ],
     },

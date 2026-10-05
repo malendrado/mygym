@@ -50,6 +50,7 @@ export class GymService {
   private readonly myGymBase = `${environment.apiUrl}/api/gym-admin/gym`;
   private readonly publicGymsBase = `${environment.apiUrl}/api/public/gyms`;
   private readonly publicAnalyticsBase = `${environment.apiUrl}/api/public/analytics`;
+  private readonly tourProgressBase = `${environment.apiUrl}/api/gym-admin/tour-progress`;
   private readonly meBase = `${environment.apiUrl}/api/me`;
 
   /** No auth required — powers the public join page for a specific gym. */
@@ -80,6 +81,17 @@ export class GymService {
   /** SUPER_ADMIN only — panel de Visitas en /admin/gyms. */
   getAnalyticsSummary(): Observable<AnalyticsSummary> {
     return this.http.get<AnalyticsSummary>(`${this.base}/analytics/summary`);
+  }
+
+  /** Beacon fire-and-forget del tour guiado de la demo — mismo patrón que recordVisit: nunca
+   *  debe interrumpir el tour que lo dispara. Lo llama un DEMO_ADMIN (o GYM_ADMIN si este mismo
+   *  endpoint se reusa como onboarding más adelante), nunca un socio — por eso no vive en /api/me. */
+  recordTourStep(tour: 'ADMIN' | 'MEMBER', step: number): void {
+    this.http.post(this.tourProgressBase, { tour, step }).subscribe({
+      error: () => {
+        /* Best-effort: si falla, el tour sigue andando igual. */
+      },
+    });
   }
 
   /** Branding for the logged-in member's own gym — gymId comes from their JWT, not a param. */

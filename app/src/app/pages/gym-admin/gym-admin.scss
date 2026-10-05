@@ -168,6 +168,24 @@ ion-segment-button.segment-button-checked {
   }
 }
 
+.demo-cta-card {
+  margin: 0 0 1rem;
+  --background: color-mix(in srgb, var(--brand-accent) 10%, var(--gym-panel-card, var(--brand-ink-surface-2)));
+  border: 1px solid color-mix(in srgb, var(--brand-accent) 35%, transparent);
+
+  &__title {
+    margin: 0 0 0.2rem;
+    font-weight: 700;
+    color: var(--brand-text);
+  }
+
+  &__link {
+    margin-top: 0.6rem;
+    --background: #25d366;
+    --color: #0b2e1a;
+  }
+}
+
 // Antes era una fila ion-item por bloque (lista larga hacia abajo) — mismo
 // criterio ya aplicado en /member y en .plan-grid/.plan-card de acá mismo:
 // tarjetas chicas, 2-3 por línea, en vez de una fila completa por bloque.

@@ -13,6 +13,15 @@ No. Tanto tu panel de administración como la app de tus socios funcionan desde 
 **¿Puedo personalizar mi marca?**
 Sí. Puedes subir tu logo, elegir tu color y personalizar la información de tu gimnasio (fotos, descripción, redes sociales, WhatsApp).
 
+**¿En qué se diferencia mygym de otro software de gestión de gimnasios?**
+mygym está pensado para la realidad de un gimnasio en Chile: pagas en pesos chilenos, tus socios pagan con Webpay o transferencia, y el soporte es en español. Además tiene funciones pensadas para el día a día de un box: pantalla de TV en la recepción con check-in por código QR (sin comprar ningún equipo), cierre de emergencia con un clic por fuerza mayor, y una lista de espera que avisa por email apenas se libera un cupo.
+
+**¿Puedo probar mygym antes de contratarlo?**
+Sí. Te damos acceso por 7 días a una demo: un gimnasio de ejemplo, con datos ficticios, para que recorras el panel de administración y la vista de tus socios tal como funcionan de verdad. Es de solo lectura: puedes explorar todo, pero nada de lo que hagas se guarda.
+
+**¿Tengo que cargar a mano todos mis socios?**
+No. Puedes subir tu planilla de socios desde Excel, con su plan y las clases que ya usaron, y te mostramos fila por fila qué quedó bien y qué hay que revisar antes de confirmar la carga.
+
 ## Pagos y dinero
 
 **¿Cómo pagan mis socios?**
@@ -27,8 +36,8 @@ Los reembolsos a tus socios los gestionas tú directamente como dueño del gimna
 **¿mygym cobra alguna comisión sobre lo que pagan mis socios?**
 No. mygym no cobra comisión por socio ni por transacción — pagas un valor fijo mensual según el plan que corresponda a la cantidad de socios activos de tu gimnasio:
 
-- **Empieza** — hasta 100 socios activos: $39.990/mes.
-- **Crece** — hasta 400 socios activos: $69.990/mes.
+- **Empieza** — hasta 100 socios activos: $29.990/mes + IVA.
+- **Crece** — hasta 400 socios activos: $59.990/mes + IVA.
 - **Escala** — más de 400 socios activos: precio a medida.
 
 Puedes subir o bajar de plan cuando lo necesites.

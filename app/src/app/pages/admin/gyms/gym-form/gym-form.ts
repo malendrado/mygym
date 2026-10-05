@@ -969,10 +969,10 @@ export class GymForm implements OnDestroy {
     return (first + last).toUpperCase();
   }
 
-  // Mismas 48h que DemoAccessService.DEMO_ACCESS_TTL (backend) — se calcula acá en vez de que
+  // Mismos 7 días que DemoAccessService.DEMO_ACCESS_TTL (backend) — se calcula acá en vez de que
   // el backend mande un expiresAt porque createdAt ya alcanza y evita duplicar la constante en
   // dos lugares con el riesgo de que se desincronicen.
-  private static readonly DEMO_ACCESS_HOURS = 48;
+  private static readonly DEMO_ACCESS_HOURS = 7 * 24;
 
   protected demoStatusLabel(admin: Admin): string {
     return admin.lastLoginAt ? 'Ya entró' : 'Invitado';
@@ -992,6 +992,27 @@ export class GymForm implements OnDestroy {
       return 'Nunca entró';
     }
     return `Entró hace ${this.durationLabel(Date.now() - new Date(admin.lastLoginAt).getTime())}`;
+  }
+
+  // Mismo total de pasos que ADMIN_TOUR_STEPS.length / MEMBER_TOUR_STEPS.length en
+  // tour.service.ts — duplicado a propósito acá (mismo patrón que DEMO_ACCESS_HOURS arriba) para
+  // no importar el servicio del tour solo por esta etiqueta.
+  private static readonly ADMIN_TOUR_TOTAL_STEPS = 8;
+  private static readonly MEMBER_TOUR_TOTAL_STEPS = 5;
+
+  protected tourProgressLabel(step: number | null, total: number): string {
+    if (step == null) {
+      return 'Sin empezar';
+    }
+    return step >= total ? 'Completo' : `Paso ${step}/${total}`;
+  }
+
+  protected adminTourLabel(admin: Admin): string {
+    return this.tourProgressLabel(admin.adminTourStep, GymForm.ADMIN_TOUR_TOTAL_STEPS);
+  }
+
+  protected memberTourLabel(admin: Admin): string {
+    return this.tourProgressLabel(admin.memberTourStep, GymForm.MEMBER_TOUR_TOTAL_STEPS);
   }
 
   private durationLabel(ms: number): string {

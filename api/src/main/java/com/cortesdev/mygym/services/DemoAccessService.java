@@ -9,18 +9,18 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 /**
- * Acceso de solo-lectura a la demo comercial (Role.DEMO_ADMIN): dura 48 horas desde que el
+ * Acceso de solo-lectura a la demo comercial (Role.DEMO_ADMIN): dura 7 días desde que el
  * super-admin lo otorga (createdAt), sin reactivación — pedido explícito del usuario: "si quiere
  * volver al demo el super admin lo ingresa de nuevo". Usado desde dos lugares que necesitan la
  * MISMA lógica de expirar+borrar: AuthService (primer intento de login después de vencido) y
- * DemoAccessExpiryFilter (una sesión ya logueada que sigue viva más allá de las 48h — el JWT en
- * sí dura 30 días, así que sin este chequeo por-request el límite de 48h no sería real).
+ * DemoAccessExpiryFilter (una sesión ya logueada que sigue viva más allá de los 7 días — el JWT en
+ * sí dura 30 días, así que sin este chequeo por-request el límite de 7 días no sería real).
  */
 @Service
 @RequiredArgsConstructor
 public class DemoAccessService {
 
-    public static final Duration DEMO_ACCESS_TTL = Duration.ofHours(48);
+    public static final Duration DEMO_ACCESS_TTL = Duration.ofDays(7);
 
     private final AppUserRepository appUserRepository;
 

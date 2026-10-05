@@ -284,7 +284,7 @@ export class Landing implements OnInit, AfterViewInit, OnDestroy {
     {
       name: 'Empieza',
       clients: 'Hasta 100 socios activos',
-      price: '$39.990',
+      price: '$29.990',
       showIva: true,
       highlight: false,
       items: ['Reservas y clases', 'Membresías y cobros', 'App para socios'],
@@ -292,7 +292,7 @@ export class Landing implements OnInit, AfterViewInit, OnDestroy {
     {
       name: 'Crece',
       clients: 'Hasta 400 socios activos',
-      price: '$69.990',
+      price: '$59.990',
       showIva: true,
       highlight: true,
       items: [

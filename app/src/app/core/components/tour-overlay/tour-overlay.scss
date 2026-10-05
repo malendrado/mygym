@@ -1,0 +1,137 @@
+// Spotlight con recorte: box-shadow con spread enorme sobre un div transparente posicionado
+// exactamente sobre el elemento real (ver tour-overlay.ts) — todo lo de alrededor queda oscuro,
+// el agujero deja pasar el elemento real sin taparlo. z-index alto porque el proyecto no tiene
+// una escala propia (nunca usó CDK Overlay) y esto debe quedar por encima de cualquier ion-card,
+// pero por debajo de un ion-modal/ion-toast si llegaran a coexistir (ver plan: los pasos evitan
+// a propósito abrir el tour mientras un modal está abierto).
+:host {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.tour-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+.tour-overlay__backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  pointer-events: auto;
+}
+
+.tour-overlay__hole {
+  position: fixed;
+  border-radius: 12px;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6);
+  transition: top 0.3s ease, left 0.3s ease, width 0.3s ease, height 0.3s ease;
+  pointer-events: none;
+}
+
+.tour-card {
+  position: fixed;
+  width: 320px;
+  max-width: calc(100vw - 32px);
+  background: var(--brand-ink-surface);
+  border: 1px solid var(--brand-ink-surface-2);
+  border-radius: 16px;
+  padding: 1.1rem 1.25rem 1rem;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  pointer-events: auto;
+  color: var(--brand-text);
+
+  opacity: 0;
+  transform: scale(0.95);
+  transform-origin: top center;
+  transition: opacity 0.2s ease-out, transform 0.2s ease-out;
+
+  &--above {
+    transform-origin: bottom center;
+  }
+
+  &--visible {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.tour-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.tour-card__step {
+  font-family: var(--brand-font-heading, inherit);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--brand-text-dim);
+}
+
+.tour-card__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  margin: -0.6rem -0.7rem -0.6rem 0;
+  border: none;
+  background: transparent;
+  color: var(--brand-text-dim);
+  cursor: pointer;
+  border-radius: 999px;
+
+  ion-icon {
+    font-size: 1.1rem;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      color: var(--brand-text);
+    }
+  }
+}
+
+.tour-card__title {
+  margin: 0 0 0.35rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.tour-card__body {
+  margin: 0 0 1rem;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: var(--brand-text-dim);
+}
+
+.tour-card__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.tour-card__nav {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tour-overlay__hole {
+    transition: none;
+  }
+
+  .tour-card {
+    transition: opacity 0.15s linear;
+    transform: none !important;
+  }
+}

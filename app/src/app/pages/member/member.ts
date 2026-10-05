@@ -22,6 +22,9 @@ import {
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { InstallBanner } from './install-banner/install-banner';
+import { TourOverlay } from '../../core/components/tour-overlay/tour-overlay';
+import { TourService, TourStep } from '../../core/services/tour.service';
+import { TourSeenService } from '../../core/services/tour-seen.service';
 import {
   addCircleOutline,
   alertCircleOutline,
@@ -41,6 +44,7 @@ import {
   logOutOutline,
   logoInstagram,
   logoWhatsapp,
+  playOutline,
   qrCodeOutline,
   sparklesOutline,
   trendingUpOutline,
@@ -89,6 +93,7 @@ addIcons({
   'create-outline': createOutline,
   'qr-code-outline': qrCodeOutline,
   'ban-outline': banOutline,
+  'play-outline': playOutline,
 });
 
 type Status = 'idle' | 'loading' | 'error';
@@ -274,6 +279,7 @@ const OCCURRENCES_LOADING_MESSAGES = [
     IonItem,
     InstallBanner,
     NgTemplateOutlet,
+    TourOverlay,
   ],
   templateUrl: './member.html',
   styleUrl: './member.scss',
@@ -289,6 +295,8 @@ export class MemberPage {
   private readonly toastController = inject(ToastController);
   private readonly destroyRef = inject(DestroyRef);
   private readonly demoPreviewService = inject(DemoPreviewService);
+  private readonly tourService = inject(TourService);
+  protected readonly tourSeen = inject(TourSeenService);
 
   // Modo "ver como socio" de la demo comercial (ruta /gym-admin/demo-preview, ver web.routes.ts):
   // ESTA misma pantalla, con los mismos datos y la misma UI que ve un socio real, pero leyendo
@@ -855,6 +863,50 @@ export class MemberPage {
     if (section === 'rutina') {
       this.loadPendingWorkout();
     }
+  }
+
+  // Tour guiado de la vista de socio (modo demo) — paso 4 (check-in QR) es deliberadamente sin
+  // interacción real: hoy un DEMO_ADMIN no puede llegar a /checkin/:code (roleGuard exige
+  // MEMBER) ni DemoPreviewService tiene un método de check-in, así que el tour solo explica el
+  // aviso que ya existe en una clase en curso, sin simular el escaneo (decisión explícita, ver
+  // plan de implementación). MEMBER_TOUR_STEPS.length debe coincidir con
+  // GymForm.MEMBER_TOUR_TOTAL_STEPS (duplicado ahí, ver comentario en gym-form.ts).
+  private readonly memberTourSteps: TourStep[] = [
+    {
+      title: 'Reserva en segundos',
+      body: 'Tu socio ve los cupos libres de cada clase y reserva con un toque.',
+      targetSelector: '[data-tour="reserve-book"]',
+      beforeShow: () => this.setSection('reservar'),
+    },
+    {
+      title: 'Si está llena, se anota',
+      body: 'Cuando una clase no tiene cupo, tu socio se anota en la lista de espera y le avisamos apenas se libera uno.',
+      targetSelector: '[data-tour="waitlist-join"]',
+      beforeShow: () => this.setSection('reservar'),
+    },
+    {
+      title: 'Elige su plan y paga',
+      body: 'Ve el precio y el cupo mensual de cada plan, y puede pagar en línea o por transferencia.',
+      targetSelector: '[data-tour="plans-grid"]',
+      beforeShow: () => this.setSection('reservar'),
+    },
+    {
+      title: 'Check-in con QR en la TV',
+      body: 'Mientras una clase está en curso, tu socio escanea el QR de la pantalla para marcar que llegó.',
+      targetSelector: '[data-tour="checkin-hint"]',
+      beforeShow: () => this.setSection('reservar'),
+    },
+    {
+      title: 'Memoria Viva: su rutina',
+      body: 'Después de marcar asistencia, anota qué hizo en la clase — su profesor lo ve antes de hablar con él.',
+      targetSelector: '[data-tour="workout-days"]',
+      beforeShow: () => this.setSection('rutina'),
+    },
+  ];
+
+  protected startMemberTour(): void {
+    this.tourSeen.markMemberTourSeen();
+    this.tourService.start('MEMBER', this.memberTourSteps);
   }
 
   // ---- "Memoria Viva": pestaña Rutina — ver WorkoutService (backend) para los 3 estados

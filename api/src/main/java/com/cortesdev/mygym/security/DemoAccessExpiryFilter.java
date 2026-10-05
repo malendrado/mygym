@@ -23,8 +23,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
  * El JWT de un DEMO_ADMIN vive 30 días (JwtService.EXPIRATION_DAYS) — sin este filtro, el límite
- * de 48h de DemoAccessService solo se respetaría en el momento del login (AuthService), y
- * cualquiera que ya haya entrado dentro de esas 48h se quedaría con acceso funcional por semanas.
+ * de 7 días de DemoAccessService solo se respetaría en el momento del login (AuthService), y
+ * cualquiera que ya haya entrado dentro de esos 7 días se quedaría con acceso funcional por semanas.
  * Corre en cada request autenticado como DEMO_ADMIN y aplica el mismo corte ahí también.
  */
 @Component

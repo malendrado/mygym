@@ -60,6 +60,11 @@ public class SecurityConfig {
                         // genérico hasRole("GYM_ADMIN") de abajo.
                         .requestMatchers("/api/gym-admin/members/*/workout/**")
                         .hasAnyRole("GYM_ADMIN", "PROFESOR")
+                        // El tour guiado de la demo también lo dispara un DEMO_ADMIN (no solo un
+                        // GYM_ADMIN real, si este mismo endpoint se reutiliza más adelante como
+                        // onboarding) — mismo gotcha de orden que arriba: va ANTES del genérico.
+                        .requestMatchers("/api/gym-admin/tour-progress")
+                        .hasAnyRole("GYM_ADMIN", "DEMO_ADMIN")
                         .requestMatchers("/api/gym-admin/**")
                         .hasRole("GYM_ADMIN")
                         .requestMatchers("/api/me/**")
@@ -71,7 +76,7 @@ public class SecurityConfig {
                 // ANTES de AuthorizationFilter: si el acceso demo ya venció, corta acá con 410
                 // sin llegar siquiera a evaluar los matchers de arriba (ver DemoAccessExpiryFilter
                 // — el JWT en sí sigue siendo válido por 30 días, este filtro es el único lugar
-                // que de verdad hace cumplir el límite de 48h en una sesión ya logueada).
+                // que de verdad hace cumplir el límite de 7 días en una sesión ya logueada).
                 .addFilterBefore(demoAccessExpiryFilter, AuthorizationFilter.class);
         return http.build();
     }

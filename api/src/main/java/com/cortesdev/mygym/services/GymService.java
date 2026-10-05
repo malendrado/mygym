@@ -1,6 +1,7 @@
 package com.cortesdev.mygym.services;
 
 import com.cortesdev.mygym.models.AppUser;
+import com.cortesdev.mygym.models.DemoTourProgress;
 import com.cortesdev.mygym.models.Gym;
 import com.cortesdev.mygym.models.GymBlock;
 import com.cortesdev.mygym.models.GymPhoto;
@@ -58,6 +59,7 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -80,6 +82,7 @@ public class GymService {
     private final ReservationRepository reservationRepository;
     private final AdminInviteEmailService adminInviteEmailService;
     private final MemberLifecycleEmailService memberLifecycleEmailService;
+    private final DemoTourService demoTourService;
 
     public GymResponse createGym(GymCreateRequest request) {
         if (gymRepository.existsBySlug(request.slug())) {
@@ -501,9 +504,10 @@ public class GymService {
     @Transactional(readOnly = true)
     public List<AdminResponse> listDemoAdmins(Long gymId) {
         findGymOrThrow(gymId);
-        return appUserRepository.findByGymIdAndRole(gymId, Role.DEMO_ADMIN).stream()
-                .map(this::toResponse)
-                .toList();
+        List<AppUser> demoAdmins = appUserRepository.findByGymIdAndRole(gymId, Role.DEMO_ADMIN);
+        Map<Long, List<DemoTourProgress>> progressByAdmin =
+                demoTourService.findProgressByAdminIds(demoAdmins.stream().map(AppUser::getId).toList());
+        return demoAdmins.stream().map(admin -> toResponse(admin, progressByAdmin)).toList();
     }
 
     public AdminResponse addDemoAdmin(Long gymId, AdminCreateRequest request) {
@@ -783,6 +787,23 @@ public class GymService {
     }
 
     private AdminResponse toResponse(AppUser admin) {
+        return toResponse(admin, Map.of());
+    }
+
+    /** progressByAdmin: ver listDemoAdmins — vacío para un admin real (GYM_ADMIN), que nunca
+     *  tiene fila en demo_tour_progress. */
+    private AdminResponse toResponse(AppUser admin, Map<Long, List<DemoTourProgress>> progressByAdmin) {
+        List<DemoTourProgress> progress = progressByAdmin.getOrDefault(admin.getId(), List.of());
+        Integer adminTourStep = progress.stream()
+                .filter(p -> "ADMIN".equals(p.getTour()))
+                .map(DemoTourProgress::getMaxStep)
+                .findFirst()
+                .orElse(null);
+        Integer memberTourStep = progress.stream()
+                .filter(p -> "MEMBER".equals(p.getTour()))
+                .map(DemoTourProgress::getMaxStep)
+                .findFirst()
+                .orElse(null);
         return new AdminResponse(
                 admin.getId(),
                 admin.getName(),
@@ -790,7 +811,9 @@ public class GymService {
                 admin.isActive(),
                 admin.getPhotoUrl(),
                 admin.getCreatedAt(),
-                admin.getLastLoginAt());
+                admin.getLastLoginAt(),
+                adminTourStep,
+                memberTourStep);
     }
 
     private BlockResponse toResponse(GymBlock block) {

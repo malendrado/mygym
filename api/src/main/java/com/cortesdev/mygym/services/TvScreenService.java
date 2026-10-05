@@ -57,7 +57,7 @@ public class TvScreenService {
 
     private static final Duration PAIRING_CODE_TTL = Duration.ofMinutes(10);
 
-    // A diferencia del acceso a la demo comercial (48h fijas, corte duro) — una TV es un
+    // A diferencia del acceso a la demo comercial (7 días fijos, corte duro) — una TV es un
     // dispositivo que se instala una vez y queda prendido meses/años. No tiene sentido un
     // vencimiento por tiempo fijo acá; en cambio, se apaga sola "por abandono" si deja de hacer
     // poll (se rompió, se desenchufó para siempre, el gym cerró) — así no queda un acceso

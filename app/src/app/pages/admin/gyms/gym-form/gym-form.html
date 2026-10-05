@@ -342,7 +342,7 @@
       <ion-card-content>
         <p class="item-hint">
           Acceso de solo lectura para prospectos — pueden recorrer el panel de administración y
-          "ver como socio" de este gym, pero no pueden modificar ni guardar nada. Dura 48 horas: pasado
+          "ver como socio" de este gym, pero no pueden modificar ni guardar nada. Dura 7 días: pasado
           ese plazo se borra solo y, si intenta entrar de nuevo, lo mandamos al formulario de contacto.
         </p>
         <ion-list lines="full">
@@ -368,6 +368,8 @@
                   </span>
                   <span class="demo-admin-detail">{{ lastLoginLabel(admin) }}</span>
                   <span class="demo-admin-detail">{{ demoExpiryLabel(admin) }}</span>
+                  <span class="demo-admin-detail">Tour admin: {{ adminTourLabel(admin) }}</span>
+                  <span class="demo-admin-detail">Tour socio: {{ memberTourLabel(admin) }}</span>
                 </p>
               </ion-label>
               <ion-button

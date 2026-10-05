@@ -59,12 +59,14 @@ import {
   linkOutline,
   logOutOutline,
   logoGoogle,
+  logoWhatsapp,
   megaphoneOutline,
   paperPlaneOutline,
   peopleOutline,
   personAddOutline,
   personCircleOutline,
   personOutline,
+  playOutline,
   pricetagOutline,
   refreshOutline,
   removeCircleOutline,
@@ -120,6 +122,9 @@ import { ImportMembersModal } from '../admin/gyms/import-members-modal/import-me
 import { WorkoutPlanModal } from '../admin/gyms/workout-plan-modal/workout-plan-modal';
 import { registerClassCategoryIcons, resolveClassCategoryIcon } from '../../core/utils/class-category';
 import { formatRut, rutFormatValidator } from '../../core/utils/rut';
+import { TourOverlay } from '../../core/components/tour-overlay/tour-overlay';
+import { TourService, TourStep } from '../../core/services/tour.service';
+import { TourSeenService } from '../../core/services/tour-seen.service';
 
 registerClassCategoryIcons();
 import {
@@ -171,6 +176,8 @@ addIcons({
   'barbell-outline': barbellOutline,
   'tv-outline': tvOutline,
   'ban-outline': banOutline,
+  'play-outline': playOutline,
+  'logo-whatsapp': logoWhatsapp,
 });
 
 type Status = 'idle' | 'loading' | 'saving';
@@ -406,6 +413,7 @@ const THEMED_ROOT_PROPERTIES = [
     WorkoutPlanModal,
     QuantityStepper,
     IonSpinner,
+    TourOverlay,
   ],
   templateUrl: './gym-admin.html',
   styleUrl: './gym-admin.scss',
@@ -421,6 +429,8 @@ export class GymAdmin implements OnDestroy {
   private readonly sanitizer = inject(DomSanitizer);
   private readonly toastController = inject(ToastController);
   private readonly alertController = inject(AlertController);
+  private readonly tourService = inject(TourService);
+  protected readonly tourSeen = inject(TourSeenService);
 
   protected readonly status = signal<Status>('idle');
   protected readonly section = signal<Section>('general');
@@ -824,6 +834,73 @@ export class GymAdmin implements OnDestroy {
     if (section === 'history') {
       this.loadHistoryAttendees();
     }
+  }
+
+  // Mismo número que WHATSAPP_NUMBER en landing.ts — duplicado a propósito, no vale la pena
+  // compartir una constante de 10 dígitos entre dos páginas que nunca se importan entre sí.
+  protected readonly demoWhatsappUrl = `https://wa.me/56964641042?text=${encodeURIComponent(
+    'Hola! Vi la demo de mygym y quiero esto para mi gimnasio.',
+  )}`;
+
+  // Pasos del tour guiado del panel admin — "crear plan" y "crear clase" van sí o sí (pedido
+  // explícito), el resto recorre lo que más diferencia a mygym de la competencia (ver memoria de
+  // proyecto mygym_competencia_boxpro). El tour vive en TourOverlay (genérico); acá solo se arma
+  // la lista de pasos específicos de esta página. ADMIN_TOUR_STEPS.length debe coincidir con
+  // GymForm.ADMIN_TOUR_TOTAL_STEPS (duplicado ahí, ver comentario en gym-form.ts).
+  private readonly adminTourSteps: TourStep[] = [
+    {
+      title: 'Crea tus planes de cobro',
+      body: 'Define precio y cupo mensual de cada plan — tus socios eligen uno de estos al pagar.',
+      targetSelector: '[data-tour="plans-add"]',
+      beforeShow: () => this.setSection('plans'),
+    },
+    {
+      title: 'Crea tus clases',
+      body: 'Cada bloque es una clase recurrente: día, horario y cupo. "Generar bloques" arma varias de una.',
+      targetSelector: '[data-tour="blocks-add"]',
+      beforeShow: () => this.setSection('blocks'),
+    },
+    {
+      title: 'El estado de cada socio, de un vistazo',
+      body: 'Activo, por vencer, vencido o sin pago — toca cualquiera para filtrar la lista al instante.',
+      targetSelector: '[data-tour="members-stats"]',
+      beforeShow: () => this.setSection('members'),
+    },
+    {
+      title: 'Tu marca, no la nuestra',
+      body: 'Tu color, tu logo — tus socios ven tu app, no una plantilla genérica.',
+      targetSelector: '[data-tour="branding-color"]',
+      beforeShow: () => this.setSection('branding'),
+    },
+    {
+      title: 'Pantalla de TV en la recepción',
+      body: 'La clase de ahora y el check-in por QR, sin comprar ningún equipo nuevo.',
+      targetSelector: '[data-tour="screens-tv"]',
+      beforeShow: () => this.setSection('screens'),
+    },
+    {
+      title: 'Cierre de emergencia',
+      body: 'Por fuerza mayor: cancela las clases afectadas y avisa a todos tus socios, con un clic.',
+      targetSelector: '[data-tour="closures-open"]',
+      beforeShow: () => this.setSection('closures'),
+    },
+    {
+      title: 'Historial de asistencia',
+      body: 'Revisa semana por semana quién vino a cada clase, no solo quién reservó.',
+      targetSelector: '[data-tour="history"]',
+      beforeShow: () => this.setSection('history'),
+    },
+    {
+      title: '¿Lo probamos con tu gimnasio?',
+      body: 'Escríbenos por WhatsApp y lo conversamos — sin compromiso.',
+      targetSelector: '[data-tour="demo-cta"]',
+      beforeShow: () => this.setSection('general'),
+    },
+  ];
+
+  protected startAdminTour(): void {
+    this.tourSeen.markAdminTourSeen();
+    this.tourService.start('ADMIN', this.adminTourSteps);
   }
 
   protected viewMembersByStatus(status: MembershipStatus): void {

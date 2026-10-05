@@ -40,7 +40,11 @@
     @if (isDemoPreview) {
       <div class="demo-preview-banner">
         <ion-icon name="eye-outline" aria-hidden="true"></ion-icon>
-        Así ve la app un socio de tu gimnasio — datos de ejemplo, solo lectura.
+        <span class="demo-preview-banner__text">Así ve la app un socio de tu gimnasio — datos de ejemplo, solo lectura.</span>
+        <ion-button size="small" [fill]="tourSeen.memberTourSeen() ? 'outline' : 'solid'" (click)="startMemberTour()">
+          <ion-icon name="play-outline" slot="start" aria-hidden="true"></ion-icon>
+          Ver tour
+        </ion-button>
       </div>
     }
     @if (closureNotice(); as notice) {
@@ -160,7 +164,7 @@
           @if (plansLoaded() && plans().length === 0) {
             <p class="item-hint">Tu gimnasio todavía no tiene planes configurados. Pregúntale al equipo cuándo estarán disponibles.</p>
           }
-          <div class="plan-grid">
+          <div class="plan-grid" data-tour="plans-grid">
             @for (plan of plans(); track plan.id) {
               <article class="plan-card" [class.plan-card--highlight]="plan.highlight">
                 @if (plan.highlight) {
@@ -323,6 +327,7 @@
                 [class.class-tile--past]="occurrence.past"
                 [class.class-tile--live]="isOccurrenceLive(occurrence)"
                 [class.class-tile--live-pending]="isOccurrenceLive(occurrence) && !occurrence.myCheckedInAt"
+                [attr.data-tour]="isOccurrenceLive(occurrence) && !occurrence.myCheckedInAt ? 'checkin-hint' : null"
               >
                 <p class="class-tile__title">
                   <ion-icon [name]="categoryIcon(occurrence.category)" aria-hidden="true"></ion-icon>
@@ -424,6 +429,7 @@
                       </button>
                     } @else {
                       <ion-button
+                        data-tour="waitlist-join"
                         expand="block"
                         fill="outline"
                         size="small"
@@ -435,6 +441,7 @@
                     }
                   } @else {
                     <ion-button
+                      data-tour="reserve-book"
                       expand="block"
                       fill="solid"
                       size="small"
@@ -740,7 +747,7 @@
     }
 
     <ng-template #workoutForm let-plan="plan">
-      <div class="workout-day-picker">
+      <div class="workout-day-picker" data-tour="workout-days">
         @for (day of plan?.days ?? []; track day.id) {
           <button
             type="button"
@@ -796,4 +803,5 @@
     }
     </div>
   </ion-content>
+  <app-tour-overlay />
 }
