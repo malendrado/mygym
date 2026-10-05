@@ -1,12 +1,12 @@
 import { Component, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { IonButton, IonContent, IonHeader, IonIcon, IonInput, IonItem, IonSpinner, IonText, IonTitle, IonToolbar } from '@ionic/angular';
+import { IonButton, IonContent, IonHeader, IonIcon, IonInput, IonItem, IonSpinner, IonTitle, IonToolbar } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { eyeOffOutline, eyeOutline } from 'ionicons/icons';
+import { alertCircleOutline, eyeOffOutline, eyeOutline } from 'ionicons/icons';
 import { AuthService } from '../../core/services/auth.service';
 import { AuthTokenPurpose, homeRouteForRole } from '../../core/models/auth.model';
 
-addIcons({ 'eye-outline': eyeOutline, 'eye-off-outline': eyeOffOutline });
+addIcons({ 'eye-outline': eyeOutline, 'eye-off-outline': eyeOffOutline, 'alert-circle-outline': alertCircleOutline });
 
 // Mismo criterio que login.ts/join.ts: pausa deliberada para que el mensaje de bienvenida se
 // alcance a leer antes de redirigir.
@@ -22,7 +22,7 @@ type Status = 'loading' | 'ready' | 'invalid' | 'saving' | 'welcome';
  */
 @Component({
   selector: 'app-activate',
-  imports: [IonHeader, IonToolbar, IonTitle, IonContent, IonText, IonSpinner, IonItem, IonInput, IonButton, IonIcon, RouterLink],
+  imports: [IonHeader, IonToolbar, IonTitle, IonContent, IonSpinner, IonItem, IonInput, IonButton, IonIcon, RouterLink],
   templateUrl: './activate.html',
   styleUrl: './activate.scss',
 })

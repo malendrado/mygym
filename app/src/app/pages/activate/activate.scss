@@ -26,6 +26,44 @@
     margin: 0;
     color: var(--brand-text-dim);
   }
+
+  // Mismo bug que login.scss/join.scss: el `p` de arriba (misma especificidad) se comía el
+  // color de cualquier mensaje de error — acá con mayor especificidad + fondo/ícono.
+  .activate-error {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 0.65rem 0.85rem;
+    border-radius: 12px;
+    background: rgba(var(--ion-color-danger-rgb), 0.14);
+    border: 1px solid rgba(var(--ion-color-danger-rgb), 0.4);
+    text-align: left;
+
+    ion-icon {
+      flex-shrink: 0;
+      margin-top: 0.1rem;
+      font-size: 1.1rem;
+      color: var(--ion-color-danger);
+    }
+
+    p {
+      margin: 0;
+      color: var(--ion-color-danger);
+      font-weight: 600;
+    }
+  }
+
+  .activate-hint--error {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: var(--ion-color-danger);
+    font-size: 0.85rem;
+
+    ion-icon {
+      font-size: 1rem;
+    }
+  }
 }
 
 .activate-loading {

@@ -1,13 +1,13 @@
 import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { IonButton, IonContent, IonHeader, IonIcon, IonInput, IonItem, IonSpinner, IonText, IonTitle, IonToolbar } from '@ionic/angular';
+import { IonButton, IonContent, IonHeader, IonIcon, IonInput, IonItem, IonSpinner, IonTitle, IonToolbar } from '@ionic/angular';
 import { GoogleSigninButtonDirective, SocialAuthService } from '@abacritt/angularx-social-login';
 import { addIcons } from 'ionicons';
-import { eyeOffOutline, eyeOutline } from 'ionicons/icons';
+import { alertCircleOutline, eyeOffOutline, eyeOutline } from 'ionicons/icons';
 import { AuthService } from '../../core/services/auth.service';
 import { homeRouteForRole } from '../../core/models/auth.model';
 
-addIcons({ 'eye-outline': eyeOutline, 'eye-off-outline': eyeOffOutline });
+addIcons({ 'eye-outline': eyeOutline, 'eye-off-outline': eyeOffOutline, 'alert-circle-outline': alertCircleOutline });
 
 // Si el callback de Google Identity Services nunca llega (bloqueado por un
 // navegador embebido tipo WhatsApp/Instagram, o por restricciones de cookies
@@ -28,7 +28,6 @@ type LoginMode = 'google' | 'password' | 'forgot';
     IonToolbar,
     IonTitle,
     IonContent,
-    IonText,
     IonSpinner,
     IonItem,
     IonInput,

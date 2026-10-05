@@ -16,6 +16,7 @@ import {
 import { GoogleSigninButtonDirective, SocialAuthService } from '@abacritt/angularx-social-login';
 import { addIcons } from 'ionicons';
 import {
+  alertCircleOutline,
   eyeOffOutline,
   eyeOutline,
   informationCircleOutline,
@@ -36,6 +37,7 @@ addIcons({
   'sparkles-outline': sparklesOutline,
   'eye-outline': eyeOutline,
   'eye-off-outline': eyeOffOutline,
+  'alert-circle-outline': alertCircleOutline,
 });
 
 type Status = 'loading' | 'ready' | 'not-found' | 'joining' | 'welcome';

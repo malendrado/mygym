@@ -40,6 +40,33 @@
     padding-top: 0.5rem;
   }
 
+  // Mismo bug que login.scss: `.join-card p { color: dim }` de arriba se comía el color del
+  // error (misma especificidad, ganaba por orden). Acá además fondo+borde+ícono, no solo texto.
+  .join-error {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+    padding: 0.65rem 0.85rem;
+    border-radius: 12px;
+    background: rgba(var(--ion-color-danger-rgb), 0.14);
+    border: 1px solid rgba(var(--ion-color-danger-rgb), 0.4);
+    text-align: left;
+
+    ion-icon {
+      flex-shrink: 0;
+      margin-top: 0.1rem;
+      font-size: 1.1rem;
+      color: var(--ion-color-danger);
+    }
+
+    p {
+      margin: 0;
+      color: var(--ion-color-danger);
+      font-weight: 600;
+    }
+  }
+
   // En mobile, .join-card__story y .join-card__action son solo agrupadores
   // semánticos (el contenido sigue apilado en una sola columna, igual que
   // antes de que existieran estos wrappers) — el split real de dos columnas

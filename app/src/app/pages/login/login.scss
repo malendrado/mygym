@@ -58,6 +58,34 @@
 // lee como "objeto sin diseñar"), la engarzamos en una cápsula con anillo de
 // acento lima — el mismo lenguaje visual que el resto de la marca — para que
 // el conjunto se sienta elegido a propósito, no un widget de terceros pegado.
+// El color solo (ion-text color="danger") se perdía contra `.login-card p` (ambas reglas
+// tienen la misma especificidad, y la de acá ganaba por orden) — además, color solo nunca
+// alcanza contraste suficiente a simple vista. Fondo + borde + ícono, no solo texto rojo.
+.login-card .login-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.65rem 0.85rem;
+  border-radius: 12px;
+  background: rgba(var(--ion-color-danger-rgb), 0.14);
+  border: 1px solid rgba(var(--ion-color-danger-rgb), 0.4);
+  text-align: left;
+
+  ion-icon {
+    flex-shrink: 0;
+    margin-top: 0.1rem;
+    font-size: 1.1rem;
+    color: var(--ion-color-danger);
+  }
+
+  p {
+    margin: 0;
+    color: var(--ion-color-danger);
+    font-weight: 600;
+  }
+}
+
 .google-auth {
   width: 100%;
   display: flex;

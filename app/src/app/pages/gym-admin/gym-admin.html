@@ -236,8 +236,8 @@
     }
 
     @if (!isProfesor()) {
-    <ion-card data-tour="flow-account">
-      <ion-card-header>
+    <ion-card>
+      <ion-card-header data-tour="flow-account">
         <ion-card-title>Cuenta Pago Online</ion-card-title>
       </ion-card-header>
       <ion-card-content>
@@ -348,8 +348,8 @@
       </ion-card-content>
     </ion-card>
 
-    <ion-card data-tour="bank-transfer">
-      <ion-card-header>
+    <ion-card>
+      <ion-card-header data-tour="bank-transfer">
         <ion-card-title>Transferencia bancaria</ion-card-title>
       </ion-card-header>
       <ion-card-content>
@@ -422,8 +422,8 @@
       </ion-card-content>
     </ion-card>
 
-    <ion-card data-tour="admin-add">
-      <ion-card-header>
+    <ion-card>
+      <ion-card-header data-tour="admin-add">
         <ion-card-title>
           <ion-icon name="shield-checkmark-outline" aria-hidden="true"></ion-icon>
           Administradores
@@ -819,8 +819,8 @@
       </div>
     </div>
 
-    <ion-card data-tour="members-add">
-      <ion-card-header>
+    <ion-card>
+      <ion-card-header data-tour="members-add">
         <ion-card-title>
           <ion-icon name="person-add-outline" aria-hidden="true"></ion-icon>
           Agregar socio
@@ -921,7 +921,7 @@
       </ion-card>
     }
 
-    <ion-card>
+    <ion-card id="members-list-card">
       <ion-card-header>
         <ion-card-title>
           <ion-icon name="people-outline" aria-hidden="true"></ion-icon>
@@ -1249,8 +1249,8 @@
       </ion-card-content>
     </ion-card>
 
-    <ion-card data-tour="branding-identity">
-      <ion-card-header>
+    <ion-card>
+      <ion-card-header data-tour="branding-identity">
         <ion-card-title>
           <ion-icon name="megaphone-outline" aria-hidden="true"></ion-icon>
           Identidad de tu gimnasio
@@ -1292,8 +1292,8 @@
       </ion-card-content>
     </ion-card>
 
-    <ion-card data-tour="branding-photos">
-      <ion-card-header class="card-header-row">
+    <ion-card>
+      <ion-card-header class="card-header-row" data-tour="branding-photos">
         <ion-card-title>
           <ion-icon name="images-outline" aria-hidden="true"></ion-icon>
           Fotos de tus instalaciones
@@ -1331,8 +1331,8 @@
     </ion-card>
   } @else if (section() === 'screens') {
     @if (isDemoAdmin()) {
-      <ion-card class="tv-preview-card" data-tour="screens-tv">
-        <ion-card-header>
+      <ion-card class="tv-preview-card">
+        <ion-card-header data-tour="screens-tv">
           <ion-card-title>
             <ion-icon name="tv-outline" aria-hidden="true"></ion-icon>
             Así se ve en una TV real
@@ -1353,8 +1353,8 @@
         </ion-card-content>
       </ion-card>
     }
-    <ion-card data-tour="screens-pairing">
-      <ion-card-header>
+    <ion-card>
+      <ion-card-header data-tour="screens-pairing">
         <ion-card-title>
           <ion-icon name="tv-outline" aria-hidden="true"></ion-icon>
           Pantallas de TV
@@ -1416,8 +1416,8 @@
       </ion-card-content>
     </ion-card>
   } @else if (section() === 'history') {
-    <ion-card data-tour="history">
-      <ion-card-header>
+    <ion-card>
+      <ion-card-header data-tour="history">
         <ion-card-title>
           <ion-icon name="calendar-outline" aria-hidden="true"></ion-icon>
           Historial

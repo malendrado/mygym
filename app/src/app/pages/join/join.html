@@ -173,9 +173,10 @@
         }
 
         @if (errorMessage()) {
-          <ion-text color="danger">
+          <div class="join-error" role="alert">
+            <ion-icon name="alert-circle-outline" aria-hidden="true"></ion-icon>
             <p>{{ errorMessage() }}</p>
-          </ion-text>
+          </div>
         }
       </div>
     </div>

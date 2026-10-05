@@ -21,11 +21,18 @@ const SPOTLIGHT_PADDING = 8;
 const CARD_GAP = 16;
 const VIEWPORT_MARGIN = 16;
 // scrollIntoView (disparado por beforeShow o por este componente) necesita terminar antes de
-// medir getBoundingClientRect — no hay evento "scroll terminó" confiable entre navegadores, así
-// que se espera un tiempo fijo corto. Mismo criterio que el resto de la app para animaciones
-// "ocasionales" (ver framework de decisión de animación): no es momento crítico, un delay fijo
-// es aceptable acá.
-const SETTLE_DELAY_MS = 220;
+// medir getBoundingClientRect. Un polling con techo fijo (15 intentos / 900ms) parecía
+// suficiente para un target cerca de la vista, pero un scroll suave largo (ej. el último socio
+// "Sin pago" en una lista de 28) tardó medido hasta 1.3s en asentarse — el techo cortaba antes
+// de que terminara y la medición quedaba a mitad de camino (bug real reportado 2026-10-05, el
+// hueco del spotlight no coincidía con el botón real). Reemplazado por detección real: un
+// listener de 'scroll' en fase de captura (los eventos de scroll no burbujean, pero sí pasan
+// por la fase de captura de cualquier ancestro, incluido el scroller interno de ion-content) que
+// reinicia un timer corto en cada evento — "asentado" es cuando pasan SETTLE_QUIET_MS sin
+// ningún scroll más, sin importar cuánto haya tardado. SETTLE_MAX_WAIT_MS es solo una red de
+// seguridad absoluta por si algo generara scroll continuo para siempre.
+const SETTLE_QUIET_MS = 120;
+const SETTLE_MAX_WAIT_MS = 3000;
 
 /**
  * Overlay tipo spotlight/coach-marks: oscurece la pantalla salvo un recorte exacto sobre el
@@ -52,7 +59,9 @@ export class TourOverlay {
   protected readonly prefersReducedMotion =
     window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 
-  private settleTimeout?: ReturnType<typeof setTimeout>;
+  private quietTimeout?: ReturnType<typeof setTimeout>;
+  private maxWaitTimeout?: ReturnType<typeof setTimeout>;
+  private onSettleScroll?: () => void;
 
   constructor() {
     effect(() => {
@@ -60,6 +69,7 @@ export class TourOverlay {
       // currentIndex) — reposiciona el spotlight para el elemento real del nuevo paso.
       const step = this.tourService.currentStep();
       if (!step) {
+        this.cancelScrollSettle();
         this.rect.set(null);
         this.visible.set(false);
         return;
@@ -97,7 +107,7 @@ export class TourOverlay {
   }
 
   private positionAfterSettle(): void {
-    clearTimeout(this.settleTimeout);
+    this.cancelScrollSettle();
     const step = this.tourService.currentStep();
     if (!step) {
       return;
@@ -110,10 +120,38 @@ export class TourOverlay {
         behavior: this.prefersReducedMotion ? 'auto' : 'smooth',
       });
     }
-    this.settleTimeout = setTimeout(() => {
+    this.waitForScrollSettle();
+  }
+
+  // Detecta el fin real del scroll por quietud (sin más eventos 'scroll' durante
+  // SETTLE_QUIET_MS), no por un tiempo adivinado — un scroll largo (lista de 28 socios) puede
+  // tardar más de 1 segundo en asentarse, y cualquier techo fijo corto corta la medición a
+  // mitad de camino (bug real reportado 2026-10-05: el hueco del spotlight no coincidía con el
+  // botón real). 'scroll' no burbujea, pero sí pasa por la fase de captura de cualquier
+  // ancestro — por eso se escucha en document con useCapture=true, así se detecta el scroll
+  // interno de ion-content sin tener que ubicar ese elemento a mano.
+  private waitForScrollSettle(): void {
+    const finish = () => {
+      this.cancelScrollSettle();
       this.measureAndPosition();
       this.visible.set(true);
-    }, SETTLE_DELAY_MS);
+    };
+    this.onSettleScroll = () => {
+      clearTimeout(this.quietTimeout);
+      this.quietTimeout = setTimeout(finish, SETTLE_QUIET_MS);
+    };
+    document.addEventListener('scroll', this.onSettleScroll, true);
+    this.quietTimeout = setTimeout(finish, SETTLE_QUIET_MS);
+    this.maxWaitTimeout = setTimeout(finish, SETTLE_MAX_WAIT_MS);
+  }
+
+  private cancelScrollSettle(): void {
+    clearTimeout(this.quietTimeout);
+    clearTimeout(this.maxWaitTimeout);
+    if (this.onSettleScroll) {
+      document.removeEventListener('scroll', this.onSettleScroll, true);
+      this.onSettleScroll = undefined;
+    }
   }
 
   private measureAndPosition(): void {
@@ -151,17 +189,28 @@ export class TourOverlay {
       window.innerWidth - cardWidth - VIEWPORT_MARGIN,
     );
 
+    // Altura real medida del DOM (la tarjeta ya existe con opacity:0, position:fixed — su
+    // layout no depende de dónde la posicionemos, solo del largo del texto) — con un target muy
+    // alto (ej. un formulario largo o una imagen grande) ni 'below' ni 'above' alcanzan a evitar
+    // el techo/piso de la ventana, y sin este clamp la tarjeta terminaba cortada a la mitad
+    // (bug real reportado 2026-10-05). Fallback a 280px si por algo la tarjeta no midió todavía.
+    const cardHeight = (document.querySelector('.tour-card') as HTMLElement | null)?.offsetHeight || 280;
+
     // 'below' se ancla por `top` (crece hacia abajo desde el borde del recorte); 'above' se
-    // ancla por `bottom` (crece hacia arriba) — nunca `top` para 'above', porque la altura de la
-    // tarjeta es dinámica (según el largo del texto) y no se puede restar de antemano.
+    // ancla por `bottom` (crece hacia arriba).
     if (placement === 'below') {
-      this.cardStyle.set({
-        top: `${spotlight.top + spotlight.height + CARD_GAP}px`,
-        left: `${left}px`,
-      });
+      const top = Math.min(
+        spotlight.top + spotlight.height + CARD_GAP,
+        window.innerHeight - cardHeight - VIEWPORT_MARGIN,
+      );
+      this.cardStyle.set({ top: `${Math.max(top, VIEWPORT_MARGIN)}px`, left: `${left}px` });
     } else {
+      const bottom = Math.min(
+        window.innerHeight - spotlight.top + CARD_GAP,
+        window.innerHeight - VIEWPORT_MARGIN,
+      );
       this.cardStyle.set({
-        bottom: `${window.innerHeight - spotlight.top + CARD_GAP}px`,
+        bottom: `${Math.max(bottom, cardHeight + VIEWPORT_MARGIN)}px`,
         left: `${left}px`,
       });
     }

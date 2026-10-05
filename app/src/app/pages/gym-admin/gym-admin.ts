@@ -1070,6 +1070,7 @@ export class GymAdmin implements OnDestroy {
     this.memberStatusFilter.set(status);
     this.memberInviteFilter.set(null);
     this.section.set('members');
+    this.scrollToMembersList();
   }
 
   protected clearMemberStatusFilter(): void {
@@ -1080,6 +1081,18 @@ export class GymAdmin implements OnDestroy {
     this.memberInviteFilter.set(status);
     this.memberStatusFilter.set(null);
     this.section.set('members');
+    this.scrollToMembersList();
+  }
+
+  // Tocar una caluga de estado ya filtraba la lista y cambiaba a la pestaña Socios, pero la
+  // tarjeta con la lista real queda más abajo (debajo de "Agregar socio" y "Profesores") — el
+  // usuario tenía que scrollear a mano para ver el resultado del filtro que acababa de aplicar.
+  // setTimeout(0) porque recién acá arranca el @else if de 'members' en el DOM (el cambio de
+  // section() todavía no se renderizó en el mismo tick donde se llama esto).
+  private scrollToMembersList(): void {
+    setTimeout(() => {
+      document.getElementById('members-list-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   }
 
   protected clearMemberInviteFilter(): void {

@@ -64,7 +64,10 @@
           ></ion-input>
         </ion-item>
         @if (passwordsMismatch) {
-          <ion-text color="danger"><p class="activate-hint">Las contraseñas no coinciden.</p></ion-text>
+          <p class="activate-hint activate-hint--error">
+            <ion-icon name="alert-circle-outline" aria-hidden="true"></ion-icon>
+            Las contraseñas no coinciden.
+          </p>
         }
         <ion-button
           expand="block"
@@ -79,9 +82,10 @@
       </form>
 
       @if (errorMessage()) {
-        <ion-text color="danger" role="alert">
+        <div class="activate-error" role="alert">
+          <ion-icon name="alert-circle-outline" aria-hidden="true"></ion-icon>
           <p>{{ errorMessage() }}</p>
-        </ion-text>
+        </div>
       }
     }
   </div>
