@@ -35,10 +35,12 @@
         <ion-icon name="eye-outline" slot="start" aria-hidden="true"></ion-icon>
         Ver como socio
       </ion-button>
-      <ion-button size="small" [fill]="tourSeen.adminTourSeen() ? 'outline' : 'solid'" (click)="startAdminTour()">
-        <ion-icon name="play-outline" slot="start" aria-hidden="true"></ion-icon>
-        Ver tour
-      </ion-button>
+      @if (currentSectionTour(); as sectionTour) {
+        <ion-button size="small" [fill]="tourSeen.adminTourSeen() ? 'outline' : 'solid'" (click)="startSectionTour()">
+          <ion-icon name="play-outline" slot="start" aria-hidden="true"></ion-icon>
+          Ver tour: {{ sectionTour.label }}
+        </ion-button>
+      }
     </div>
   }
   <div class="admin-identity-bar">{{ adminFirstName() }} · {{ sectionLabel() }}</div>
@@ -120,7 +122,7 @@
     </div>
 
     @if (isDemoAdmin()) {
-      <ion-card class="demo-cta-card" data-tour="demo-cta">
+      <ion-card class="demo-cta-card">
         <ion-card-content>
           <p class="demo-cta-card__title">¿Quieres esto para tu gimnasio?</p>
           <p class="item-hint">Escríbenos y lo conversamos — sin compromiso.</p>
@@ -234,7 +236,7 @@
     }
 
     @if (!isProfesor()) {
-    <ion-card>
+    <ion-card data-tour="flow-account">
       <ion-card-header>
         <ion-card-title>Cuenta Pago Online</ion-card-title>
       </ion-card-header>
@@ -346,7 +348,7 @@
       </ion-card-content>
     </ion-card>
 
-    <ion-card>
+    <ion-card data-tour="bank-transfer">
       <ion-card-header>
         <ion-card-title>Transferencia bancaria</ion-card-title>
       </ion-card-header>
@@ -419,6 +421,81 @@
         </form>
       </ion-card-content>
     </ion-card>
+
+    <ion-card data-tour="admin-add">
+      <ion-card-header>
+        <ion-card-title>
+          <ion-icon name="shield-checkmark-outline" aria-hidden="true"></ion-icon>
+          Administradores
+          <ion-badge color="dark">{{ admins().length }}</ion-badge>
+        </ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <p class="item-hint">Un administrador tiene el mismo acceso que tú a este panel completo.</p>
+        <ion-list lines="full">
+          @for (admin of admins(); track admin.id) {
+            <ion-item>
+              <ion-label>
+                <div class="member-row">
+                  <span class="member-row__name">{{ admin.name }}</span>
+                  <span class="member-row__email">{{ admin.email }}</span>
+                </div>
+              </ion-label>
+              <ion-button
+                fill="clear"
+                size="small"
+                color="danger"
+                class="member-action-btn"
+                [disabled]="removingAdminId() === admin.id"
+                (click)="removeMyAdmin(admin)"
+                aria-label="Quitar administrador"
+              >
+                @if (removingAdminId() === admin.id) {
+                  <ion-spinner name="crescent" slot="icon-only"></ion-spinner>
+                } @else {
+                  <ion-icon name="trash-outline" slot="icon-only" aria-hidden="true"></ion-icon>
+                }
+              </ion-button>
+            </ion-item>
+          } @empty {
+            <ion-item lines="none">
+              <ion-label>Todavía no hay otros administradores.</ion-label>
+            </ion-item>
+          }
+        </ion-list>
+        <div>
+          <ion-item lines="full">
+            <ion-label position="stacked">Nombre</ion-label>
+            <ion-input
+              [value]="newAdminName()"
+              (ionInput)="newAdminName.set($any($event.detail.value) ?? '')"
+            ></ion-input>
+          </ion-item>
+          <ion-item lines="full">
+            <ion-label position="stacked">Email</ion-label>
+            <ion-input
+              type="email"
+              [value]="newAdminEmail()"
+              (ionInput)="newAdminEmail.set($any($event.detail.value) ?? '')"
+            ></ion-input>
+          </ion-item>
+          <p class="item-hint">Va a poder administrar este gimnasio iniciando sesión con Google usando este email.</p>
+          <ion-button
+            expand="block"
+            type="button"
+            [disabled]="addingAdmin() || !newAdminName().trim() || !newAdminEmail().trim()"
+            (click)="addMyAdmin()"
+          >
+            @if (addingAdmin()) {
+              <ion-spinner name="crescent" slot="start"></ion-spinner>
+            } @else {
+              <ion-icon name="person-add-outline" slot="start" aria-hidden="true"></ion-icon>
+            }
+            Agregar administrador
+          </ion-button>
+        </div>
+      </ion-card-content>
+    </ion-card>
     }
   } @else if (section() === 'blocks') {
     <ion-card>
@@ -428,7 +505,7 @@
           Bloques / horarios
         </ion-card-title>
         <div class="card-header-row__actions">
-          <ion-button size="small" fill="outline" (click)="openSeriesModal()" [disabled]="seriesCreating()">
+          <ion-button data-tour="blocks-generate" size="small" fill="outline" (click)="openSeriesModal()" [disabled]="seriesCreating()">
             {{ seriesCreating() ? 'Generando...' : 'Generar bloques' }}
           </ion-button>
           <ion-button data-tour="blocks-add" size="small" (click)="openAddBlock()" [disabled]="seriesCreating()">Agregar bloque</ion-button>
@@ -442,6 +519,7 @@
           </div>
         }
         <ion-searchbar
+          data-tour="blocks-search"
           placeholder="Buscar clase por nombre, categoría o instructor"
           [value]="blockSearchQuery()"
           (ionInput)="blockSearchQuery.set($any($event.detail.value) ?? '')"
@@ -741,7 +819,7 @@
       </div>
     </div>
 
-    <ion-card>
+    <ion-card data-tour="members-add">
       <ion-card-header>
         <ion-card-title>
           <ion-icon name="person-add-outline" aria-hidden="true"></ion-icon>
@@ -760,7 +838,7 @@
             Agregar socio
           </ion-button>
         </form>
-        <ion-button expand="block" fill="clear" (click)="openImportModal()">
+        <ion-button data-tour="members-import" expand="block" fill="clear" (click)="openImportModal()">
           <ion-icon name="cloud-upload-outline" slot="start" aria-hidden="true"></ion-icon>
           Importar varios socios desde Excel
         </ion-button>
@@ -794,6 +872,7 @@
               ></ion-input>
             </ion-item>
             <ion-button
+              data-tour="profesor-add"
               expand="block"
               type="button"
               [disabled]="creatingProfesor() || !newProfesorName().trim() || !newProfesorEmail().trim()"
@@ -864,6 +943,7 @@
       </ion-card-header>
       <ion-card-content>
         <ion-searchbar
+          data-tour="members-search"
           placeholder="Buscar por nombre o email"
           [value]="memberSearchQuery()"
           (ionInput)="memberSearchQuery.set($any($event.detail.value) ?? '')"
@@ -915,6 +995,7 @@
                 </ion-badge>
                 @if (!member.planId) {
                   <ion-button
+                    [attr.data-tour]="member.id === firstUnpaidMemberId() ? 'members-mark-paid' : null"
                     fill="outline"
                     size="small"
                     color="primary"
@@ -931,6 +1012,7 @@
                   </ion-button>
                 } @else if (!isProfesor()) {
                   <ion-button
+                    [attr.data-tour]="member.id === firstMemberWithPlanId() ? 'members-revoke-plan' : null"
                     fill="outline"
                     size="small"
                     color="danger"
@@ -947,6 +1029,7 @@
                   </ion-button>
                 }
                 <ion-button
+                  [attr.data-tour]="member.id === firstMemberId() ? 'members-workout' : null"
                   fill="outline"
                   size="small"
                   class="member-action-btn"
@@ -957,6 +1040,7 @@
                 </ion-button>
                 @if (!isProfesor()) {
                   <ion-button
+                    [attr.data-tour]="member.id === firstMemberId() ? 'members-delete' : null"
                     fill="clear"
                     size="small"
                     color="danger"
@@ -1057,7 +1141,7 @@
       </ng-template>
     </ion-modal>
   } @else if (section() === 'branding') {
-    <ion-card>
+    <ion-card data-tour="branding-logo">
       <ion-card-header class="card-header-row">
         <ion-card-title>
           <ion-icon name="business-outline" aria-hidden="true"></ion-icon>
@@ -1165,7 +1249,7 @@
       </ion-card-content>
     </ion-card>
 
-    <ion-card>
+    <ion-card data-tour="branding-identity">
       <ion-card-header>
         <ion-card-title>
           <ion-icon name="megaphone-outline" aria-hidden="true"></ion-icon>
@@ -1208,7 +1292,7 @@
       </ion-card-content>
     </ion-card>
 
-    <ion-card>
+    <ion-card data-tour="branding-photos">
       <ion-card-header class="card-header-row">
         <ion-card-title>
           <ion-icon name="images-outline" aria-hidden="true"></ion-icon>
@@ -1269,7 +1353,7 @@
         </ion-card-content>
       </ion-card>
     }
-    <ion-card>
+    <ion-card data-tour="screens-pairing">
       <ion-card-header>
         <ion-card-title>
           <ion-icon name="tv-outline" aria-hidden="true"></ion-icon>
@@ -1340,7 +1424,7 @@
         </ion-card-title>
       </ion-card-header>
       <ion-card-content>
-        <ion-item lines="none" class="history-search-item">
+        <ion-item data-tour="history-search" lines="none" class="history-search-item">
           <ion-icon name="search-outline" slot="start" aria-hidden="true"></ion-icon>
           <ion-input
             placeholder="Buscar socio por nombre..."
@@ -1358,7 +1442,7 @@
             (change)="setHistoryDate($any($event.target).value)"
           />
         </ion-item>
-        <div class="history-week-nav">
+        <div class="history-week-nav" data-tour="history-week-nav">
           <button type="button" class="calendar-nav-btn" (click)="shiftHistoryWeek(-1)" aria-label="Semana anterior">
             <ion-icon name="chevron-back-outline" aria-hidden="true"></ion-icon>
           </button>
@@ -1527,7 +1611,7 @@
           email a cada socio con el motivo.
         </p>
 
-        <ion-list lines="full">
+        <ion-list lines="full" data-tour="closures-list">
           @for (closure of closures(); track closure.id) {
             <ion-item>
               <ion-icon name="ban-outline" slot="start" aria-hidden="true"></ion-icon>

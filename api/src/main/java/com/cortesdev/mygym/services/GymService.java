@@ -832,19 +832,16 @@ public class GymService {
     }
 
     /** progressByAdmin: ver listDemoAdmins — vacío para un admin real (GYM_ADMIN), que nunca
-     *  tiene fila en demo_tour_progress. */
+     *  tiene fila en demo_tour_progress.
+     *  El tour pasó de ser un único recorrido (paso N de 11) a un mini-tour por sección (ver
+     *  TourName en tour.service.ts) — "adminTourStep"/"memberTourStep" ahora cuentan CUÁNTAS
+     *  secciones distintas abrió al menos una vez, no el paso más lejano de un recorrido lineal.
+     *  Los nombres de campo se mantienen (ver AdminResponse) para no tocar el DTO ni el frontend
+     *  de gym-form.ts más de lo necesario — solo cambia qué significa el número. */
     private AdminResponse toResponse(AppUser admin, Map<Long, List<DemoTourProgress>> progressByAdmin) {
         List<DemoTourProgress> progress = progressByAdmin.getOrDefault(admin.getId(), List.of());
-        Integer adminTourStep = progress.stream()
-                .filter(p -> "ADMIN".equals(p.getTour()))
-                .map(DemoTourProgress::getMaxStep)
-                .findFirst()
-                .orElse(null);
-        Integer memberTourStep = progress.stream()
-                .filter(p -> "MEMBER".equals(p.getTour()))
-                .map(DemoTourProgress::getMaxStep)
-                .findFirst()
-                .orElse(null);
+        Integer adminTourStep = sectionsExplored(progress, "A_");
+        Integer memberTourStep = sectionsExplored(progress, "M_");
         return new AdminResponse(
                 admin.getId(),
                 admin.getName(),
@@ -855,6 +852,11 @@ public class GymService {
                 admin.getLastLoginAt(),
                 adminTourStep,
                 memberTourStep);
+    }
+
+    private Integer sectionsExplored(List<DemoTourProgress> progress, String tourPrefix) {
+        long count = progress.stream().map(DemoTourProgress::getTour).filter(t -> t.startsWith(tourPrefix)).distinct().count();
+        return count == 0 ? null : (int) count;
     }
 
     private BlockResponse toResponse(GymBlock block) {

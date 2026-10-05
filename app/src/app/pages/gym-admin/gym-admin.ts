@@ -73,6 +73,7 @@ import {
   rocketOutline,
   searchOutline,
   settingsOutline,
+  shieldCheckmarkOutline,
   timeOutline,
   trashOutline,
   tvOutline,
@@ -86,10 +87,12 @@ import { MemberService } from '../../core/services/member.service';
 import { TvScreenService } from '../../core/services/tv-screen.service';
 import { TvScreen } from '../../core/models/tv-screen.model';
 import {
+  Admin,
   BANK_ACCOUNT_TYPES,
   BankTransferUpdateRequest,
   BlockOccurrenceAttendees,
   CHILE_BANKS,
+  CreateAdminRequest,
   CreateGymBlockRequest,
   CreateGymPhotoRequest,
   CreateGymPlanRequest,
@@ -123,7 +126,7 @@ import { WorkoutPlanModal } from '../admin/gyms/workout-plan-modal/workout-plan-
 import { registerClassCategoryIcons, resolveClassCategoryIcon } from '../../core/utils/class-category';
 import { formatRut, rutFormatValidator } from '../../core/utils/rut';
 import { TourOverlay } from '../../core/components/tour-overlay/tour-overlay';
-import { TourService, TourStep } from '../../core/services/tour.service';
+import { SectionTour, TourService } from '../../core/services/tour.service';
 import { TourSeenService } from '../../core/services/tour-seen.service';
 
 registerClassCategoryIcons();
@@ -153,6 +156,7 @@ addIcons({
   'pricetag-outline': pricetagOutline,
   'refresh-outline': refreshOutline,
   'remove-circle-outline': removeCircleOutline,
+  'shield-checkmark-outline': shieldCheckmarkOutline,
   'search-outline': searchOutline,
   'business-outline': businessOutline,
   'cloud-upload-outline': cloudUploadOutline,
@@ -611,6 +615,11 @@ export class GymAdmin implements OnDestroy {
   protected readonly expiringSoonMembers = computed(() => this.members().filter((m) => m.membershipStatus === 'EXPIRING_SOON').length);
   protected readonly expiredMembers = computed(() => this.members().filter((m) => m.membershipStatus === 'EXPIRED').length);
   protected readonly unpaidMembers = computed(() => this.members().filter((m) => m.membershipStatus === 'UNPAID').length);
+  // Usados solo para targetear un botón de UNA fila puntual en el tour guiado — el spotlight
+  // necesita un selector único, no una clase repetida por cada socio de la lista.
+  protected readonly firstUnpaidMemberId = computed(() => this.members().find((m) => !m.planId)?.id ?? null);
+  protected readonly firstMemberWithPlanId = computed(() => this.members().find((m) => !!m.planId)?.id ?? null);
+  protected readonly firstMemberId = computed(() => this.members()[0]?.id ?? null);
   protected readonly memberStatusFilter = signal<MembershipStatus | null>(null);
   // Antes memberStatusFilter/memberInviteFilter eran dos ejes independientes que se
   // combinaban con AND (podían dar 0 socios sin que se viera obvio por qué) — las 6 calugas
@@ -763,6 +772,7 @@ export class GymAdmin implements OnDestroy {
     this.loadClosures();
     if (!this.isProfesor()) {
       this.loadProfesores();
+      this.loadAdmins();
     }
 
     // Ionic overlays (the ion-select popup, ion-alert, ion-toast) are
@@ -842,65 +852,218 @@ export class GymAdmin implements OnDestroy {
     'Hola! Vi la demo de mygym y quiero esto para mi gimnasio.',
   )}`;
 
-  // Pasos del tour guiado del panel admin — "crear plan" y "crear clase" van sí o sí (pedido
-  // explícito), el resto recorre lo que más diferencia a mygym de la competencia (ver memoria de
-  // proyecto mygym_competencia_boxpro). El tour vive en TourOverlay (genérico); acá solo se arma
-  // la lista de pasos específicos de esta página. ADMIN_TOUR_STEPS.length debe coincidir con
-  // GymForm.ADMIN_TOUR_TOTAL_STEPS (duplicado ahí, ver comentario en gym-form.ts).
-  private readonly adminTourSteps: TourStep[] = [
-    {
-      title: 'Crea tus planes de cobro',
-      body: 'Define precio y cupo mensual de cada plan — tus socios eligen uno de estos al pagar.',
-      targetSelector: '[data-tour="plans-add"]',
-      beforeShow: () => this.setSection('plans'),
+  // Tour guiado por sección — antes era un único recorrido de 11 pasos que saltaba de pestaña
+  // en pestaña (beforeShow + setSection); el usuario pidió partirlo: cada pestaña tiene su
+  // propio mini-tour acotado a lo que ya se ve ahí, sin mover al prospecto de donde está parado.
+  // "crear plan" y "crear clase" siguen siendo obligatorios (pedido explícito), el resto recorre
+  // lo que más diferencia a mygym de la competencia (ver memoria mygym_competencia_boxpro). El
+  // código de cada tour (ej. 'A_PLANS') es el que se guarda en demo_tour_progress — ver
+  // DemoTourService.ALLOWED_TOURS en el backend, debe coincidir exactamente.
+  private readonly sectionTours: Partial<Record<Section, SectionTour>> = {
+    plans: {
+      tour: 'A_PLANS',
+      label: 'Planes',
+      steps: [
+        {
+          title: 'Crea tus planes de cobro',
+          body: 'Define precio y cupo mensual de cada plan — tus socios eligen uno de estos al pagar.',
+          targetSelector: '[data-tour="plans-add"]',
+        },
+        {
+          title: 'Edita o pausa un plan sin borrarlo',
+          body: 'Cambia precio o cupo cuando quieras, o desactívalo para que no se siga ofreciendo sin perder a los socios que ya lo tienen.',
+          targetSelector: '.plan-card__header',
+        },
+      ],
     },
-    {
-      title: 'Crea tus clases',
-      body: 'Cada bloque es una clase recurrente: día, horario y cupo. "Generar bloques" arma varias de una.',
-      targetSelector: '[data-tour="blocks-add"]',
-      beforeShow: () => this.setSection('blocks'),
+    blocks: {
+      tour: 'A_BLOCKS',
+      label: 'Horarios',
+      steps: [
+        {
+          title: 'Crea tus clases',
+          body: 'Cada bloque es una clase recurrente: día, horario y cupo.',
+          targetSelector: '[data-tour="blocks-add"]',
+        },
+        {
+          title: 'Arma tu grilla semanal de una sola vez',
+          body: '"Generar bloques" crea una serie completa (ej. Spinning lunes-miércoles-viernes 7am) en un solo paso, no clase por clase.',
+          targetSelector: '[data-tour="blocks-generate"]',
+        },
+        {
+          title: 'Encuentra cualquier clase al instante',
+          body: 'Busca por nombre, categoría o instructor, o filtra por día y franja horaria — útil cuando tienes decenas de clases.',
+          targetSelector: '[data-tour="blocks-search"]',
+        },
+        {
+          title: 'Edita o elimina sin perder lo configurado',
+          body: 'Cambia horario, cupo o instructor de una clase ya creada, o elimínala si ya no corre.',
+          targetSelector: '.block-card__actions',
+        },
+        {
+          title: 'Ve quién reservó cada clase',
+          body: 'Lista de asistentes por bloque, con opción de liberar el cupo de alguien puntual si hace falta.',
+          targetSelector: '.block-card__attendees-toggle',
+        },
+      ],
     },
-    {
-      title: 'El estado de cada socio, de un vistazo',
-      body: 'Activo, por vencer, vencido o sin pago — toca cualquiera para filtrar la lista al instante.',
-      targetSelector: '[data-tour="members-stats"]',
-      beforeShow: () => this.setSection('members'),
+    members: {
+      tour: 'A_MEMBERS',
+      label: 'Socios',
+      steps: [
+        {
+          title: 'El estado de cada socio, de un vistazo',
+          body: 'Activo, por vencer, vencido o sin pago — toca cualquiera para filtrar la lista al instante.',
+          targetSelector: '[data-tour="members-stats"]',
+        },
+        {
+          title: 'Agrega socios uno por uno...',
+          body: 'O migra tu base completa de otro sistema de una sola vez con "Importar varios socios desde Excel" — ideal si ya tienes cientos de socios.',
+          targetSelector: '[data-tour="members-add"]',
+        },
+        {
+          title: 'Encuentra a cualquier socio al instante',
+          body: 'Busca por nombre o email en toda tu lista, sin scrollear.',
+          targetSelector: '[data-tour="members-search"]',
+        },
+        {
+          title: 'Marca un pago en segundos',
+          body: 'Transferencia, efectivo o Flow — confirmas el pago de un socio sin pago con un clic, y pasa a "Activo" al instante.',
+          targetSelector: '[data-tour="members-mark-paid"]',
+        },
+        {
+          title: 'Suma profesores a tu equipo',
+          body: 'Dales acceso de solo-gestión: pueden ver reservas y marcar asistencia, sin tocar tus planes ni tu marca.',
+          targetSelector: '[data-tour="profesor-add"]',
+        },
+        {
+          title: 'Quita un plan si hace falta',
+          body: 'Por impago, conflicto o cualquier motivo — el socio vuelve a "Sin pago" sin perder su cuenta.',
+          targetSelector: '[data-tour="members-revoke-plan"]',
+        },
+        {
+          title: 'Coaching real, no solo reservas',
+          body: 'Abre la rutina de cualquier socio, ve qué anotó en su última clase y arma su plan de entrenamiento.',
+          targetSelector: '[data-tour="members-workout"]',
+        },
+        {
+          title: 'Gestiona bajas reales',
+          body: 'Elimina a un socio permanentemente cuando deja el gimnasio — no solo altas, control completo del ciclo de vida.',
+          targetSelector: '[data-tour="members-delete"]',
+        },
+      ],
     },
-    {
-      title: 'Tu marca, no la nuestra',
-      body: 'Tu color, tu logo — tus socios ven tu app, no una plantilla genérica.',
-      targetSelector: '[data-tour="branding-color"]',
-      beforeShow: () => this.setSection('branding'),
+    general: {
+      tour: 'A_GENERAL',
+      label: 'General',
+      steps: [
+        {
+          title: 'Cobra con tarjeta, directo a tu cuenta',
+          body: 'Completa estos datos y mygym activa Flow en tu propia cuenta — tus socios pagan online y el dinero cae directo a ti, no a una cuenta compartida.',
+          targetSelector: '[data-tour="flow-account"]',
+        },
+        {
+          title: 'O por transferencia, sin comisión',
+          body: 'Carga tus datos bancarios una sola vez — tus socios los ven al pagar, y tú confirmas el pago a mano cuando llega.',
+          targetSelector: '[data-tour="bank-transfer"]',
+        },
+        {
+          title: 'Invita a otro administrador',
+          body: 'Si tienes un socio de negocio o un encargado, dale acceso completo a este mismo panel — entra con su propio Google.',
+          targetSelector: '[data-tour="admin-add"]',
+        },
+      ],
     },
-    {
-      title: 'Pantalla de TV en la recepción',
-      body: 'La clase de ahora y el check-in por QR, sin comprar ningún equipo nuevo.',
-      targetSelector: '[data-tour="screens-tv"]',
-      beforeShow: () => this.setSection('screens'),
+    branding: {
+      tour: 'A_BRANDING',
+      label: 'Marca',
+      steps: [
+        {
+          title: 'Sube tu logo',
+          body: 'Aparece en el panel de tus socios y en tu página de alta pública — marca blanca real, no "mygym con otro logo".',
+          targetSelector: '[data-tour="branding-logo"]',
+        },
+        {
+          title: 'Tu marca, no la nuestra',
+          body: 'Tu color, tu logo — tus socios ven tu app, no una plantilla genérica.',
+          targetSelector: '[data-tour="branding-color"]',
+        },
+        {
+          title: 'Cuenta quién eres',
+          body: 'Frase, descripción, Instagram y WhatsApp — alimenta tu página de alta pública y el perfil que ven tus socios.',
+          targetSelector: '[data-tour="branding-identity"]',
+        },
+        {
+          title: 'Muestra tus instalaciones',
+          body: 'Hasta 8 fotos que se ven en tu página de alta y en el perfil de tus socios — un gimnasio con fotos reales se ve profesional desde el primer contacto.',
+          targetSelector: '[data-tour="branding-photos"]',
+        },
+      ],
     },
-    {
-      title: 'Cierre de emergencia',
-      body: 'Por fuerza mayor: cancela las clases afectadas y avisa a todos tus socios, con un clic.',
-      targetSelector: '[data-tour="closures-open"]',
-      beforeShow: () => this.setSection('closures'),
+    screens: {
+      tour: 'A_SCREENS',
+      label: 'Pantallas',
+      steps: [
+        {
+          title: 'Pantalla de TV en la recepción',
+          body: 'La clase de ahora y el check-in por QR, sin comprar ningún equipo nuevo.',
+          targetSelector: '[data-tour="screens-tv"]',
+        },
+        {
+          title: 'Vincula una TV en 30 segundos',
+          body: 'Abre mygym.cl/tv en cualquier pantalla, aparece un código de 6 caracteres, lo ingresas acá con un nombre — sin cables ni apps que instalar. Puedes tener varias pantallas a la vez (recepción, sala).',
+          targetSelector: '[data-tour="screens-pairing"]',
+        },
+      ],
     },
-    {
-      title: 'Historial de asistencia',
-      body: 'Revisa semana por semana quién vino a cada clase, no solo quién reservó.',
-      targetSelector: '[data-tour="history"]',
-      beforeShow: () => this.setSection('history'),
+    closures: {
+      tour: 'A_CLOSURES',
+      label: 'Cierres',
+      steps: [
+        {
+          title: 'Cierre de emergencia',
+          body: 'Por fuerza mayor: cancela las clases afectadas y avisa a todos tus socios, con un clic.',
+          targetSelector: '[data-tour="closures-open"]',
+        },
+        {
+          title: 'Control total, incluso después de abrirlo',
+          body: 'Ve el historial de cierres con cuántas reservas se cancelaron y a cuántos socios se avisó, edítalo si cambió algo, o levántalo antes de que termine si fue un error.',
+          targetSelector: '[data-tour="closures-list"]',
+        },
+      ],
     },
-    {
-      title: '¿Lo probamos con tu gimnasio?',
-      body: 'Escríbenos por WhatsApp y lo conversamos — sin compromiso.',
-      targetSelector: '[data-tour="demo-cta"]',
-      beforeShow: () => this.setSection('general'),
+    history: {
+      tour: 'A_HISTORY',
+      label: 'Historial',
+      steps: [
+        {
+          title: 'Historial de asistencia',
+          body: 'Revisa semana por semana quién vino a cada clase, no solo quién reservó.',
+          targetSelector: '[data-tour="history"]',
+        },
+        {
+          title: '"¿A qué clases va Juan?"',
+          body: 'Busca por el nombre de un socio y ve todas sus reservas, sin recorrer semana por semana.',
+          targetSelector: '[data-tour="history-search"]',
+        },
+        {
+          title: 'Navega cualquier semana',
+          body: 'Avanza o retrocede semana a semana, o salta directo a una fecha — útil para resolver un reclamo o auditar un período puntual.',
+          targetSelector: '[data-tour="history-week-nav"]',
+        },
+      ],
     },
-  ];
+  };
 
-  protected startAdminTour(): void {
+  protected readonly currentSectionTour = computed(() => this.sectionTours[this.section()] ?? null);
+
+  protected startSectionTour(): void {
+    const sectionTour = this.currentSectionTour();
+    if (!sectionTour) {
+      return;
+    }
     this.tourSeen.markAdminTourSeen();
-    this.tourService.start('ADMIN', this.adminTourSteps);
+    this.tourService.start(sectionTour.tour, sectionTour.steps);
   }
 
   protected viewMembersByStatus(status: MembershipStatus): void {
@@ -1840,6 +2003,66 @@ export class GymAdmin implements OnDestroy {
       },
       error: () => {
         this.removingProfesorId.set(null);
+        this.handleWriteError(() => this.showToast('No pudimos quitar el acceso. Intenta nuevamente.', 'danger'));
+      },
+    });
+  }
+
+  // ---- Co-admins: autoservicio, antes solo lo podía hacer el super-admin ----
+
+  protected readonly admins = signal<Admin[]>([]);
+  protected readonly newAdminName = signal('');
+  protected readonly newAdminEmail = signal('');
+  protected readonly addingAdmin = signal(false);
+  protected readonly removingAdminId = signal<number | null>(null);
+
+  private loadAdmins(): void {
+    this.gymService.listMyAdmins().subscribe({ next: (list) => this.admins.set(list) });
+  }
+
+  protected addMyAdmin(): void {
+    const name = this.newAdminName().trim();
+    const email = this.newAdminEmail().trim();
+    if (!name || !email) {
+      return;
+    }
+    const payload: CreateAdminRequest = { name, email };
+    this.addingAdmin.set(true);
+    this.gymService.addMyAdmin(payload).subscribe({
+      next: (admin) => {
+        this.addingAdmin.set(false);
+        this.admins.update((list) => [...list, admin]);
+        this.newAdminName.set('');
+        this.newAdminEmail.set('');
+        this.showToast(`Invitamos a ${admin.name} por correo — ya puede entrar con Google.`);
+      },
+      error: (err: Error) => {
+        this.addingAdmin.set(false);
+        this.handleWriteError(() =>
+          this.showToast(err.message || 'No pudimos agregar al administrador. Intenta nuevamente.', 'danger'),
+        );
+      },
+    });
+  }
+
+  protected async removeMyAdmin(admin: Admin): Promise<void> {
+    const confirmed = await this.confirmAction(
+      'Quitar administrador',
+      `¿Quitarle el acceso de administrador a ${admin.name}?`,
+      'Quitar acceso',
+    );
+    if (!confirmed) {
+      return;
+    }
+    this.removingAdminId.set(admin.id);
+    this.gymService.removeMyAdmin(admin.id).subscribe({
+      next: () => {
+        this.removingAdminId.set(null);
+        this.admins.update((list) => list.filter((a) => a.id !== admin.id));
+        this.showToast(`Se le quitó el acceso a ${admin.name}.`);
+      },
+      error: () => {
+        this.removingAdminId.set(null);
         this.handleWriteError(() => this.showToast('No pudimos quitar el acceso. Intenta nuevamente.', 'danger'));
       },
     });

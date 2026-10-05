@@ -1,5 +1,7 @@
 package com.cortesdev.mygym.controllers;
 
+import com.cortesdev.mygym.models.dto.AdminCreateRequest;
+import com.cortesdev.mygym.models.dto.AdminResponse;
 import com.cortesdev.mygym.models.dto.AttendeeResponse;
 import com.cortesdev.mygym.models.dto.BlockBatchCreateRequest;
 import com.cortesdev.mygym.models.dto.BlockCreateRequest;
@@ -180,6 +182,31 @@ public class GymAdminController {
     @DeleteMapping("/plans/{planId}")
     public ResponseEntity<Void> removeMyPlan(@AuthenticationPrincipal Jwt jwt, @PathVariable Long planId) {
         gymService.removePlan(AuthenticatedUser.from(jwt).gymId(), planId);
+        return ResponseEntity.noContent().build();
+    }
+
+    // Autoservicio de co-admins: antes solo el SUPER_ADMIN podía invitar/quitar un GYM_ADMIN
+    // (vía GymController, /api/gyms/{id}/admins). Mismo GymService.addAdmin/removeAdmin de ahí,
+    // solo que gymId viene del JWT del propio dueño del gym, nunca de un path variable — igual
+    // criterio que el resto de este controller. Un DEMO_ADMIN puede listar (GET permitido por
+    // SecurityConfig) pero el POST/DELETE le da un 403 real (matcher genérico /api/gym-admin/**
+    // es GYM_ADMIN-only para no-GET) que el frontend intercepta con el toast de "cuenta demo".
+    @GetMapping("/admins")
+    public List<AdminResponse> listMyAdmins(@AuthenticationPrincipal Jwt jwt) {
+        return gymService.listAdmins(AuthenticatedUser.from(jwt).gymId());
+    }
+
+    @PostMapping("/admins")
+    public ResponseEntity<AdminResponse> addMyAdmin(
+            @AuthenticationPrincipal Jwt jwt, @Valid @RequestBody AdminCreateRequest request) {
+        Long gymId = AuthenticatedUser.from(jwt).gymId();
+        AdminResponse admin = gymService.addAdmin(gymId, request);
+        return ResponseEntity.created(URI.create("/api/gym-admin/gym/admins/" + admin.id())).body(admin);
+    }
+
+    @DeleteMapping("/admins/{userId}")
+    public ResponseEntity<Void> removeMyAdmin(@AuthenticationPrincipal Jwt jwt, @PathVariable Long userId) {
+        gymService.removeAdmin(AuthenticatedUser.from(jwt).gymId(), userId);
         return ResponseEntity.noContent().build();
     }
 

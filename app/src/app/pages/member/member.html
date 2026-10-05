@@ -41,10 +41,12 @@
       <div class="demo-preview-banner">
         <ion-icon name="eye-outline" aria-hidden="true"></ion-icon>
         <span class="demo-preview-banner__text">Así ve la app un socio de tu gimnasio — datos de ejemplo, solo lectura.</span>
-        <ion-button size="small" [fill]="tourSeen.memberTourSeen() ? 'outline' : 'solid'" (click)="startMemberTour()">
-          <ion-icon name="play-outline" slot="start" aria-hidden="true"></ion-icon>
-          Ver tour
-        </ion-button>
+        @if (currentSectionTour(); as sectionTour) {
+          <ion-button size="small" [fill]="tourSeen.memberTourSeen() ? 'outline' : 'solid'" (click)="startSectionTour()">
+            <ion-icon name="play-outline" slot="start" aria-hidden="true"></ion-icon>
+            Ver tour: {{ sectionTour.label }}
+          </ion-button>
+        }
       </div>
     }
     @if (closureNotice(); as notice) {
@@ -253,7 +255,7 @@
         <div class="calendar-header">
           <h2>{{ monthLabel() }}</h2>
           @if (!monthExpanded()) {
-            <div class="calendar-header__nav">
+            <div class="calendar-header__nav" data-tour="calendar-nav">
               <button
                 type="button"
                 class="calendar-nav-btn"
@@ -357,7 +359,12 @@
                 }
                 <p class="class-tile__capacity">{{ occurrence.taken }}/{{ occurrence.capacity }} cupos</p>
                 @if (occurrence.taken > 0) {
-                  <button type="button" class="class-tile__attendees-toggle" (click)="toggleAttendees(occurrence)">
+                  <button
+                    type="button"
+                    class="class-tile__attendees-toggle"
+                    data-tour="class-attendees"
+                    (click)="toggleAttendees(occurrence)"
+                  >
                     {{ expandedAttendeesKey() === occurrenceKey(occurrence) ? 'Ocultar' : 'Ver quién va' }}
                   </button>
                   @if (expandedAttendeesKey() === occurrenceKey(occurrence)) {
@@ -568,7 +575,7 @@
 
     <div class="booking-teaser" [class.booking-teaser--locked]="bookingLocked()">
     <div class="booking-teaser__content" [inert]="bookingLocked()">
-    <section class="member-section">
+    <section class="member-section" data-tour="reservas-upcoming">
       <h2>Próximas</h2>
       <div class="class-grid">
         @for (reservation of upcomingReservations(); track reservation.id) {
@@ -633,7 +640,7 @@
     </section>
 
     @if (pastReservations().length > 0) {
-      <section class="member-section">
+      <section class="member-section" data-tour="reservas-past">
         <h2>Pasadas</h2>
         <div class="class-grid">
           @for (reservation of pastReservations(); track reservation.id) {
@@ -761,6 +768,7 @@
         <button
           type="button"
           class="workout-day-chip"
+          data-tour="workout-free-text"
           [class.workout-day-chip--selected]="useFreeText()"
           (click)="selectFreeText()"
         >
@@ -777,7 +785,7 @@
           ></ion-input>
         </ion-item>
       }
-      <p class="workout-form__label">Ejercicios (opcional)</p>
+      <p class="workout-form__label" data-tour="workout-exercise-rows">Ejercicios (opcional)</p>
       @for (row of exerciseRows(); track $index) {
         <ion-item lines="full">
           <ion-input

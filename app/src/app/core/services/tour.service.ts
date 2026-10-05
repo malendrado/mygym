@@ -1,7 +1,22 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { GymService } from './gym.service';
 
-export type TourName = 'ADMIN' | 'MEMBER';
+// Un código por mini-tour de sección (antes 'ADMIN'/'MEMBER' cubrían el panel entero) — ver
+// DemoTourService.ALLOWED_TOURS en el backend, tiene que listar exactamente estos mismos
+// valores. Prefijo A_/M_ distingue panel admin de panel socio dentro de la misma tabla
+// demo_tour_progress (columna tour VARCHAR(10), todos estos códigos entran holgados).
+export type TourName =
+  | 'A_PLANS'
+  | 'A_BLOCKS'
+  | 'A_MEMBERS'
+  | 'A_GENERAL'
+  | 'A_BRANDING'
+  | 'A_SCREENS'
+  | 'A_CLOSURES'
+  | 'A_HISTORY'
+  | 'M_RESERVAR'
+  | 'M_RESERVAS'
+  | 'M_RUTINA';
 
 export interface TourStep {
   title: string;
@@ -9,10 +24,18 @@ export interface TourStep {
   /** Selector CSS del elemento real a iluminar — debe existir en el DOM real de la página, nunca
    *  un mockup aparte (mismo criterio ya aplicado en "Ver como socio" de la demo). */
   targetSelector: string;
-  /** Cambia de pestaña/sección o hace scroll ANTES de que el overlay mida el elemento real — en
-   *  gym-admin varios targets viven dentro de un @else if (section() === 'x') que no existe en
-   *  el DOM hasta que la sección está activa. */
+  /** Hace scroll o ajusta estado local ANTES de que el overlay mida el elemento real — ya no se
+   *  usa para cambiar de pestaña (cada mini-tour vive dentro de UNA sola sección), pero queda
+   *  disponible por si un paso necesita, por ejemplo, abrir un acordeón antes de iluminarlo. */
   beforeShow?: () => void;
+}
+
+/** Un mini-tour de sección: el código que se reporta al backend, la etiqueta corta para el
+ *  botón ("Ver tour: Planes") y sus pasos. Compartido entre gym-admin.ts y member.ts. */
+export interface SectionTour {
+  readonly tour: TourName;
+  readonly label: string;
+  readonly steps: TourStep[];
 }
 
 /** Máquina de estado del tour guiado (spotlight/coach-marks) — el posicionamiento visual vive en

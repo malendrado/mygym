@@ -16,7 +16,12 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class DemoTourService {
 
-    private static final Set<String> ALLOWED_TOURS = Set.of("ADMIN", "MEMBER");
+    // Un código por mini-tour de sección (antes "ADMIN"/"MEMBER" cubrían el panel entero) —
+    // tiene que coincidir exactamente con TourName en tour.service.ts (frontend). Prefijo A_/M_
+    // distingue panel admin de panel socio; todos caben en la columna `tour VARCHAR(10)`.
+    private static final Set<String> ALLOWED_TOURS = Set.of(
+            "A_PLANS", "A_BLOCKS", "A_MEMBERS", "A_GENERAL", "A_BRANDING", "A_SCREENS", "A_CLOSURES", "A_HISTORY",
+            "M_RESERVAR", "M_RESERVAS", "M_RUTINA");
 
     private final DemoTourProgressRepository repository;
 

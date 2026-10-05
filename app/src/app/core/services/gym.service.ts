@@ -2,6 +2,9 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
+// Type-only: evita un ciclo de import real con tour.service.ts (que sí inyecta GymService) —
+// se borra en tiempo de compilación.
+import type { TourName } from './tour.service';
 import {
   Admin,
   AnalyticsSummary,
@@ -87,7 +90,7 @@ export class GymService {
   /** Beacon fire-and-forget del tour guiado de la demo — mismo patrón que recordVisit: nunca
    *  debe interrumpir el tour que lo dispara. Lo llama un DEMO_ADMIN (o GYM_ADMIN si este mismo
    *  endpoint se reusa como onboarding más adelante), nunca un socio — por eso no vive en /api/me. */
-  recordTourStep(tour: 'ADMIN' | 'MEMBER', step: number): void {
+  recordTourStep(tour: TourName, step: number): void {
     this.http.post(this.tourProgressBase, { tour, step }).subscribe({
       error: () => {
         /* Best-effort: si falla, el tour sigue andando igual. */
@@ -247,6 +250,21 @@ export class GymService {
   // persona. Mismo criterio que removeDemoAdmin de abajo, para un GYM_ADMIN real.
   removeAdmin(gymId: number, userId: number): Observable<void> {
     return this.http.delete<void>(`${this.base}/${gymId}/admins/${userId}`);
+  }
+
+  // Autoservicio: el propio GYM_ADMIN invita a otro admin de su gimnasio, sin pasar por el
+  // super-admin (antes solo existía addAdmin de arriba, SUPER_ADMIN-only). gymId resuelto del
+  // JWT en el backend, no viaja en la URL — ver GymAdminController.
+  listMyAdmins(): Observable<Admin[]> {
+    return this.http.get<Admin[]>(`${this.myGymBase}/admins`);
+  }
+
+  addMyAdmin(payload: CreateAdminRequest): Observable<Admin> {
+    return this.http.post<Admin>(`${this.myGymBase}/admins`, payload);
+  }
+
+  removeMyAdmin(userId: number): Observable<void> {
+    return this.http.delete<void>(`${this.myGymBase}/admins/${userId}`);
   }
 
   // Acceso de solo-lectura a la demo comercial (Role.DEMO_ADMIN) — activar/desactivar reusa

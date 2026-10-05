@@ -23,7 +23,7 @@ import {
 import { addIcons } from 'ionicons';
 import { InstallBanner } from './install-banner/install-banner';
 import { TourOverlay } from '../../core/components/tour-overlay/tour-overlay';
-import { TourService, TourStep } from '../../core/services/tour.service';
+import { SectionTour, TourService } from '../../core/services/tour.service';
 import { TourSeenService } from '../../core/services/tour-seen.service';
 import {
   addCircleOutline,
@@ -865,48 +865,103 @@ export class MemberPage {
     }
   }
 
-  // Tour guiado de la vista de socio (modo demo) — paso 4 (check-in QR) es deliberadamente sin
-  // interacción real: hoy un DEMO_ADMIN no puede llegar a /checkin/:code (roleGuard exige
-  // MEMBER) ni DemoPreviewService tiene un método de check-in, así que el tour solo explica el
-  // aviso que ya existe en una clase en curso, sin simular el escaneo (decisión explícita, ver
-  // plan de implementación). MEMBER_TOUR_STEPS.length debe coincidir con
-  // GymForm.MEMBER_TOUR_TOTAL_STEPS (duplicado ahí, ver comentario en gym-form.ts).
-  private readonly memberTourSteps: TourStep[] = [
-    {
-      title: 'Reserva en segundos',
-      body: 'Tu socio ve los cupos libres de cada clase y reserva con un toque.',
-      targetSelector: '[data-tour="reserve-book"]',
-      beforeShow: () => this.setSection('reservar'),
+  // Tour guiado por sección de la vista de socio (modo demo) — antes un solo recorrido de 5
+  // pasos que saltaba entre "Reservar" y "Rutina"; ahora cada pestaña tiene su propio mini-tour
+  // acotado (mismo criterio que gym-admin.ts, ver comentario ahí). El paso de check-in QR sigue
+  // siendo deliberadamente sin interacción real: hoy un DEMO_ADMIN no puede llegar a
+  // /checkin/:code (roleGuard exige MEMBER) ni DemoPreviewService tiene un método de check-in,
+  // así que solo explica el aviso que ya existe en una clase en curso, sin simular el escaneo.
+  // Los códigos ('M_RESERVAR'/'M_RUTINA') deben coincidir con DemoTourService.ALLOWED_TOURS.
+  private readonly sectionTours: Partial<Record<'reservar' | 'reservas' | 'rutina', SectionTour>> = {
+    reservas: {
+      tour: 'M_RESERVAS',
+      label: 'Mis Reservas',
+      steps: [
+        {
+          title: 'Sus próximas clases, siempre a la vista',
+          body: 'Si una está en curso, ve una barra de progreso en vivo y el aviso de marcar asistencia por QR — nunca más te escribe para saber si ya reservó.',
+          targetSelector: '[data-tour="reservas-upcoming"]',
+        },
+        {
+          title: 'Cancela cuando quiera',
+          body: 'Tu socio gestiona sus propias reservas solo, sin llamar al gimnasio.',
+          targetSelector: '.class-tile__link--danger',
+        },
+        {
+          title: 'Su historial completo',
+          body: 'Todas las clases a las que ya fue, ordenadas — útil para que vea su propio progreso.',
+          targetSelector: '[data-tour="reservas-past"]',
+        },
+      ],
     },
-    {
-      title: 'Si está llena, se anota',
-      body: 'Cuando una clase no tiene cupo, tu socio se anota en la lista de espera y le avisamos apenas se libera uno.',
-      targetSelector: '[data-tour="waitlist-join"]',
-      beforeShow: () => this.setSection('reservar'),
+    reservar: {
+      tour: 'M_RESERVAR',
+      label: 'Reservar',
+      steps: [
+        {
+          title: 'Navega cualquier semana o mes',
+          body: 'Calendario completo con indicador de qué días tienen clases — tu socio planifica su semana de un vistazo.',
+          targetSelector: '[data-tour="calendar-nav"]',
+        },
+        {
+          title: 'Reserva en segundos',
+          body: 'Tu socio ve los cupos libres de cada clase y reserva con un toque.',
+          targetSelector: '[data-tour="reserve-book"]',
+        },
+        {
+          title: 'Ve quién más va',
+          body: 'Factor social: tu socio ve a sus compañeros anotados en la misma clase — refuerza que vuelva.',
+          targetSelector: '[data-tour="class-attendees"]',
+        },
+        {
+          title: 'Si está llena, se anota',
+          body: 'Cuando una clase no tiene cupo, se anota en la lista de espera, le avisamos apenas se libera uno, y puede salir de la lista cuando quiera.',
+          targetSelector: '[data-tour="waitlist-join"]',
+        },
+        {
+          title: 'Elige su plan y paga, con todo claro',
+          body: 'Ve el precio y cupo de cada plan. Al pagar, ve el desglose exacto (plan + comisión de Flow, o los datos para transferir) — cero sorpresas.',
+          targetSelector: '[data-tour="plans-grid"]',
+        },
+        {
+          title: 'Check-in con QR en la TV',
+          body: 'Mientras una clase está en curso, tu socio escanea el QR de la pantalla para marcar que llegó.',
+          targetSelector: '[data-tour="checkin-hint"]',
+        },
+      ],
     },
-    {
-      title: 'Elige su plan y paga',
-      body: 'Ve el precio y el cupo mensual de cada plan, y puede pagar en línea o por transferencia.',
-      targetSelector: '[data-tour="plans-grid"]',
-      beforeShow: () => this.setSection('reservar'),
+    rutina: {
+      tour: 'M_RUTINA',
+      label: 'Rutina',
+      steps: [
+        {
+          title: 'Memoria Viva: su rutina',
+          body: 'Después de marcar asistencia, anota qué hizo en la clase — su profesor lo ve antes de hablar con él.',
+          targetSelector: '[data-tour="workout-days"]',
+        },
+        {
+          title: 'Registro libre si hizo otra cosa',
+          body: 'Si ese día entrenó algo distinto al plan sugerido, puede anotarlo igual con "Otro" — el sistema lo marca como una desviación, sin forzar nada.',
+          targetSelector: '[data-tour="workout-free-text"]',
+        },
+        {
+          title: 'Detalle por ejercicio, y corrige si se equivocó',
+          body: 'Anota notas de cada ejercicio por separado, y puede corregir un registro ya guardado si cambió algo.',
+          targetSelector: '[data-tour="workout-exercise-rows"]',
+        },
+      ],
     },
-    {
-      title: 'Check-in con QR en la TV',
-      body: 'Mientras una clase está en curso, tu socio escanea el QR de la pantalla para marcar que llegó.',
-      targetSelector: '[data-tour="checkin-hint"]',
-      beforeShow: () => this.setSection('reservar'),
-    },
-    {
-      title: 'Memoria Viva: su rutina',
-      body: 'Después de marcar asistencia, anota qué hizo en la clase — su profesor lo ve antes de hablar con él.',
-      targetSelector: '[data-tour="workout-days"]',
-      beforeShow: () => this.setSection('rutina'),
-    },
-  ];
+  };
 
-  protected startMemberTour(): void {
+  protected readonly currentSectionTour = computed(() => this.sectionTours[this.section()] ?? null);
+
+  protected startSectionTour(): void {
+    const sectionTour = this.currentSectionTour();
+    if (!sectionTour) {
+      return;
+    }
     this.tourSeen.markMemberTourSeen();
-    this.tourService.start('MEMBER', this.memberTourSteps);
+    this.tourService.start(sectionTour.tour, sectionTour.steps);
   }
 
   // ---- "Memoria Viva": pestaña Rutina — ver WorkoutService (backend) para los 3 estados
