@@ -304,12 +304,26 @@ export class TvScreenPage implements OnDestroy {
     return elapsedMin > PREVIOUS_STALE_MINUTES ? null : prev;
   });
 
+  // Pantalla completa — ningún navegador permite activarla sin un gesto del usuario (clic, toque o
+  // tecla), así que no se puede "forzar" al cargar: se entra en el PRIMER gesto (un clic o el OK del
+  // control remoto) y, mientras no esté activa, queda un botón discreto para pedirla. Para una TV
+  // permanente lo robusto es abrir Chrome en modo kiosco (--kiosk), que sobrevive a las recargas.
+  protected readonly fullscreenSupported = typeof document.documentElement.requestFullscreen === 'function';
+  protected readonly isFullscreen = signal(!!document.fullscreenElement);
+  private readonly gestureEvents = ['pointerdown', 'keydown', 'touchend'] as const;
+  private readonly onFullscreenChange = (): void => this.isFullscreen.set(!!document.fullscreenElement);
+  private readonly onFirstGesture = (): void => this.enterFullscreen();
+
   private clockOffsetMs = 0;
   private clockTimer: ReturnType<typeof setInterval> | null = null;
   private pollTimer: ReturnType<typeof setTimeout> | null = null;
   private kioskReloadTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
+    if (this.fullscreenSupported) {
+      document.addEventListener('fullscreenchange', this.onFullscreenChange);
+      this.gestureEvents.forEach((name) => document.addEventListener(name, this.onFirstGesture, true));
+    }
     this.clockTimer = setInterval(() => this.now.set(new Date(Date.now() + this.clockOffsetMs)), 1000);
     this.kioskReloadTimer = setTimeout(() => location.reload(), KIOSK_RELOAD_MS);
 
@@ -322,7 +336,25 @@ export class TvScreenPage implements OnDestroy {
     }
   }
 
+  /** Pide pantalla completa; si el navegador la rechaza (sin gesto válido) se reintenta en el próximo gesto. */
+  protected enterFullscreen(): void {
+    if (!this.fullscreenSupported || document.fullscreenElement) {
+      return;
+    }
+    document.documentElement.requestFullscreen({ navigationUI: 'hide' }).then(
+      () => this.stopListeningForGesture(),
+      () => undefined,
+    );
+  }
+
+  // Solo se fuerza en el primer gesto: si después alguien sale con Esc, se respeta (queda el botón).
+  private stopListeningForGesture(): void {
+    this.gestureEvents.forEach((name) => document.removeEventListener(name, this.onFirstGesture, true));
+  }
+
   ngOnDestroy(): void {
+    document.removeEventListener('fullscreenchange', this.onFullscreenChange);
+    this.stopListeningForGesture();
     if (this.clockTimer) clearInterval(this.clockTimer);
     if (this.pollTimer) clearTimeout(this.pollTimer);
     if (this.kioskReloadTimer) clearTimeout(this.kioskReloadTimer);

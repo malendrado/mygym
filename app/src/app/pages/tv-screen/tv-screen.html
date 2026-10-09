@@ -408,5 +408,11 @@
         }
       }
     }
+
+    @if (fullscreenSupported && !isFullscreen()) {
+      <button type="button" class="tv-fullscreen-hint" (click)="enterFullscreen()" aria-label="Activar pantalla completa">
+        <span aria-hidden="true">⛶</span> Pantalla completa · clic u OK
+      </button>
+    }
   </div>
 </ion-content>
