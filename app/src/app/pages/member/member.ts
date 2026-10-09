@@ -1608,6 +1608,21 @@ export class MemberPage {
     return start <= this.nowChileIso && this.nowChileIso <= end;
   }
 
+  // Misma regla que ReservationService.requireWithinBookingWindow: solo se puede cancelar si
+  // faltan MÁS de `cancellationWindowHours` horas para el inicio (el admin del gym la define).
+  // Antes el botón salía siempre y el backend rechazaba después con un error. Se calcula con
+  // "ahora" fresco (no el snapshot de la página) porque ésta puede quedar abierta horas.
+  protected canCancel(classDate: string, startTime: string): boolean {
+    const windowHours = this.gym()?.cancellationWindowHours ?? 0;
+    const toMs = (iso: string) => {
+      const [date, time = '00:00:00'] = iso.split('T');
+      const [y, mo, d] = date.split('-').map(Number);
+      const [h, mi, s = 0] = time.split(':').map(Number);
+      return Date.UTC(y, mo - 1, d, h, mi, s);
+    };
+    return toMs(nowInGymZoneIso()) + windowHours * 3_600_000 < toMs(`${classDate}T${startTime}`);
+  }
+
   protected isReservationLive(reservation: Reservation): boolean {
     return this.isLiveNow(reservation.classDate, reservation.startTime, reservation.endTime);
   }

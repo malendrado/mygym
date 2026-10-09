@@ -406,16 +406,22 @@
                       <ion-badge color="success">Reservado</ion-badge>
                     }
                     @if (!occurrence.past) {
-                      <ion-button
-                        expand="block"
-                        fill="outline"
-                        color="danger"
-                        size="small"
-                        [disabled]="cancelingId() === occurrence.myReservationId"
-                        (click)="cancel(occurrence.myReservationId!)"
-                      >
-                        {{ cancelingId() === occurrence.myReservationId ? 'Cancelando...' : 'Cancelar reserva' }}
-                      </ion-button>
+                      @if (canCancel(occurrence.classDate, occurrence.startTime)) {
+                        <ion-button
+                          expand="block"
+                          fill="outline"
+                          color="danger"
+                          size="small"
+                          [disabled]="cancelingId() === occurrence.myReservationId"
+                          (click)="cancel(occurrence.myReservationId!)"
+                        >
+                          {{ cancelingId() === occurrence.myReservationId ? 'Cancelando...' : 'Cancelar reserva' }}
+                        </ion-button>
+                      } @else {
+                        <span class="class-tile__note class-tile__note--hint">
+                          Ya no se puede cancelar (hasta {{ gym()?.cancellationWindowHours }} h antes)
+                        </span>
+                      }
                     }
                   } @else if (occurrence.past) {
                     <span class="class-tile__note">Ya pasó</span>
@@ -628,17 +634,23 @@
               } @else {
                 <ion-badge color="success">Reservado</ion-badge>
               }
-              <ion-button
-                data-tour="reservas-cancel"
-                expand="block"
-                fill="outline"
-                color="danger"
-                size="small"
-                [disabled]="cancelingId() === reservation.id"
-                (click)="cancel(reservation.id)"
-              >
-                {{ cancelingId() === reservation.id ? 'Cancelando...' : 'Cancelar reserva' }}
-              </ion-button>
+              @if (canCancel(reservation.classDate, reservation.startTime)) {
+                <ion-button
+                  data-tour="reservas-cancel"
+                  expand="block"
+                  fill="outline"
+                  color="danger"
+                  size="small"
+                  [disabled]="cancelingId() === reservation.id"
+                  (click)="cancel(reservation.id)"
+                >
+                  {{ cancelingId() === reservation.id ? 'Cancelando...' : 'Cancelar reserva' }}
+                </ion-button>
+              } @else {
+                <span class="class-tile__note class-tile__note--hint">
+                  Ya no se puede cancelar (hasta {{ gym()?.cancellationWindowHours }} h antes)
+                </span>
+              }
             </div>
           </article>
         } @empty {
