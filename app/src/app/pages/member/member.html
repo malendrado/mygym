@@ -351,6 +351,10 @@
                       <ion-icon name="qr-code-outline" aria-hidden="true"></ion-icon>
                       Escanea el QR de la TV para marcar tu asistencia.
                     </p>
+                    <ion-button size="small" expand="block" class="class-tile__scan" [disabled]="checkinBusy()" aria-label="Escanear QR de asistencia" (click)="openQrScanner()">
+                      <ion-icon name="camera-outline" slot="start" aria-hidden="true"></ion-icon>
+                      Escanear
+                    </ion-button>
                   }
                 }
                 <p class="class-tile__capacity">{{ occurrence.taken }}/{{ occurrence.capacity }} cupos</p>
@@ -604,6 +608,10 @@
                   <ion-icon name="qr-code-outline" aria-hidden="true"></ion-icon>
                   Escanea el QR de la TV para marcar tu asistencia.
                 </p>
+                <ion-button size="small" expand="block" class="class-tile__scan" [disabled]="checkinBusy()" aria-label="Escanear QR de asistencia" (click)="openQrScanner()">
+                  <ion-icon name="camera-outline" slot="start" aria-hidden="true"></ion-icon>
+                  Escanear
+                </ion-button>
               }
             }
             <div class="class-tile__action">
@@ -838,4 +846,7 @@
     </div>
   </ion-content>
   <app-tour-overlay />
+  @if (scannerOpen()) {
+    <app-qr-scanner (scanned)="onQrScanned($event)" (closed)="closeQrScanner()" />
+  }
 }

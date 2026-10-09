@@ -21,6 +21,8 @@ import {
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { InstallBanner } from './install-banner/install-banner';
+import { QrScanner } from '../../core/components/qr-scanner/qr-scanner';
+import { extractCheckinCode } from '../../core/utils/qr-code';
 import { TourOverlay } from '../../core/components/tour-overlay/tour-overlay';
 import { SectionTour, TourService } from '../../core/services/tour.service';
 import { TourSeenService } from '../../core/services/tour-seen.service';
@@ -46,6 +48,7 @@ import {
   logoWhatsapp,
   playOutline,
   qrCodeOutline,
+  cameraOutline,
   sparklesOutline,
   trendingUpOutline,
 } from 'ionicons/icons';
@@ -92,6 +95,7 @@ addIcons({
   'information-circle-outline': informationCircleOutline,
   'create-outline': createOutline,
   'qr-code-outline': qrCodeOutline,
+  'camera-outline': cameraOutline,
   'ban-outline': banOutline,
   'play-outline': playOutline,
 });
@@ -278,6 +282,7 @@ const OCCURRENCES_LOADING_MESSAGES = [
     IonInput,
     IonItem,
     InstallBanner,
+    QrScanner,
     NgTemplateOutlet,
     TourOverlay,
   ],
@@ -1332,6 +1337,45 @@ export class MemberPage {
     await this.authService.logout();
     const slug = this.gym()?.slug;
     this.router.navigate([slug ? `/j/${slug}` : '/login']);
+  }
+
+  // Escáner de QR dentro de la app: el QR de la TV es un link normal que el teléfono suele abrir con el
+  // navegador; con la cámara propia el socio marca su asistencia sin salir de la app. Reusa el mismo
+  // endpoint que la página /checkin/:code (ReservationService.checkIn).
+  protected readonly scannerOpen = signal(false);
+  protected readonly checkinBusy = signal(false);
+
+  protected openQrScanner(): void {
+    if (this.blockedInDemo() || this.checkinBusy()) {
+      return;
+    }
+    this.scannerOpen.set(true);
+  }
+
+  protected closeQrScanner(): void {
+    this.scannerOpen.set(false);
+  }
+
+  protected onQrScanned(text: string): void {
+    this.scannerOpen.set(false);
+    const code = extractCheckinCode(text);
+    if (!code) {
+      this.showToast('Ese QR no es de asistencia de mygym. Escanea el que muestra la pantalla de tu gimnasio.', 'danger');
+      return;
+    }
+    this.checkinBusy.set(true);
+    this.reservationService.checkIn(code).subscribe({
+      next: (res) => {
+        this.checkinBusy.set(false);
+        this.showToast(`¡Asistencia marcada${res.classLabels.length ? ' en ' + res.classLabels.join(' y ') : ''}!`);
+        this.loadMyReservations();
+        this.loadOccurrences();
+      },
+      error: (err: Error) => {
+        this.checkinBusy.set(false);
+        this.showToast(err.message || 'No pudimos confirmar tu asistencia. Intenta nuevamente.', 'danger');
+      },
+    });
   }
 
   private async showToast(message: string, color: 'success' | 'danger' = 'success'): Promise<void> {

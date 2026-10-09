@@ -1,0 +1,38 @@
+<div class="qr-scanner" role="dialog" aria-modal="true" aria-label="Escanear QR de asistencia">
+  <video #video class="qr-scanner__video" playsinline muted autoplay></video>
+
+  <button type="button" class="qr-scanner__close" (click)="close()" aria-label="Cerrar cámara">
+    <ion-icon name="close-outline" aria-hidden="true"></ion-icon>
+  </button>
+
+  @switch (state()) {
+    @case ('scanning') {
+      <div class="qr-scanner__frame" aria-hidden="true"></div>
+      <p class="qr-scanner__hint" role="status">Apunta al QR de la pantalla del gimnasio</p>
+    }
+    @case ('starting') {
+      <p class="qr-scanner__hint" role="status">Abriendo la cámara…</p>
+    }
+    @case ('denied') {
+      <div class="qr-scanner__message" role="alert">
+        <p class="qr-scanner__title">Necesitamos la cámara</p>
+        <p>Activa el permiso de cámara para mygym en los ajustes de tu teléfono y vuelve a intentarlo.</p>
+        <button type="button" class="qr-scanner__action" (click)="close()">Cerrar</button>
+      </div>
+    }
+    @case ('unsupported') {
+      <div class="qr-scanner__message" role="alert">
+        <p class="qr-scanner__title">Este dispositivo no permite usar la cámara aquí</p>
+        <p>Escanea el QR con la cámara de tu teléfono: te llevará a confirmar tu asistencia.</p>
+        <button type="button" class="qr-scanner__action" (click)="close()">Cerrar</button>
+      </div>
+    }
+    @default {
+      <div class="qr-scanner__message" role="alert">
+        <p class="qr-scanner__title">No pudimos abrir la cámara</p>
+        <p>Cierra otras apps que la estén usando e inténtalo de nuevo.</p>
+        <button type="button" class="qr-scanner__action" (click)="close()">Cerrar</button>
+      </div>
+    }
+  }
+</div>
