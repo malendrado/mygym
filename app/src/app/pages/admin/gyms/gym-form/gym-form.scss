@@ -120,13 +120,6 @@
     object-fit: cover;
   }
 
-  // [innerHTML]-injected SVG markup isn't stamped with Angular's emulated
-  // encapsulation attribute, so a plain scoped `svg { }` rule never matches it.
-  ::ng-deep svg {
-    width: 32px;
-    height: 32px;
-  }
-
   ion-icon {
     font-size: 1.5rem;
     color: var(--brand-text-dim);
@@ -261,11 +254,6 @@
       height: 100%;
       object-fit: cover;
     }
-
-    ::ng-deep svg {
-      width: 28px;
-      height: 28px;
-    }
   }
 
   .item-hint {
@@ -285,11 +273,10 @@
   &__logo {
     display: flex;
 
-    // [innerHTML]-injected SVG markup isn't stamped with Angular's emulated
-    // encapsulation attribute, so a plain scoped `svg { }` rule never matches it.
-    ::ng-deep svg {
+    img {
       width: 48px;
       height: 48px;
+      object-fit: contain;
     }
   }
 

@@ -7,9 +7,11 @@ import com.cortesdev.mygym.models.dto.CheckinResponse;
 import com.cortesdev.mygym.models.dto.GymBlockOccurrenceResponse;
 import com.cortesdev.mygym.models.dto.GymClosureNoticeResponse;
 import com.cortesdev.mygym.models.dto.GymPhotoResponse;
+import com.cortesdev.mygym.models.dto.MemberDashboardResponse;
 import com.cortesdev.mygym.models.dto.MemberPlanResponse;
 import com.cortesdev.mygym.models.dto.MemberReservation;
 import com.cortesdev.mygym.models.dto.MemberResponse;
+import com.cortesdev.mygym.models.dto.PageResponse;
 import com.cortesdev.mygym.models.dto.PublicGymResponse;
 import com.cortesdev.mygym.models.dto.ReservationCreateRequest;
 import com.cortesdev.mygym.models.dto.ReservationResponse;
@@ -54,6 +56,22 @@ public class ReservationController {
     @GetMapping("/gym")
     public PublicGymResponse myGym(@AuthenticationPrincipal Jwt jwt) {
         return gymService.getPublicById(AuthenticatedUser.from(jwt).gymId());
+    }
+
+    // Combina gym+membresía+planes+datos bancarios+aviso de cierre en 1 sola request — antes eran
+    // 5 llamadas sueltas disparadas en paralelo desde member.ts, que sumadas a fotos/ocurrencias/
+    // mis-reservas llegaban a 7-8 conexiones simultáneas contra un pool Hikari de solo 5 (auditoría
+    // de performance 2026-10-09). Deja afuera a propósito fotos/ocurrencias/reservas: son las
+    // llamadas más pesadas y las que menos urge pintar primero.
+    @GetMapping("/dashboard")
+    public MemberDashboardResponse myDashboard(@AuthenticationPrincipal Jwt jwt) {
+        AuthenticatedUser user = AuthenticatedUser.from(jwt);
+        return new MemberDashboardResponse(
+                gymService.getPublicById(user.gymId()),
+                memberService.getOwnMembership(user.userId()),
+                gymService.listActivePlans(user.gymId()),
+                gymService.getBankTransferInfo(user.gymId()),
+                gymClosureService.activeOrUpcomingNotice(user.gymId()));
     }
 
     // Banner de cierre de emergencia (ver GymClosureService) — 204 si no hay ninguno vigente ni próximo.
@@ -144,6 +162,15 @@ public class ReservationController {
     @GetMapping("/reservations")
     public List<ReservationResponse> myReservations(@AuthenticationPrincipal Jwt jwt) {
         return reservationService.myReservations(AuthenticatedUser.from(jwt).userId());
+    }
+
+    // Historial paginado ("Mis reservas · Pasadas") — ver ReservationService.myPastReservations.
+    @GetMapping("/reservations/past")
+    public PageResponse<ReservationResponse> myPastReservations(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return reservationService.myPastReservations(AuthenticatedUser.from(jwt).userId(), page, size);
     }
 
     // Lista de espera de una clase llena — ver WaitlistService. Reusa ReservationCreateRequest

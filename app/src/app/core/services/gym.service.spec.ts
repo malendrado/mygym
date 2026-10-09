@@ -40,11 +40,22 @@ describe('GymService', () => {
 
   afterEach(() => httpMock.verify());
 
-  it('list() GETs /api/gyms', () => {
-    service.list().subscribe((result) => expect(result).toEqual([gym]));
-    const req = httpMock.expectOne('/api/gyms');
+  it('listPage() GETs /api/gyms with paging and search params', () => {
+    const page = { items: [gym], page: 0, size: 12, totalElements: 1, hasNext: false };
+    service.listPage({ q: 'gold', page: 0, size: 12 }).subscribe((result) => expect(result).toEqual(page));
+    const req = httpMock.expectOne((r) => r.url === '/api/gyms');
     expect(req.request.method).toBe('GET');
-    req.flush([gym]);
+    expect(req.request.params.get('q')).toBe('gold');
+    expect(req.request.params.get('page')).toBe('0');
+    expect(req.request.params.get('size')).toBe('12');
+    req.flush(page);
+  });
+
+  it('listPage() omits q when the search is empty', () => {
+    service.listPage({ q: '', page: 1, size: 12 }).subscribe();
+    const req = httpMock.expectOne((r) => r.url === '/api/gyms');
+    expect(req.request.params.has('q')).toBe(false);
+    req.flush({ items: [], page: 1, size: 12, totalElements: 0, hasNext: false });
   });
 
   it('get() GETs /api/gyms/:id', () => {

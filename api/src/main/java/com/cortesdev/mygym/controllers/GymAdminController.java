@@ -7,6 +7,9 @@ import com.cortesdev.mygym.models.dto.BlockBatchCreateRequest;
 import com.cortesdev.mygym.models.dto.BlockCreateRequest;
 import com.cortesdev.mygym.models.dto.BlockCreateResult;
 import com.cortesdev.mygym.models.dto.BlockOccurrenceAttendeesResponse;
+import com.cortesdev.mygym.models.dto.OccurrenceSearchResult;
+import com.cortesdev.mygym.models.dto.PageResponse;
+import com.cortesdev.mygym.models.dto.ReservationSearchResponse;
 import com.cortesdev.mygym.models.dto.MemberReservation;
 import com.cortesdev.mygym.models.dto.OccurrenceAttendees;
 import com.cortesdev.mygym.models.dto.BlockResponse;
@@ -111,12 +114,12 @@ public class GymAdminController {
     // tener que recorrer bloque por bloque/semana por semana. Reusa la misma forma de
     // respuesta que history-attendees (BlockOccurrenceAttendeesResponse).
     @GetMapping("/reservations/search")
-    public List<BlockOccurrenceAttendeesResponse> searchMyReservations(
+    public ReservationSearchResponse searchMyReservations(
             @AuthenticationPrincipal Jwt jwt, @RequestParam String q) {
         Long gymId = AuthenticatedUser.from(jwt).gymId();
-        return reservationService.searchUpcomingReservations(gymId, q).stream()
-                .map(this::toBatchResponse)
-                .toList();
+        OccurrenceSearchResult result = reservationService.searchUpcomingReservations(gymId, q);
+        return new ReservationSearchResponse(
+                result.occurrences().stream().map(this::toBatchResponse).toList(), result.truncated());
     }
 
     // Vía de urgencia para el admin: cancela la reserva de CUALQUIER socio del gym, sin la
@@ -272,8 +275,11 @@ public class GymAdminController {
 
     // Cierre de emergencia (ver GymClosureService) — el dueño del gym cierra su propio gimnasio.
     @GetMapping("/closures")
-    public List<GymClosureResponse> listMyClosures(@AuthenticationPrincipal Jwt jwt) {
-        return gymClosureService.list(AuthenticatedUser.from(jwt).gymId());
+    public PageResponse<GymClosureResponse> listMyClosures(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return gymClosureService.listPage(AuthenticatedUser.from(jwt).gymId(), page, size);
     }
 
     @PostMapping("/closures/preview")

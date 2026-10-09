@@ -29,15 +29,13 @@
     </ion-button>
   </div>
 
-  @if (status() === 'loading') {
+  @if (!gymList.loaded()) {
     <p class="item-hint">Cargando gimnasios…</p>
-  } @else if (status() === 'error') {
-    <ion-text color="danger"><p>No se pudieron cargar los gimnasios. Intenta nuevamente.</p></ion-text>
   } @else {
     <div class="gyms-stats">
       <div class="gyms-stat">
         <ion-icon name="business-outline" aria-hidden="true"></ion-icon>
-        <p class="gyms-stat__value">{{ gyms().length }}</p>
+        <p class="gyms-stat__value">{{ totalGyms() }}</p>
         <p class="gyms-stat__label">Gimnasios totales</p>
       </div>
       <div class="gyms-stat">
@@ -59,15 +57,30 @@
 
     <h2 class="gyms-section-title">Gimnasios registrados</h2>
 
-    @if (gyms().length > 0) {
-      <div class="gym-grid">
+    <ion-searchbar
+      placeholder="Buscar gimnasio por nombre o slug"
+      [value]="gymList.searchQuery()"
+      (ionInput)="gymList.setSearch($any($event.detail.value) ?? '')"
+      (ionClear)="gymList.setSearch('')"
+    ></ion-searchbar>
+
+    @if (gymList.error()) {
+      <div class="gyms-error">
+        <ion-text color="danger"><p>No se pudieron cargar los gimnasios.</p></ion-text>
+        <ion-button fill="outline" size="small" (click)="gymList.reload()">Reintentar</ion-button>
+      </div>
+    } @else if (gyms().length > 0) {
+      <div
+        class="gym-grid"
+        [attr.aria-busy]="gymList.loading()"
+        [style.opacity]="gymList.loading() ? 0.55 : 1"
+        style="transition: opacity 150ms ease-out"
+      >
         @for (gym of gyms(); track gym.id) {
           <a class="gym-card" [routerLink]="['/admin/gyms', gym.publicId]" [style.--gym-accent]="gym.themeColor ?? '#c6ff3d'">
             <div class="gym-card__badge">
-              @if (isRasterLogo(gym)) {
-                <img [src]="gym.logoSvg" alt="" />
-              } @else if (safeLogo(gym)) {
-                <div [innerHTML]="safeLogo(gym)"></div>
+              @if (logoSrc(gym)) {
+                <img [src]="logoSrc(gym)" alt="" />
               } @else {
                 <ion-icon name="barbell-outline" aria-hidden="true"></ion-icon>
               }
@@ -82,6 +95,18 @@
           </a>
         }
       </div>
+      @if (gymList.totalPages() > 1) {
+        <app-pagination-bar
+          [page]="gymList.page()"
+          [totalPages]="gymList.totalPages()"
+          [totalElements]="gymList.totalElements()"
+          [loading]="gymList.loading()"
+          itemLabel="gimnasios"
+          (pageChange)="onGymPage($event)"
+        />
+      }
+    } @else if (gymList.searchQuery().trim() !== '') {
+      <p class="item-hint">No encontramos gimnasios que coincidan con "{{ gymList.searchQuery() }}".</p>
     } @else {
       <div class="gyms-empty">
         <ion-icon name="business-outline" aria-hidden="true"></ion-icon>

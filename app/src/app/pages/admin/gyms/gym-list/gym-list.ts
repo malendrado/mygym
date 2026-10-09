@@ -1,6 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import {
   IonBadge,
   IonButton,
@@ -10,6 +9,7 @@ import {
   IonFabButton,
   IonHeader,
   IonIcon,
+  IonSearchbar,
   IonText,
   IonTitle,
   IonToolbar,
@@ -28,8 +28,11 @@ import {
   sparklesOutline,
 } from 'ionicons/icons';
 import { GymService } from '../../../../core/services/gym.service';
-import { AnalyticsSummary, GymSummary } from '../../../../core/models/gym.model';
+import { AnalyticsSummary, GymStats, GymSummary } from '../../../../core/models/gym.model';
+import { PagedListState } from '../../../../core/state/paged-list.state';
+import { PaginationBar } from '../../../../core/components/pagination-bar/pagination-bar';
 import { AuthService } from '../../../../core/services/auth.service';
+import { toLogoImgSrc } from '../../../../core/utils/logo-src';
 
 addIcons({
   'business-outline': businessOutline,
@@ -59,7 +62,9 @@ type Status = 'idle' | 'loading' | 'loaded' | 'error';
     IonBadge,
     IonFab,
     IonFabButton,
+    IonSearchbar,
     IonText,
+    PaginationBar,
   ],
   templateUrl: './gym-list.html',
   styleUrl: './gym-list.scss',
@@ -68,10 +73,13 @@ export class GymList implements ViewWillEnter {
   private readonly gymService = inject(GymService);
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
-  private readonly sanitizer = inject(DomSanitizer);
 
-  protected readonly status = signal<Status>('idle');
-  protected readonly gyms = signal<GymSummary[]>([]);
+  // Lista paginada (12 por página) con búsqueda por nombre/slug en el servidor — la lista crece con
+  // cada cliente nuevo y cada tarjeta arrastra el logo SVG. Las calugas leen los conteos de TODOS
+  // los gimnasios (stats), no cuentan las tarjetas de la página visible.
+  protected readonly gymList = new PagedListState<GymSummary>((query) => this.gymService.listPage(query), 12);
+  protected readonly gyms = this.gymList.items;
+  protected readonly stats = signal<GymStats | null>(null);
 
   // Panel de Visitas — contador propio (no depende de leer Vercel Analytics
   // por API, que no existe). Se carga aparte de la lista de gimnasios y
@@ -80,9 +88,10 @@ export class GymList implements ViewWillEnter {
   protected readonly analyticsStatus = signal<Status>('idle');
   protected readonly analytics = signal<AnalyticsSummary | null>(null);
 
-  protected readonly activeCount = computed(() => this.gyms().filter((g) => g.active).length);
-  protected readonly totalCapacity = computed(() => this.gyms().reduce((sum, g) => sum + g.maxUsers, 0));
-  protected readonly brandedCount = computed(() => this.gyms().filter((g) => !!g.logoSvg).length);
+  protected readonly totalGyms = computed(() => this.stats()?.total ?? 0);
+  protected readonly activeCount = computed(() => this.stats()?.active ?? 0);
+  protected readonly totalCapacity = computed(() => this.stats()?.totalCapacity ?? 0);
+  protected readonly brandedCount = computed(() => this.stats()?.branded ?? 0);
 
   /** Para dibujar cada fila de "Visitas" como una barra proporcional al máximo, no una
    *  lista plana de números — el mínimo de 1 evita dividir por cero cuando no hay datos. */
@@ -99,7 +108,8 @@ export class GymList implements ViewWillEnter {
   // por el usuario 2026-09-23). ionViewWillEnter sí dispara cada vez que la página se vuelve a
   // mostrar, esté cacheada o no — reemplaza al constructor como punto de carga.
   ionViewWillEnter(): void {
-    this.load();
+    this.gymList.reload();
+    this.loadStats();
     this.loadAnalytics();
   }
 
@@ -111,22 +121,20 @@ export class GymList implements ViewWillEnter {
     this.router.navigate(['/']);
   }
 
-  protected isRasterLogo(gym: GymSummary): boolean {
-    return (gym.logoSvg ?? '').startsWith('data:image');
+  protected logoSrc(gym: GymSummary): string | null {
+    return toLogoImgSrc(gym.logoSvg);
   }
 
-  protected safeLogo(gym: GymSummary): SafeHtml | null {
-    return gym.logoSvg && !this.isRasterLogo(gym) ? this.sanitizer.bypassSecurityTrustHtml(gym.logoSvg) : null;
+  protected onGymPage(page: number): void {
+    this.gymList.goTo(page);
+    document.querySelector('.gyms-section-title')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
-  private load(): void {
-    this.status.set('loading');
-    this.gymService.list().subscribe({
-      next: (gyms) => {
-        this.gyms.set(gyms);
-        this.status.set('loaded');
-      },
-      error: () => this.status.set('error'),
+  private loadStats(): void {
+    this.gymService.stats().subscribe({
+      next: (stats) => this.stats.set(stats),
+      // Las calugas son informativas: si fallan, la lista sigue funcionando.
+      error: () => undefined,
     });
   }
 

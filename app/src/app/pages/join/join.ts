@@ -1,6 +1,5 @@
 import { Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { DomSanitizer } from '@angular/platform-browser';
 import {
   IonButton,
   IonContent,
@@ -29,6 +28,7 @@ import { GymService } from '../../core/services/gym.service';
 import { LoginResponse } from '../../core/models/auth.model';
 import { GymPhoto, MemberPlan, PublicGym } from '../../core/models/gym.model';
 import { deriveSurfaceTint, ensureMinContrastColor, syncThemeOverrides } from '../../core/utils/gym-theme';
+import { toLogoImgSrc } from '../../core/utils/logo-src';
 
 addIcons({
   'logo-instagram': logoInstagram,
@@ -78,7 +78,6 @@ export class Join {
   private readonly gymService = inject(GymService);
   private readonly authService = inject(AuthService);
   private readonly socialAuthService = inject(SocialAuthService);
-  private readonly sanitizer = inject(DomSanitizer);
   private readonly destroyRef = inject(DestroyRef);
 
   private readonly slug = this.route.snapshot.paramMap.get('slug') ?? '';
@@ -129,11 +128,7 @@ export class Join {
     return sorted[Math.floor(sorted.length / 2)].id;
   });
 
-  protected readonly isRasterLogo = computed(() => (this.gym()?.logoSvg ?? '').startsWith('data:image'));
-  protected readonly safeLogo = computed(() => {
-    const svg = this.gym()?.logoSvg;
-    return svg && !this.isRasterLogo() ? this.sanitizer.bypassSecurityTrustHtml(svg) : null;
-  });
+  protected readonly logoSrc = computed(() => toLogoImgSrc(this.gym()?.logoSvg));
 
   constructor() {
     this.gymService.getPublicBySlug(this.slug).subscribe({

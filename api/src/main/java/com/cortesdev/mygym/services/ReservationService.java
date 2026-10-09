@@ -9,6 +9,8 @@ import com.cortesdev.mygym.models.Role;
 import com.cortesdev.mygym.models.dto.GymBlockOccurrenceResponse;
 import com.cortesdev.mygym.models.dto.MemberReservation;
 import com.cortesdev.mygym.models.dto.OccurrenceAttendees;
+import com.cortesdev.mygym.models.dto.OccurrenceSearchResult;
+import com.cortesdev.mygym.models.dto.PageResponse;
 import com.cortesdev.mygym.models.TvCheckinCode;
 import com.cortesdev.mygym.models.dto.ReservationCreateRequest;
 import com.cortesdev.mygym.models.dto.ReservationResponse;
@@ -44,6 +46,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -53,6 +59,14 @@ import org.springframework.transaction.annotation.Transactional;
 public class ReservationService {
 
     private static final ZoneId GYM_ZONE = ZoneId.of("America/Santiago");
+
+    // Tope duro de página: aunque el cliente pida size=10000, nunca se devuelve más que esto.
+    private static final int MAX_PAGE_SIZE = 50;
+
+    // Buscador de reservas futuras por nombre: mínimo de letras y tope de socios cuyas reservas se
+    // traen — un texto corto como "an" puede coincidir con cientos de socios en un gimnasio grande.
+    private static final int MIN_SEARCH_LENGTH = 2;
+    static final int MAX_SEARCH_MEMBERS = 25;
 
     // Cuánto antes de que empiece la clase ya se puede marcar asistencia — llegar unos minutos
     // antes a estirar/cambiarse es normal, no tiene sentido que el QR recién funcione al segundo
@@ -197,16 +211,26 @@ public class ReservationService {
     // SKILL.md). Solo reservas classDate >= hoy: el caso de uso real es urgencia con una clase
     // próxima, no gestionar historial (eso ya lo cubre Historial aparte).
     @Transactional(readOnly = true)
-    public List<OccurrenceAttendees> searchUpcomingReservations(Long gymId, String query) {
-        List<AppUser> matches =
-                appUserRepository.findByGymIdAndRoleAndNameContainingIgnoreCase(gymId, Role.MEMBER, query);
-        if (matches.isEmpty()) {
-            return List.of();
+    public OccurrenceSearchResult searchUpcomingReservations(Long gymId, String query) {
+        // Un texto de menos de 2 letras coincide con medio gimnasio — el frontend ya no lo manda,
+        // acá se cierra el mismo hueco para quien le pegue directo a la API.
+        if (query == null || query.trim().length() < MIN_SEARCH_LENGTH) {
+            return new OccurrenceSearchResult(List.of(), false);
         }
-        List<Long> memberIds = matches.stream().map(AppUser::getId).toList();
+        List<AppUser> matches = appUserRepository
+                .findByGymIdAndRoleAndNameContainingIgnoreCase(gymId, Role.MEMBER, query.trim())
+                .stream()
+                .sorted(Comparator.comparing((AppUser u) -> u.getName() == null ? "" : u.getName().toLowerCase())
+                        .thenComparing(AppUser::getId))
+                .toList();
+        if (matches.isEmpty()) {
+            return new OccurrenceSearchResult(List.of(), false);
+        }
+        boolean truncated = matches.size() > MAX_SEARCH_MEMBERS;
+        List<Long> memberIds = matches.stream().limit(MAX_SEARCH_MEMBERS).map(AppUser::getId).toList();
         List<Reservation> upcoming = reservationRepository.findByMemberIdInAndStatusAndClassDateGreaterThanEqual(
                 memberIds, ReservationStatus.BOOKED, LocalDate.now(GYM_ZONE));
-        return groupByOccurrence(upcoming);
+        return new OccurrenceSearchResult(groupByOccurrence(upcoming), truncated);
     }
 
     // Compartido por getOccurrenceAttendeesForRange (rango de fechas) y
@@ -339,13 +363,29 @@ public class ReservationService {
 
     @Transactional(readOnly = true)
     public List<ReservationResponse> myReservations(Long memberId) {
-        List<Reservation> reservations =
-                reservationRepository.findByMemberIdAndStatusOrderByClassDateAsc(memberId, ReservationStatus.BOOKED);
+        // Solo desde hoy en adelante: las anteriores crecen sin límite y se piden paginadas
+        // (myPastReservations). Las de hoy que ya terminaron siguen viniendo acá — el frontend las
+        // clasifica como pasadas según la hora real de término.
+        return toResponses(reservationRepository.findByMemberIdAndStatusAndClassDateGreaterThanEqualOrderByClassDateAsc(
+                memberId, ReservationStatus.BOOKED, LocalDate.now(GYM_ZONE)));
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<ReservationResponse> myPastReservations(Long memberId, int page, int size) {
+        Pageable pageable = PageRequest.of(
+                Math.max(page, 0),
+                Math.min(Math.max(size, 1), MAX_PAGE_SIZE),
+                Sort.by(Sort.Direction.DESC, "classDate").and(Sort.by(Sort.Direction.DESC, "id")));
+        Page<Reservation> result = reservationRepository.findByMemberIdAndStatusAndClassDateLessThan(
+                memberId, ReservationStatus.BOOKED, LocalDate.now(GYM_ZONE), pageable);
+        List<ReservationResponse> items = toResponses(result.getContent());
+        return new PageResponse<>(items, result.getNumber(), result.getSize(), result.getTotalElements(), result.hasNext());
+    }
+
+    private List<ReservationResponse> toResponses(List<Reservation> reservations) {
         // Mismo N+1 que tenía listOccurrences: antes se buscaba el GymBlock de
-        // cada reserva con una query aparte. Sin fecha de corte en la query de
-        // arriba, este historial crece sin límite mientras el socio use la
-        // app (no hay archivado de reservas pasadas) — una sola consulta con
-        // los ids únicos evita que eso se vuelva un problema de escala.
+        // cada reserva con una query aparte — una sola consulta con los ids
+        // únicos evita que eso se vuelva un problema de escala.
         List<Long> blockIds = reservations.stream().map(Reservation::getGymBlockId).distinct().toList();
         Map<Long, GymBlock> blocksById = blockIds.isEmpty()
                 ? Map.of()

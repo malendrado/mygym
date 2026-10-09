@@ -1,6 +1,5 @@
 import { Component, OnDestroy, computed, effect, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
-import { DomSanitizer } from '@angular/platform-browser';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import {
   IonBadge,
@@ -84,6 +83,9 @@ import { AuthService } from '../../core/services/auth.service';
 import { GymService } from '../../core/services/gym.service';
 import { Gym } from '../../core/models/gym.model';
 import { MemberService } from '../../core/services/member.service';
+import { MemberListState } from '../../core/state/member-list.state';
+import { PagedListState } from '../../core/state/paged-list.state';
+import { PaginationBar } from '../../core/components/pagination-bar/pagination-bar';
 import { TvScreenService } from '../../core/services/tv-screen.service';
 import { TvScreen } from '../../core/models/tv-screen.model';
 import {
@@ -125,6 +127,7 @@ import { ImportMembersModal } from '../admin/gyms/import-members-modal/import-me
 import { WorkoutPlanModal } from '../admin/gyms/workout-plan-modal/workout-plan-modal';
 import { registerClassCategoryIcons, resolveClassCategoryIcon } from '../../core/utils/class-category';
 import { formatRut, rutFormatValidator } from '../../core/utils/rut';
+import { toLogoImgSrc } from '../../core/utils/logo-src';
 import { TourOverlay } from '../../core/components/tour-overlay/tour-overlay';
 import { SectionTour, TourService } from '../../core/services/tour.service';
 import { TourSeenService } from '../../core/services/tour-seen.service';
@@ -414,6 +417,7 @@ const THEMED_ROOT_PROPERTIES = [
     ClosureModal,
     EditClosureModal,
     ImportMembersModal,
+    PaginationBar,
     WorkoutPlanModal,
     QuantityStepper,
     IonSpinner,
@@ -430,7 +434,6 @@ export class GymAdmin implements OnDestroy {
   private readonly profesorService = inject(ProfesorService);
   private readonly workoutService = inject(WorkoutService);
   private readonly router = inject(Router);
-  private readonly sanitizer = inject(DomSanitizer);
   private readonly toastController = inject(ToastController);
   private readonly alertController = inject(AlertController);
   private readonly tourService = inject(TourService);
@@ -590,6 +593,8 @@ export class GymAdmin implements OnDestroy {
   protected readonly reservationSearchQuery = signal('');
   protected readonly reservationSearchResults = signal<BlockOccurrenceAttendees[] | null>(null);
   protected readonly reservationSearchLoading = signal(false);
+  // El servidor topa a 25 socios por búsqueda — true = hay más coincidencias de las mostradas.
+  protected readonly reservationSearchTruncated = signal(false);
   private reservationSearchTimeout: ReturnType<typeof setTimeout> | null = null;
 
   protected readonly reservationSearchBlocks = computed(() => {
@@ -608,19 +613,27 @@ export class GymAdmin implements OnDestroy {
   });
 
   protected readonly plans = signal<GymPlan[]>([]);
-  protected readonly members = signal<Member[]>([]);
-  protected readonly memberEmails = computed(() => this.members().map((m) => m.email));
+  // Lista paginada de socios — búsqueda, filtros y conteos de las calugas viven en el servidor
+  // (ver MemberListState). `members` es solo la página visible; las calugas leen los conteos del
+  // gym completo, no cuentan filas del navegador.
+  protected readonly memberList = new MemberListState(
+    (query) => this.memberService.listPage(query),
+    () => this.memberService.summary(),
+  );
+  protected readonly members = this.memberList.members;
+  // Emails de TODOS los socios, pedidos al abrir el modal de importación (ver openImportModal).
+  protected readonly memberEmails = signal<string[]>([]);
   protected readonly isImportModalOpen = signal(false);
-  protected readonly activeMembers = computed(() => this.members().filter((m) => m.membershipStatus === 'ACTIVE').length);
-  protected readonly expiringSoonMembers = computed(() => this.members().filter((m) => m.membershipStatus === 'EXPIRING_SOON').length);
-  protected readonly expiredMembers = computed(() => this.members().filter((m) => m.membershipStatus === 'EXPIRED').length);
-  protected readonly unpaidMembers = computed(() => this.members().filter((m) => m.membershipStatus === 'UNPAID').length);
+  protected readonly activeMembers = this.memberList.active;
+  protected readonly expiringSoonMembers = this.memberList.expiringSoon;
+  protected readonly expiredMembers = this.memberList.expired;
+  protected readonly unpaidMembers = this.memberList.unpaid;
   // Usados solo para targetear un botón de UNA fila puntual en el tour guiado — el spotlight
   // necesita un selector único, no una clase repetida por cada socio de la lista.
   protected readonly firstUnpaidMemberId = computed(() => this.members().find((m) => !m.planId)?.id ?? null);
   protected readonly firstMemberWithPlanId = computed(() => this.members().find((m) => !!m.planId)?.id ?? null);
   protected readonly firstMemberId = computed(() => this.members()[0]?.id ?? null);
-  protected readonly memberStatusFilter = signal<MembershipStatus | null>(null);
+  protected readonly memberStatusFilter = this.memberList.statusFilter;
   // Antes memberStatusFilter/memberInviteFilter eran dos ejes independientes que se
   // combinaban con AND (podían dar 0 socios sin que se viera obvio por qué) — las 6 calugas
   // se ven como un único grupo de filtro, así que ahora click en cualquiera reemplaza
@@ -630,24 +643,12 @@ export class GymAdmin implements OnDestroy {
   // independiente) — tener un tercer bucket separado para lo mismo era ruido. El badge por
   // fila (inviteStatusLabel) se mantiene SIEMPRE, incluso ya activo — es información histórica
   // ("este socio lo invité yo"), no un estado que compita con el de pago.
-  protected readonly invitedPendingMembers = computed(() => this.members().filter((m) => m.inviteStatus === 'PENDING').length);
-  protected readonly memberInviteFilter = signal<InviteStatus>(null);
-  // Client-side a propósito: el roster completo del gym ya vive en memoria (members(), un solo
-  // GET al entrar a la pestaña) — no hace falta pedirle nada al backend para filtrar por texto,
-  // a diferencia del buscador de reservas (ver comentario de reservationSearchQuery más arriba),
-  // que sí necesita ir al servidor porque ahí el roster NO está completo en memoria.
-  protected readonly memberSearchQuery = signal('');
-  protected readonly filteredMembers = computed(() => {
-    const statusFilter = this.memberStatusFilter();
-    const inviteFilter = this.memberInviteFilter();
-    const query = this.memberSearchQuery().trim().toLowerCase();
-    return this.members().filter(
-      (m) =>
-        (!statusFilter || m.membershipStatus === statusFilter) &&
-        (!inviteFilter || m.inviteStatus === inviteFilter) &&
-        (!query || m.name.toLowerCase().includes(query) || m.email.toLowerCase().includes(query)),
-    );
-  });
+  protected readonly invitedPendingMembers = this.memberList.invitedPending;
+  protected readonly memberInviteFilter = this.memberList.inviteFilter;
+  // El buscador es del servidor (ver MemberListState.setSearch, con debounce): la lista ya no
+  // está completa en memoria, así que filtrar acá solo vería la página visible.
+  protected readonly memberSearchQuery = this.memberList.searchQuery;
+  protected readonly filteredMembers = this.memberList.members;
   protected readonly isModalOpen = signal(false);
   protected readonly editingBlock = signal<GymBlock | null>(null);
   protected readonly isSeriesModalOpen = signal(false);
@@ -656,11 +657,7 @@ export class GymAdmin implements OnDestroy {
   protected readonly editingPlan = signal<GymPlan | null>(null);
 
   protected readonly logoSvg = signal<string | null>(null);
-  protected readonly isRasterLogo = computed(() => (this.logoSvg() ?? '').startsWith('data:image'));
-  protected readonly safeLogo = computed(() => {
-    const svg = this.logoSvg();
-    return svg && !this.isRasterLogo() ? this.sanitizer.bypassSecurityTrustHtml(svg) : null;
-  });
+  protected readonly logoSrc = computed(() => toLogoImgSrc(this.logoSvg()));
   protected readonly logoUploading = signal(false);
 
   protected readonly themeColor = signal<string>(PALETTES[0].hex);
@@ -701,7 +698,13 @@ export class GymAdmin implements OnDestroy {
   });
 
   // Cierre de emergencia (ver GymClosureService) — pestaña Cierres.
-  protected readonly closures = signal<GymClosure[]>([]);
+  // Historial de cierres paginado (10 por vez, "Cargar más") — crece con cada emergencia.
+  protected readonly closureList = new PagedListState<GymClosure>(
+    (query) => this.gymService.listMyClosuresPage(query.page, query.size),
+    10,
+    'append',
+  );
+  protected readonly closures = this.closureList.items;
   protected readonly isClosureModalOpen = signal(false);
   protected readonly closurePreview = signal<GymClosurePreview | null>(null);
   protected readonly closurePreviewing = signal(false);
@@ -1075,19 +1078,17 @@ export class GymAdmin implements OnDestroy {
   }
 
   protected viewMembersByStatus(status: MembershipStatus): void {
-    this.memberStatusFilter.set(status);
-    this.memberInviteFilter.set(null);
+    this.memberList.setStatusFilter(status);
     this.section.set('members');
     this.scrollToMembersList();
   }
 
   protected clearMemberStatusFilter(): void {
-    this.memberStatusFilter.set(null);
+    this.memberList.setStatusFilter(null);
   }
 
   protected viewMembersByInvite(status: Exclude<InviteStatus, null>): void {
-    this.memberInviteFilter.set(status);
-    this.memberStatusFilter.set(null);
+    this.memberList.setInviteFilter(status);
     this.section.set('members');
     this.scrollToMembersList();
   }
@@ -1104,7 +1105,12 @@ export class GymAdmin implements OnDestroy {
   }
 
   protected clearMemberInviteFilter(): void {
-    this.memberInviteFilter.set(null);
+    this.memberList.setInviteFilter(null);
+  }
+
+  protected onMemberPage(page: number): void {
+    this.memberList.goTo(page);
+    this.scrollToMembersList();
   }
 
   protected inviteStatusLabel(status: Exclude<InviteStatus, null>): string {
@@ -1319,6 +1325,7 @@ export class GymAdmin implements OnDestroy {
     const trimmed = value.trim();
     if (trimmed.length < 2) {
       this.reservationSearchResults.set(null);
+      this.reservationSearchTruncated.set(false);
       this.reservationSearchLoading.set(false);
       return;
     }
@@ -1330,8 +1337,9 @@ export class GymAdmin implements OnDestroy {
   private runReservationSearch(query: string): void {
     this.reservationSearchLoading.set(true);
     this.gymService.searchMyReservations(query).subscribe({
-      next: (results) => {
-        this.reservationSearchResults.set(results);
+      next: (response) => {
+        this.reservationSearchResults.set(response.results);
+        this.reservationSearchTruncated.set(response.truncated);
         this.reservationSearchLoading.set(false);
       },
       error: () => this.reservationSearchLoading.set(false),
@@ -1841,6 +1849,9 @@ export class GymAdmin implements OnDestroy {
 
   protected openImportModal(): void {
     this.isImportModalOpen.set(true);
+    // La lista visible es solo una página: para detectar socios ya existentes el modal necesita
+    // los emails de todo el gym. Llegan mucho antes de que el admin elija el archivo.
+    this.memberService.emails().subscribe({ next: (emails) => this.memberEmails.set(emails), error: () => undefined });
   }
 
   protected closeImportModal(): void {
@@ -1962,7 +1973,7 @@ export class GymAdmin implements OnDestroy {
     this.memberService.deleteMember(member.id).subscribe({
       next: () => {
         this.deletingMemberId.set(null);
-        this.members.update((list) => list.filter((m) => m.id !== member.id));
+        this.loadMembers();
         this.showToast(`${member.name} fue eliminado permanentemente.`);
       },
       error: () => {
@@ -2290,10 +2301,7 @@ export class GymAdmin implements OnDestroy {
   }
 
   private loadMembers(): void {
-    this.memberService.list().subscribe({
-      next: (members) => this.members.set(members),
-      error: () => this.showToast('No pudimos cargar los socios. Intenta nuevamente.', 'danger'),
-    });
+    this.memberList.reload();
   }
 
   private loadTvScreens(): void {
@@ -2354,10 +2362,7 @@ export class GymAdmin implements OnDestroy {
   }
 
   private loadClosures(): void {
-    this.gymService.listMyClosures().subscribe({
-      next: (closures) => this.closures.set(closures),
-      error: () => this.showToast('No pudimos cargar los cierres. Intenta nuevamente.', 'danger'),
-    });
+    this.closureList.reload();
   }
 
   protected openClosureModal(): void {
@@ -2399,7 +2404,7 @@ export class GymAdmin implements OnDestroy {
       next: (closure) => {
         this.closureSaving.set(false);
         this.isClosureModalOpen.set(false);
-        this.closures.update((list) => [closure, ...list]);
+        this.loadClosures();
         this.showToast(
           `Gimnasio cerrado: ${closure.cancelledReservationsCount} reserva(s) canceladas, ${closure.affectedMembersCount} socio(s) van a recibir un email.`,
         );

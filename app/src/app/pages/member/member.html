@@ -15,13 +15,9 @@
     <ion-toolbar>
       <ion-title>
         <div class="gym-title">
-          @if (gym()?.logoSvg) {
+          @if (logoSrc()) {
             <span class="gym-title__logo">
-              @if (isRasterLogo()) {
-                <img [src]="gym()?.logoSvg" alt="" />
-              } @else if (safeLogo()) {
-                <span class="gym-title__logo-svg" [innerHTML]="safeLogo()"></span>
-              }
+              <img [src]="logoSrc()" alt="" />
             </span>
           }
           <span>{{ gym()?.name ?? 'mygym' }}</span>
@@ -375,7 +371,7 @@
                         @for (attendee of attendeesFor(occurrence); track $index) {
                           <span class="attendees-list__item">
                             @if (attendee.photoUrl) {
-                              <img [src]="attendee.photoUrl" alt="" class="attendees-list__avatar" />
+                              <img [src]="attendee.photoUrl" alt="" class="attendees-list__avatar" loading="lazy" />
                             } @else {
                               <span class="attendees-list__avatar attendees-list__avatar--placeholder">
                                 {{ attendee.firstName.charAt(0) }}
@@ -406,14 +402,16 @@
                       <ion-badge color="success">Reservado</ion-badge>
                     }
                     @if (!occurrence.past) {
-                      <button
-                        type="button"
-                        class="class-tile__link class-tile__link--danger"
+                      <ion-button
+                        expand="block"
+                        fill="outline"
+                        color="danger"
+                        size="small"
                         [disabled]="cancelingId() === occurrence.myReservationId"
                         (click)="cancel(occurrence.myReservationId!)"
                       >
-                        {{ cancelingId() === occurrence.myReservationId ? 'Cancelando...' : 'Cancelar' }}
-                      </button>
+                        {{ cancelingId() === occurrence.myReservationId ? 'Cancelando...' : 'Cancelar reserva' }}
+                      </ion-button>
                     }
                   } @else if (occurrence.past) {
                     <span class="class-tile__note">Ya pasó</span>
@@ -426,14 +424,16 @@
                   } @else if (isCapacityFull(occurrence) && !occurrence.past) {
                     @if (occurrence.waitlisted) {
                       <ion-badge color="medium">En lista de espera</ion-badge>
-                      <button
-                        type="button"
-                        class="class-tile__link class-tile__link--danger"
+                      <ion-button
+                        expand="block"
+                        fill="outline"
+                        color="danger"
+                        size="small"
                         [disabled]="waitlistingId() === occurrence.gymBlockId"
                         (click)="leaveWaitlist(occurrence)"
                       >
                         {{ waitlistingId() === occurrence.gymBlockId ? 'Sacando...' : 'Salir de la lista' }}
-                      </button>
+                      </ion-button>
                     } @else {
                       <ion-button
                         data-tour="waitlist-join"
@@ -533,7 +533,7 @@
       @if (galleryPhotos().length > 0) {
         <div class="member-gallery">
           @for (photo of galleryPhotos(); track photo.id) {
-            <img [src]="photo.data" [alt]="photo.caption ?? 'Foto de las instalaciones'" />
+            <img [src]="photo.data" [alt]="photo.caption ?? 'Foto de las instalaciones'" loading="lazy" decoding="async" />
           }
         </div>
       }
@@ -620,14 +620,17 @@
               } @else {
                 <ion-badge color="success">Reservado</ion-badge>
               }
-              <button
-                type="button"
-                class="class-tile__link class-tile__link--danger"
+              <ion-button
+                data-tour="reservas-cancel"
+                expand="block"
+                fill="outline"
+                color="danger"
+                size="small"
                 [disabled]="cancelingId() === reservation.id"
                 (click)="cancel(reservation.id)"
               >
-                {{ cancelingId() === reservation.id ? 'Cancelando...' : 'Cancelar' }}
-              </button>
+                {{ cancelingId() === reservation.id ? 'Cancelando...' : 'Cancelar reserva' }}
+              </ion-button>
             </div>
           </article>
         } @empty {
@@ -643,8 +646,8 @@
       <section class="member-section" data-tour="reservas-past">
         <h2>Pasadas</h2>
         <div class="class-grid">
-          @for (reservation of pastReservations(); track reservation.id) {
-            <article class="class-tile class-tile--past">
+          @for (reservation of pastReservations(); track reservation.id; let i = $index) {
+            <article class="class-tile class-tile--past class-tile--enter" [style.animation-delay.ms]="(i % 10) * 40">
               <p class="class-tile__title">{{ reservation.blockLabel }}</p>
               <p class="class-tile__datetime">
                 {{ formatShortDate(reservation.classDate) }} · {{ shortTime(reservation.startTime) }}-{{ shortTime(reservation.endTime) }}
@@ -655,6 +658,29 @@
             </article>
           }
         </div>
+        @if (pastLoadError()) {
+          <p class="item-hint past-more__error" role="alert">No se pudo cargar el historial.</p>
+        }
+        @if (pastHasNext() || pastLoadError()) {
+          <ion-button
+            class="past-more"
+            expand="block"
+            fill="outline"
+            [disabled]="pastLoadingMore()"
+            [attr.aria-busy]="pastLoadingMore()"
+            (click)="loadPastReservations()"
+          >
+            @if (pastLoadingMore()) {
+              <ion-spinner name="crescent" slot="start"></ion-spinner>
+              Cargando…
+            } @else if (pastLoadError()) {
+              Reintentar
+            } @else {
+              Cargar más
+            }
+          </ion-button>
+        }
+        <p class="visually-hidden" role="status" aria-live="polite">{{ pastAnnouncement() }}</p>
       </section>
     }
     </div>

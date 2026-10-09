@@ -37,6 +37,9 @@ import {
   GymIdentityUpdateRequest,
   GymPhoto,
   GymPlan,
+  GymStats,
+  ReservationSearchResponse,
+  MemberDashboard,
   MemberPlan,
   PublicGym,
   ThemeUpdateRequest,
@@ -44,6 +47,7 @@ import {
   UpdateGymBlockRequest,
   UpdateGymPlanRequest,
 } from '../models/gym.model';
+import { Page } from '../models/page.model';
 import { Attendee, AttendeeSummary, Member } from '../models/member.model';
 import { TvScreen, TvScreenClaimRequest } from '../models/tv-screen.model';
 
@@ -103,6 +107,10 @@ export class GymService {
     return this.http.get<PublicGym>(`${this.meBase}/gym`);
   }
 
+  getMyDashboard(): Observable<MemberDashboard> {
+    return this.http.get<MemberDashboard>(`${this.meBase}/dashboard`);
+  }
+
   /** Planes activos configurados por el admin del gym del socio logueado. */
   getMyMemberPlans(): Observable<MemberPlan[]> {
     return this.http.get<MemberPlan[]>(`${this.meBase}/plans`);
@@ -157,13 +165,13 @@ export class GymService {
 
   /** Buscador de reservas futuras por nombre de socio (dueño del gym) — mismo formato de
    *  respuesta que getMyHistoryAttendees, ver ReservationService.searchUpcomingReservations. */
-  searchMyReservations(query: string): Observable<BlockOccurrenceAttendees[]> {
-    return this.http.get<BlockOccurrenceAttendees[]>(`${this.myGymBase}/reservations/search`, { params: { q: query } });
+  searchMyReservations(query: string): Observable<ReservationSearchResponse> {
+    return this.http.get<ReservationSearchResponse>(`${this.myGymBase}/reservations/search`, { params: { q: query } });
   }
 
   /** Contraparte SUPER_ADMIN de searchMyReservations — mismo backend, gymId por path. */
-  searchReservations(gymId: number, query: string): Observable<BlockOccurrenceAttendees[]> {
-    return this.http.get<BlockOccurrenceAttendees[]>(`${this.base}/${gymId}/reservations/search`, { params: { q: query } });
+  searchReservations(gymId: number, query: string): Observable<ReservationSearchResponse> {
+    return this.http.get<ReservationSearchResponse>(`${this.base}/${gymId}/reservations/search`, { params: { q: query } });
   }
 
   /** Vía de urgencia del admin: cancela la reserva de CUALQUIER socio del gym, sin la ventana
@@ -188,8 +196,18 @@ export class GymService {
     return this.http.post<CheckoutResponse>(`${this.meBase}/plans/${planId}/checkout`, {});
   }
 
-  list(): Observable<GymSummary[]> {
-    return this.http.get<GymSummary[]>(this.base);
+  /** Una página de gimnasios (super-admin) — la búsqueda por nombre/slug la resuelve el servidor. */
+  listPage(query: { q: string; page: number; size: number }): Observable<Page<GymSummary>> {
+    const params: Record<string, string | number> = { page: query.page, size: query.size };
+    if (query.q) {
+      params['q'] = query.q;
+    }
+    return this.http.get<Page<GymSummary>>(this.base, { params });
+  }
+
+  /** Conteos de las calugas de /admin/gyms (todos los gimnasios, no la página visible). */
+  stats(): Observable<GymStats> {
+    return this.http.get<GymStats>(`${this.base}/stats`);
   }
 
   get(id: number): Observable<Gym> {
@@ -346,8 +364,8 @@ export class GymService {
   }
 
   /** Cierre de emergencia (ver GymClosureService) — contraparte SUPER_ADMIN, gymId por path. */
-  listClosures(gymId: number): Observable<GymClosure[]> {
-    return this.http.get<GymClosure[]>(`${this.base}/${gymId}/closures`);
+  listClosuresPage(gymId: number, page: number, size: number): Observable<Page<GymClosure>> {
+    return this.http.get<Page<GymClosure>>(`${this.base}/${gymId}/closures`, { params: { page, size } });
   }
 
   previewClosure(gymId: number, payload: GymClosureCreateRequest): Observable<GymClosurePreview> {
@@ -466,8 +484,8 @@ export class GymService {
   }
 
   /** Cierre de emergencia (ver GymClosureService) — el dueño del gym cierra su propio gimnasio. */
-  listMyClosures(): Observable<GymClosure[]> {
-    return this.http.get<GymClosure[]>(`${this.myGymBase}/closures`);
+  listMyClosuresPage(page: number, size: number): Observable<Page<GymClosure>> {
+    return this.http.get<Page<GymClosure>>(`${this.myGymBase}/closures`, { params: { page, size } });
   }
 
   previewMyClosure(payload: GymClosureCreateRequest): Observable<GymClosurePreview> {

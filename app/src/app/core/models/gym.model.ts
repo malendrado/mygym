@@ -1,4 +1,4 @@
-import { Attendee } from './member.model';
+import { Attendee, Member } from './member.model';
 
 export type DayOfWeek =
   | 'MONDAY'
@@ -68,6 +68,16 @@ export interface PublicGym {
   /** true si el gym tiene su propia cuenta Flow configurada — si es false, /member oculta
    *  "Pagar con Flow" y solo ofrece transferencia bancaria. */
   flowConfigured: boolean;
+}
+
+/** GET /api/me/dashboard — combina los 5 datos "de encabezado" de /member en una sola request
+ *  (antes eran 5 llamadas sueltas en paralelo; ver auditoría de performance 2026-10-09). */
+export interface MemberDashboard {
+  gym: PublicGym;
+  membership: Member;
+  plans: MemberPlan[];
+  bankTransfer: BankTransferInfo;
+  closureNotice: GymClosureNotice | null;
 }
 
 /** PUT .../theme (gym-admin y super-admin comparten el mismo shape). */
@@ -459,4 +469,19 @@ export interface GymClosureNotice {
   endDate: string;
   reason: string;
   wholeDays: boolean;
+}
+
+/** Conteos de las calugas de /admin/gyms — de todos los gimnasios, no de la página visible. */
+export interface GymStats {
+  total: number;
+  active: number;
+  totalCapacity: number;
+  branded: number;
+}
+
+/** Respuesta del buscador de reservas futuras: `truncated` = true cuando el texto coincidió con más
+ *  socios que el tope del servidor y solo se devolvieron las reservas de los primeros. */
+export interface ReservationSearchResponse {
+  results: BlockOccurrenceAttendees[];
+  truncated: boolean;
 }

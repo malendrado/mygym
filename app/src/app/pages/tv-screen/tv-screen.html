@@ -150,13 +150,9 @@
           >
             <header class="tv-header">
               <div class="tv-header__brand">
-                @if (sched.logoSvg) {
+                @if (logoSrc()) {
                   <span class="tv-header__logo">
-                    @if (isRasterLogo()) {
-                      <img [src]="sched.logoSvg" alt="" />
-                    } @else if (safeLogo()) {
-                      <span class="tv-header__logo-svg" [innerHTML]="safeLogo()"></span>
-                    }
+                    <img [src]="logoSrc()" alt="" />
                   </span>
                 }
                 <div class="tv-header__gym">{{ sched.gymName }}</div>

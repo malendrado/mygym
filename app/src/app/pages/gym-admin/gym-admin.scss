@@ -918,13 +918,6 @@ ion-segment-button.segment-button-checked {
     object-fit: contain;
     border-radius: 16px;
   }
-
-  // [innerHTML]-injected SVG markup isn't stamped with Angular's emulated
-  // encapsulation attribute, so a plain scoped `svg { }` rule never matches it.
-  ::ng-deep svg {
-    width: 120px;
-    height: 120px;
-  }
 }
 
 .theme-options {

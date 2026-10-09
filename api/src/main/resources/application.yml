@@ -70,7 +70,12 @@ management:
       enabled: true
 
 springdoc:
+  # Apagado por default (auditoría de seguridad 2026-10-09: quedaba público sin auth en
+  # producción) — levantar con SPRINGDOC_ENABLED=true solo para debug local puntual. El acceso
+  # en producción además exige rol SUPER_ADMIN (ver SecurityConfig), esto es la capa adicional.
   api-docs:
+    enabled: ${SPRINGDOC_ENABLED:false}
     path: /v3/api-docs
   swagger-ui:
+    enabled: ${SPRINGDOC_ENABLED:false}
     path: /swagger-ui.html

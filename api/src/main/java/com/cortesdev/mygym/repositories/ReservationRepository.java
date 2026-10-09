@@ -5,6 +5,8 @@ import com.cortesdev.mygym.models.ReservationStatus;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ReservationRepository extends JpaRepository<Reservation, Long> {
@@ -19,7 +21,13 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
 
     Optional<Reservation> findByIdAndMemberId(Long id, Long memberId);
 
-    List<Reservation> findByMemberIdAndStatusOrderByClassDateAsc(Long memberId, ReservationStatus status);
+    /** "Mis reservas · Próximas": hoy en adelante, completo (acotado por la ventana de reserva). */
+    List<Reservation> findByMemberIdAndStatusAndClassDateGreaterThanEqualOrderByClassDateAsc(
+            Long memberId, ReservationStatus status, LocalDate from);
+
+    /** "Mis reservas · Pasadas": todo lo anterior a hoy, paginado (crece sin límite con el uso). */
+    Page<Reservation> findByMemberIdAndStatusAndClassDateLessThan(
+            Long memberId, ReservationStatus status, LocalDate before, Pageable pageable);
 
     List<Reservation> findByMemberIdAndStatusAndClassDateGreaterThanEqual(
             Long memberId, ReservationStatus status, LocalDate from);

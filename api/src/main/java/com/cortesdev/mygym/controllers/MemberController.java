@@ -5,6 +5,8 @@ import com.cortesdev.mygym.models.dto.MemberCreateRequest;
 import com.cortesdev.mygym.models.dto.MemberImportRequest;
 import com.cortesdev.mygym.models.dto.MemberImportRowResult;
 import com.cortesdev.mygym.models.dto.MemberResponse;
+import com.cortesdev.mygym.models.dto.MemberSummaryResponse;
+import com.cortesdev.mygym.models.dto.PageResponse;
 import com.cortesdev.mygym.security.AuthenticatedUser;
 import com.cortesdev.mygym.services.GymService;
 import com.cortesdev.mygym.services.MemberService;
@@ -21,6 +23,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -40,8 +43,26 @@ public class MemberController {
     }
 
     @GetMapping
-    public List<MemberResponse> listMembers(@AuthenticationPrincipal Jwt jwt) {
-        return memberService.listMembers(AuthenticatedUser.from(jwt).gymId());
+    public PageResponse<MemberResponse> listMembers(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String invite,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "25") int size) {
+        return memberService.searchMembers(AuthenticatedUser.from(jwt).gymId(), q, status, invite, page, size);
+    }
+
+    /** Conteos de las calugas (gym completo, no la página visible). */
+    @GetMapping("/summary")
+    public MemberSummaryResponse memberSummary(@AuthenticationPrincipal Jwt jwt) {
+        return memberService.memberSummary(AuthenticatedUser.from(jwt).gymId());
+    }
+
+    /** Emails de todos los socios — solo para el chequeo de duplicados del modal de importación. */
+    @GetMapping("/emails")
+    public List<String> memberEmails(@AuthenticationPrincipal Jwt jwt) {
+        return memberService.memberEmails(AuthenticatedUser.from(jwt).gymId());
     }
 
     /** Carga masiva desde Excel — ver MemberService.importMembers para el detalle de qué pasa por

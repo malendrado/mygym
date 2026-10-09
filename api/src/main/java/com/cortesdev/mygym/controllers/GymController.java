@@ -28,11 +28,16 @@ import com.cortesdev.mygym.models.dto.GymIdentityUpdateRequest;
 import com.cortesdev.mygym.models.dto.GymPhotoCreateRequest;
 import com.cortesdev.mygym.models.dto.GymPhotoResponse;
 import com.cortesdev.mygym.models.dto.GymResponse;
+import com.cortesdev.mygym.models.dto.GymStatsResponse;
 import com.cortesdev.mygym.models.dto.GymSummaryResponse;
+import com.cortesdev.mygym.models.dto.OccurrenceSearchResult;
+import com.cortesdev.mygym.models.dto.ReservationSearchResponse;
 import com.cortesdev.mygym.models.dto.MarkPaidRequest;
 import com.cortesdev.mygym.models.dto.MemberCreateRequest;
 import com.cortesdev.mygym.models.dto.MemberReservation;
 import com.cortesdev.mygym.models.dto.MemberResponse;
+import com.cortesdev.mygym.models.dto.MemberSummaryResponse;
+import com.cortesdev.mygym.models.dto.PageResponse;
 import com.cortesdev.mygym.models.dto.OccurrenceAttendees;
 import com.cortesdev.mygym.models.dto.PlanCreateRequest;
 import com.cortesdev.mygym.models.dto.PlanResponse;
@@ -92,8 +97,18 @@ public class GymController {
     }
 
     @GetMapping
-    public List<GymSummaryResponse> listGyms(@RequestParam(required = false) Boolean active) {
-        return gymService.listGyms(active);
+    public PageResponse<GymSummaryResponse> listGyms(
+            @RequestParam(required = false) Boolean active,
+            @RequestParam(required = false) String q,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "12") int size) {
+        return gymService.listGyms(active, q, page, size);
+    }
+
+    /** Conteos de las calugas de /admin/gyms (todos los gimnasios, no la página visible). */
+    @GetMapping("/stats")
+    public GymStatsResponse gymStats() {
+        return gymService.gymStats();
     }
 
     @GetMapping("/{id}")
@@ -172,10 +187,10 @@ public class GymController {
 
     // Contraparte SUPER_ADMIN de GymAdminController.searchMyReservations — mismo backend, gymId por path.
     @GetMapping("/{id}/reservations/search")
-    public List<BlockOccurrenceAttendeesResponse> searchReservations(@PathVariable Long id, @RequestParam String q) {
-        return reservationService.searchUpcomingReservations(id, q).stream()
-                .map(this::toBatchResponse)
-                .toList();
+    public ReservationSearchResponse searchReservations(@PathVariable Long id, @RequestParam String q) {
+        OccurrenceSearchResult result = reservationService.searchUpcomingReservations(id, q);
+        return new ReservationSearchResponse(
+                result.occurrences().stream().map(this::toBatchResponse).toList(), result.truncated());
     }
 
     // Contraparte SUPER_ADMIN de GymAdminController.cancelMyGymReservation — mismo backend, gymId por path.
@@ -312,8 +327,19 @@ public class GymController {
     }
 
     @GetMapping("/{id}/members")
-    public List<MemberResponse> listMembers(@PathVariable Long id) {
-        return memberService.listMembers(id);
+    public PageResponse<MemberResponse> listMembers(
+            @PathVariable Long id,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String invite,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "25") int size) {
+        return memberService.searchMembers(id, q, status, invite, page, size);
+    }
+
+    @GetMapping("/{id}/members/summary")
+    public MemberSummaryResponse memberSummary(@PathVariable Long id) {
+        return memberService.memberSummary(id);
     }
 
     // Mismo TvScreenService que usa el propio GYM_ADMIN en TvAdminController — el super-admin
@@ -396,8 +422,11 @@ public class GymController {
     // Cierre de emergencia (ver GymClosureService) — contraparte SUPER_ADMIN de
     // GymAdminController, mismo backend, gymId por path.
     @GetMapping("/{id}/closures")
-    public List<GymClosureResponse> listClosures(@PathVariable Long id) {
-        return gymClosureService.list(id);
+    public PageResponse<GymClosureResponse> listClosures(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return gymClosureService.listPage(id, page, size);
     }
 
     @PostMapping("/{id}/closures/preview")

@@ -2,7 +2,31 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { CreateMemberRequest, MarkPaidRequest, Member, MemberImportRow, MemberImportRowResult } from '../models/member.model';
+import {
+  CreateMemberRequest,
+  MarkPaidRequest,
+  Member,
+  MemberImportRow,
+  MemberImportRowResult,
+  MemberPageQuery,
+  MemberSummary,
+} from '../models/member.model';
+import { Page } from '../models/page.model';
+
+// Solo manda los filtros que tienen valor — el servidor trata ausente = sin filtro.
+function pageParams(query: MemberPageQuery): Record<string, string | number> {
+  const params: Record<string, string | number> = { page: query.page, size: query.size };
+  if (query.q) {
+    params['q'] = query.q;
+  }
+  if (query.status) {
+    params['status'] = query.status;
+  }
+  if (query.invite) {
+    params['invite'] = query.invite;
+  }
+  return params;
+}
 
 @Injectable({ providedIn: 'root' })
 export class MemberService {
@@ -10,8 +34,19 @@ export class MemberService {
   private readonly base = `${environment.apiUrl}/api/gym-admin/members`;
   private readonly gymsBase = `${environment.apiUrl}/api/gyms`;
 
-  list(): Observable<Member[]> {
-    return this.http.get<Member[]>(this.base);
+  /** Una página de socios — búsqueda y filtros de estado/invitación los resuelve el servidor. */
+  listPage(query: MemberPageQuery): Observable<Page<Member>> {
+    return this.http.get<Page<Member>>(this.base, { params: pageParams(query) });
+  }
+
+  /** Conteos de las calugas (gym completo, no la página visible). */
+  summary(): Observable<MemberSummary> {
+    return this.http.get<MemberSummary>(`${this.base}/summary`);
+  }
+
+  /** Emails de todos los socios — solo para el chequeo de duplicados del modal de importación. */
+  emails(): Observable<string[]> {
+    return this.http.get<string[]>(`${this.base}/emails`);
   }
 
   create(payload: CreateMemberRequest): Observable<Member> {
@@ -25,8 +60,12 @@ export class MemberService {
   }
 
   /** Contraparte SUPER_ADMIN de list()/create() — mismo backend, gymId por path en vez de por JWT. */
-  listForGym(gymId: number): Observable<Member[]> {
-    return this.http.get<Member[]>(`${this.gymsBase}/${gymId}/members`);
+  listPageForGym(gymId: number, query: MemberPageQuery): Observable<Page<Member>> {
+    return this.http.get<Page<Member>>(`${this.gymsBase}/${gymId}/members`, { params: pageParams(query) });
+  }
+
+  summaryForGym(gymId: number): Observable<MemberSummary> {
+    return this.http.get<MemberSummary>(`${this.gymsBase}/${gymId}/members/summary`);
   }
 
   createForGym(gymId: number, payload: CreateMemberRequest): Observable<Member> {

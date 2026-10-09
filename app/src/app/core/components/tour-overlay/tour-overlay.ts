@@ -1,4 +1,4 @@
-import { Component, HostListener, effect, inject, signal } from '@angular/core';
+import { Component, DestroyRef, HostListener, effect, inject, signal } from '@angular/core';
 import { IonButton, IonIcon } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { arrowBackOutline, arrowForwardOutline, closeOutline } from 'ionicons/icons';
@@ -48,6 +48,7 @@ const SETTLE_MAX_WAIT_MS = 3000;
 })
 export class TourOverlay {
   protected readonly tourService = inject(TourService);
+  private readonly destroyRef = inject(DestroyRef);
 
   protected readonly rect = signal<SpotlightRect | null>(null);
   protected readonly cardPlacement = signal<'below' | 'above'>('below');
@@ -80,6 +81,10 @@ export class TourOverlay {
       step.beforeShow?.();
       this.positionAfterSettle();
     });
+    // Si el componente se destruye a mitad de un "settle" (el socio navega fuera de la página
+    // mientras el tour espera que el scroll se asiente), el timeout/listener quedaban colgando
+    // hasta su propio tope de 3s — bajo impacto pero real (auditoría de performance 2026-10-09).
+    this.destroyRef.onDestroy(() => this.cancelScrollSettle());
   }
 
   @HostListener('window:resize')

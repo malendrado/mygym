@@ -11,7 +11,11 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,11 +52,25 @@ public class MembershipReminderJob {
     @Scheduled(cron = "0 0 9 * * *", zone = "America/Santiago")
     public void sendReminders() {
         List<AppUser> members = appUserRepository.findByRoleAndPaidAtIsNotNull(Role.MEMBER);
+
+        // Antes esto era 1 findById de plan + 1 findById de gym POR SOCIO dentro del loop — con
+        // volumen real de socios pagos, cientos de queries secuenciales cada mañana. Se trae todo
+        // de una vez con findAllById (auditoría de performance 2026-10-09).
+        Map<Long, GymPlan> plansById = gymPlanRepository
+                .findAllById(members.stream().map(AppUser::getPlanId).filter(Objects::nonNull).collect(Collectors.toSet()))
+                .stream()
+                .collect(Collectors.toMap(GymPlan::getId, p -> p));
+        Map<Long, Gym> gymsById = gymRepository
+                .findAllById(members.stream().map(AppUser::getGymId).filter(Objects::nonNull).collect(Collectors.toSet()))
+                .stream()
+                .collect(Collectors.toMap(Gym::getId, g -> g));
+        Map<Long, List<String>> adminEmailsByGymId = new HashMap<>();
+
         ZonedDateTime now = ZonedDateTime.now(GYM_ZONE);
         int sent = 0;
         for (AppUser member : members) {
             try {
-                if (processMember(member, now)) {
+                if (processMember(member, now, plansById, gymsById, adminEmailsByGymId)) {
                     sent++;
                 }
             } catch (Exception e) {
@@ -64,13 +82,18 @@ public class MembershipReminderJob {
         log.info("MembershipReminderJob: {} avisos enviados de {} socios con plan pagado alguna vez", sent, members.size());
     }
 
-    private boolean processMember(AppUser member, ZonedDateTime now) {
+    private boolean processMember(
+            AppUser member,
+            ZonedDateTime now,
+            Map<Long, GymPlan> plansById,
+            Map<Long, Gym> gymsById,
+            Map<Long, List<String>> adminEmailsByGymId) {
         if (member.getPlanId() == null) {
             return false;
         }
         ZonedDateTime periodEnd = memberService.periodEnd(member);
-        GymPlan plan = gymPlanRepository.findById(member.getPlanId()).orElse(null);
-        Gym gym = gymRepository.findById(member.getGymId()).orElse(null);
+        GymPlan plan = plansById.get(member.getPlanId());
+        Gym gym = gymsById.get(member.getGymId());
         if (plan == null || gym == null) {
             return false;
         }
@@ -89,9 +112,11 @@ public class MembershipReminderJob {
             return true;
         }
         if (daysUntilExpiry == 0) {
-            List<String> adminEmails = appUserRepository.findByGymIdAndRole(gym.getId(), Role.GYM_ADMIN).stream()
-                    .map(AppUser::getEmail)
-                    .toList();
+            List<String> adminEmails = adminEmailsByGymId.computeIfAbsent(
+                    gym.getId(),
+                    gymId -> appUserRepository.findByGymIdAndRole(gymId, Role.GYM_ADMIN).stream()
+                            .map(AppUser::getEmail)
+                            .toList());
             memberLifecycleEmailService.sendMembershipExpiredMember(gym, member, plan);
             memberLifecycleEmailService.sendMembershipExpiredAdmin(gym, member, plan, adminEmails);
             return true;

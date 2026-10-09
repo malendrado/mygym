@@ -11,6 +11,7 @@ import com.cortesdev.mygym.models.dto.GymClosureCreateRequest;
 import com.cortesdev.mygym.models.dto.GymClosureNoticeResponse;
 import com.cortesdev.mygym.models.dto.GymClosurePreviewResponse;
 import com.cortesdev.mygym.models.dto.GymClosureResponse;
+import com.cortesdev.mygym.models.dto.PageResponse;
 import com.cortesdev.mygym.models.dto.GymClosureUpdateRequest;
 import com.cortesdev.mygym.repositories.GymBlockRepository;
 import com.cortesdev.mygym.repositories.GymClosureBlockRepository;
@@ -33,6 +34,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -71,6 +76,32 @@ public class GymClosureService {
     }
 
     private record AffectedOccurrence(GymBlock block, LocalDate date) {}
+
+    private record OccurrenceKey(Long gymBlockId, LocalDate date) {}
+
+    /** Trae TODAS las reservas BOOKED de las ocurrencias afectadas en una sola query (rango de
+     *  fechas + lista de bloques), agrupadas por (bloque, fecha) — antes se hacía 1 query por
+     *  ocurrencia (findByGymBlockIdAndClassDateAndStatus dentro de un for), el mismo patrón N+1
+     *  que ya se había corregido en Historial/ReservationService.listOccurrences. Para un cierre
+     *  de varias semanas y varios bloques esto podía ser decenas/cientos de queries secuenciales
+     *  reteniendo una conexión del pool de 5 (auditoría de performance 2026-10-09). */
+    private Map<OccurrenceKey, List<Reservation>> bookedByOccurrence(List<AffectedOccurrence> occurrences) {
+        if (occurrences.isEmpty()) {
+            return Map.of();
+        }
+        List<Long> blockIds = occurrences.stream().map(o -> o.block().getId()).distinct().toList();
+        LocalDate from = occurrences.stream().map(AffectedOccurrence::date).min(LocalDate::compareTo).orElseThrow();
+        LocalDate to = occurrences.stream().map(AffectedOccurrence::date).max(LocalDate::compareTo).orElseThrow();
+        List<Reservation> booked =
+                reservationRepository.findByGymBlockIdInAndClassDateBetweenAndStatus(blockIds, from, to, ReservationStatus.BOOKED);
+        Map<OccurrenceKey, List<Reservation>> byOccurrence = new HashMap<>();
+        for (Reservation reservation : booked) {
+            byOccurrence
+                    .computeIfAbsent(new OccurrenceKey(reservation.getGymBlockId(), reservation.getClassDate()), k -> new ArrayList<>())
+                    .add(reservation);
+        }
+        return byOccurrence;
+    }
 
     @Transactional(readOnly = true)
     public ClosureSchedule scheduleFor(Long gymId, LocalDate from, LocalDate to) {
@@ -129,7 +160,7 @@ public class GymClosureService {
     @Transactional(readOnly = true)
     public GymClosureNoticeResponse activeOrUpcomingNotice(Long gymId) {
         LocalDate today = LocalDate.now(GYM_ZONE);
-        return gymClosureRepository.findByGymIdOrderByCreatedAtDesc(gymId).stream()
+        return gymClosureRepository.findByGymIdAndEndDateGreaterThanEqual(gymId, today).stream()
                 .filter(c -> !c.effectiveEndDate().isBefore(today))
                 .min(Comparator.comparing(GymClosure::getStartDate))
                 .map(c -> new GymClosureNoticeResponse(c.getStartDate(), c.effectiveEndDate(), c.getReason(), c.isWholeDays()))
@@ -176,16 +207,16 @@ public class GymClosureService {
                 .build());
 
         if (!request.wholeDays()) {
-            for (Long blockId : distinctBlockIds(request)) {
-                gymClosureBlockRepository.save(
-                        GymClosureBlock.builder().closureId(closure.getId()).gymBlockId(blockId).build());
-            }
+            gymClosureBlockRepository.saveAll(distinctBlockIds(request).stream()
+                    .map(blockId -> GymClosureBlock.builder().closureId(closure.getId()).gymBlockId(blockId).build())
+                    .toList());
         }
 
+        Map<OccurrenceKey, List<Reservation>> bookedByOccurrence = bookedByOccurrence(occurrences);
         Map<Long, List<Reservation>> cancelledByMember = new HashMap<>();
         for (AffectedOccurrence occurrence : occurrences) {
-            List<Reservation> booked = reservationRepository.findByGymBlockIdAndClassDateAndStatus(
-                    occurrence.block().getId(), occurrence.date(), ReservationStatus.BOOKED);
+            List<Reservation> booked = bookedByOccurrence.getOrDefault(
+                    new OccurrenceKey(occurrence.block().getId(), occurrence.date()), List.of());
             for (Reservation reservation : booked) {
                 if (isAlreadyStartedOrCheckedIn(reservation, occurrence.block())) {
                     continue;
@@ -236,11 +267,12 @@ public class GymClosureService {
             List<AffectedOccurrence> newOccurrences =
                     resolveOccurrencesInRange(gymId, closure.isWholeDays(), blockIds, oldEndDate.plusDays(1), request.endDate());
 
+            Map<OccurrenceKey, List<Reservation>> bookedByOccurrence = bookedByOccurrence(newOccurrences);
             Map<Long, List<Reservation>> cancelledByMember = new HashMap<>();
             List<Long> ids = new ArrayList<>();
             for (AffectedOccurrence occurrence : newOccurrences) {
-                List<Reservation> booked = reservationRepository.findByGymBlockIdAndClassDateAndStatus(
-                        occurrence.block().getId(), occurrence.date(), ReservationStatus.BOOKED);
+                List<Reservation> booked = bookedByOccurrence.getOrDefault(
+                        new OccurrenceKey(occurrence.block().getId(), occurrence.date()), List.of());
                 for (Reservation reservation : booked) {
                     if (isAlreadyStartedOrCheckedIn(reservation, occurrence.block())) {
                         continue;
@@ -304,11 +336,32 @@ public class GymClosureService {
         }
     }
 
+    // Tope duro de página: aunque el cliente pida size=10000, nunca se devuelve más que esto.
+    private static final int MAX_PAGE_SIZE = 50;
+
+    /** Historial de cierres paginado (más reciente primero) — los bloques puntuales de toda la
+     *  página se traen en UNA query (findByClosureIdIn), no una por cierre. */
     @Transactional(readOnly = true)
-    public List<GymClosureResponse> list(Long gymId) {
-        return gymClosureRepository.findByGymIdOrderByCreatedAtDesc(gymId).stream()
-                .map(this::toResponse)
+    public PageResponse<GymClosureResponse> listPage(Long gymId, int page, int size) {
+        Pageable pageable = PageRequest.of(
+                Math.max(page, 0),
+                Math.min(Math.max(size, 1), MAX_PAGE_SIZE),
+                Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by(Sort.Direction.DESC, "id")));
+        Page<GymClosure> result = gymClosureRepository.findByGymId(gymId, pageable);
+        List<Long> partialIds = result.getContent().stream()
+                .filter(c -> !c.isWholeDays())
+                .map(GymClosure::getId)
                 .toList();
+        Map<Long, List<Long>> blockIdsByClosure = partialIds.isEmpty()
+                ? Map.of()
+                : gymClosureBlockRepository.findByClosureIdIn(partialIds).stream()
+                        .collect(Collectors.groupingBy(
+                                GymClosureBlock::getClosureId,
+                                Collectors.mapping(GymClosureBlock::getGymBlockId, Collectors.toList())));
+        List<GymClosureResponse> items = result.getContent().stream()
+                .map(c -> toResponse(c, blockIdsByClosure.getOrDefault(c.getId(), List.of())))
+                .toList();
+        return new PageResponse<>(items, result.getNumber(), result.getSize(), result.getTotalElements(), result.hasNext());
     }
 
     private void registerAfterCommit(Runnable action) {
@@ -369,11 +422,12 @@ public class GymClosureService {
     }
 
     private GymClosurePreviewResponse summarize(List<AffectedOccurrence> occurrences) {
+        Map<OccurrenceKey, List<Reservation>> bookedByOccurrence = bookedByOccurrence(occurrences);
         Set<Long> members = new HashSet<>();
         int total = 0;
         for (AffectedOccurrence occurrence : occurrences) {
-            List<Reservation> booked = reservationRepository.findByGymBlockIdAndClassDateAndStatus(
-                    occurrence.block().getId(), occurrence.date(), ReservationStatus.BOOKED);
+            List<Reservation> booked = bookedByOccurrence.getOrDefault(
+                    new OccurrenceKey(occurrence.block().getId(), occurrence.date()), List.of());
             for (Reservation reservation : booked) {
                 if (isAlreadyStartedOrCheckedIn(reservation, occurrence.block())) {
                     continue;
@@ -419,6 +473,10 @@ public class GymClosureService {
                 : gymClosureBlockRepository.findByClosureId(closure.getId()).stream()
                         .map(GymClosureBlock::getGymBlockId)
                         .toList();
+        return toResponse(closure, blockIds);
+    }
+
+    private GymClosureResponse toResponse(GymClosure closure, List<Long> blockIds) {
         LocalDate today = LocalDate.now(GYM_ZONE);
         boolean active = !today.isBefore(closure.getStartDate()) && !today.isAfter(closure.effectiveEndDate());
         return new GymClosureResponse(

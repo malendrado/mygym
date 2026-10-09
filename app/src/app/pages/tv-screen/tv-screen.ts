@@ -1,6 +1,5 @@
 import { NgTemplateOutlet } from '@angular/common';
 import { Component, OnDestroy, computed, inject, signal } from '@angular/core';
-import { DomSanitizer } from '@angular/platform-browser';
 import { IonContent } from '@ionic/angular';
 import { toCanvas as qrToCanvas } from 'qrcode';
 import { TvAttendeeSummary, TvBlockOccurrence, TvSchedule } from '../../core/models/tv-screen.model';
@@ -13,6 +12,7 @@ import {
   ensureMinContrastColor,
   syncThemeOverrides,
 } from '../../core/utils/gym-theme';
+import { toLogoImgSrc } from '../../core/utils/logo-src';
 
 // Área del logo central como % del ancho del QR — bien por debajo del margen que da el nivel de
 // corrección de errores 'H' (tolera perder hasta un 30% del área; un cuadrado de este lado ocupa
@@ -119,7 +119,6 @@ function solidFillTextColor(hex: string): string {
 })
 export class TvScreenPage implements OnDestroy {
   private readonly tvScreenService = inject(TvScreenService);
-  private readonly sanitizer = inject(DomSanitizer);
 
   protected readonly stage = signal<Stage>('pairing');
   protected readonly pairingCode = signal<string | null>(null);
@@ -131,11 +130,7 @@ export class TvScreenPage implements OnDestroy {
   // con "todavía cargando".
   protected readonly checkinQrDataUrl = signal<string | null>(null);
 
-  protected readonly isRasterLogo = computed(() => (this.schedule()?.logoSvg ?? '').startsWith('data:image'));
-  protected readonly safeLogo = computed(() => {
-    const svg = this.schedule()?.logoSvg;
-    return svg && !this.isRasterLogo() ? this.sanitizer.bypassSecurityTrustHtml(svg) : null;
-  });
+  protected readonly logoSrc = computed(() => toLogoImgSrc(this.schedule()?.logoSvg));
 
   // Duplicada para que el scroll infinito (CSS puro, ver tv-screen.scss) cierre el loop sin
   // salto visible — mismo patrón ya probado en member.ts/member.scss.
@@ -462,12 +457,7 @@ export class TvScreenPage implements OnDestroy {
   }
 
   private loadLogoImage(): Promise<HTMLImageElement | null> {
-    const logoSvg = this.schedule()?.logoSvg;
-    const src = logoSvg
-      ? this.isRasterLogo()
-        ? logoSvg
-        : `data:image/svg+xml;utf8,${encodeURIComponent(logoSvg)}`
-      : '/favicon.svg';
+    const src = toLogoImgSrc(this.schedule()?.logoSvg) ?? '/favicon.svg';
     return new Promise((resolve) => {
       const img = new Image();
       img.onload = () => resolve(img);

@@ -135,11 +135,6 @@
     object-fit: cover;
   }
 
-  ::ng-deep svg {
-    width: 26px;
-    height: 26px;
-  }
-
   ion-icon {
     font-size: 1.3rem;
     color: var(--brand-text-dim);

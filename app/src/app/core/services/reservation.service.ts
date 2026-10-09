@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import { Page } from '../models/page.model';
 import { CreateReservationRequest, GymBlockOccurrence, Reservation } from '../models/reservation.model';
 
 @Injectable({ providedIn: 'root' })
@@ -15,6 +16,11 @@ export class ReservationService {
 
   myReservations(): Observable<Reservation[]> {
     return this.http.get<Reservation[]>(`${this.base}/reservations`);
+  }
+
+  /** Historial de clases anteriores a hoy, de la más reciente a la más antigua, paginado. */
+  myPastReservations(page: number, size: number): Observable<Page<Reservation>> {
+    return this.http.get<Page<Reservation>>(`${this.base}/reservations/past`, { params: { page, size } });
   }
 
   book(payload: CreateReservationRequest): Observable<Reservation> {

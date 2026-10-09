@@ -79,3 +79,22 @@ export interface AttendeeSummary {
   firstName: string;
   photoUrl: string | null;
 }
+
+/** Conteos de las calugas de la pestaña Socios — del gym completo, no de la página visible. */
+export interface MemberSummary {
+  total: number;
+  active: number;
+  expiringSoon: number;
+  expired: number;
+  unpaid: number;
+  invitedPending: number;
+}
+
+/** Parámetros de GET /members: búsqueda y filtros viven en el servidor. */
+export interface MemberPageQuery {
+  q: string;
+  status: MembershipStatus | null;
+  invite: Exclude<InviteStatus, null> | null;
+  page: number;
+  size: number;
+}

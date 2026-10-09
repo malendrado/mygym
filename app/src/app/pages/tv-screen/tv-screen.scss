@@ -241,16 +241,6 @@
   }
 }
 
-.tv-header__logo-svg {
-  display: flex;
-  width: 100%;
-  height: 100%;
-
-  ::ng-deep svg {
-    width: 100%;
-    height: 100%;
-  }
-}
 
 .tv-header__gym {
   font-family: var(--brand-font-heading);

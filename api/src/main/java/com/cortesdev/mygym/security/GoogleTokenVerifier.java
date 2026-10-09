@@ -33,6 +33,12 @@ public class GoogleTokenVerifier {
         if (!jwt.getAudience().contains(googleClientId)) {
             throw new InvalidGoogleTokenException("El token de Google no corresponde a esta aplicación");
         }
+        // Defensa en profundidad (auditoría de seguridad 2026-10-09): Google normalmente no emite
+        // ID tokens de login con el email sin verificar, pero confiar en ese email para crear/
+        // matchear una cuenta sin chequear este claim es innecesariamente laxo.
+        if (!Boolean.TRUE.equals(jwt.getClaimAsBoolean("email_verified"))) {
+            throw new InvalidGoogleTokenException("El email de tu cuenta de Google no está verificado");
+        }
         return new GoogleIdentity(
                 jwt.getSubject(),
                 jwt.getClaimAsString("email"),

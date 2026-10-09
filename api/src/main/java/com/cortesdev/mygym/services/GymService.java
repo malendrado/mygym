@@ -26,7 +26,9 @@ import com.cortesdev.mygym.models.dto.GymIdentityUpdateRequest;
 import com.cortesdev.mygym.models.dto.GymPhotoCreateRequest;
 import com.cortesdev.mygym.models.dto.GymPhotoResponse;
 import com.cortesdev.mygym.models.dto.GymResponse;
+import com.cortesdev.mygym.models.dto.GymStatsResponse;
 import com.cortesdev.mygym.models.dto.GymSummaryResponse;
+import com.cortesdev.mygym.models.dto.PageResponse;
 import com.cortesdev.mygym.models.dto.MemberPlanResponse;
 import com.cortesdev.mygym.models.dto.PlanCreateRequest;
 import com.cortesdev.mygym.models.dto.PlanResponse;
@@ -66,6 +68,8 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -120,9 +124,38 @@ public class GymService {
         return toResponse(gym);
     }
 
+    // Tope duro de página: aunque el cliente pida size=10000, nunca se devuelve más que esto.
+    private static final int MAX_PAGE_SIZE = 50;
+
+    /** Lista paginada de gimnasios con búsqueda por nombre/slug — todo en la base, la lista del
+     *  super-admin crece con cada cliente nuevo y cada fila arrastra el logo SVG completo. */
     @Transactional(readOnly = true)
-    public List<GymSummaryResponse> listGyms(Boolean active) {
-        return gymRepository.findAllSummaries(active);
+    public PageResponse<GymSummaryResponse> listGyms(Boolean active, String query, int page, int size) {
+        Pageable pageable = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), MAX_PAGE_SIZE));
+        return PageResponse.of(gymRepository.findSummariesPage(active, likePattern(query), pageable));
+    }
+
+    /** "%texto%" en minúsculas, con %, _ y \ del texto escapados para que se busquen literales. */
+    static String likePattern(String query) {
+        if (query == null || query.isBlank()) {
+            return "%";
+        }
+        String escaped = query.trim()
+                .toLowerCase()
+                .replace("\\", "\\\\")
+                .replace("%", "\\%")
+                .replace("_", "\\_");
+        return "%" + escaped + "%";
+    }
+
+    /** Conteos de las calugas de /admin/gyms — de todos los gimnasios, no de la página visible. */
+    @Transactional(readOnly = true)
+    public GymStatsResponse gymStats() {
+        return new GymStatsResponse(
+                gymRepository.count(),
+                gymRepository.countByActive(true),
+                gymRepository.sumMaxUsers(),
+                gymRepository.countBranded());
     }
 
     @Transactional(readOnly = true)

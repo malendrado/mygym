@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { BankTransferInfo, GymPhoto, MemberPlan, PublicGym } from '../models/gym.model';
 import { AttendeeSummary, Member } from '../models/member.model';
+import { Page } from '../models/page.model';
 import { GymBlockOccurrence, Reservation } from '../models/reservation.model';
 import { PendingWorkout } from '../models/workout.model';
 
@@ -36,6 +37,10 @@ export class DemoPreviewService {
 
   listReservations(): Observable<Reservation[]> {
     return this.http.get<Reservation[]>(`${this.base}/reservations`);
+  }
+
+  listPastReservations(page: number, size: number): Observable<Page<Reservation>> {
+    return this.http.get<Page<Reservation>>(`${this.base}/reservations/past`, { params: { page, size } });
   }
 
   getPhotos(): Observable<GymPhoto[]> {

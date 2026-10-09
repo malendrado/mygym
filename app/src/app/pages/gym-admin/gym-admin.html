@@ -592,7 +592,7 @@
               @if (block.instructorName) {
                 <p class="block-item__instructor">
                   @if (block.instructorPhoto) {
-                    <img [src]="block.instructorPhoto" alt="" />
+                    <img [src]="block.instructorPhoto" alt="" loading="lazy" />
                   }
                   {{ block.instructorName }}
                 </p>
@@ -614,7 +614,7 @@
                     @for (attendee of attendeesFor(block); track attendee.id) {
                       <span class="attendees-list__item" [title]="attendee.email">
                         @if (attendee.photoUrl) {
-                          <img [src]="attendee.photoUrl" alt="" class="attendees-list__avatar" />
+                          <img [src]="attendee.photoUrl" alt="" class="attendees-list__avatar" loading="lazy" />
                         } @else {
                           <span class="attendees-list__avatar attendees-list__avatar--placeholder">
                             {{ attendee.name.charAt(0) }}
@@ -926,7 +926,7 @@
         <ion-card-title>
           <ion-icon name="people-outline" aria-hidden="true"></ion-icon>
           Socios
-          <ion-badge color="dark">{{ filteredMembers().length }}</ion-badge>
+          <ion-badge color="dark">{{ memberList.totalElements() }}</ion-badge>
         </ion-card-title>
         @if (memberStatusFilter()) {
           <ion-chip (click)="clearMemberStatusFilter()">
@@ -946,14 +946,30 @@
           data-tour="members-search"
           placeholder="Buscar por nombre o email"
           [value]="memberSearchQuery()"
-          (ionInput)="memberSearchQuery.set($any($event.detail.value) ?? '')"
-          (ionClear)="memberSearchQuery.set('')"
+          (ionInput)="memberList.setSearch($any($event.detail.value) ?? '')"
+          (ionClear)="memberList.setSearch('')"
         ></ion-searchbar>
-        <ion-list lines="full">
+        <ion-list
+          lines="full"
+          [attr.aria-busy]="memberList.loading()"
+          [style.opacity]="memberList.loading() && memberList.loaded() ? 0.55 : 1"
+          style="transition: opacity 150ms ease-out"
+        >
+          @if (!memberList.loaded()) {
+            <ion-item lines="none">
+              <ion-spinner name="crescent" slot="start"></ion-spinner>
+              <ion-label>Cargando socios…</ion-label>
+            </ion-item>
+          } @else if (memberList.error()) {
+            <ion-item lines="none">
+              <ion-label color="danger">No pudimos cargar los socios.</ion-label>
+              <ion-button slot="end" fill="outline" size="small" (click)="memberList.reload()">Reintentar</ion-button>
+            </ion-item>
+          }
           @for (member of filteredMembers(); track member.id) {
             <ion-item>
               @if (member.photoUrl) {
-                <img [src]="member.photoUrl" alt="" slot="start" class="member-avatar" />
+                <img [src]="member.photoUrl" alt="" slot="start" class="member-avatar" loading="lazy" />
               } @else {
                 <ion-icon name="person-circle-outline" slot="start" aria-hidden="true"></ion-icon>
               }
@@ -1061,19 +1077,31 @@
               </ion-label>
             </ion-item>
           } @empty {
-            <ion-item lines="none">
-              <ion-label>
-                {{
-                  memberSearchQuery()
-                    ? 'No encontramos socios que coincidan con "' + memberSearchQuery() + '".'
-                    : memberStatusFilter() || memberInviteFilter()
-                      ? 'No hay socios en este filtro.'
-                      : 'Todavía no hay socios cargados.'
-                }}
-              </ion-label>
-            </ion-item>
+            @if (memberList.loaded() && !memberList.error()) {
+              <ion-item lines="none">
+                <ion-label>
+                  {{
+                    memberSearchQuery()
+                      ? 'No encontramos socios que coincidan con "' + memberSearchQuery() + '".'
+                      : memberStatusFilter() || memberInviteFilter()
+                        ? 'No hay socios en este filtro.'
+                        : 'Todavía no hay socios cargados.'
+                  }}
+                </ion-label>
+              </ion-item>
+            }
           }
         </ion-list>
+        @if (memberList.totalPages() > 1) {
+          <app-pagination-bar
+            [page]="memberList.page()"
+            [totalPages]="memberList.totalPages()"
+            [totalElements]="memberList.totalElements()"
+            [loading]="memberList.loading()"
+            itemLabel="socios"
+            (pageChange)="onMemberPage($event)"
+          />
+        }
       </ion-card-content>
     </ion-card>
 
@@ -1153,12 +1181,10 @@
         </ion-button>
       </ion-card-header>
       <ion-card-content>
-        @if (isRasterLogo()) {
+        @if (logoSrc()) {
           <div class="gym-logo">
-            <img [src]="logoSvg()" alt="Logo del gimnasio" />
+            <img [src]="logoSrc()" alt="Logo del gimnasio" />
           </div>
-        } @else if (safeLogo()) {
-          <div class="gym-logo" [innerHTML]="safeLogo()"></div>
         } @else {
           <p class="item-hint">Todavía no tienes un logo cargado. Sube uno o pídeselo al equipo de mygym.</p>
         }
@@ -1317,7 +1343,7 @@
         <div class="photo-grid">
           @for (photo of photos(); track photo.id) {
             <div class="photo-grid__item">
-              <img [src]="photo.data" [alt]="photo.caption ?? 'Foto del gimnasio'" />
+              <img [src]="photo.data" [alt]="photo.caption ?? 'Foto del gimnasio'" loading="lazy" />
               <button type="button" class="photo-grid__remove" [attr.aria-label]="'Eliminar foto'" (click)="removePhoto(photo)">
                 <ion-icon name="trash-outline" aria-hidden="true"></ion-icon>
               </button>
@@ -1511,7 +1537,7 @@
                             @for (attendee of historyAttendeesFor(block, day.date); track attendee.id) {
                               <span class="attendees-list__item" [title]="attendee.email">
                                 @if (attendee.photoUrl) {
-                                  <img [src]="attendee.photoUrl" alt="" class="attendees-list__avatar" />
+                                  <img [src]="attendee.photoUrl" alt="" class="attendees-list__avatar" loading="lazy" />
                                 } @else {
                                   <span class="attendees-list__avatar attendees-list__avatar--placeholder">
                                     {{ attendee.name.charAt(0) }}
@@ -1552,6 +1578,12 @@
             <ion-spinner name="crescent"></ion-spinner>
           </div>
         }
+        @if (reservationSearchTruncated()) {
+          <p class="item-hint" role="status">
+            El texto coincide con muchos socios: se muestran las reservas de los primeros 25 (por nombre).
+            Escribe más letras para afinar la búsqueda.
+          </p>
+        }
         <div class="block-grid">
           @for (entry of reservationSearchBlocks(); track entry.block.id + '_' + entry.date) {
             <div class="block-card">
@@ -1566,7 +1598,7 @@
                 @for (attendee of entry.attendees; track attendee.id) {
                   <span class="attendees-list__item" [title]="attendee.email">
                     @if (attendee.photoUrl) {
-                      <img [src]="attendee.photoUrl" alt="" class="attendees-list__avatar" />
+                      <img [src]="attendee.photoUrl" alt="" class="attendees-list__avatar" loading="lazy" />
                     } @else {
                       <span class="attendees-list__avatar attendees-list__avatar--placeholder">
                         {{ attendee.name.charAt(0) }}
@@ -1611,7 +1643,13 @@
           email a cada socio con el motivo.
         </p>
 
-        <ion-list lines="full" data-tour="closures-list">
+        <ion-list lines="full" data-tour="closures-list" [attr.aria-busy]="closureList.loading()">
+          @if (!closureList.loaded()) {
+            <ion-item lines="none">
+              <ion-spinner name="crescent" slot="start"></ion-spinner>
+              <ion-label>Cargando cierres…</ion-label>
+            </ion-item>
+          }
           @for (closure of closures(); track closure.id) {
             <ion-item>
               <ion-icon name="ban-outline" slot="start" aria-hidden="true"></ion-icon>
@@ -1634,12 +1672,36 @@
               }
             </ion-item>
           } @empty {
-            <div class="admins-empty">
-              <ion-icon name="ban-outline" aria-hidden="true"></ion-icon>
-              <p>Nunca cerraste este gimnasio — ojalá siga siendo así.</p>
-            </div>
+            @if (closureList.loaded() && !closureList.error()) {
+              <div class="admins-empty">
+                <ion-icon name="ban-outline" aria-hidden="true"></ion-icon>
+                <p>Nunca cerraste este gimnasio — ojalá siga siendo así.</p>
+              </div>
+            }
           }
         </ion-list>
+        @if (closureList.error()) {
+          <p class="item-hint" role="alert">No pudimos cargar los cierres.</p>
+        }
+        @if (closureList.hasNext() || closureList.error()) {
+          <ion-button
+            class="closure-more" style="margin-top: 0.75rem"
+            expand="block"
+            fill="outline"
+            [disabled]="closureList.loading()"
+            [attr.aria-busy]="closureList.loading()"
+            (click)="closureList.error() ? closureList.reload() : closureList.loadMore()"
+          >
+            @if (closureList.loading()) {
+              <ion-spinner name="crescent" slot="start"></ion-spinner>
+              Cargando…
+            } @else if (closureList.error()) {
+              Reintentar
+            } @else {
+              Cargar más
+            }
+          </ion-button>
+        }
       </ion-card-content>
     </ion-card>
 

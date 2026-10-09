@@ -1,0 +1,23 @@
+<nav class="pagination-bar" [attr.aria-label]="'Paginación de ' + itemLabel()">
+  <ion-button
+    fill="outline"
+    size="small"
+    [disabled]="isFirst() || loading()"
+    (click)="go(page() - 1)"
+    aria-label="Página anterior"
+  >
+    <ion-icon slot="icon-only" name="chevron-back-outline" aria-hidden="true"></ion-icon>
+  </ion-button>
+  <span class="pagination-bar__label" role="status" aria-live="polite">
+    Página {{ page() + 1 }} de {{ totalPages() }} · {{ totalElements() }} {{ itemLabel() }}
+  </span>
+  <ion-button
+    fill="outline"
+    size="small"
+    [disabled]="isLast() || loading()"
+    (click)="go(page() + 1)"
+    aria-label="Página siguiente"
+  >
+    <ion-icon slot="icon-only" name="chevron-forward-outline" aria-hidden="true"></ion-icon>
+  </ion-button>
+</nav>

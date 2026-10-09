@@ -35,17 +35,6 @@
   }
 }
 
-.gym-title__logo-svg {
-  display: flex;
-  width: 100%;
-  height: 100%;
-
-  ::ng-deep svg {
-    width: 100%;
-    height: 100%;
-  }
-}
-
 // Tira de fotos del gimnasio en el header — antes era solo el nombre en un
 // fondo plano, "muy vacío" (pedido explícito del usuario). Scroll infinito
 // en CSS puro (sin librería de animación, este proyecto no usa ninguna):
@@ -932,6 +921,13 @@ ion-segment-button.segment-button-checked {
     opacity: 0.55;
   }
 
+  // Entrada de filas del historial paginado: fade + 8px, escalonado (delay inline) — con "Cargar
+  // más" solo las filas nuevas se montan, así que solo ellas animan. Sin movimiento si el
+  // usuario pidió reducir animaciones (queda solo el fade).
+  &--enter {
+    animation: class-tile-enter 200ms cubic-bezier(0.23, 1, 0.32, 1) backwards;
+  }
+
   // Resalta la clase que está pasando AHORA mismo (pedido explícito del usuario, que se note) —
   // acento warning (ámbar), no el color de marca: acá queremos que llame la atención de verdad,
   // no que se mimetice con el resto de los acentos verdes/lima de la tarjeta.
@@ -1105,10 +1101,6 @@ ion-segment-button.segment-button-checked {
     color: var(--brand-accent-text-safe, var(--brand-accent));
     text-decoration: underline;
     cursor: pointer;
-
-    &--danger {
-      color: var(--ion-color-danger-tint);
-    }
   }
 
   &__note {
@@ -1296,4 +1288,38 @@ ion-segment-button.segment-button-checked {
   margin: 0.5rem 0 0.75rem;
   padding-left: 1.1rem;
   font-size: 0.85rem;
+}
+
+@keyframes class-tile-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes class-tile-enter {
+    from {
+      opacity: 0;
+    }
+  }
+}
+
+.past-more {
+  margin-top: 0.75rem;
+  min-height: 44px;
+  transition: transform 160ms ease-out;
+
+  &:active {
+    transform: scale(0.97);
+  }
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }

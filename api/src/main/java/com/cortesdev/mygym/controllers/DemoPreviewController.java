@@ -8,6 +8,7 @@ import com.cortesdev.mygym.models.dto.GymBlockOccurrenceResponse;
 import com.cortesdev.mygym.models.dto.GymPhotoResponse;
 import com.cortesdev.mygym.models.dto.MemberPlanResponse;
 import com.cortesdev.mygym.models.dto.MemberResponse;
+import com.cortesdev.mygym.models.dto.PageResponse;
 import com.cortesdev.mygym.models.dto.PendingWorkoutResponse;
 import com.cortesdev.mygym.models.dto.PublicGymResponse;
 import com.cortesdev.mygym.models.dto.ReservationResponse;
@@ -104,6 +105,14 @@ public class DemoPreviewController {
     @GetMapping("/reservations")
     public List<ReservationResponse> reservations(@AuthenticationPrincipal Jwt jwt) {
         return reservationService.myReservations(sampleMemberId(jwt));
+    }
+
+    @GetMapping("/reservations/past")
+    public PageResponse<ReservationResponse> pastReservations(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return reservationService.myPastReservations(sampleMemberId(jwt), page, size);
     }
 
     // "Memoria Viva" en la demo — mismo recorte de solo-lectura que el resto de este controller,

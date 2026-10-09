@@ -21,14 +21,17 @@ public class SecurityConfig {
     private final JwtService jwtService;
     private final List<String> allowedOrigins;
     private final DemoAccessExpiryFilter demoAccessExpiryFilter;
+    private final AuthRateLimitFilter authRateLimitFilter;
 
     public SecurityConfig(
             JwtService jwtService,
             @Value("${app.cors.allowed-origins}") List<String> allowedOrigins,
-            DemoAccessExpiryFilter demoAccessExpiryFilter) {
+            DemoAccessExpiryFilter demoAccessExpiryFilter,
+            AuthRateLimitFilter authRateLimitFilter) {
         this.jwtService = jwtService;
         this.allowedOrigins = allowedOrigins;
         this.demoAccessExpiryFilter = demoAccessExpiryFilter;
+        this.authRateLimitFilter = authRateLimitFilter;
     }
 
     @Bean
@@ -37,13 +40,16 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth.requestMatchers(
-                                "/api/auth/**",
-                                "/api/public/**",
-                                "/actuator/**",
-                                "/v3/api-docs/**",
-                                "/swagger-ui/**",
-                                "/swagger-ui.html")
+                                "/api/auth/**", "/api/public/**", "/actuator/**")
                         .permitAll()
+                        // Swagger/OpenAPI expone el mapa completo de la API (rutas, DTOs,
+                        // parámetros) sin autenticar — facilita reconocimiento a cualquier
+                        // atacante. Solo SUPER_ADMIN puede verlo en producción (auditoría de
+                        // seguridad 2026-10-09); springdoc igual queda deshabilitado por default
+                        // (ver application.yml, SPRINGDOC_ENABLED), esto es defensa en profundidad
+                        // por si algún día se habilita sin querer.
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
+                        .hasRole("SUPER_ADMIN")
                         .requestMatchers("/api/gyms/**")
                         .hasRole("SUPER_ADMIN")
                         // DEMO_ADMIN es de solo-lectura: el matcher de GET tiene que ir ANTES del
@@ -77,7 +83,8 @@ public class SecurityConfig {
                 // sin llegar siquiera a evaluar los matchers de arriba (ver DemoAccessExpiryFilter
                 // — el JWT en sí sigue siendo válido por 30 días, este filtro es el único lugar
                 // que de verdad hace cumplir el límite de 7 días en una sesión ya logueada).
-                .addFilterBefore(demoAccessExpiryFilter, AuthorizationFilter.class);
+                .addFilterBefore(demoAccessExpiryFilter, AuthorizationFilter.class)
+                .addFilterBefore(authRateLimitFilter, AuthorizationFilter.class);
         return http.build();
     }
 

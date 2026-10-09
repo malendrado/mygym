@@ -8,6 +8,30 @@
   height: 100%;
 }
 
+// Placeholders deduplicados (auditoría de performance 2026-10-09): landing.scss estaba a 3.67kB
+// del límite de build (anyComponentStyle). @extend fusiona los selectores que comparten estas
+// reglas en una sola declaración compilada, en vez de repetir el mismo bloque 6-9 veces.
+%section-pad {
+  margin: 0 auto;
+  padding: clamp(2rem, 6vw, 4rem) clamp(1.25rem, 4vw, 3rem);
+}
+
+%section-container {
+  @extend %section-pad;
+  max-width: 1400px;
+}
+
+%section-heading {
+  font-size: clamp(1.6rem, 3vw, 2.2rem);
+  letter-spacing: -0.01em;
+}
+
+// Ver el comentario de "Shape rule" arriba de este archivo — 16px es el único radio de
+// contenedor no-pill, repetido en 16 selectores distintos antes de este @extend.
+%radius-card {
+  border-radius: 16px;
+}
+
 .landing-content {
   --background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPScyNDAnIGhlaWdodD0nMjQwJz4KICA8ZmlsdGVyIGlkPSduJz4KICAgIDxmZVR1cmJ1bGVuY2UgdHlwZT0nZnJhY3RhbE5vaXNlJyBiYXNlRnJlcXVlbmN5PScwLjknIG51bU9jdGF2ZXM9JzInIHN0aXRjaFRpbGVzPSdzdGl0Y2gnLz4KICAgIDxmZUNvbG9yTWF0cml4IHR5cGU9J21hdHJpeCcgdmFsdWVzPScwIDAgMCAwIDEgIDAgMCAwIDAgMSAgMCAwIDAgMCAxICAwIDAgMCAwLjA1IDAnLz4KICA8L2ZpbHRlcj4KICA8cmVjdCB3aWR0aD0nMTAwJScgaGVpZ2h0PScxMDAlJyBmaWx0ZXI9J3VybCgjbiknLz4KPC9zdmc+Cg==") repeat, var(--brand-ink);
   --color: var(--brand-text);
@@ -339,7 +363,7 @@ button:focus-visible {
   &__asset {
     position: relative;
     order: -1;
-    border-radius: 16px;
+    @extend %radius-card;
     overflow: hidden;
 
     img {
@@ -368,7 +392,7 @@ button:focus-visible {
     bottom: 1.25rem;
     max-width: 260px;
     background: var(--brand-ink-surface);
-    border-radius: 16px;
+    @extend %radius-card;
     padding: 1.1rem 1.25rem;
     box-shadow: 0 16px 32px rgba(0, 0, 0, 0.45);
 
@@ -488,8 +512,7 @@ button:focus-visible {
 
   &__copy {
     h2 {
-      font-size: clamp(1.6rem, 3vw, 2.2rem);
-      letter-spacing: -0.01em;
+      @extend %section-heading;
       max-width: 16ch;
       margin: 0 0 1rem;
     }
@@ -505,7 +528,7 @@ button:focus-visible {
 
   &__asset {
     position: relative;
-    border-radius: 16px;
+    @extend %radius-card;
     overflow: hidden;
 
     img {
@@ -526,7 +549,7 @@ button:focus-visible {
     display: grid;
     gap: 0.6rem;
     background: var(--brand-ink-surface);
-    border-radius: 16px;
+    @extend %radius-card;
     padding: 1rem 1.1rem;
     box-shadow: 0 16px 32px rgba(0, 0, 0, 0.45);
 
@@ -577,7 +600,7 @@ button:focus-visible {
     width: 100%;
     height: clamp(260px, 40vw, 420px);
     object-fit: cover;
-    border-radius: 16px;
+    @extend %radius-card;
     animation: hero-drift 16s ease-in-out infinite alternate;
   }
 
@@ -585,7 +608,7 @@ button:focus-visible {
     content: '';
     position: absolute;
     inset: 0 clamp(1.25rem, 4vw, 3rem) 0;
-    border-radius: 16px;
+    @extend %radius-card;
     background: linear-gradient(0deg, rgba(8, 14, 16, 0.88) 0%, rgba(8, 14, 16, 0.35) 45%, rgba(8, 14, 16, 0) 75%);
     pointer-events: none;
   }
@@ -627,13 +650,10 @@ button:focus-visible {
 }
 
 .features {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: clamp(2rem, 6vw, 4rem) clamp(1.25rem, 4vw, 3rem);
+  @extend %section-container;
 
   h2 {
-    font-size: clamp(1.6rem, 3vw, 2.2rem);
-    letter-spacing: -0.01em;
+    @extend %section-heading;
     max-width: 24ch;
     margin: 0 0 2rem;
   }
@@ -649,7 +669,7 @@ button:focus-visible {
   }
 
   &__cell {
-    border-radius: 16px;
+    @extend %radius-card;
     padding: 1.75rem;
     transform: translateY(16px) scale(0.94);
     transition:
@@ -727,9 +747,7 @@ button:focus-visible {
 }
 
 .members {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: clamp(2rem, 6vw, 4rem) clamp(1.25rem, 4vw, 3rem);
+  @extend %section-container;
 
   &__eyebrow {
     display: block;
@@ -746,8 +764,7 @@ button:focus-visible {
     margin-bottom: 2.5rem;
 
     h2 {
-      font-size: clamp(1.6rem, 3vw, 2.2rem);
-      letter-spacing: -0.01em;
+      @extend %section-heading;
       max-width: 22ch;
       margin: 0 0 1rem;
     }
@@ -773,7 +790,7 @@ button:focus-visible {
 
   &__asset {
     position: relative;
-    border-radius: 16px;
+    @extend %radius-card;
     overflow: hidden;
 
     img {
@@ -794,7 +811,7 @@ button:focus-visible {
     display: grid;
     gap: 0.6rem;
     background: var(--brand-ink-surface);
-    border-radius: 16px;
+    @extend %radius-card;
     padding: 1rem 1.1rem;
     box-shadow: 0 16px 32px rgba(0, 0, 0, 0.45);
 
@@ -832,7 +849,7 @@ button:focus-visible {
 
   &__card {
     background: var(--brand-ink-surface);
-    border-radius: 16px;
+    @extend %radius-card;
     padding: 1.5rem;
 
     ion-icon {
@@ -856,13 +873,11 @@ button:focus-visible {
 }
 
 .booking {
+  @extend %section-container;
   display: grid;
   grid-template-columns: 1fr;
   gap: 2rem;
   align-items: center;
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: clamp(2rem, 6vw, 4rem) clamp(1.25rem, 4vw, 3rem);
 
   @media (min-width: 900px) {
     grid-template-columns: 0.9fr 1.1fr;
@@ -870,8 +885,7 @@ button:focus-visible {
 
   &__copy {
     h2 {
-      font-size: clamp(1.6rem, 3vw, 2.2rem);
-      letter-spacing: -0.01em;
+      @extend %section-heading;
       max-width: 18ch;
       margin: 0 0 1rem;
     }
@@ -887,7 +901,7 @@ button:focus-visible {
 
   &__card {
     background: var(--brand-ink-surface);
-    border-radius: 16px;
+    @extend %radius-card;
     padding: 1.75rem;
   }
 
@@ -958,13 +972,10 @@ button:focus-visible {
 }
 
 .states {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: clamp(2rem, 6vw, 4rem) clamp(1.25rem, 4vw, 3rem);
+  @extend %section-container;
 
   h2 {
-    font-size: clamp(1.6rem, 3vw, 2.2rem);
-    letter-spacing: -0.01em;
+    @extend %section-heading;
     max-width: 28ch;
     margin: 0 0 2rem;
   }
@@ -981,7 +992,7 @@ button:focus-visible {
 
   &__card {
     background: var(--brand-ink-surface);
-    border-radius: 16px;
+    @extend %radius-card;
     padding: 1.5rem;
 
     p {
@@ -1028,8 +1039,7 @@ button:focus-visible {
   padding: clamp(2rem, 6vw, 4rem) clamp(1.25rem, 4vw, 3rem) clamp(3rem, 6vw, 5rem);
 
   h2 {
-    font-size: clamp(1.6rem, 3vw, 2.2rem);
-    letter-spacing: -0.01em;
+    @extend %section-heading;
     max-width: 28ch;
     margin: 0 0 2.5rem;
   }
@@ -1048,7 +1058,7 @@ button:focus-visible {
   &__card {
     position: relative;
     background: var(--brand-ink-surface);
-    border-radius: 16px;
+    @extend %radius-card;
     padding: 2rem;
     transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 
@@ -1172,8 +1182,7 @@ button:focus-visible {
   }
 
   h2 {
-    font-size: clamp(1.6rem, 3vw, 2.2rem);
-    letter-spacing: -0.01em;
+    @extend %section-heading;
     margin: 0;
   }
 
@@ -1287,13 +1296,10 @@ button:focus-visible {
 }
 
 .steps {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: clamp(2rem, 6vw, 4rem) clamp(1.25rem, 4vw, 3rem);
+  @extend %section-container;
 
   h2 {
-    font-size: clamp(1.6rem, 3vw, 2.2rem);
-    letter-spacing: -0.01em;
+    @extend %section-heading;
     max-width: 24ch;
     margin: 0 0 2rem;
   }
@@ -1310,7 +1316,7 @@ button:focus-visible {
 
   &__card {
     background: var(--brand-ink-surface);
-    border-radius: 16px;
+    @extend %radius-card;
     padding: 1.75rem;
 
     ion-icon {
@@ -1334,13 +1340,11 @@ button:focus-visible {
 }
 
 .faq {
+  @extend %section-pad;
   max-width: 780px;
-  margin: 0 auto;
-  padding: clamp(2rem, 6vw, 4rem) clamp(1.25rem, 4vw, 3rem);
 
   h2 {
-    font-size: clamp(1.6rem, 3vw, 2.2rem);
-    letter-spacing: -0.01em;
+    @extend %section-heading;
     margin: 0 0 1.5rem;
   }
 
@@ -1351,7 +1355,7 @@ button:focus-visible {
 
   &__item {
     background: var(--brand-ink-surface);
-    border-radius: 16px;
+    @extend %radius-card;
     overflow: hidden;
   }
 
@@ -1465,7 +1469,7 @@ button:focus-visible {
     width: 100%;
     max-width: 420px;
     background: var(--brand-ink-surface);
-    border-radius: 16px;
+    @extend %radius-card;
     padding: 2rem;
 
     h3 {

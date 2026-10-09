@@ -1,6 +1,5 @@
 import { Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
-import { DomSanitizer } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
 import {
   IonBadge,
@@ -25,6 +24,7 @@ import { InstallBanner } from './install-banner/install-banner';
 import { TourOverlay } from '../../core/components/tour-overlay/tour-overlay';
 import { SectionTour, TourService } from '../../core/services/tour.service';
 import { TourSeenService } from '../../core/services/tour-seen.service';
+import { toLogoImgSrc } from '../../core/utils/logo-src';
 import {
   addCircleOutline,
   alertCircleOutline,
@@ -56,7 +56,7 @@ import { ReservationService } from '../../core/services/reservation.service';
 import { WorkoutService } from '../../core/services/workout.service';
 import { GymBlockOccurrence, Reservation } from '../../core/models/reservation.model';
 import { BankTransferInfo, GymClosureNotice, GymPhoto, MemberPlan, PublicGym } from '../../core/models/gym.model';
-import { AttendeeSummary } from '../../core/models/member.model';
+import { AttendeeSummary, Member } from '../../core/models/member.model';
 import { ExerciseLogEntry, MemberWorkoutLog, PendingWorkout, SaveWorkoutLogRequest } from '../../core/models/workout.model';
 import { deriveSurfaceTint, ensureMinContrastColor, syncThemeOverrides } from '../../core/utils/gym-theme';
 import { registerClassCategoryIcons, resolveClassCategoryIcon } from '../../core/utils/class-category';
@@ -291,7 +291,6 @@ export class MemberPage {
   private readonly workoutService = inject(WorkoutService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
-  private readonly sanitizer = inject(DomSanitizer);
   private readonly toastController = inject(ToastController);
   private readonly destroyRef = inject(DestroyRef);
   private readonly demoPreviewService = inject(DemoPreviewService);
@@ -311,11 +310,7 @@ export class MemberPage {
   protected readonly status = signal<Status>('idle');
   protected readonly gym = signal<PublicGym | null>(null);
   protected readonly gymLoaded = signal(false);
-  protected readonly isRasterLogo = computed(() => (this.gym()?.logoSvg ?? '').startsWith('data:image'));
-  protected readonly safeLogo = computed(() => {
-    const svg = this.gym()?.logoSvg;
-    return svg && !this.isRasterLogo() ? this.sanitizer.bypassSecurityTrustHtml(svg) : null;
-  });
+  protected readonly logoSrc = computed(() => toLogoImgSrc(this.gym()?.logoSvg));
   protected readonly occurrences = signal<GymBlockOccurrence[]>([]);
   protected readonly myReservations = signal<Reservation[]>([]);
   protected readonly bookingId = signal<number | null>(null);
@@ -746,12 +741,24 @@ export class MemberPage {
   protected readonly upcomingReservations = computed(() =>
     this.myReservations().filter((r) => !this.isReservationPast(r)),
   );
-  protected readonly pastReservations = computed(() =>
-    this.myReservations()
+  // Pasadas = las de HOY que ya terminaron (vienen en myReservations, que es de hoy en adelante)
+  // + las de días anteriores, que el backend entrega paginadas (loadPastReservations) — el
+  // historial crece sin límite, así que nunca se pide completo. Los dos grupos no se solapan
+  // (hoy vs. antes de hoy), y hoy es siempre más reciente que cualquier página.
+  protected readonly pastReservations = computed(() => [
+    ...this.myReservations()
       .filter((r) => this.isReservationPast(r))
       .slice()
       .reverse(),
-  );
+    ...this.pastPageItems(),
+  ]);
+  private readonly pastPageItems = signal<Reservation[]>([]);
+  protected readonly pastHasNext = signal(false);
+  protected readonly pastLoadingMore = signal(false);
+  protected readonly pastLoadError = signal(false);
+  protected readonly pastAnnouncement = signal('');
+  private pastNextPage = 0;
+  private static readonly PAST_PAGE_SIZE = 10;
 
   protected readonly selectedDateLabel = computed(() => {
     const [y, m, d] = this.selectedDate().split('-').map(Number);
@@ -782,14 +789,11 @@ export class MemberPage {
   });
 
   constructor() {
-    this.loadGym();
-    this.loadPlans();
-    this.loadMembership();
-    this.loadBankTransfer();
+    this.loadDashboard();
     this.loadPhotos();
     this.loadOccurrences();
     this.loadMyReservations();
-    this.loadClosureNotice();
+    this.loadPastReservations(true);
     this.startBookingDemo();
 
     // Modo claro necesita más que --member-bg/--member-card (bindeadas inline abajo) —
@@ -809,6 +813,9 @@ export class MemberPage {
       this.checkoutPending.set(true);
       this.router.navigate([], { queryParams: {}, replaceUrl: true });
       let attempts = 0;
+      // Capturado en una variable de instancia (y limpiado en destroy) — antes, si el socio
+      // navegaba fuera de /member dentro de esta ventana de ~17s, el callback seguía corriendo
+      // contra un componente ya destruido (auditoría de performance 2026-10-09).
       const poll = () => {
         attempts += 1;
         this.gymService.getMyMembership().subscribe({
@@ -818,7 +825,7 @@ export class MemberPage {
               this.loadMembership();
               this.showToast('¡Pago confirmado! Ya puedes reservar tus clases.');
             } else if (attempts < 5) {
-              setTimeout(poll, 3000);
+              this.checkoutPollTimer = setTimeout(poll, 3000);
             } else {
               this.checkoutPending.set(false);
               this.showToast('Todavía estamos confirmando tu pago — recarga en un minuto.', 'danger');
@@ -826,16 +833,19 @@ export class MemberPage {
           },
           error: () => {
             if (attempts < 5) {
-              setTimeout(poll, 3000);
+              this.checkoutPollTimer = setTimeout(poll, 3000);
             } else {
               this.checkoutPending.set(false);
             }
           },
         });
       };
-      setTimeout(poll, 2000);
+      this.checkoutPollTimer = setTimeout(poll, 2000);
+      this.destroyRef.onDestroy(() => clearTimeout(this.checkoutPollTimer));
     }
   }
+
+  private checkoutPollTimer: ReturnType<typeof setTimeout> | undefined;
 
   protected categoryIcon(category: string | null): string {
     return resolveClassCategoryIcon(category);
@@ -885,7 +895,7 @@ export class MemberPage {
         {
           title: 'Cancela cuando quiera',
           body: 'Tu socio gestiona sus propias reservas solo, sin llamar al gimnasio.',
-          targetSelector: '.class-tile__link--danger',
+          targetSelector: '[data-tour="reservas-cancel"]',
         },
         {
           title: 'Su historial completo',
@@ -1347,45 +1357,49 @@ export class MemberPage {
   // cuenta real.
   private loadMembership(): void {
     (this.isDemoPreview ? this.demoPreviewService.getMembership() : this.gymService.getMyMembership()).subscribe({
-      next: (member) => {
-        if (this.isDemoPreview) {
-          this.demoMemberName.set(member.name);
-        }
-        if (!member.planId || !member.paidAt) {
-          this.membershipLoaded.set(true);
-          return;
-        }
-        const status = member.membershipStatus === 'EXPIRED' ? 'past_due' : 'active';
-        const monthlyClasses = member.monthlyClasses;
-        const classesUsed = monthlyClasses !== null ? monthlyClasses - (member.sessionsRemaining ?? monthlyClasses) : 0;
-        this.membership.set({
-          status,
-          plan: {
-            id: member.planId,
-            name: member.planName ?? 'Plan',
-            priceClp: 0,
-            monthlyClasses,
-          },
-          classesUsed,
-          paidAt: toChileIsoDate(member.paidAt),
-        });
-        this.expiryNotified = false;
-        this.stopBookingDemo();
-        // El fetch inicial de ocurrencias (constructor) salió con el mes calendario de
-        // respaldo, antes de saber si hay plan activo — con status==='active' ya conocido acá,
-        // bookableRange() pasa a ser el rango real del período pagado: hay que volver a pedir
-        // las ocurrencias para ESE rango (puede no coincidir con el mes calendario de respaldo).
-        if (status === 'active') {
-          this.loadOccurrences();
-        }
-        this.membershipLoaded.set(true);
-      },
+      next: (member) => this.applyMembership(member),
       error: () => {
         // Best-effort: sin datos reales, se queda en "none" (el estado por
         // defecto) — el socio puede seguir viendo la pantalla de elegir plan.
         this.membershipLoaded.set(true);
       },
     });
+  }
+
+  // Compartido por loadMembership() (demo preview, y el re-poll tras volver de Flow.cl) y
+  // loadDashboard() (carga inicial real) — mismo procesamiento, solo cambia de dónde sale el dato.
+  private applyMembership(member: Member): void {
+    if (this.isDemoPreview) {
+      this.demoMemberName.set(member.name);
+    }
+    if (!member.planId || !member.paidAt) {
+      this.membershipLoaded.set(true);
+      return;
+    }
+    const status = member.membershipStatus === 'EXPIRED' ? 'past_due' : 'active';
+    const monthlyClasses = member.monthlyClasses;
+    const classesUsed = monthlyClasses !== null ? monthlyClasses - (member.sessionsRemaining ?? monthlyClasses) : 0;
+    this.membership.set({
+      status,
+      plan: {
+        id: member.planId,
+        name: member.planName ?? 'Plan',
+        priceClp: 0,
+        monthlyClasses,
+      },
+      classesUsed,
+      paidAt: toChileIsoDate(member.paidAt),
+    });
+    this.expiryNotified = false;
+    this.stopBookingDemo();
+    // El fetch inicial de ocurrencias (constructor) salió con el mes calendario de
+    // respaldo, antes de saber si hay plan activo — con status==='active' ya conocido acá,
+    // bookableRange() pasa a ser el rango real del período pagado: hay que volver a pedir
+    // las ocurrencias para ESE rango (puede no coincidir con el mes calendario de respaldo).
+    if (status === 'active') {
+      this.loadOccurrences();
+    }
+    this.membershipLoaded.set(true);
   }
 
   private loadBankTransfer(): void {
@@ -1419,6 +1433,38 @@ export class MemberPage {
     });
   }
 
+  // Carga inicial real: combina gym+membresía+planes+datos bancarios+aviso de cierre en 1 sola
+  // request en vez de 5 sueltas — eran, junto con fotos/ocurrencias/reservas, hasta 7-8 conexiones
+  // simultáneas contra un pool Hikari de solo 5 en la pantalla de mayor concurrencia real de la
+  // app (auditoría de performance 2026-10-09). El modo demo sigue con las 4 llamadas sueltas de
+  // siempre (bajo tráfico, servidas por un backend de demo separado).
+  private loadDashboard(): void {
+    if (this.isDemoPreview) {
+      this.loadGym();
+      this.loadPlans();
+      this.loadMembership();
+      this.loadBankTransfer();
+      this.loadClosureNotice();
+      return;
+    }
+    this.gymService.getMyDashboard().subscribe({
+      next: (dashboard) => {
+        this.gym.set(dashboard.gym);
+        this.gymLoaded.set(true);
+        this.plans.set(withHighlight(dashboard.plans));
+        this.plansLoaded.set(true);
+        this.bankTransfer.set(dashboard.bankTransfer);
+        this.closureNotice.set(dashboard.closureNotice);
+        this.applyMembership(dashboard.membership);
+      },
+      error: () => {
+        this.gymLoaded.set(true);
+        this.plansLoaded.set(true);
+        this.membershipLoaded.set(true);
+      },
+    });
+  }
+
   private loadOccurrences(): void {
     this.status.set('loading');
     const range = this.bookableRange() ?? { from: this.monthRange.from, to: this.monthRange.to };
@@ -1431,6 +1477,35 @@ export class MemberPage {
         this.status.set('idle');
       },
       error: () => this.status.set('error'),
+    });
+  }
+
+  /** Primera página del historial (reset) o la siguiente ("Cargar más"). */
+  protected loadPastReservations(reset = false): void {
+    if (this.pastLoadingMore()) {
+      return;
+    }
+    const page = reset ? 0 : this.pastNextPage;
+    this.pastLoadingMore.set(true);
+    this.pastLoadError.set(false);
+    const size = MemberPage.PAST_PAGE_SIZE;
+    (this.isDemoPreview
+      ? this.demoPreviewService.listPastReservations(page, size)
+      : this.reservationService.myPastReservations(page, size)
+    ).subscribe({
+      next: (result) => {
+        this.pastPageItems.update((current) => (reset ? result.items : [...current, ...result.items]));
+        this.pastHasNext.set(result.hasNext);
+        this.pastNextPage = result.page + 1;
+        this.pastLoadingMore.set(false);
+        if (!reset && result.items.length > 0) {
+          this.pastAnnouncement.set(`${result.items.length} reservas más cargadas`);
+        }
+      },
+      error: () => {
+        this.pastLoadingMore.set(false);
+        this.pastLoadError.set(true);
+      },
     });
   }
 

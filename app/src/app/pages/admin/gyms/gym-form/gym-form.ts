@@ -1,6 +1,5 @@
 import { Component, OnDestroy, computed, effect, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import {
   IonBackButton,
@@ -76,6 +75,9 @@ import {
 import { firstValueFrom } from 'rxjs';
 import { GymService } from '../../../../core/services/gym.service';
 import { MemberService } from '../../../../core/services/member.service';
+import { MemberListState } from '../../../../core/state/member-list.state';
+import { PaginationBar } from '../../../../core/components/pagination-bar/pagination-bar';
+import { PagedListState } from '../../../../core/state/paged-list.state';
 import {
   Admin,
   BANK_ACCOUNT_TYPES,
@@ -113,6 +115,7 @@ import { EditClosureModal } from '../edit-closure-modal/edit-closure-modal';
 import { QuantityStepper } from '../../../../core/components/quantity-stepper/quantity-stepper';
 import { registerClassCategoryIcons, resolveClassCategoryIcon } from '../../../../core/utils/class-category';
 import { formatRut, rutFormatValidator } from '../../../../core/utils/rut';
+import { toLogoImgSrc } from '../../../../core/utils/logo-src';
 import {
   LIGHT_PALETTES,
   LightPaletteEntry,
@@ -342,6 +345,7 @@ const THEMED_ROOT_PROPERTIES = [
 @Component({
   selector: 'app-gym-form',
   imports: [
+    PaginationBar,
     ReactiveFormsModule,
     IonHeader,
     IonToolbar,
@@ -389,7 +393,6 @@ export class GymForm implements OnDestroy {
   private readonly router = inject(Router);
   private readonly gymService = inject(GymService);
   private readonly memberService = inject(MemberService);
-  private readonly sanitizer = inject(DomSanitizer);
   private readonly toastController = inject(ToastController);
   private readonly alertController = inject(AlertController);
 
@@ -494,6 +497,8 @@ export class GymForm implements OnDestroy {
   protected readonly reservationSearchQuery = signal('');
   protected readonly reservationSearchResults = signal<BlockOccurrenceAttendees[] | null>(null);
   protected readonly reservationSearchLoading = signal(false);
+  // El servidor topa a 25 socios por búsqueda — true = hay más coincidencias de las mostradas.
+  protected readonly reservationSearchTruncated = signal(false);
   private reservationSearchTimeout: ReturnType<typeof setTimeout> | null = null;
 
   protected readonly reservationSearchBlocks = computed(() => {
@@ -516,32 +521,28 @@ export class GymForm implements OnDestroy {
   protected readonly editingPlan = signal<GymPlan | null>(null);
 
   // Socios (pestaña Socios)
-  protected readonly members = signal<Member[]>([]);
-  protected readonly activeMembers = computed(() => this.members().filter((m) => m.membershipStatus === 'ACTIVE').length);
-  protected readonly expiringSoonMembers = computed(() => this.members().filter((m) => m.membershipStatus === 'EXPIRING_SOON').length);
-  protected readonly expiredMembers = computed(() => this.members().filter((m) => m.membershipStatus === 'EXPIRED').length);
-  protected readonly unpaidMembers = computed(() => this.members().filter((m) => m.membershipStatus === 'UNPAID').length);
-  protected readonly memberStatusFilter = signal<MembershipStatus | null>(null);
+  // Lista paginada de socios — búsqueda, filtros y conteos de las calugas viven en el servidor
+  // (ver MemberListState, mismo estado que usa gym-admin.ts). `members` es solo la página visible.
+  protected readonly memberList = new MemberListState(
+    (query) => this.memberService.listPageForGym(this.gymId()!, query),
+    () => this.memberService.summaryForGym(this.gymId()!),
+  );
+  protected readonly members = this.memberList.members;
+  protected readonly activeMembers = this.memberList.active;
+  protected readonly expiringSoonMembers = this.memberList.expiringSoon;
+  protected readonly expiredMembers = this.memberList.expired;
+  protected readonly unpaidMembers = this.memberList.unpaid;
+  protected readonly memberStatusFilter = this.memberList.statusFilter;
   // Ver comentario largo en gym-admin.ts: las 6 calugas son un único grupo de filtro
   // mutuamente excluyente — click en cualquiera reemplaza cualquier filtro activo del otro eje.
   // "Invitados registrados" se retiró como bucket/filtro propio (mismo criterio que gym-admin.ts)
   // — el badge por fila se mantiene siempre, incluso ya activo, como info histórica.
-  protected readonly invitedPendingMembers = computed(() => this.members().filter((m) => m.inviteStatus === 'PENDING').length);
-  protected readonly memberInviteFilter = signal<InviteStatus>(null);
-  // Buscador libre por nombre/email — independiente de las calugas de estado/invitación,
-  // se combinan todos con AND (mismo criterio que ya usa reservationSearchQuery en Historial).
-  protected readonly memberSearch = signal('');
-  protected readonly filteredMembers = computed(() => {
-    const statusFilter = this.memberStatusFilter();
-    const inviteFilter = this.memberInviteFilter();
-    const query = this.memberSearch().trim().toLowerCase();
-    return this.members().filter(
-      (m) =>
-        (!statusFilter || m.membershipStatus === statusFilter) &&
-        (!inviteFilter || m.inviteStatus === inviteFilter) &&
-        (!query || m.name.toLowerCase().includes(query) || m.email.toLowerCase().includes(query)),
-    );
-  });
+  protected readonly invitedPendingMembers = this.memberList.invitedPending;
+  protected readonly memberInviteFilter = this.memberList.inviteFilter;
+  // Buscador libre por nombre/email — lo resuelve el servidor (con debounce), combinado en AND
+  // con las calugas de estado/invitación.
+  protected readonly memberSearch = this.memberList.searchQuery;
+  protected readonly filteredMembers = this.memberList.members;
   protected readonly memberForm = new FormGroup({
     name: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.minLength(2)] }),
     email: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.email] }),
@@ -631,7 +632,13 @@ export class GymForm implements OnDestroy {
 
   // Cierre de emergencia (ver GymClosureService) — pestaña Cierres, mismo mecanismo que
   // gym-admin.ts (implementación paralela, gymId explícito en vez de por JWT).
-  protected readonly closures = signal<GymClosure[]>([]);
+  // Historial de cierres paginado (10 por vez, "Cargar más") — crece con cada emergencia.
+  protected readonly closureList = new PagedListState<GymClosure>(
+    (query) => this.gymService.listClosuresPage(this.gymId()!, query.page, query.size),
+    10,
+    'append',
+  );
+  protected readonly closures = this.closureList.items;
   protected readonly isClosureModalOpen = signal(false);
   protected readonly closurePreview = signal<GymClosurePreview | null>(null);
   protected readonly closurePreviewing = signal(false);
@@ -646,10 +653,7 @@ export class GymForm implements OnDestroy {
 
   protected readonly suggestStatus = signal<SuggestStatus>('idle');
   protected readonly brandingSuggestion = signal<BrandingSuggestion | null>(null);
-  protected readonly safeSuggestedLogo = computed(() => {
-    const suggestion = this.brandingSuggestion();
-    return suggestion ? this.sanitizer.bypassSecurityTrustHtml(suggestion.logoSvg) : null;
-  });
+  protected readonly suggestedLogoSrc = computed(() => toLogoImgSrc(this.brandingSuggestion()?.logoSvg));
 
   protected readonly createForm = new FormGroup({
     name: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.minLength(2), Validators.maxLength(120)] }),
@@ -686,11 +690,7 @@ export class GymForm implements OnDestroy {
   // ej. "mygym Demo") — pedido explícito del usuario: se coló mostrada para TODOS los gyms
   // (2026-09-23), incluido uno de prueba real "QA Payment Flow" sin ninguna relación con la demo.
   protected readonly isDemoGym = computed(() => this.gymName().toLowerCase().includes('demo'));
-  protected readonly isGymLogoRaster = computed(() => (this.gym()?.logoSvg ?? '').startsWith('data:image'));
-  protected readonly safeGymLogo = computed(() => {
-    const logo = this.gym()?.logoSvg;
-    return logo && !this.isGymLogoRaster() ? this.sanitizer.bypassSecurityTrustHtml(logo) : null;
-  });
+  protected readonly gymLogoSrc = computed(() => toLogoImgSrc(this.gym()?.logoSvg));
 
   constructor() {
     const publicId = this.route.snapshot.paramMap.get('publicId');
@@ -773,23 +773,26 @@ export class GymForm implements OnDestroy {
   }
 
   protected viewMembersByStatus(status: MembershipStatus): void {
-    this.memberStatusFilter.set(status);
-    this.memberInviteFilter.set(null);
+    this.memberList.setStatusFilter(status);
     this.section.set('members');
   }
 
   protected clearMemberStatusFilter(): void {
-    this.memberStatusFilter.set(null);
+    this.memberList.setStatusFilter(null);
   }
 
   protected viewMembersByInvite(status: Exclude<InviteStatus, null>): void {
-    this.memberInviteFilter.set(status);
-    this.memberStatusFilter.set(null);
+    this.memberList.setInviteFilter(status);
     this.section.set('members');
   }
 
   protected clearMemberInviteFilter(): void {
-    this.memberInviteFilter.set(null);
+    this.memberList.setInviteFilter(null);
+  }
+
+  protected onMemberPage(page: number): void {
+    this.memberList.goTo(page);
+    document.getElementById('members-list-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   protected inviteStatusLabel(status: Exclude<InviteStatus, null>): string {
@@ -843,11 +846,11 @@ export class GymForm implements OnDestroy {
         this.loadAdmins(id);
         this.loadDemoAdmins(id);
         this.loadPlans(id);
-        this.loadMembers(id);
+        this.memberList.reload();
         this.loadPhotos(id);
         this.loadTvScreens(id);
         this.loadFlowAccount(id);
-        this.loadClosures(id);
+        this.closureList.reload();
       },
       error: () => {
         this.status.set('error');
@@ -954,12 +957,8 @@ export class GymForm implements OnDestroy {
     });
   }
 
-  protected isConfigLogoRaster(value: string): boolean {
-    return value.startsWith('data:image');
-  }
-
-  protected safeConfigLogo(value: string): SafeHtml | null {
-    return value && !this.isConfigLogoRaster(value) ? this.sanitizer.bypassSecurityTrustHtml(value) : null;
+  protected configLogoSrc(value: string): string | null {
+    return toLogoImgSrc(value);
   }
 
   protected initials(name: string): string {
@@ -1373,7 +1372,7 @@ export class GymForm implements OnDestroy {
   }
 
   protected onMemberSearchInput(value: string): void {
-    this.memberSearch.set(value);
+    this.memberList.setSearch(value);
   }
 
   protected onReservationSearchInput(value: string): void {
@@ -1384,6 +1383,7 @@ export class GymForm implements OnDestroy {
     const trimmed = value.trim();
     if (trimmed.length < 2) {
       this.reservationSearchResults.set(null);
+      this.reservationSearchTruncated.set(false);
       this.reservationSearchLoading.set(false);
       return;
     }
@@ -1397,8 +1397,9 @@ export class GymForm implements OnDestroy {
     }
     this.reservationSearchLoading.set(true);
     this.gymService.searchReservations(gymId, query).subscribe({
-      next: (results) => {
-        this.reservationSearchResults.set(results);
+      next: (response) => {
+        this.reservationSearchResults.set(response.results);
+        this.reservationSearchTruncated.set(response.truncated);
         this.reservationSearchLoading.set(false);
       },
       error: () => this.reservationSearchLoading.set(false),
@@ -1634,16 +1635,9 @@ export class GymForm implements OnDestroy {
       next: (member) => {
         this.memberForm.reset({ name: '', email: '' });
         this.status.set('idle');
-        this.loadMembers(id);
+        this.memberList.reload();
         this.showToast(`Socio agregado: ${member.name}. Le enviamos un correo para activar su cuenta y elegir un plan.`);
       },
-      error: () => this.status.set('error'),
-    });
-  }
-
-  private loadMembers(id: number): void {
-    this.memberService.listForGym(id).subscribe({
-      next: (members) => this.members.set(members),
       error: () => this.status.set('error'),
     });
   }
@@ -1713,7 +1707,7 @@ export class GymForm implements OnDestroy {
         this.markingPaidId.set(null);
         this.markPaidMember.set(null);
         this.showToast(`Pago registrado para ${member.name}.`);
-        this.loadMembers(id);
+        this.memberList.reload();
       },
       error: () => {
         this.markingPaidId.set(null);
@@ -1742,7 +1736,7 @@ export class GymForm implements OnDestroy {
       next: () => {
         this.revokingPlanId.set(null);
         this.showToast(`Se le quitó el plan a ${member.name}.`);
-        this.loadMembers(id);
+        this.memberList.reload();
       },
       error: () => {
         this.revokingPlanId.set(null);
@@ -1771,7 +1765,7 @@ export class GymForm implements OnDestroy {
     this.memberService.deleteMemberForGym(id, member.id).subscribe({
       next: () => {
         this.deletingMemberId.set(null);
-        this.members.update((list) => list.filter((m) => m.id !== member.id));
+        this.memberList.reload();
         this.showToast(`${member.name} fue eliminado permanentemente.`);
       },
       error: () => {
@@ -2118,13 +2112,6 @@ export class GymForm implements OnDestroy {
     });
   }
 
-  private loadClosures(id: number): void {
-    this.gymService.listClosures(id).subscribe({
-      next: (closures) => this.closures.set(closures),
-      error: () => this.showToast('No pudimos cargar los cierres. Intenta nuevamente.', 'danger'),
-    });
-  }
-
   protected openClosureModal(): void {
     this.closurePreview.set(null);
     this.closurePreviewError.set(null);
@@ -2165,7 +2152,7 @@ export class GymForm implements OnDestroy {
       next: (closure) => {
         this.closureSaving.set(false);
         this.isClosureModalOpen.set(false);
-        this.closures.update((list) => [closure, ...list]);
+        this.closureList.reload();
         this.showToast(
           `Gimnasio cerrado: ${closure.cancelledReservationsCount} reserva(s) canceladas, ${closure.affectedMembersCount} socio(s) van a recibir un email.`,
         );
@@ -2194,7 +2181,7 @@ export class GymForm implements OnDestroy {
     this.gymService.liftClosure(id, closure.id).subscribe({
       next: () => {
         this.liftingClosureId.set(null);
-        this.loadClosures(id);
+        this.closureList.reload();
         this.showToast('Cierre levantado — ya se puede volver a reservar desde hoy.');
       },
       error: () => {

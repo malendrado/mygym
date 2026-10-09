@@ -10,6 +10,8 @@ import com.cortesdev.mygym.models.dto.MemberCreateRequest;
 import com.cortesdev.mygym.models.dto.MemberImportRow;
 import com.cortesdev.mygym.models.dto.MemberImportRowResult;
 import com.cortesdev.mygym.models.dto.MemberResponse;
+import com.cortesdev.mygym.models.dto.MemberSummaryResponse;
+import com.cortesdev.mygym.models.dto.PageResponse;
 import com.cortesdev.mygym.repositories.AppUserRepository;
 import com.cortesdev.mygym.repositories.GymPlanRepository;
 import com.cortesdev.mygym.repositories.GymRepository;
@@ -120,9 +122,71 @@ public class MemberService {
         return results;
     }
 
+    // Tope duro de página: aunque el cliente pida size=10000, nunca se devuelve más que esto.
+    private static final int MAX_PAGE_SIZE = 50;
+
+    /**
+     * Lista paginada de socios de un gym con búsqueda por nombre/email y filtros de estado de pago
+     * e invitación. El estado de membresía NO es una columna (se calcula al vuelo desde paidAt,
+     * ver membershipStatus), así que filtrar/buscar/ordenar se hace en memoria sobre las filas
+     * AppUser del gym (una sola query liviana) y recién la página pedida pasa por toResponses —
+     * que es la parte cara (planes + reservas del período). Así el filtro usa EXACTAMENTE la
+     * misma regla que muestra la fila, sin duplicarla en SQL. Orden: nombre (sin mayúsculas), id.
+     */
     @Transactional(readOnly = true)
-    public List<MemberResponse> listMembers(Long gymId) {
-        return toResponses(appUserRepository.findByGymIdAndRole(gymId, Role.MEMBER));
+    public PageResponse<MemberResponse> searchMembers(
+            Long gymId, String query, String status, String invite, int page, int size) {
+        String needle = query == null ? "" : query.trim().toLowerCase();
+        List<AppUser> matches = appUserRepository.findByGymIdAndRole(gymId, Role.MEMBER).stream()
+                .filter(u -> status == null || status.isBlank() || status.equals(membershipStatus(u)))
+                .filter(u -> invite == null || invite.isBlank() || invite.equals(inviteStatus(u)))
+                .filter(u -> needle.isEmpty() || contains(u.getName(), needle) || contains(u.getEmail(), needle))
+                .sorted(Comparator.comparing((AppUser u) -> u.getName() == null ? "" : u.getName().toLowerCase())
+                        .thenComparing(AppUser::getId))
+                .toList();
+        int safeSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
+        int safePage = Math.max(page, 0);
+        int from = (int) Math.min((long) safePage * safeSize, matches.size());
+        int to = Math.min(from + safeSize, matches.size());
+        return new PageResponse<>(
+                toResponses(matches.subList(from, to)), safePage, safeSize, matches.size(), to < matches.size());
+    }
+
+    private static boolean contains(String value, String needle) {
+        return value != null && value.toLowerCase().contains(needle);
+    }
+
+    /** Conteos del gym completo para las calugas — mismo criterio que membershipStatus/inviteStatus. */
+    @Transactional(readOnly = true)
+    public MemberSummaryResponse memberSummary(Long gymId) {
+        long active = 0;
+        long expiringSoon = 0;
+        long expired = 0;
+        long unpaid = 0;
+        long invitedPending = 0;
+        List<AppUser> members = appUserRepository.findByGymIdAndRole(gymId, Role.MEMBER);
+        for (AppUser user : members) {
+            switch (membershipStatus(user)) {
+                case "ACTIVE" -> active++;
+                case "EXPIRING_SOON" -> expiringSoon++;
+                case "EXPIRED" -> expired++;
+                default -> unpaid++;
+            }
+            if ("PENDING".equals(inviteStatus(user))) {
+                invitedPending++;
+            }
+        }
+        return new MemberSummaryResponse(members.size(), active, expiringSoon, expired, unpaid, invitedPending);
+    }
+
+    /** Solo los emails (para que el modal de importación detecte socios ya existentes) — liviano
+     *  a propósito: no pasa por toResponses, así que no paga planes ni reservas. */
+    @Transactional(readOnly = true)
+    public List<String> memberEmails(Long gymId) {
+        return appUserRepository.findByGymIdAndRole(gymId, Role.MEMBER).stream()
+                .map(AppUser::getEmail)
+                .filter(Objects::nonNull)
+                .toList();
     }
 
     // Borrado permanente — a diferencia de revokePlan (solo le saca el plan), esto elimina

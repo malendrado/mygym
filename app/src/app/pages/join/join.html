@@ -40,10 +40,8 @@
   >
     <div class="join-card">
       <div class="join-card__story">
-        @if (isRasterLogo()) {
-          <div class="join-logo"><img [src]="gym()!.logoSvg" alt="Logo de {{ gym()!.name }}" /></div>
-        } @else if (safeLogo()) {
-          <div class="join-logo" [innerHTML]="safeLogo()"></div>
+        @if (logoSrc()) {
+          <div class="join-logo"><img [src]="logoSrc()" alt="Logo de {{ gym()!.name }}" /></div>
         }
 
         <h1>Únete a {{ gym()!.name }}</h1>
