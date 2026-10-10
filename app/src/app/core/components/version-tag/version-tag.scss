@@ -1,0 +1,41 @@
+:host {
+  display: block;
+  text-align: center;
+}
+
+.version {
+  font-family: var(--brand-font-mono, ui-monospace, monospace);
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  color: var(--brand-text-dim, #8fa3b0);
+  opacity: 0.7;
+  user-select: text;
+}
+
+// App del socio: lo más discreto posible, pero con un área de toque razonable (el texto es
+// chico, el botón no). Sin foco visible solo por mouse; con teclado sí se ve el aro.
+.version--subtle {
+  display: inline-block;
+  padding: 0.6rem 1.2rem;
+  border: 0;
+  background: transparent;
+  font-size: 9px;
+  opacity: 0.4;
+  cursor: default;
+
+  &:focus-visible {
+    opacity: 1;
+    outline: 1px solid currentColor;
+    border-radius: 6px;
+  }
+}
+
+// TV: esquina inferior izquierda, fija, no estorba ni recibe clics; se lee solo de cerca.
+.version--tv {
+  position: fixed;
+  left: 0.75rem;
+  bottom: 0.4rem;
+  font-size: 0.7rem;
+  opacity: 0.35;
+  pointer-events: none;
+}

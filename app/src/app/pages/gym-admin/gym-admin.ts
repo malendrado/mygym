@@ -132,6 +132,7 @@ import { toLogoImgSrc } from '../../core/utils/logo-src';
 import { TourOverlay } from '../../core/components/tour-overlay/tour-overlay';
 import { SectionTour, TourService } from '../../core/services/tour.service';
 import { TourSeenService } from '../../core/services/tour-seen.service';
+import { VersionTag } from '../../core/components/version-tag/version-tag';
 
 registerClassCategoryIcons();
 import {
@@ -383,6 +384,7 @@ const THEMED_ROOT_PROPERTIES = [
 @Component({
   selector: 'app-gym-admin',
   imports: [
+    VersionTag,
     ReactiveFormsModule,
     IonHeader,
     IonToolbar,

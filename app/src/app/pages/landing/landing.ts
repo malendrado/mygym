@@ -17,6 +17,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { GymService } from '../../core/services/gym.service';
 import { IonContent, IonIcon } from '@ionic/angular';
 import { addIcons } from 'ionicons';
+import { VersionTag } from '../../core/components/version-tag/version-tag';
 import {
   arrowForwardOutline,
   barbellOutline,
@@ -108,7 +109,12 @@ interface MemberBenefit {
 @Component({
   selector: 'app-landing',
   standalone: true,
-  imports: [IonContent, IonIcon, RouterLink],
+  imports: [
+    VersionTag,
+    IonContent,
+    IonIcon,
+    RouterLink,
+  ],
   templateUrl: './landing.html',
   styleUrl: './landing.scss',
 })

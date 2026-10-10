@@ -123,6 +123,7 @@ import { ProfesorService } from '../../../../core/services/profesor.service';
 import { registerClassCategoryIcons, resolveClassCategoryIcon } from '../../../../core/utils/class-category';
 import { formatRut, rutFormatValidator } from '../../../../core/utils/rut';
 import { toLogoImgSrc } from '../../../../core/utils/logo-src';
+import { VersionTag } from '../../../../core/components/version-tag/version-tag';
 import {
   LIGHT_PALETTES,
   LightPaletteEntry,
@@ -355,6 +356,7 @@ const THEMED_ROOT_PROPERTIES = [
 @Component({
   selector: 'app-gym-form',
   imports: [
+    VersionTag,
     PaginationBar,
     ReactiveFormsModule,
     IonHeader,

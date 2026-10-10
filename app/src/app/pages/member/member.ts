@@ -63,6 +63,7 @@ import { AttendeeSummary, Member } from '../../core/models/member.model';
 import { ExerciseLogEntry, MemberWorkoutLog, PendingWorkout, SaveWorkoutLogRequest } from '../../core/models/workout.model';
 import { deriveSurfaceTint, ensureMinContrastColor, syncThemeOverrides } from '../../core/utils/gym-theme';
 import { registerClassCategoryIcons, resolveClassCategoryIcon } from '../../core/utils/class-category';
+import { VersionTag } from '../../core/components/version-tag/version-tag';
 
 registerClassCategoryIcons();
 
@@ -271,6 +272,7 @@ const OCCURRENCES_LOADING_MESSAGES = [
 @Component({
   selector: 'app-member',
   imports: [
+    VersionTag,
     IonHeader,
     IonToolbar,
     IonTitle,

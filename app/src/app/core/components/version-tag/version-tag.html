@@ -1,0 +1,7 @@
+@if (variant === 'subtle') {
+  <button type="button" class="version version--subtle" aria-label="Versión de la aplicación" (click)="toggle()">
+    {{ expanded() ? full : short }}
+  </button>
+} @else {
+  <span class="version" [class.version--tv]="variant === 'tv'">{{ full }}</span>
+}

@@ -13,6 +13,7 @@ import {
   syncThemeOverrides,
 } from '../../core/utils/gym-theme';
 import { toLogoImgSrc } from '../../core/utils/logo-src';
+import { VersionTag } from '../../core/components/version-tag/version-tag';
 
 // Área del logo central como % del ancho del QR — bien por debajo del margen que da el nivel de
 // corrección de errores 'H' (tolera perder hasta un 30% del área; un cuadrado de este lado ocupa
@@ -114,7 +115,12 @@ function solidFillTextColor(hex: string): string {
 @Component({
   selector: 'app-tv-screen',
   standalone: true,
-  imports: [IonContent, NgTemplateOutlet, TvFitDirective],
+  imports: [
+    VersionTag,
+    IonContent,
+    NgTemplateOutlet,
+    TvFitDirective,
+  ],
   templateUrl: './tv-screen.html',
   styleUrl: './tv-screen.scss',
 })

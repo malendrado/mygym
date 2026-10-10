@@ -5,6 +5,23 @@
 set -e
 
 cd "$(dirname "$0")/.."
+
+# 0) Número de versión visible en la app (src/environments/build-info.ts): fecha de Chile + commit
+# corto actual. "dirty" = hay cambios sin commitear (sin contar este mismo archivo, que se
+# reescribe acá, ni logos/). Se restaura al final para que git no lo vea modificado.
+BUILD_FILE="src/environments/build-info.ts"
+BUILD_COMMIT="$(git rev-parse --short HEAD)"
+BUILD_DATE="$(TZ=America/Santiago date +%Y.%m.%d)"
+if [ -n "$(git status --porcelain -- ':(top)' ':(exclude,top)app/src/environments/build-info.ts' ':(exclude,top)logos' | head -1)" ]; then
+  BUILD_DIRTY="true"
+else
+  BUILD_DIRTY="false"
+fi
+trap 'git checkout -- "$BUILD_FILE" 2>/dev/null || true' EXIT
+printf "export const BUILD_INFO = {\n  commit: '%s',\n  date: '%s',\n  dirty: %s,\n};\n" \
+  "$BUILD_COMMIT" "$BUILD_DATE" "$BUILD_DIRTY" > "$BUILD_FILE"
+echo "Versión: v$BUILD_DATE · $BUILD_COMMIT (dirty=$BUILD_DIRTY)"
+
 echo "1/4 — build de Angular (landing)..."
 npx ng build landing
 
