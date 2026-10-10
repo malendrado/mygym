@@ -194,58 +194,6 @@
   line-height: 1.4;
 }
 
-.join-gallery {
-  display: flex;
-  gap: 0.5rem;
-  overflow-x: auto;
-  scroll-snap-type: x proximity;
-  margin: 0.5rem 0 1rem;
-  scrollbar-width: none;
-
-  &::-webkit-scrollbar {
-    display: none;
-  }
-
-  img {
-    flex: 0 0 auto;
-    scroll-snap-align: start;
-    width: 130px;
-    height: 90px;
-    object-fit: cover;
-    border-radius: 10px;
-  }
-}
-
-.join-contact {
-  display: flex;
-  justify-content: center;
-  gap: 1.25rem;
-  margin-top: 1rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--brand-ink-surface-2);
-
-  @media (min-width: 900px) {
-    justify-content: flex-start;
-  }
-
-  a {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    color: var(--brand-text-dim);
-    text-decoration: none;
-    font-size: 0.85rem;
-
-    ion-icon {
-      font-size: 1.1rem;
-    }
-
-    &:hover {
-      color: var(--brand-text);
-    }
-  }
-}
-
 // Vista previa de planes antes del alta. Antes era una fila con scroll
 // horizontal (para no empujar el botón de Google fuera de la pantalla) —
 // pedido explícito del usuario de sacarla: el scroll lateral esconde planes
@@ -305,6 +253,11 @@
 }
 
 .join-plan-card {
+  appearance: none;
+  font: inherit;
+  color: inherit;
+  width: 100%;
+  cursor: pointer;
   position: relative;
   border: 1px solid var(--brand-ink-surface-2);
   border-radius: 14px;
@@ -400,18 +353,258 @@
   }
 }
 
-.join-logo {
-  display: flex;
-  justify-content: center;
 
-  @media (min-width: 900px) {
-    justify-content: flex-start;
+// ---------------------------------------------------------------------------------------------
+// Encabezado con foto grande. Las fotos van apiladas y se cruzan con opacity (transition: se
+// puede interrumpir a mitad de camino si el visitante toca una miniatura). El degradado final
+// asegura que el texto blanco se lea sobre cualquier foto; el color de marca tiñe la base.
+// ---------------------------------------------------------------------------------------------
+$ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+
+.join-hero {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  border-radius: 16px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--brand-accent) 28%, var(--join-bg, var(--brand-ink)));
+  margin-bottom: 0.75rem;
+  isolation: isolate;
+}
+
+.join-hero__img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transform: scale(1.04);
+  transition:
+    opacity 600ms ease,
+    transform 6s linear;
+
+  &.is-active {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.join-hero__shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to top,
+    color-mix(in srgb, var(--brand-accent) 35%, rgba(0, 0, 0, 0.78)) 0%,
+    rgba(0, 0, 0, 0.45) 38%,
+    rgba(0, 0, 0, 0) 70%
+  );
+}
+
+.join-hero__caption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 1.1rem 1.25rem;
+  text-align: left;
+  color: #ffffff;
+  animation: join-rise 420ms $ease-out both;
+
+  h1 {
+    margin: 0.5rem 0 0.2rem;
+    font-size: 1.5rem;
+    line-height: 1.1;
+    text-wrap: balance;
+    text-shadow: 0 1px 8px rgba(0, 0, 0, 0.45);
   }
 
+  p {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 0.9rem;
+    text-shadow: 0 1px 6px rgba(0, 0, 0, 0.45);
+  }
+
+  @media (min-width: 900px) {
+    padding: 1.5rem 1.75rem;
+
+    h1 {
+      font-size: 2rem;
+    }
+  }
+}
+
+.join-hero__logo {
+  display: inline-flex;
+  padding: 0.35rem;
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 14px;
+
   img {
-    width: 96px;
-    height: 96px;
+    width: 52px;
+    height: 52px;
     object-fit: contain;
-    border-radius: 16px;
+    border-radius: 10px;
+  }
+}
+
+// Sin fotos: el logo queda grande sobre el fondo de marca.
+.join-hero--empty {
+  display: flex;
+  align-items: flex-end;
+}
+
+// Miniaturas: cada una entra con un retraso corto (cascada) y la activa se marca con el acento.
+.join-thumbs {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding: 0.2rem 0.1rem 0.4rem;
+  margin-bottom: 0.75rem;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.join-thumbs__btn {
+  flex: 0 0 auto;
+  width: 84px;
+  height: 58px;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  overflow: hidden;
+  background: none;
+  cursor: pointer;
+  opacity: 0.6;
+  transition:
+    opacity 160ms ease,
+    transform 160ms ease,
+    border-color 160ms ease;
+  animation: join-rise 360ms $ease-out both;
+  animation-delay: calc(var(--i, 0) * 50ms);
+
+  img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  &.is-active {
+    opacity: 1;
+    border-color: var(--brand-accent);
+  }
+
+  &:active {
+    transform: scale(0.96);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--brand-accent);
+    outline-offset: 2px;
+  }
+}
+
+// Contacto: de dos links chicos a botones reales. WhatsApp (el canal que más usa un socio dudoso)
+// va primero y lleno; Instagram queda como secundario.
+.join-contact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 0.5rem;
+}
+
+.join-contact__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 44px;
+  padding: 0 1rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--brand-text) 22%, transparent);
+  color: var(--brand-text);
+  text-decoration: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition:
+    transform 160ms ease,
+    background-color 160ms ease;
+
+  ion-icon {
+    font-size: 1.15rem;
+  }
+
+  &:active {
+    transform: scale(0.97);
+  }
+
+  &--wa {
+    background: color-mix(in srgb, var(--brand-accent) 18%, transparent);
+    border-color: var(--brand-accent);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      background: color-mix(in srgb, var(--brand-accent) 26%, transparent);
+    }
+  }
+}
+
+// Planes elegibles: aparecen en cascada, responden al toque y el elegido se marca con el acento.
+.join-plan-card {
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    background-color 160ms ease;
+  animation: join-rise 380ms $ease-out both;
+  animation-delay: calc(var(--i, 0) * 60ms + 120ms);
+
+  &:active {
+    transform: scale(0.97);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--brand-accent);
+    outline-offset: 2px;
+  }
+
+  &--selected {
+    border-color: var(--brand-accent);
+    background: color-mix(in srgb, var(--brand-accent) 16%, var(--join-card, var(--brand-ink-surface-2)));
+    box-shadow: 0 0 0 1px var(--brand-accent);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      border-color: var(--brand-accent);
+    }
+  }
+}
+
+@keyframes join-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// Con "reducir movimiento": sin cascada, sin zoom lento ni rotación; solo cambios de opacidad.
+@media (prefers-reduced-motion: reduce) {
+  .join-hero__caption,
+  .join-thumbs__btn,
+  .join-plan-card {
+    animation: none;
+  }
+
+  .join-hero__img {
+    transform: none;
+    transition: opacity 200ms ease;
   }
 }

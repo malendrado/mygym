@@ -119,6 +119,8 @@ interface MembershipPlan {
   priceClp: number;
   monthlyClasses: number | null; // null = ilimitado
   highlight?: boolean;
+  /** true si el destacado viene de la elección del visitante, no de la heurística. */
+  chosen?: boolean;
 }
 
 interface Membership {
@@ -131,17 +133,36 @@ interface Membership {
   paidAt: string | null;
 }
 
-/** El plan de precio intermedio se marca "Recomendado" — heurística visual, no una señal del admin. */
-function withHighlight(plans: MemberPlan[]): MembershipPlan[] {
+/** El plan de precio intermedio se marca "Recomendado" — heurística visual, no una señal del admin.
+ *  Si el visitante tocó un plan en la página de alta (/j/:slug), ese plan pasa a ser el destacado
+ *  ("Tu elección") en vez del intermedio. */
+function withHighlight(plans: MemberPlan[], preferredPlanId: number | null = null): MembershipPlan[] {
   const sorted = [...plans].sort((a, b) => a.priceClp - b.priceClp);
-  const highlightIndex = sorted.length >= 3 ? Math.floor(sorted.length / 2) : -1;
+  const preferred = preferredPlanId !== null && sorted.some((plan) => plan.id === preferredPlanId);
+  const highlightIndex = preferred
+    ? sorted.findIndex((plan) => plan.id === preferredPlanId)
+    : sorted.length >= 3
+      ? Math.floor(sorted.length / 2)
+      : -1;
   return sorted.map((plan, index) => ({
     id: plan.id,
     name: plan.name,
     priceClp: plan.priceClp,
     monthlyClasses: plan.monthlyClasses,
     highlight: index === highlightIndex,
+    chosen: preferred && index === highlightIndex,
   }));
+}
+
+/** Plan que el visitante marcó en la página de alta de ESTE gimnasio (ver join.ts), si lo hay. */
+function readPreferredPlanId(slug: string | undefined): number | null {
+  try {
+    const raw = localStorage.getItem('mygym.preferredPlan');
+    const saved = raw ? (JSON.parse(raw) as { slug?: string; planId?: number }) : null;
+    return saved && saved.slug === slug && typeof saved.planId === 'number' ? saved.planId : null;
+  } catch {
+    return null;
+  }
 }
 
 interface Benefit {
@@ -1393,7 +1414,7 @@ export class MemberPage {
   private loadPlans(): void {
     (this.isDemoPreview ? this.demoPreviewService.getPlans() : this.gymService.getMyMemberPlans()).subscribe({
       next: (plans) => {
-        this.plans.set(withHighlight(plans));
+        this.plans.set(withHighlight(plans, readPreferredPlanId(this.gym()?.slug)));
         this.plansLoaded.set(true);
       },
       error: () => this.plansLoaded.set(true),
@@ -1502,7 +1523,7 @@ export class MemberPage {
       next: (dashboard) => {
         this.gym.set(dashboard.gym);
         this.gymLoaded.set(true);
-        this.plans.set(withHighlight(dashboard.plans));
+        this.plans.set(withHighlight(dashboard.plans, readPreferredPlanId(dashboard.gym.slug)));
         this.plansLoaded.set(true);
         this.bankTransfer.set(dashboard.bankTransfer);
         this.closureNotice.set(dashboard.closureNotice);

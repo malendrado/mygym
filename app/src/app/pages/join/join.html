@@ -40,36 +40,64 @@
   >
     <div class="join-card">
       <div class="join-card__story">
-        @if (logoSrc()) {
-          <div class="join-logo"><img [src]="logoSrc()" alt="Logo de {{ gym()!.name }}" /></div>
-        }
+        <!-- Encabezado: foto grande (la galería rota sola, con crossfade) con el logo y el nombre
+             encima. Sin fotos queda un fondo con el color de marca: la página no se ve vacía. -->
+        <div class="join-hero" [class.join-hero--empty]="photos().length === 0">
+          @for (photo of photos(); track photo.id; let i = $index) {
+            <img
+              class="join-hero__img"
+              [class.is-active]="i === activePhoto()"
+              [src]="photo.data"
+              [alt]="photo.caption ?? 'Foto de las instalaciones'"
+              [attr.loading]="i === 0 ? 'eager' : 'lazy'"
+              decoding="async"
+            />
+          }
+          <div class="join-hero__shade"></div>
+          <div class="join-hero__caption">
+            @if (logoSrc()) {
+              <span class="join-hero__logo"><img [src]="logoSrc()" alt="Logo de {{ gym()!.name }}" /></span>
+            }
+            <h1>Únete a {{ gym()!.name }}</h1>
+            <p>{{ gym()!.tagline || 'Reserva tus clases y gestiona tu membresía con tu cuenta de Google.' }}</p>
+          </div>
+        </div>
 
-        <h1>Únete a {{ gym()!.name }}</h1>
-        <p>{{ gym()!.tagline || 'Reserva tus clases y gestiona tu membresía con tu cuenta de Google.' }}</p>
-        @if (gym()!.description) {
-          <p class="join-description">{{ gym()!.description }}</p>
-        }
-
-        @if (photos().length > 0) {
-          <div class="join-gallery">
-            @for (photo of photos(); track photo.id) {
-              <img [src]="photo.data" [alt]="photo.caption ?? 'Foto de las instalaciones'" />
+        @if (photos().length > 1) {
+          <div class="join-thumbs" role="tablist" aria-label="Fotos del gimnasio">
+            @for (photo of photos(); track photo.id; let i = $index) {
+              <button
+                type="button"
+                role="tab"
+                class="join-thumbs__btn"
+                [class.is-active]="i === activePhoto()"
+                [attr.aria-selected]="i === activePhoto()"
+                [attr.aria-label]="'Ver foto ' + (i + 1)"
+                [style.--i]="i"
+                (click)="showPhoto(i)"
+              >
+                <img [src]="photo.data" alt="" loading="lazy" decoding="async" />
+              </button>
             }
           </div>
         }
 
+        @if (gym()!.description) {
+          <p class="join-description">{{ gym()!.description }}</p>
+        }
+
         @if (instagramUrl() || whatsappLink()) {
           <div class="join-contact">
-            @if (instagramUrl()) {
-              <a [href]="instagramUrl()" target="_blank" rel="noopener">
-                <ion-icon name="logo-instagram" aria-hidden="true"></ion-icon>
-                Instagram
+            @if (whatsappLink()) {
+              <a class="join-contact__btn join-contact__btn--wa" [href]="whatsappLink()" target="_blank" rel="noopener">
+                <ion-icon name="logo-whatsapp" aria-hidden="true"></ion-icon>
+                ¿Dudas? Escríbenos por WhatsApp
               </a>
             }
-            @if (whatsappLink()) {
-              <a [href]="whatsappLink()" target="_blank" rel="noopener">
-                <ion-icon name="logo-whatsapp" aria-hidden="true"></ion-icon>
-                WhatsApp
+            @if (instagramUrl()) {
+              <a class="join-contact__btn" [href]="instagramUrl()" target="_blank" rel="noopener">
+                <ion-icon name="logo-instagram" aria-hidden="true"></ion-icon>
+                Instagram
               </a>
             }
           </div>
@@ -81,9 +109,22 @@
           <div class="join-plans">
             <p class="join-plans__label">Planes disponibles</p>
             <div class="join-plans__grid">
-              @for (plan of plans(); track plan.id) {
-                <div class="join-plan-card" [class.join-plan-card--highlight]="plan.id === highlightedPlanId()">
-                  @if (plan.id === highlightedPlanId()) {
+              @for (plan of plans(); track plan.id; let i = $index) {
+                <button
+                  type="button"
+                  class="join-plan-card"
+                  [class.join-plan-card--highlight]="plan.id === highlightedPlanId()"
+                  [class.join-plan-card--selected]="plan.id === selectedPlanId()"
+                  [attr.aria-pressed]="plan.id === selectedPlanId()"
+                  [style.--i]="i"
+                  (click)="selectPlan(plan.id)"
+                >
+                  @if (plan.id === selectedPlanId()) {
+                    <span class="join-plan-card__badge">
+                      <ion-icon name="checkmark-circle" aria-hidden="true"></ion-icon>
+                      Tu elección
+                    </span>
+                  } @else if (plan.id === highlightedPlanId()) {
                     <span class="join-plan-card__badge">
                       <ion-icon name="sparkles-outline" aria-hidden="true"></ion-icon>
                       Recomendado
@@ -92,12 +133,16 @@
                   <h3>{{ plan.name }}</h3>
                   <p class="join-plan-card__price">{{ formatClp(plan.priceClp) }}<span> / mes + IVA</span></p>
                   <p class="join-plan-card__quota">{{ quotaLabel(plan) }}</p>
-                </div>
+                </button>
               }
             </div>
             <p class="join-plans__note">
               <ion-icon name="information-circle-outline" aria-hidden="true"></ion-icon>
-              Elige tu plan apenas te unas — no necesitas decidir ahora.
+              @if (selectedPlanName(); as chosen) {
+                Elegiste {{ chosen }}: lo verás destacado apenas entres. Puedes cambiarlo después.
+              } @else {
+                Toca el plan que te interesa: lo verás destacado apenas entres. No necesitas decidir ahora.
+              }
             </p>
           </div>
         }

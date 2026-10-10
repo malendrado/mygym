@@ -168,7 +168,7 @@
                 @if (plan.highlight) {
                   <span class="plan-card__badge">
                     <ion-icon name="sparkles-outline" aria-hidden="true"></ion-icon>
-                    Recomendado
+                    {{ plan.chosen ? 'Tu elección' : 'Recomendado' }}
                   </span>
                 }
                 <h3>{{ plan.name }}</h3>

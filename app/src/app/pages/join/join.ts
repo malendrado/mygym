@@ -16,6 +16,7 @@ import { GoogleSigninButtonDirective, SocialAuthService } from '@abacritt/angula
 import { addIcons } from 'ionicons';
 import {
   alertCircleOutline,
+  checkmarkCircle,
   eyeOffOutline,
   eyeOutline,
   informationCircleOutline,
@@ -38,6 +39,7 @@ addIcons({
   'eye-outline': eyeOutline,
   'eye-off-outline': eyeOffOutline,
   'alert-circle-outline': alertCircleOutline,
+  'checkmark-circle': checkmarkCircle,
 });
 
 type Status = 'loading' | 'ready' | 'not-found' | 'joining' | 'welcome';
@@ -53,6 +55,13 @@ const SIGN_IN_TIMEOUT_MS = 15000;
 // pausa deliberada, la redirección es tan rápida que el mensaje nunca
 // alcanza a leerse.
 const WELCOME_PAUSE_MS = 1600;
+
+// Cada cuánto rota sola la foto principal, y cuánto se queda quieta tras un toque manual.
+const HERO_ROTATE_MS = 5000;
+const HERO_PAUSE_AFTER_TAP_MS = 12000;
+
+// Plan que el visitante tocó acá: se recuerda hasta /member, que lo destaca al entrar.
+export const PREFERRED_PLAN_KEY = 'mygym.preferredPlan';
 
 @Component({
   selector: 'app-join',
@@ -90,6 +99,14 @@ export class Join {
   protected readonly plansLoaded = signal(false);
   protected readonly photos = signal<GymPhoto[]>([]);
   protected readonly isNewMember = signal<boolean | null>(null);
+
+  // Foto principal del encabezado + plan que el visitante marcó como su interés.
+  protected readonly activePhoto = signal(0);
+  protected readonly selectedPlanId = signal<number | null>(null);
+  protected readonly selectedPlanName = computed(
+    () => this.plans().find((plan) => plan.id === this.selectedPlanId())?.name ?? null,
+  );
+  private rotationPausedUntil = 0;
 
   // Alternativa a Google sin costo (ver brainstorming de auth 2026-10-02) — por defecto arranca
   // en 'google' solo si el gym lo tiene habilitado; si no, el formulario de contraseña es la
@@ -155,6 +172,9 @@ export class Join {
       next: (plans) => {
         this.plans.set(plans);
         this.plansLoaded.set(true);
+        if (!plans.some((plan) => plan.id === this.selectedPlanId())) {
+          this.selectedPlanId.set(null);
+        }
       },
       error: () => this.plansLoaded.set(true),
     });
@@ -167,6 +187,9 @@ export class Join {
     });
 
     this.gymService.recordVisit('JOIN', this.slug);
+
+    this.restorePreferredPlan();
+    this.startPhotoRotation();
 
     this.socialAuthService.authState.subscribe((user) => {
       if (!user?.idToken || this.status() !== 'ready') {
@@ -263,6 +286,53 @@ export class Join {
         this.registerSent.set(true);
       },
     });
+  }
+
+  // La foto principal rota sola mientras la pestaña esté visible; un toque en una miniatura la
+  // pausa unos segundos. Con "reducir movimiento" activado en el sistema no rota nunca.
+  private startPhotoRotation(): void {
+    if (typeof window === 'undefined' || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      return;
+    }
+    const timer = setInterval(() => {
+      const total = this.photos().length;
+      if (total < 2 || document.visibilityState !== 'visible' || Date.now() < this.rotationPausedUntil) {
+        return;
+      }
+      this.activePhoto.update((index) => (index + 1) % total);
+    }, HERO_ROTATE_MS);
+    this.destroyRef.onDestroy(() => clearInterval(timer));
+  }
+
+  protected showPhoto(index: number): void {
+    this.activePhoto.set(index);
+    this.rotationPausedUntil = Date.now() + HERO_PAUSE_AFTER_TAP_MS;
+  }
+
+  protected selectPlan(planId: number): void {
+    const next = this.selectedPlanId() === planId ? null : planId;
+    this.selectedPlanId.set(next);
+    try {
+      if (next === null) {
+        localStorage.removeItem(PREFERRED_PLAN_KEY);
+      } else {
+        localStorage.setItem(PREFERRED_PLAN_KEY, JSON.stringify({ slug: this.slug, planId: next }));
+      }
+    } catch {
+      // Sin almacenamiento (modo privado): la selección sigue sirviendo en esta pantalla.
+    }
+  }
+
+  private restorePreferredPlan(): void {
+    try {
+      const raw = localStorage.getItem(PREFERRED_PLAN_KEY);
+      const saved = raw ? (JSON.parse(raw) as { slug?: string; planId?: number }) : null;
+      if (saved?.slug === this.slug && typeof saved.planId === 'number') {
+        this.selectedPlanId.set(saved.planId);
+      }
+    } catch {
+      // Un valor corrupto simplemente no preselecciona nada.
+    }
   }
 
   protected formatClp(value: number): string {
