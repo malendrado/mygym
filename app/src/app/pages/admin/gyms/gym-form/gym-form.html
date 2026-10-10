@@ -1155,12 +1155,6 @@
           <ion-icon name="color-palette-outline" aria-hidden="true"></ion-icon>
           Color del panel
         </ion-card-title>
-        @if (themeMode() === 'DARK') {
-          <ion-button class="accent-action-button" size="small" fill="clear" (click)="reshufflePalettes()">
-            <ion-icon name="refresh-outline" slot="start" aria-hidden="true"></ion-icon>
-            Ver otras opciones
-          </ion-button>
-        }
       </ion-card-header>
       <ion-card-content>
         <ion-segment [value]="themeMode()" (ionChange)="setThemeModeView($any($event.detail.value))">
@@ -1173,24 +1167,27 @@
         </ion-segment>
         @if (themeMode() === 'DARK') {
           <p class="item-hint">Elige una combinación para diferenciar el panel de este gimnasio del de otros.</p>
-          <div class="theme-options">
-            @for (palette of paletteOptions(); track palette.key) {
-              <button
-                type="button"
-                class="theme-card"
-                [class.theme-card--selected]="palette.hex === themeColor()"
-                [style.background]="surfaceFor(palette).bg"
-                [disabled]="themeSaving()"
-                (click)="selectPalette(palette)"
-              >
-                <span class="theme-card__surface" [style.background]="surfaceFor(palette).card">
-                  <span class="theme-card__button" [style.background]="palette.hex" [style.color]="palette.contrast">
-                    {{ palette.label }}
+          @for (group of darkGroups; track group.name) {
+            <p class="palette-group__title">{{ group.name }}</p>
+            <div class="theme-options">
+              @for (palette of group.items; track palette.key) {
+                <button
+                  type="button"
+                  class="theme-card"
+                  [class.theme-card--selected]="palette.hex === themeColor()"
+                  [style.background]="surfaceFor(palette).bg"
+                  [disabled]="themeSaving()"
+                  (click)="selectPalette(palette)"
+                >
+                  <span class="theme-card__surface" [style.background]="surfaceFor(palette).card">
+                    <span class="theme-card__button" [style.background]="palette.hex" [style.color]="palette.contrast">
+                      {{ palette.label }}
+                    </span>
                   </span>
-                </span>
-              </button>
-            }
-          </div>
+                </button>
+              }
+            </div>
+          }
           <div class="custom-color">
             <label for="customColorInput">O elige el color exacto</label>
             <input
@@ -1202,25 +1199,28 @@
             />
           </div>
         } @else {
-          <p class="item-hint">4 combinaciones verificadas para buen contraste con fondo claro.</p>
-          <div class="theme-options">
-            @for (palette of lightPalettes; track palette.key) {
-              <button
-                type="button"
-                class="theme-card"
-                [class.theme-card--selected]="palette.hex === themeColor() && themeMode() === 'LIGHT'"
-                [style.background]="palette.bg"
-                [disabled]="themeSaving()"
-                (click)="selectLightPalette(palette)"
-              >
-                <span class="theme-card__surface" [style.background]="palette.card">
-                  <span class="theme-card__button" [style.background]="palette.hex" [style.color]="palette.contrast">
-                    {{ palette.label }}
+          <p class="item-hint">Combinaciones verificadas para buen contraste con fondo claro, agrupadas por el estilo de tu gimnasio.</p>
+          @for (group of lightGroups; track group.name) {
+            <p class="palette-group__title">{{ group.name }}</p>
+            <div class="theme-options">
+              @for (palette of group.items; track palette.key) {
+                <button
+                  type="button"
+                  class="theme-card"
+                  [class.theme-card--selected]="palette.hex === themeColor() && themeMode() === 'LIGHT'"
+                  [style.background]="palette.bg"
+                  [disabled]="themeSaving()"
+                  (click)="selectLightPalette(palette)"
+                >
+                  <span class="theme-card__surface" [style.background]="palette.card">
+                    <span class="theme-card__button" [style.background]="palette.hex" [style.color]="palette.contrast">
+                      {{ palette.label }}
+                    </span>
                   </span>
-                </span>
-              </button>
-            }
-          </div>
+                </button>
+              }
+            </div>
+          }
         }
       </ion-card-content>
     </ion-card>

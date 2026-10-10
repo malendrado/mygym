@@ -1039,3 +1039,13 @@ ion-segment-button.segment-button-checked {
     flex-shrink: 0;
   }
 }
+
+// Título de cada grupo de colores en "Mi marca" (Energía, Calma, Frescura, Premium).
+.palette-group__title {
+  margin: 1rem 0 0.4rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--brand-text-dim);
+}

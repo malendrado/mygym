@@ -77,7 +77,7 @@ import {
   trashOutline,
   tvOutline,
 } from 'ionicons/icons';
-import { InstallGuide } from '../../core/components/install-guide/install-guide';
+import { InstallBanner } from '../member/install-banner/install-banner';
 import { BookingRulesCard } from '../../core/components/booking-rules-card/booking-rules-card';
 import { firstValueFrom } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
@@ -138,6 +138,9 @@ import { VersionTag } from '../../core/components/version-tag/version-tag';
 registerClassCategoryIcons();
 import {
   LIGHT_PALETTES,
+  PALETTES,
+  ThemePalette,
+  groupPalettes,
   LightPaletteEntry,
   ThemeMode,
   clearThemeOverrides,
@@ -324,38 +327,6 @@ const ADMIN_TIPS = [
   'Revisa tus planes cada cierto tiempo — lo que funcionó al abrir no siempre es lo óptimo un año después.',
 ];
 
-interface Palette {
-  key: string;
-  label: string;
-  hex: string;
-  contrast: string;
-}
-
-// Mirrors GymPalette.java (backend) — if one changes, update the other.
-const PALETTES: Palette[] = [
-  { key: 'lime', label: 'Lima', hex: '#c6ff3d', contrast: '#1a2b00' },
-  { key: 'blue', label: 'Azul eléctrico', hex: '#3da5ff', contrast: '#001a33' },
-  { key: 'rose', label: 'Coral', hex: '#ff5d73', contrast: '#330008' },
-  { key: 'gold', label: 'Ámbar', hex: '#ffb23d', contrast: '#331d00' },
-  { key: 'emerald', label: 'Esmeralda', hex: '#2de6a0', contrast: '#00291a' },
-  { key: 'violet', label: 'Violeta', hex: '#b98bff', contrast: '#1c0d33' },
-  { key: 'cyan', label: 'Cian', hex: '#3de6e6', contrast: '#002626' },
-  { key: 'orange', label: 'Naranja', hex: '#ff7a3d', contrast: '#331500' },
-  { key: 'indigo', label: 'Índigo', hex: '#6d7bff', contrast: '#05073d' },
-  { key: 'fuchsia', label: 'Fucsia', hex: '#ff5cb8', contrast: '#330019' },
-  { key: 'turquoise', label: 'Turquesa', hex: '#2dd4bf', contrast: '#00211c' },
-  { key: 'plum', label: 'Ciruela', hex: '#c15aff', contrast: '#24003d' },
-];
-
-function randomSample<T>(items: T[], count: number): T[] {
-  const copy = [...items];
-  for (let i = copy.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [copy[i], copy[j]] = [copy[j], copy[i]];
-  }
-  return copy.slice(0, count);
-}
-
 const MAX_LOGO_DIMENSION = 256;
 const ACCEPTED_LOGO_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'];
 const MAX_PHOTO_DIMENSION = 1600;
@@ -424,7 +395,7 @@ const THEMED_ROOT_PROPERTIES = [
     PaginationBar,
     WorkoutPlanModal,
     BookingRulesCard,
-    InstallGuide,
+    InstallBanner,
     IonSpinner,
     TourOverlay,
   ],
@@ -670,7 +641,8 @@ export class GymAdmin implements OnDestroy {
   // qué grilla de swatches se muestra (ver template). Cuando cambia junto con themeColor,
   // el effect() de más abajo sincroniza los tokens base globales (ver gym-theme.ts).
   protected readonly themeMode = signal<ThemeMode>('DARK');
-  protected readonly lightPalettes = LIGHT_PALETTES;
+  protected readonly darkGroups = groupPalettes(PALETTES);
+  protected readonly lightGroups = groupPalettes(LIGHT_PALETTES);
   protected readonly themeContrast = computed(() => {
     const hex = this.themeColor();
     if (this.themeMode() === 'LIGHT') {
@@ -686,7 +658,6 @@ export class GymAdmin implements OnDestroy {
   protected readonly themeAccentTextSafe = computed(() =>
     ensureMinContrastColor(this.themeColor(), this.themeSurface().card),
   );
-  protected readonly paletteOptions = signal<Palette[]>(randomSample(PALETTES, 4));
 
   protected readonly memberForm = new FormGroup({
     name: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.minLength(2)] }),
@@ -1426,11 +1397,7 @@ export class GymAdmin implements OnDestroy {
     return plan.monthlyClasses === null ? 'Libre (ilimitado)' : `${plan.monthlyClasses} clases/mes`;
   }
 
-  protected reshufflePalettes(): void {
-    this.paletteOptions.set(randomSample(PALETTES, 4));
-  }
-
-  protected surfaceFor(palette: Palette): { bg: string; card: string } {
+  protected surfaceFor(palette: ThemePalette): { bg: string; card: string } {
     return deriveSurfaceTint(palette.hex, 'DARK');
   }
 
@@ -1442,7 +1409,7 @@ export class GymAdmin implements OnDestroy {
 
   protected readonly themeSaving = signal(false);
 
-  protected selectPalette(palette: Palette): void {
+  protected selectPalette(palette: ThemePalette): void {
     this.selectColor(palette.hex, 'DARK');
   }
 

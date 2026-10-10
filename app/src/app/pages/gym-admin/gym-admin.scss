@@ -126,6 +126,20 @@ ion-segment-button.segment-button-checked {
   --color: var(--brand-accent-text-safe, var(--ion-color-primary));
 }
 
+// En iOS el ion-title de Ionic va centrado y en posición absoluta, y con "Instala tu app" + "Salir"
+// en slot="end" se superpone con el nombre del gimnasio en un teléfono angosto (comprobado en un
+// iPhone simulado). Se pasa a flujo normal, alineado a la izquierda y con puntos suspensivos si no
+// cabe — el mismo comportamiento que ya tiene en Android/escritorio.
+ion-header ion-toolbar ion-title {
+  position: static;
+  flex: 1 1 0;
+  min-width: 0;
+  width: auto;
+  height: auto;
+  padding-inline: 1rem 0;
+  text-align: left;
+}
+
 // Franja angosta bajo el título: quién está logueado y en qué sección está
 // parado, para que quede claro de un vistazo (pedido explícito de UX).
 // ion-title vive en shadow DOM (su contenido cae en un <div class="toolbar-title">
@@ -1133,4 +1147,14 @@ ion-segment-button.segment-button-checked {
   color: var(--brand-text-dim);
   text-align: center;
   letter-spacing: 0.02em;
+}
+
+// Título de cada grupo de colores en "Mi marca" (Energía, Calma, Frescura, Premium).
+.palette-group__title {
+  margin: 1rem 0 0.4rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--brand-text-dim);
 }

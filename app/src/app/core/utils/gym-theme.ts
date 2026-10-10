@@ -81,9 +81,14 @@ export function ensureMinContrastColor(accentHex: string, backgroundHex: string,
 // la cadena (modelo → componentes → estas utilidades) para no andar convirtiendo casing.
 export type ThemeMode = 'DARK' | 'LIGHT';
 
+/** Estilo con el que se agrupan los colores en "Mi marca" — se elige por cómo se siente el gimnasio. */
+export type PaletteGroup = 'Energía' | 'Calma' | 'Frescura y tecnología' | 'Premium y minimalista';
+export const PALETTE_GROUPS: PaletteGroup[] = ['Energía', 'Calma', 'Frescura y tecnología', 'Premium y minimalista'];
+
 export interface LightPaletteEntry {
   key: string;
   label: string;
+  group: PaletteGroup;
   hex: string;
   contrast: string;
   bg: string;
@@ -99,9 +104,10 @@ export interface LightPaletteEntry {
 // de contraste (contrastRatio de arriba, ≥4.5:1 en texto/fondo, texto/tarjeta y blanco
 // sobre el botón de acento) porque la heurística de contraste aproximada (luminancia simple
 // con umbral fijo) no alcanza para garantizar esto sobre cualquier tono.
-export const LIGHT_PALETTES: LightPaletteEntry[] = [
+const CURATED_LIGHT_PALETTES: LightPaletteEntry[] = [
   {
     key: 'amanecer',
+    group: 'Energía',
     label: 'Amanecer',
     hex: '#C2410C',
     contrast: '#FFFFFF',
@@ -113,6 +119,7 @@ export const LIGHT_PALETTES: LightPaletteEntry[] = [
   },
   {
     key: 'oceano',
+    group: 'Frescura y tecnología',
     label: 'Océano',
     hex: '#2563EB',
     contrast: '#FFFFFF',
@@ -124,6 +131,7 @@ export const LIGHT_PALETTES: LightPaletteEntry[] = [
   },
   {
     key: 'menta',
+    group: 'Calma',
     label: 'Menta',
     hex: '#047857',
     contrast: '#FFFFFF',
@@ -135,6 +143,7 @@ export const LIGHT_PALETTES: LightPaletteEntry[] = [
   },
   {
     key: 'frambuesa',
+    group: 'Energía',
     label: 'Frambuesa',
     hex: '#DB2777',
     contrast: '#FFFFFF',
@@ -145,6 +154,107 @@ export const LIGHT_PALETTES: LightPaletteEntry[] = [
     border: '#F7D7E3',
   },
 ];
+
+function mixHex(from: string, to: string, t: number): string {
+  const a = hexToRgb(from);
+  const b = hexToRgb(to);
+  const channel = (x: number, y: number) =>
+    Math.round(x + (y - x) * t)
+      .toString(16)
+      .padStart(2, '0');
+  return `#${channel(a.r, b.r)}${channel(a.g, b.g)}${channel(a.b, b.b)}`;
+}
+
+// Combinaciones claras derivadas del acento con una fórmula fija: tarjeta blanca, texto #14202B y
+// gris medio #5A6A78 (todos ≥4.5:1 sobre fondo y tarjeta, verificado para cada acento de abajo) y
+// acento con texto blanco ≥4.9:1. Las 4 de arriba (amanecer, océano, menta, frambuesa) siguen
+// siendo las curadas a mano y NO se tocan: gyms reales ya las usan.
+function derivedLight(key: string, label: string, group: PaletteGroup, hex: string): LightPaletteEntry {
+  return {
+    key,
+    label,
+    group,
+    hex,
+    contrast: '#FFFFFF',
+    bg: mixHex('#FFFFFF', hex, 0.03),
+    card: '#FFFFFF',
+    fg: '#14202B',
+    mutedFg: '#5A6A78',
+    border: mixHex('#E3E8EE', hex, 0.18),
+  };
+}
+
+// Mirrors GymPalette.LIGHT_ALL (backend) — si una cambia, actualizar la otra.
+export const LIGHT_PALETTES: LightPaletteEntry[] = [
+  ...CURATED_LIGHT_PALETTES,
+  derivedLight('rojo-potencia', 'Rojo potencia', 'Energía', '#B91C1C'),
+  derivedLight('burdeos', 'Burdeos', 'Energía', '#9F1239'),
+  derivedLight('mostaza', 'Mostaza', 'Energía', '#854D0E'),
+  derivedLight('bosque', 'Bosque', 'Calma', '#15803D'),
+  derivedLight('turquesa-profundo', 'Turquesa profundo', 'Calma', '#0F766E'),
+  derivedLight('salvia-clara', 'Salvia', 'Calma', '#4D7C0F'),
+  derivedLight('arcilla', 'Arcilla', 'Calma', '#B45309'),
+  derivedLight('cafe', 'Café', 'Calma', '#78350F'),
+  derivedLight('agua-clara', 'Agua', 'Frescura y tecnología', '#0369A1'),
+  derivedLight('indigo-claro', 'Índigo', 'Frescura y tecnología', '#4338CA'),
+  derivedLight('azul-marino', 'Azul marino', 'Frescura y tecnología', '#1E3A8A'),
+  derivedLight('violeta-claro', 'Violeta', 'Frescura y tecnología', '#7C3AED'),
+  derivedLight('grafito', 'Grafito', 'Premium y minimalista', '#1F2937'),
+  derivedLight('pizarra', 'Pizarra', 'Premium y minimalista', '#334155'),
+  derivedLight('dorado', 'Dorado', 'Premium y minimalista', '#A16207'),
+  derivedLight('vino', 'Vino', 'Premium y minimalista', '#7F1D1D'),
+  derivedLight('ciruela-clara', 'Ciruela', 'Premium y minimalista', '#86198F'),
+];
+
+export interface ThemePalette {
+  key: string;
+  label: string;
+  group: PaletteGroup;
+  hex: string;
+  contrast: string;
+}
+
+// Mirrors GymPalette.ALL (backend). En modo oscuro el acento es libre (color exacto); estas son los
+// atajos agrupados por estilo. Los 12 originales se conservan tal cual (hay gyms que los usan);
+// los nuevos usan texto oscuro #0B1218 (≥5.4:1 sobre cada uno).
+const NEW_DARK_CONTRAST = '#0B1218';
+export const PALETTES: ThemePalette[] = [
+  { key: 'orange', label: 'Naranja', group: 'Energía', hex: '#ff7a3d', contrast: '#331500' },
+  { key: 'gold', label: 'Ámbar', group: 'Energía', hex: '#ffb23d', contrast: '#331d00' },
+  { key: 'rose', label: 'Coral', group: 'Energía', hex: '#ff5d73', contrast: '#330008' },
+  { key: 'rojo-competencia', label: 'Rojo competencia', group: 'Energía', hex: '#FF4D4D', contrast: NEW_DARK_CONTRAST },
+  { key: 'cobre', label: 'Cobre', group: 'Energía', hex: '#D98B5F', contrast: NEW_DARK_CONTRAST },
+  { key: 'mandarina', label: 'Mandarina', group: 'Energía', hex: '#FDBA74', contrast: NEW_DARK_CONTRAST },
+  { key: 'limon', label: 'Limón', group: 'Energía', hex: '#FDE047', contrast: NEW_DARK_CONTRAST },
+  { key: 'lime', label: 'Lima', group: 'Energía', hex: '#c6ff3d', contrast: '#1a2b00' },
+  { key: 'salvia', label: 'Salvia', group: 'Calma', hex: '#A3C9A8', contrast: NEW_DARK_CONTRAST },
+  { key: 'oliva', label: 'Oliva', group: 'Calma', hex: '#B5C48A', contrast: NEW_DARK_CONTRAST },
+  { key: 'arena', label: 'Arena', group: 'Calma', hex: '#E6C9A8', contrast: NEW_DARK_CONTRAST },
+  { key: 'durazno', label: 'Durazno', group: 'Calma', hex: '#FFB4A2', contrast: NEW_DARK_CONTRAST },
+  { key: 'rosa-polvo', label: 'Rosa polvo', group: 'Calma', hex: '#F4B6C2', contrast: NEW_DARK_CONTRAST },
+  { key: 'emerald', label: 'Esmeralda', group: 'Calma', hex: '#2de6a0', contrast: '#00291a' },
+  { key: 'verde-bosque', label: 'Verde bosque', group: 'Calma', hex: '#5FBF7A', contrast: NEW_DARK_CONTRAST },
+  { key: 'turquoise', label: 'Turquesa', group: 'Calma', hex: '#2dd4bf', contrast: '#00211c' },
+  { key: 'blue', label: 'Azul eléctrico', group: 'Frescura y tecnología', hex: '#3da5ff', contrast: '#001a33' },
+  { key: 'azul-acero', label: 'Azul acero', group: 'Frescura y tecnología', hex: '#7FB2E5', contrast: NEW_DARK_CONTRAST },
+  { key: 'agua', label: 'Agua', group: 'Frescura y tecnología', hex: '#38BDF8', contrast: NEW_DARK_CONTRAST },
+  { key: 'cielo', label: 'Cielo', group: 'Frescura y tecnología', hex: '#7DD3FC', contrast: NEW_DARK_CONTRAST },
+  { key: 'cyan', label: 'Cian', group: 'Frescura y tecnología', hex: '#3de6e6', contrast: '#002626' },
+  { key: 'indigo', label: 'Índigo', group: 'Frescura y tecnología', hex: '#6d7bff', contrast: '#05073d' },
+  { key: 'hielo', label: 'Hielo', group: 'Premium y minimalista', hex: '#E5EEF5', contrast: NEW_DARK_CONTRAST },
+  { key: 'oro', label: 'Oro', group: 'Premium y minimalista', hex: '#E3B04B', contrast: NEW_DARK_CONTRAST },
+  { key: 'lavanda', label: 'Lavanda', group: 'Premium y minimalista', hex: '#C4B5FD', contrast: NEW_DARK_CONTRAST },
+  { key: 'violet', label: 'Violeta', group: 'Premium y minimalista', hex: '#b98bff', contrast: '#1c0d33' },
+  { key: 'plum', label: 'Ciruela', group: 'Premium y minimalista', hex: '#c15aff', contrast: '#24003d' },
+  { key: 'fuchsia', label: 'Fucsia', group: 'Premium y minimalista', hex: '#ff5cb8', contrast: '#330019' },
+];
+
+/** Agrupa por estilo respetando el orden de PALETTE_GROUPS y el orden interno de cada lista. */
+export function groupPalettes<T extends { group: PaletteGroup }>(items: readonly T[]): { name: PaletteGroup; items: T[] }[] {
+  return PALETTE_GROUPS.map((name) => ({ name, items: items.filter((item) => item.group === name) })).filter(
+    (group) => group.items.length > 0,
+  );
+}
 
 // El rojo de peligro actual (--ion-color-danger, #ff5d73) fue calibrado contra el fondo
 // oscuro fijo (~4.85:1) — no alcanza contraste sobre un fondo claro. Verificado: ≥4.5:1

@@ -126,6 +126,9 @@ import { toLogoImgSrc } from '../../../../core/utils/logo-src';
 import { VersionTag } from '../../../../core/components/version-tag/version-tag';
 import {
   LIGHT_PALETTES,
+  PALETTES,
+  ThemePalette,
+  groupPalettes,
   LightPaletteEntry,
   ThemeMode,
   clearThemeOverrides,
@@ -292,39 +295,6 @@ interface HistoryDaySummary {
   dayLabel: string;
   blocks: GymBlock[];
   totalAttendees: number;
-}
-
-interface Palette {
-  key: string;
-  label: string;
-  hex: string;
-  contrast: string;
-}
-
-// Mirrors gym-admin.ts's PALETTES (mismas 12 opciones, mismo criterio de
-// contraste) — y GymPalette.java en el backend. Si una cambia, actualizar las 3.
-const PALETTES: Palette[] = [
-  { key: 'lime', label: 'Lima', hex: '#c6ff3d', contrast: '#1a2b00' },
-  { key: 'blue', label: 'Azul eléctrico', hex: '#3da5ff', contrast: '#001a33' },
-  { key: 'rose', label: 'Coral', hex: '#ff5d73', contrast: '#330008' },
-  { key: 'gold', label: 'Ámbar', hex: '#ffb23d', contrast: '#331d00' },
-  { key: 'emerald', label: 'Esmeralda', hex: '#2de6a0', contrast: '#00291a' },
-  { key: 'violet', label: 'Violeta', hex: '#b98bff', contrast: '#1c0d33' },
-  { key: 'cyan', label: 'Cian', hex: '#3de6e6', contrast: '#002626' },
-  { key: 'orange', label: 'Naranja', hex: '#ff7a3d', contrast: '#331500' },
-  { key: 'indigo', label: 'Índigo', hex: '#6d7bff', contrast: '#05073d' },
-  { key: 'fuchsia', label: 'Fucsia', hex: '#ff5cb8', contrast: '#330019' },
-  { key: 'turquoise', label: 'Turquesa', hex: '#2dd4bf', contrast: '#00211c' },
-  { key: 'plum', label: 'Ciruela', hex: '#c15aff', contrast: '#24003d' },
-];
-
-function randomSample<T>(items: T[], count: number): T[] {
-  const copy = [...items];
-  for (let i = copy.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [copy[i], copy[j]] = [copy[j], copy[i]];
-  }
-  return copy.slice(0, count);
 }
 
 const MAX_PHOTO_DIMENSION = 1600;
@@ -567,7 +537,8 @@ export class GymForm implements OnDestroy {
   // duplica acá para no tener dos editores del mismo campo.
   protected readonly themeColor = signal<string>(PALETTES[0].hex);
   protected readonly themeMode = signal<ThemeMode>('DARK');
-  protected readonly lightPalettes = LIGHT_PALETTES;
+  protected readonly darkGroups = groupPalettes(PALETTES);
+  protected readonly lightGroups = groupPalettes(LIGHT_PALETTES);
   protected readonly themeContrast = computed(() => {
     const hex = this.themeColor();
     if (this.themeMode() === 'LIGHT') {
@@ -580,7 +551,6 @@ export class GymForm implements OnDestroy {
   protected readonly themeAccentTextSafe = computed(() =>
     ensureMinContrastColor(this.themeColor(), this.themeSurface().card),
   );
-  protected readonly paletteOptions = signal<Palette[]>(randomSample(PALETTES, 4));
   protected readonly themeSaving = signal(false);
 
   protected readonly identityForm = new FormGroup({
@@ -1803,11 +1773,7 @@ export class GymForm implements OnDestroy {
 
   // ---- Marca (pestaña Marca): color, identidad, fotos ----
 
-  protected reshufflePalettes(): void {
-    this.paletteOptions.set(randomSample(PALETTES, 4));
-  }
-
-  protected surfaceFor(palette: Palette): { bg: string; card: string } {
+  protected surfaceFor(palette: ThemePalette): { bg: string; card: string } {
     return deriveSurfaceTint(palette.hex, 'DARK');
   }
 
@@ -1815,7 +1781,7 @@ export class GymForm implements OnDestroy {
     this.themeMode.set(mode);
   }
 
-  protected selectPalette(palette: Palette): void {
+  protected selectPalette(palette: ThemePalette): void {
     this.selectColor(palette.hex, 'DARK');
   }
 

@@ -25,7 +25,24 @@ public final class GymPalette {
             new Entry("indigo", "#6d7bff", "#05073d"),
             new Entry("fuchsia", "#ff5cb8", "#330019"),
             new Entry("turquoise", "#2dd4bf", "#00211c"),
-            new Entry("plum", "#c15aff", "#24003d"));
+            new Entry("plum", "#c15aff", "#24003d"),
+            // Agregados 2026-10-10 (ver PALETTES en gym-theme.ts): texto oscuro #0B1218, ≥5.4:1 sobre cada uno.
+            new Entry("rojo-competencia", "#FF4D4D", "#0B1218"),
+            new Entry("cobre", "#D98B5F", "#0B1218"),
+            new Entry("mandarina", "#FDBA74", "#0B1218"),
+            new Entry("limon", "#FDE047", "#0B1218"),
+            new Entry("salvia", "#A3C9A8", "#0B1218"),
+            new Entry("oliva", "#B5C48A", "#0B1218"),
+            new Entry("arena", "#E6C9A8", "#0B1218"),
+            new Entry("durazno", "#FFB4A2", "#0B1218"),
+            new Entry("rosa-polvo", "#F4B6C2", "#0B1218"),
+            new Entry("verde-bosque", "#5FBF7A", "#0B1218"),
+            new Entry("azul-acero", "#7FB2E5", "#0B1218"),
+            new Entry("agua", "#38BDF8", "#0B1218"),
+            new Entry("cielo", "#7DD3FC", "#0B1218"),
+            new Entry("hielo", "#E5EEF5", "#0B1218"),
+            new Entry("oro", "#E3B04B", "#0B1218"),
+            new Entry("lavanda", "#C4B5FD", "#0B1218"));
 
     // Paletas de modo CLARO — a diferencia de ALL (acentos libres sobre una superficie
     // oscura derivada por hue, ver deriveSurfaceTint en el frontend), estas son 4 combos
@@ -39,7 +56,25 @@ public final class GymPalette {
             new Entry("amanecer", "#C2410C", "#FFFFFF"),
             new Entry("oceano", "#2563EB", "#FFFFFF"),
             new Entry("menta", "#047857", "#FFFFFF"),
-            new Entry("frambuesa", "#DB2777", "#FFFFFF"));
+            new Entry("frambuesa", "#DB2777", "#FFFFFF"),
+            // Agregados 2026-10-10 (ver LIGHT_PALETTES en gym-theme.ts): texto blanco ≥4.9:1 sobre cada uno.
+            new Entry("rojo-potencia", "#B91C1C", "#FFFFFF"),
+            new Entry("burdeos", "#9F1239", "#FFFFFF"),
+            new Entry("mostaza", "#854D0E", "#FFFFFF"),
+            new Entry("bosque", "#15803D", "#FFFFFF"),
+            new Entry("turquesa-profundo", "#0F766E", "#FFFFFF"),
+            new Entry("salvia-clara", "#4D7C0F", "#FFFFFF"),
+            new Entry("arcilla", "#B45309", "#FFFFFF"),
+            new Entry("cafe", "#78350F", "#FFFFFF"),
+            new Entry("agua-clara", "#0369A1", "#FFFFFF"),
+            new Entry("indigo-claro", "#4338CA", "#FFFFFF"),
+            new Entry("azul-marino", "#1E3A8A", "#FFFFFF"),
+            new Entry("violeta-claro", "#7C3AED", "#FFFFFF"),
+            new Entry("grafito", "#1F2937", "#FFFFFF"),
+            new Entry("pizarra", "#334155", "#FFFFFF"),
+            new Entry("dorado", "#A16207", "#FFFFFF"),
+            new Entry("vino", "#7F1D1D", "#FFFFFF"),
+            new Entry("ciruela-clara", "#86198F", "#FFFFFF"));
 
     private static final String DEFAULT_HEX = "#c6ff3d";
     private static final String DEFAULT_CONTRAST = "#1a2b00";
