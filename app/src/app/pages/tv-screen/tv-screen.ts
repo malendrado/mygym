@@ -24,6 +24,7 @@ const SCHEDULE_POLL_MS = 25_000;
 const PAIRING_POLL_MS = 3_000;
 // Longevidad del kiosco: una pestaña de TV queda abierta meses — un reload periódico evita
 // leaks de memoria de una SPA que nunca se cierra, sin cortar el show por más de un segundo.
+const TV_ROOT_FONT_SIZE = 'max(11px, min(calc(100vw / 96), calc(100vh / 54)))';
 const KIOSK_RELOAD_MS = 6 * 60 * 60 * 1000;
 // Pasado este rato desde que terminó, "clase anterior" deja de ser información útil y se oculta
 // en vez de quedar mostrando la clase de la mañana toda la tarde.
@@ -320,6 +321,13 @@ export class TvScreenPage implements OnDestroy {
   private kioskReloadTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
+    // Escala fluida: 1rem = 16px a 1536x864 (20px a 1080p) y proporcional al lado que limite (ancho o alto).
+    // El SCSS entero está en rem, así que la pantalla es la misma composición en una TV de 720p,
+    // 1080p, 4K o un navegador de TV a 960x540 (DPR 2) — antes solo escalaba con el ancho y en
+    // pantallas bajas el encabezado se comía el alto del roster. TvFitDirective lee este mismo
+    // font-size del <html>, así que sus tamaños de chip escalan parejo. Piso de 11px: por debajo
+    // el texto deja de leerse (una TV real a 960x540 CSS px trae DPR 2, o sea 1080p físico).
+    document.documentElement.style.fontSize = TV_ROOT_FONT_SIZE;
     if (this.fullscreenSupported) {
       document.addEventListener('fullscreenchange', this.onFullscreenChange);
       this.gestureEvents.forEach((name) => document.addEventListener(name, this.onFirstGesture, true));
@@ -353,6 +361,7 @@ export class TvScreenPage implements OnDestroy {
   }
 
   ngOnDestroy(): void {
+    document.documentElement.style.removeProperty('font-size');
     document.removeEventListener('fullscreenchange', this.onFullscreenChange);
     this.stopListeningForGesture();
     if (this.clockTimer) clearInterval(this.clockTimer);
@@ -508,8 +517,9 @@ export class TvScreenPage implements OnDestroy {
     ctx.closePath();
   }
 
-  // Sin segundos: en el tile de reloj (ver tv-clock-tile en el SCSS) titilaban sin aportar nada
-  // — pedido explícito del usuario tras comparar alternativas.
+  // Hora y minutos; los segundos van aparte (mismo tamaño pero atenuados, ver .tv-clock__sec)
+  // porque el reloj es funcional: la gente cronometra sus pausas entre series con él. Pedido explícito del usuario (antes se habían quitado porque titilaban en el tile
+  // anterior; ahora son dígitos tabulares sin animación).
   protected clockLabel(): string {
     return new Intl.DateTimeFormat('es-CL', {
       timeZone: 'America/Santiago',
@@ -517,6 +527,10 @@ export class TvScreenPage implements OnDestroy {
       minute: '2-digit',
       hour12: false,
     }).format(this.now());
+  }
+
+  protected secondsLabel(): string {
+    return ':' + String(this.santiagoParts(this.now()).ss).padStart(2, '0');
   }
 
   // Separado de la fecha (día+mes) para el tile de dos líneas — antes era un solo string

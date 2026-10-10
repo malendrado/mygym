@@ -155,7 +155,12 @@
                     <img [src]="logoSrc()" alt="" />
                   </span>
                 }
-                <div class="tv-header__gym">{{ sched.gymName }}</div>
+                <div class="tv-header__identity">
+                  <div class="tv-header__gym">{{ sched.gymName }}</div>
+                  @if (sched.tagline) {
+                    <p class="tv-header__tagline">{{ sched.tagline }}</p>
+                  }
+                </div>
               </div>
               <div class="tv-header__right">
                 @if (checkinQrDataUrl(); as qr) {
@@ -173,12 +178,11 @@
                   @if (isReconnecting()) {
                     <span class="tv-header__reconnecting">Reconectando…</span>
                   }
-                  <div class="tv-clock-tile tv-clock-tile--time">
-                    <span class="tv-header__time">{{ clockLabel() }}</span>
-                  </div>
-                  <div class="tv-clock-tile tv-clock-tile--date">
-                    <span class="tv-header__weekday">{{ weekdayLabel() }}</span>
-                    <span class="tv-header__date">{{ dayMonthLabel() }}</span>
+                  <div class="tv-clock">
+                    <div class="tv-clock__time">
+                      <span class="tv-clock__hm">{{ clockLabel() }}</span><span class="tv-clock__sec">{{ secondsLabel() }}</span>
+                    </div>
+                    <div class="tv-clock__date">{{ weekdayLabel() }} · {{ dayMonthLabel() }}</div>
                   </div>
                 </div>
               </div>
@@ -222,7 +226,12 @@
                   @if (heroBlocks().length > 0) {
                     <div class="tv-slides">
                       @for (occ of heroBlocks(); track occ.blockId) {
-                        <article class="tv-slide" [class.tv-slide--full]="isFull(occ)">
+                        <article
+                          class="tv-slide"
+                          [class.tv-slide--full]="isFull(occ)"
+                          [class.tv-slide--warning]="isHeroLive() && countdownUrgency(occ) === 'warning'"
+                          [class.tv-slide--critical]="isHeroLive() && countdownUrgency(occ) === 'critical'"
+                        >
                           <div class="tv-slide__head">
                             <div class="tv-slide__meta">
                               <span class="tv-slide__time">{{ timeRangeLabel(occ) }}</span>
@@ -399,11 +408,6 @@
               </div>
             </main>
 
-            @if (sched.tagline) {
-              <footer class="tv-footer">
-                <p class="tv-footer__tagline">{{ sched.tagline }}</p>
-              </footer>
-            }
           </div>
         }
       }
