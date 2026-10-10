@@ -8,6 +8,7 @@ import { errorInterceptor } from './core/interceptors/error.interceptor';
 import { authInterceptor } from './core/interceptors/auth.interceptor';
 import { provideGoogleAuth } from './core/providers/google-auth.providers';
 import { PwaInstallService } from './core/services/pwa-install.service';
+import { AppUpdateService } from './core/services/app-update.service';
 
 export const webConfig: ApplicationConfig = {
   providers: [
@@ -18,6 +19,7 @@ export const webConfig: ApplicationConfig = {
     provideGoogleAuth(),
     provideAppInitializer(() => {
       inject(PwaInstallService);
+      inject(AppUpdateService);
     }),
     // Sin esto Android nunca instala un WebAPK "standalone" de verdad — Add-to-Home-Screen
     // sin service worker crea un simple acceso directo que abre en una pestaña normal de

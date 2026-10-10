@@ -661,6 +661,30 @@
   contain: size;
 }
 
+// Tarjeta grande: también siempre al menos una fila de chips chicos. Sin esto, en una pantalla
+// baja el encabezado se comía todo el alto, la zona medida quedaba en 0 y el roster no mostraba
+// a nadie aunque la clase dijera "1/1 Cupo lleno" (visto en una TV real, 2026-10-09).
+.tv-slide .tv-roster-fit {
+  min-height: 2.3rem;
+}
+
+// Pantallas bajas: se compacta lo que rodea al roster para que le quede espacio de verdad.
+@media (max-height: 820px) {
+  .tv-photo-strip__img {
+    width: 7.5rem;
+    height: 4.5rem;
+  }
+
+  .tv-slide {
+    padding: 1rem 1.25rem;
+    gap: 0.5rem;
+  }
+
+  .tv-slide__head {
+    gap: 0.35rem;
+  }
+}
+
 // En las tarjetas laterales, siempre al menos una fila de chips chicos visible.
 .tv-mini-card .tv-roster-fit {
   min-height: 2.3rem;
