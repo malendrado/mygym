@@ -67,7 +67,7 @@
       @if (!isProfesor()) {
         <ion-segment-button value="branding">
           <ion-icon name="color-palette-outline" aria-hidden="true"></ion-icon>
-          <ion-label>Marca</ion-label>
+          <ion-label>Mi marca</ion-label>
         </ion-segment-button>
       }
       <ion-segment-button value="screens">
@@ -236,6 +236,81 @@
     }
 
     @if (!isProfesor()) {
+    <ion-card>
+      <ion-card-header data-tour="admin-add">
+        <ion-card-title>
+          <ion-icon name="shield-checkmark-outline" aria-hidden="true"></ion-icon>
+          Administradores
+          <ion-badge color="dark">{{ admins().length }}</ion-badge>
+        </ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <p class="item-hint">Un administrador tiene el mismo acceso que tú a este panel completo.</p>
+        <ion-list lines="full">
+          @for (admin of admins(); track admin.id) {
+            <ion-item>
+              <ion-label>
+                <div class="member-row">
+                  <span class="member-row__name">{{ admin.name }}</span>
+                  <span class="member-row__email">{{ admin.email }}</span>
+                </div>
+              </ion-label>
+              <ion-button
+                fill="clear"
+                size="small"
+                color="danger"
+                class="member-action-btn"
+                [disabled]="removingAdminId() === admin.id"
+                (click)="removeMyAdmin(admin)"
+                aria-label="Quitar administrador"
+              >
+                @if (removingAdminId() === admin.id) {
+                  <ion-spinner name="crescent" slot="icon-only"></ion-spinner>
+                } @else {
+                  <ion-icon name="trash-outline" slot="icon-only" aria-hidden="true"></ion-icon>
+                }
+              </ion-button>
+            </ion-item>
+          } @empty {
+            <ion-item lines="none">
+              <ion-label>Todavía no hay otros administradores.</ion-label>
+            </ion-item>
+          }
+        </ion-list>
+        <div>
+          <ion-item lines="full">
+            <ion-label position="stacked">Nombre</ion-label>
+            <ion-input
+              [value]="newAdminName()"
+              (ionInput)="newAdminName.set($any($event.detail.value) ?? '')"
+            ></ion-input>
+          </ion-item>
+          <ion-item lines="full">
+            <ion-label position="stacked">Email</ion-label>
+            <ion-input
+              type="email"
+              [value]="newAdminEmail()"
+              (ionInput)="newAdminEmail.set($any($event.detail.value) ?? '')"
+            ></ion-input>
+          </ion-item>
+          <p class="item-hint">Va a poder administrar este gimnasio iniciando sesión con Google usando este email.</p>
+          <ion-button
+            expand="block"
+            type="button"
+            [disabled]="addingAdmin() || !newAdminName().trim() || !newAdminEmail().trim()"
+            (click)="addMyAdmin()"
+          >
+            @if (addingAdmin()) {
+              <ion-spinner name="crescent" slot="start"></ion-spinner>
+            } @else {
+              <ion-icon name="person-add-outline" slot="start" aria-hidden="true"></ion-icon>
+            }
+            Agregar administrador
+          </ion-button>
+        </div>
+      </ion-card-content>
+    </ion-card>
+
     <ion-card>
       <ion-card-header data-tour="flow-account">
         <ion-card-title>Cuenta Pago Online</ion-card-title>
@@ -421,83 +496,15 @@
         </form>
       </ion-card-content>
     </ion-card>
-
-    <ion-card>
-      <ion-card-header data-tour="admin-add">
-        <ion-card-title>
-          <ion-icon name="shield-checkmark-outline" aria-hidden="true"></ion-icon>
-          Administradores
-          <ion-badge color="dark">{{ admins().length }}</ion-badge>
-        </ion-card-title>
-      </ion-card-header>
-      <ion-card-content>
-        <p class="item-hint">Un administrador tiene el mismo acceso que tú a este panel completo.</p>
-        <ion-list lines="full">
-          @for (admin of admins(); track admin.id) {
-            <ion-item>
-              <ion-label>
-                <div class="member-row">
-                  <span class="member-row__name">{{ admin.name }}</span>
-                  <span class="member-row__email">{{ admin.email }}</span>
-                </div>
-              </ion-label>
-              <ion-button
-                fill="clear"
-                size="small"
-                color="danger"
-                class="member-action-btn"
-                [disabled]="removingAdminId() === admin.id"
-                (click)="removeMyAdmin(admin)"
-                aria-label="Quitar administrador"
-              >
-                @if (removingAdminId() === admin.id) {
-                  <ion-spinner name="crescent" slot="icon-only"></ion-spinner>
-                } @else {
-                  <ion-icon name="trash-outline" slot="icon-only" aria-hidden="true"></ion-icon>
-                }
-              </ion-button>
-            </ion-item>
-          } @empty {
-            <ion-item lines="none">
-              <ion-label>Todavía no hay otros administradores.</ion-label>
-            </ion-item>
-          }
-        </ion-list>
-        <div>
-          <ion-item lines="full">
-            <ion-label position="stacked">Nombre</ion-label>
-            <ion-input
-              [value]="newAdminName()"
-              (ionInput)="newAdminName.set($any($event.detail.value) ?? '')"
-            ></ion-input>
-          </ion-item>
-          <ion-item lines="full">
-            <ion-label position="stacked">Email</ion-label>
-            <ion-input
-              type="email"
-              [value]="newAdminEmail()"
-              (ionInput)="newAdminEmail.set($any($event.detail.value) ?? '')"
-            ></ion-input>
-          </ion-item>
-          <p class="item-hint">Va a poder administrar este gimnasio iniciando sesión con Google usando este email.</p>
-          <ion-button
-            expand="block"
-            type="button"
-            [disabled]="addingAdmin() || !newAdminName().trim() || !newAdminEmail().trim()"
-            (click)="addMyAdmin()"
-          >
-            @if (addingAdmin()) {
-              <ion-spinner name="crescent" slot="start"></ion-spinner>
-            } @else {
-              <ion-icon name="person-add-outline" slot="start" aria-hidden="true"></ion-icon>
-            }
-            Agregar administrador
-          </ion-button>
-        </div>
-      </ion-card-content>
-    </ion-card>
     }
   } @else if (section() === 'blocks') {
+    @if (!isProfesor()) {
+      <app-booking-rules-card
+        [rules]="bookingRules()"
+        [saving]="bookingRulesSaving()"
+        (save)="saveBookingRules($event)"
+      />
+    }
     <ion-card>
       <ion-card-header class="card-header-row">
         <ion-card-title>
@@ -1305,12 +1312,6 @@
           <ion-item>
             <ion-input label="WhatsApp (número)" formControlName="whatsappNumber" placeholder="+56912345678" />
           </ion-item>
-          <app-quantity-stepper
-            label="Horas mínimas para reservar o cancelar *"
-            formControlName="cancellationWindowHours"
-            [min]="1"
-            [max]="72"
-          />
           <ion-button type="submit" [disabled]="identityForm.invalid || identitySaving()" class="ion-margin-top">
             {{ identitySaving() ? 'Guardando...' : 'Guardar identidad' }}
           </ion-button>

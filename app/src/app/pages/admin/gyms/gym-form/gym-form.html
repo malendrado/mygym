@@ -31,7 +31,7 @@
         </ion-segment-button>
         <ion-segment-button value="branding">
           <ion-icon name="color-palette-outline" aria-hidden="true"></ion-icon>
-          <ion-label>Marca</ion-label>
+          <ion-label>Mi marca</ion-label>
         </ion-segment-button>
         <ion-segment-button value="flow">
           <ion-icon name="card-outline" aria-hidden="true"></ion-icon>
@@ -251,6 +251,21 @@
         <ion-icon name="paper-plane-outline" aria-hidden="true"></ion-icon>
         <p class="member-stat__value">{{ invitedPendingMembers() }}</p>
         <p class="member-stat__label">Invitados</p>
+      </div>
+    </div>
+
+    <div class="share-link-card">
+      <p class="share-link-card__title">
+        <ion-icon name="link-outline" aria-hidden="true"></ion-icon>
+        Comparte el link de alta de este gimnasio
+      </p>
+      <p class="item-hint">Envíaselo a los futuros socios para que se registren directo, sin pasar por el dueño.</p>
+      <div class="share-link-card__row">
+        <code>{{ joinUrl() }}</code>
+        <ion-button fill="clear" size="small" (click)="copyJoinLink()">
+          <ion-icon name="copy-outline" slot="start" aria-hidden="true"></ion-icon>
+          Copiar
+        </ion-button>
       </div>
     </div>
 
@@ -552,6 +567,11 @@
     </ion-modal>
     </div>
     } @else if (section() === 'blocks') {
+    <app-booking-rules-card
+      [rules]="bookingRules()"
+      [saving]="bookingRulesSaving()"
+      (save)="saveBookingRules($event)"
+    />
     <ion-card>
       <ion-card-header class="card-header-row">
         <ion-card-title>
@@ -874,6 +894,78 @@
       </ion-card-content>
     </ion-card>
 
+    <ion-card>
+      <ion-card-header>
+        <ion-card-title>
+          <ion-icon name="barbell-outline" aria-hidden="true"></ion-icon>
+          Profesores
+          <ion-badge color="dark">{{ profesores().length }}</ion-badge>
+        </ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <div>
+          <ion-item lines="full">
+            <ion-label position="stacked">Nombre</ion-label>
+            <ion-input
+              [value]="newProfesorName()"
+              (ionInput)="newProfesorName.set($any($event.detail.value) ?? '')"
+            ></ion-input>
+          </ion-item>
+          <ion-item lines="full">
+            <ion-label position="stacked">Email</ion-label>
+            <ion-input
+              type="email"
+              [value]="newProfesorEmail()"
+              (ionInput)="newProfesorEmail.set($any($event.detail.value) ?? '')"
+            ></ion-input>
+          </ion-item>
+          <ion-button
+            expand="block"
+            type="button"
+            [disabled]="creatingProfesor() || !newProfesorName().trim() || !newProfesorEmail().trim()"
+            (click)="addProfesor()"
+          >
+            @if (creatingProfesor()) {
+              <ion-spinner name="crescent" slot="start"></ion-spinner>
+            } @else {
+              <ion-icon name="person-add-outline" slot="start" aria-hidden="true"></ion-icon>
+            }
+            Agregar profesor
+          </ion-button>
+        </div>
+        <ion-list lines="full">
+          @for (profesor of profesores(); track profesor.id) {
+            <ion-item>
+              <ion-label>
+                <div class="member-row">
+                  <span class="member-row__name">{{ profesor.name }}</span>
+                  <span class="member-row__email">{{ profesor.email }}</span>
+                </div>
+              </ion-label>
+              <ion-button
+                fill="clear"
+                size="small"
+                color="danger"
+                [disabled]="removingProfesorId() === profesor.id"
+                (click)="removeProfesor(profesor)"
+                aria-label="Quitar profesor"
+              >
+                @if (removingProfesorId() === profesor.id) {
+                  <ion-spinner name="crescent" slot="icon-only"></ion-spinner>
+                } @else {
+                  <ion-icon name="trash-outline" slot="icon-only" aria-hidden="true"></ion-icon>
+                }
+              </ion-button>
+            </ion-item>
+          } @empty {
+            <ion-item lines="none">
+              <ion-label>Todavía no hay profesores agregados.</ion-label>
+            </ion-item>
+          }
+        </ion-list>
+      </ion-card-content>
+    </ion-card>
+
     <ion-card id="members-list-card">
       <ion-card-header>
         <ion-card-title>
@@ -1163,12 +1255,6 @@
           <ion-item>
             <ion-input label="WhatsApp (número)" formControlName="whatsappNumber" placeholder="+56912345678" />
           </ion-item>
-          <app-quantity-stepper
-            label="Horas mínimas para reservar o cancelar *"
-            formControlName="cancellationWindowHours"
-            [min]="1"
-            [max]="72"
-          />
           <ion-button type="submit" [disabled]="identityForm.invalid || identitySaving()" class="ion-margin-top">
             {{ identitySaving() ? 'Guardando...' : 'Guardar identidad' }}
           </ion-button>

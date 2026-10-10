@@ -20,6 +20,7 @@ import com.cortesdev.mygym.repositories.GymRepository;
 import com.cortesdev.mygym.repositories.ReservationRepository;
 import com.cortesdev.mygym.repositories.TvCheckinCodeRepository;
 import com.cortesdev.mygym.services.exception.AlreadyCheckedInException;
+import com.cortesdev.mygym.services.exception.AttendeesHiddenException;
 import com.cortesdev.mygym.services.exception.BookingWindowClosedException;
 import com.cortesdev.mygym.services.exception.CapacityExceededException;
 import com.cortesdev.mygym.services.exception.CheckinCodeNotFoundException;
@@ -91,7 +92,7 @@ public class ReservationService {
 
     @Transactional(readOnly = true)
     public List<GymBlockOccurrenceResponse> listOccurrences(Long gymId, Long memberId, LocalDate from, LocalDate to) {
-        int cancellationWindowHours = findGymOrThrow(gymId).getCancellationWindowHours();
+        int bookingWindowMinutes = findGymOrThrow(gymId).getBookingWindowMinutes();
         List<GymBlock> blocks =
                 gymBlockRepository.findByGymId(gymId).stream().filter(GymBlock::isActive).toList();
         List<Long> blockIds = blocks.stream().map(GymBlock::getId).toList();
@@ -134,7 +135,7 @@ public class ReservationService {
                 boolean closed = closures.isClosed(block.getId(), occurrenceDate);
                 boolean bookable = !closed
                         && taken < block.getCapacity()
-                        && isWithinBookingWindow(cancellationWindowHours, occurrenceDate, block.getStartTime());
+                        && isWithinWindow(bookingWindowMinutes, occurrenceDate, block.getStartTime());
                 boolean past = isPastOccurrence(occurrenceDate, block.getEndTime());
                 Long myReservationId = myReservationIdByOccurrence.get(key);
                 boolean waitlisted = myWaitlistedOccurrences.contains(key);
@@ -184,6 +185,17 @@ public class ReservationService {
                 .filter(mr -> mr.member() != null)
                 .sorted(Comparator.comparing(mr -> mr.member().getName()))
                 .toList();
+    }
+
+    // Vista del SOCIO (ReservationController y la demo): igual que getOccurrenceAttendees pero
+    // respeta Gym.showAttendeesToMembers. El panel del admin y la TV NO pasan por acá — siempre
+    // ven el roster completo.
+    @Transactional(readOnly = true)
+    public List<MemberReservation> getOccurrenceAttendeesForMember(Long gymId, Long gymBlockId, LocalDate classDate) {
+        if (!findGymOrThrow(gymId).isShowAttendeesToMembers()) {
+            throw new AttendeesHiddenException();
+        }
+        return getOccurrenceAttendees(gymId, gymBlockId, classDate);
     }
 
     // Batch equivalente a llamar getOccurrenceAttendees() una vez por cada bloque×día de la
@@ -268,7 +280,7 @@ public class ReservationService {
     private record OccurrenceGroupKey(Long gymBlockId, LocalDate classDate) {}
 
     public ReservationResponse book(Long gymId, Long memberId, ReservationCreateRequest request) {
-        int cancellationWindowHours = findGymOrThrow(gymId).getCancellationWindowHours();
+        int bookingWindowMinutes = findGymOrThrow(gymId).getBookingWindowMinutes();
         GymBlock block = gymBlockRepository
                 .findByIdAndGymId(request.gymBlockId(), gymId)
                 .filter(GymBlock::isActive)
@@ -277,7 +289,10 @@ public class ReservationService {
         if (request.classDate().getDayOfWeek() != block.getDayOfWeek()) {
             throw new BookingWindowClosedException("La fecha elegida no coincide con el día de la semana de este bloque");
         }
-        requireWithinBookingWindow(cancellationWindowHours, request.classDate(), block.getStartTime());
+        if (!isWithinWindow(bookingWindowMinutes, request.classDate(), block.getStartTime())) {
+            throw new BookingWindowClosedException("Las reservas para esta clase cerraron "
+                    + formatMinutes(bookingWindowMinutes) + " antes del inicio");
+        }
 
         String closedReason = gymClosureService.closedReasonFor(gymId, block.getId(), request.classDate());
         if (closedReason != null) {
@@ -330,16 +345,19 @@ public class ReservationService {
         GymBlock block = gymBlockRepository
                 .findById(reservation.getGymBlockId())
                 .orElseThrow(() -> new ReservationNotFoundException(reservationId));
-        int cancellationWindowHours = findGymOrThrow(block.getGymId()).getCancellationWindowHours();
-        requireWithinBookingWindow(cancellationWindowHours, reservation.getClassDate(), block.getStartTime());
+        int cancellationWindowMinutes = findGymOrThrow(block.getGymId()).getCancellationWindowMinutes();
+        if (!isWithinWindow(cancellationWindowMinutes, reservation.getClassDate(), block.getStartTime())) {
+            throw new BookingWindowClosedException("Solo puedes cancelar hasta "
+                    + formatMinutes(cancellationWindowMinutes) + " antes del inicio");
+        }
         reservation.setStatus(ReservationStatus.CANCELLED);
         reservationRepository.save(reservation);
         waitlistService.onSpotFreed(block.getId(), reservation.getClassDate());
     }
 
     // Vía de urgencia pedida explícitamente por el usuario: el socio llama al admin porque no
-    // llega a cancelar solo (bloqueado por requireWithinBookingWindow) y no quiere que esa
-    // clase le cuente como usada. A propósito NO llama requireWithinBookingWindow — esa es
+    // llega a cancelar solo (bloqueado por la ventana de cancelación) y no quiere que esa
+    // clase le cuente como usada. A propósito NO revisa la ventana de cancelación — esa es
     // justo la ventana que el admin necesita poder saltarse. Sí valida que la reserva sea de
     // su propio gym (nunca filtrar que existe en otro) y que la clase no haya pasado ya
     // (cancelar algo que ya ocurrió no tiene sentido y reescribiría historial).
@@ -469,22 +487,27 @@ public class ReservationService {
         return gymRepository.findById(gymId).orElseThrow(() -> new GymNotFoundException(gymId));
     }
 
-    private boolean isWithinBookingWindow(int cancellationWindowHours, LocalDate classDate, LocalTime startTime) {
+    /** true si faltan MÁS de `windowMinutes` minutos para el inicio — sirve tanto para el límite de
+     *  reserva como para el de cancelación (son dos datos distintos del gym, ver V36). */
+    private boolean isWithinWindow(int windowMinutes, LocalDate classDate, LocalTime startTime) {
         ZonedDateTime classStart = ZonedDateTime.of(classDate, startTime, GYM_ZONE);
-        return ZonedDateTime.now(GYM_ZONE).plusHours(cancellationWindowHours).isBefore(classStart);
+        return ZonedDateTime.now(GYM_ZONE).plusMinutes(windowMinutes).isBefore(classStart);
+    }
+
+    /** "2 h", "1 h 30 min", "45 min" — mismo formato que usa el frontend en los avisos al socio. */
+    static String formatMinutes(int minutes) {
+        int hours = minutes / 60;
+        int rest = minutes % 60;
+        if (hours == 0) {
+            return rest + " min";
+        }
+        return rest == 0 ? hours + " h" : hours + " h " + rest + " min";
     }
 
     /** Una ocurrencia queda "pasada" recién cuando termina, no cuando empieza — mientras la clase está en curso no es "pasada". */
     private boolean isPastOccurrence(LocalDate classDate, LocalTime endTime) {
         ZonedDateTime classEnd = ZonedDateTime.of(classDate, endTime, GYM_ZONE);
         return classEnd.isBefore(ZonedDateTime.now(GYM_ZONE));
-    }
-
-    private void requireWithinBookingWindow(int cancellationWindowHours, LocalDate classDate, LocalTime startTime) {
-        if (!isWithinBookingWindow(cancellationWindowHours, classDate, startTime)) {
-            throw new BookingWindowClosedException(
-                    "Debes reservar o cancelar con al menos " + cancellationWindowHours + " horas de anticipación a la clase");
-        }
     }
 
     private ReservationResponse toResponse(Reservation reservation, GymBlock block) {

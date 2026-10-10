@@ -71,6 +71,9 @@ import {
   trashOutline,
   tvOutline,
   warningOutline,
+  linkOutline,
+  copyOutline,
+  personAddOutline,
 } from 'ionicons/icons';
 import { firstValueFrom } from 'rxjs';
 import { GymService } from '../../../../core/services/gym.service';
@@ -82,6 +85,7 @@ import {
   Admin,
   BANK_ACCOUNT_TYPES,
   BankTransferUpdateRequest,
+  BookingRulesRequest,
   BlockOccurrenceAttendees,
   BrandingSuggestion,
   CHILE_BANKS,
@@ -112,7 +116,10 @@ import { PlanFormModal } from '../plan-form-modal/plan-form-modal';
 import { MarkPaidModal } from '../mark-paid-modal/mark-paid-modal';
 import { ClosureModal } from '../closure-modal/closure-modal';
 import { EditClosureModal } from '../edit-closure-modal/edit-closure-modal';
+import { BookingRulesCard } from '../../../../core/components/booking-rules-card/booking-rules-card';
 import { QuantityStepper } from '../../../../core/components/quantity-stepper/quantity-stepper';
+import { CreateProfesorRequest, Profesor } from '../../../../core/models/profesor.model';
+import { ProfesorService } from '../../../../core/services/profesor.service';
 import { registerClassCategoryIcons, resolveClassCategoryIcon } from '../../../../core/utils/class-category';
 import { formatRut, rutFormatValidator } from '../../../../core/utils/rut';
 import { toLogoImgSrc } from '../../../../core/utils/logo-src';
@@ -129,6 +136,9 @@ import {
 registerClassCategoryIcons();
 
 addIcons({
+  'link-outline': linkOutline,
+  'copy-outline': copyOutline,
+  'person-add-outline': personAddOutline,
   'business-outline': businessOutline,
   'settings-outline': settingsOutline,
   'time-outline': timeOutline,
@@ -233,7 +243,7 @@ const SECTION_LABELS: Record<Section, string> = {
   blocks: 'Horarios',
   plans: 'Planes',
   members: 'Socios',
-  branding: 'Marca',
+  branding: 'Mi marca',
   flow: 'Pago Online',
   screens: 'Pantallas',
   history: 'Historial',
@@ -384,6 +394,7 @@ const THEMED_ROOT_PROPERTIES = [
     ClosureModal,
     EditClosureModal,
     QuantityStepper,
+    BookingRulesCard,
   ],
   templateUrl: './gym-form.html',
   styleUrl: './gym-form.scss',
@@ -393,6 +404,7 @@ export class GymForm implements OnDestroy {
   private readonly router = inject(Router);
   private readonly gymService = inject(GymService);
   private readonly memberService = inject(MemberService);
+  private readonly profesorService = inject(ProfesorService);
   private readonly toastController = inject(ToastController);
   private readonly alertController = inject(AlertController);
 
@@ -574,12 +586,18 @@ export class GymForm implements OnDestroy {
     description: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(600)] }),
     instagramUrl: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(200)] }),
     whatsappNumber: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(30)] }),
-    cancellationWindowHours: new FormControl(2, {
-      nonNullable: true,
-      validators: [Validators.required, Validators.min(1), Validators.max(72)],
-    }),
   });
   protected readonly identitySaving = signal(false);
+
+  // Pestaña Horarios → tarjeta "Reglas de reserva" (componente compartido con el panel del gym).
+  protected readonly bookingRules = signal<BookingRulesRequest | null>(null);
+  protected readonly bookingRulesSaving = signal(false);
+
+  // Link de alta del gym (mismo que ve su dueño en General) — para que el super-admin lo comparta.
+  protected readonly joinUrl = computed(() => {
+    const slug = this.gymSlug();
+    return slug ? `mygym.cl/j/${slug}` : '';
+  });
 
   protected readonly chileBanks = CHILE_BANKS;
   protected readonly bankAccountTypes = BANK_ACCOUNT_TYPES;
@@ -828,8 +846,14 @@ export class GymForm implements OnDestroy {
           description: gym.description ?? '',
           instagramUrl: gym.instagramUrl ?? '',
           whatsappNumber: gym.whatsappNumber ?? '',
-          cancellationWindowHours: gym.cancellationWindowHours,
         });
+        this.bookingRules.set({
+          bookingWindowMinutes: gym.bookingWindowMinutes,
+          cancellationWindowMinutes: gym.cancellationWindowMinutes,
+          waitlistHeadStartMinutes: gym.waitlistHeadStartMinutes,
+          showAttendeesToMembers: gym.showAttendeesToMembers,
+        });
+        this.loadProfesores(id);
         const knownBank = gym.bankName && (this.chileBanks as readonly string[]).includes(gym.bankName);
         this.bankTransferForm.patchValue({
           bankName: gym.bankName ? (knownBank ? gym.bankName : 'Otro') : '',
@@ -1695,14 +1719,14 @@ export class GymForm implements OnDestroy {
     this.markPaidMember.set(null);
   }
 
-  protected confirmMarkPaid(planId: number): void {
+  protected confirmMarkPaid({ planId, bank }: { planId: number; bank: string }): void {
     const id = this.gymId();
     const member = this.markPaidMember();
     if (id === null || !member) {
       return;
     }
     this.markingPaidId.set(member.id);
-    this.memberService.markPaidForGym(id, member.id, { planId }).subscribe({
+    this.memberService.markPaidForGym(id, member.id, { planId, bank }).subscribe({
       next: () => {
         this.markingPaidId.set(null);
         this.markPaidMember.set(null);
@@ -1836,7 +1860,6 @@ export class GymForm implements OnDestroy {
         description: raw.description || null,
         instagramUrl: raw.instagramUrl || null,
         whatsappNumber: raw.whatsappNumber || null,
-        cancellationWindowHours: raw.cancellationWindowHours,
       })
       .subscribe({
         next: () => {
@@ -1848,6 +1871,100 @@ export class GymForm implements OnDestroy {
           this.showToast('No pudimos guardar los cambios. Intenta nuevamente.', 'danger');
         },
       });
+  }
+
+  protected saveBookingRules(rules: BookingRulesRequest): void {
+    const id = this.gymId();
+    if (id === null) {
+      return;
+    }
+    this.bookingRulesSaving.set(true);
+    this.gymService.updateBookingRules(id, rules).subscribe({
+      next: () => {
+        this.bookingRulesSaving.set(false);
+        this.bookingRules.set(rules);
+        this.showToast('Reglas de reserva guardadas.');
+      },
+      error: () => {
+        this.bookingRulesSaving.set(false);
+        this.showToast('No pudimos guardar las reglas. Intenta nuevamente.', 'danger');
+      },
+    });
+  }
+
+  protected async copyJoinLink(): Promise<void> {
+    const slug = this.gymSlug();
+    if (!slug) {
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(`https://www.mygym.cl/j/${slug}`);
+      this.showToast('Link copiado.');
+    } catch {
+      this.showToast('No pudimos copiar el link. Cópialo a mano.', 'danger');
+    }
+  }
+
+  // ---- Profesores del gym (contraparte de la sección "Profesores" del panel del dueño) ----
+
+  protected readonly profesores = signal<Profesor[]>([]);
+  protected readonly newProfesorName = signal('');
+  protected readonly newProfesorEmail = signal('');
+  protected readonly creatingProfesor = signal(false);
+  protected readonly removingProfesorId = signal<number | null>(null);
+
+  private loadProfesores(gymId: number): void {
+    this.profesorService.listForGym(gymId).subscribe({ next: (list) => this.profesores.set(list) });
+  }
+
+  protected addProfesor(): void {
+    const id = this.gymId();
+    const name = this.newProfesorName().trim();
+    const email = this.newProfesorEmail().trim();
+    if (id === null || !name || !email) {
+      return;
+    }
+    this.creatingProfesor.set(true);
+    this.profesorService.createForGym(id, { name, email } as CreateProfesorRequest).subscribe({
+      next: (profesor) => {
+        this.creatingProfesor.set(false);
+        this.profesores.update((list) => [...list, profesor]);
+        this.newProfesorName.set('');
+        this.newProfesorEmail.set('');
+        this.showToast(`${profesor.name} ya puede entrar como profesor.`);
+      },
+      error: () => {
+        this.creatingProfesor.set(false);
+        this.showToast('No pudimos agregar al profesor. Intenta nuevamente.', 'danger');
+      },
+    });
+  }
+
+  protected async removeProfesor(profesor: Profesor): Promise<void> {
+    const id = this.gymId();
+    if (id === null) {
+      return;
+    }
+    const confirmed = await this.confirmAction(
+      'Quitar profesor',
+      `¿Quitarle el acceso a ${profesor.name}?`,
+      'Quitar acceso',
+    );
+    if (!confirmed) {
+      return;
+    }
+    this.removingProfesorId.set(profesor.id);
+    this.profesorService.removeForGym(id, profesor.id).subscribe({
+      next: () => {
+        this.removingProfesorId.set(null);
+        this.profesores.update((list) => list.filter((p) => p.id !== profesor.id));
+        this.showToast(`Se le quitó el acceso a ${profesor.name}.`);
+      },
+      error: () => {
+        this.removingProfesorId.set(null);
+        this.showToast('No pudimos quitar el acceso. Intenta nuevamente.', 'danger');
+      },
+    });
   }
 
   protected saveBankTransfer(): void {

@@ -5,6 +5,7 @@ import com.cortesdev.mygym.models.dto.AdminResponse;
 import com.cortesdev.mygym.models.dto.AdminStatusUpdateRequest;
 import com.cortesdev.mygym.models.dto.AttendeeResponse;
 import com.cortesdev.mygym.models.dto.BankTransferUpdateRequest;
+import com.cortesdev.mygym.models.dto.BookingRulesRequest;
 import com.cortesdev.mygym.models.dto.BlockBatchCreateRequest;
 import com.cortesdev.mygym.models.dto.BlockCreateRequest;
 import com.cortesdev.mygym.models.dto.BlockCreateResult;
@@ -290,6 +291,33 @@ public class GymController {
         return gymService.getGym(id);
     }
 
+    /** Contraparte SUPER_ADMIN de GymAdminController.updateMyBookingRules — mismo backend, gymId por path. */
+    @PutMapping("/{id}/booking-rules")
+    public GymResponse updateBookingRules(@PathVariable Long id, @Valid @RequestBody BookingRulesRequest request) {
+        gymService.updateBookingRules(id, request);
+        return gymService.getGym(id);
+    }
+
+    // Contraparte SUPER_ADMIN de ProfesorController (/api/gym-admin/profesores) — mismo
+    // GymService, gymId por path en vez de por JWT.
+    @GetMapping("/{id}/profesores")
+    public List<AdminResponse> listProfesores(@PathVariable Long id) {
+        return gymService.listProfesores(id);
+    }
+
+    @PostMapping("/{id}/profesores")
+    public ResponseEntity<AdminResponse> addProfesor(
+            @PathVariable Long id, @Valid @RequestBody AdminCreateRequest request) {
+        AdminResponse profesor = gymService.addProfesor(id, request);
+        return ResponseEntity.created(URI.create("/api/gyms/" + id + "/profesores/" + profesor.id())).body(profesor);
+    }
+
+    @DeleteMapping("/{id}/profesores/{userId}")
+    public ResponseEntity<Void> removeProfesor(@PathVariable Long id, @PathVariable Long userId) {
+        gymService.removeProfesor(id, userId);
+        return ResponseEntity.noContent().build();
+    }
+
     @PutMapping("/{id}/bank-transfer")
     public GymResponse updateBankTransfer(
             @PathVariable Long id, @Valid @RequestBody BankTransferUpdateRequest request) {
@@ -373,8 +401,12 @@ public class GymController {
     /** Contraparte SUPER_ADMIN de MemberController.markPaid — mismo backend, gymId por path. */
     @PostMapping("/{id}/members/{memberId}/mark-paid")
     public ResponseEntity<Void> markMemberPaid(
-            @PathVariable Long id, @PathVariable Long memberId, @Valid @RequestBody MarkPaidRequest request) {
-        gymService.simulatePlanPayment(id, memberId, request.planId());
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long id,
+            @PathVariable Long memberId,
+            @Valid @RequestBody MarkPaidRequest request) {
+        gymService.simulatePlanPayment(
+                id, memberId, request.planId(), request.bank().trim(), AuthenticatedUser.from(jwt).userId());
         return ResponseEntity.noContent().build();
     }
 

@@ -15,6 +15,7 @@ import com.cortesdev.mygym.models.dto.OccurrenceAttendees;
 import com.cortesdev.mygym.models.dto.BlockResponse;
 import com.cortesdev.mygym.models.dto.BlockUpdateRequest;
 import com.cortesdev.mygym.models.dto.BankTransferUpdateRequest;
+import com.cortesdev.mygym.models.dto.BookingRulesRequest;
 import com.cortesdev.mygym.models.dto.FlowAccountDetailsUpdateRequest;
 import com.cortesdev.mygym.models.dto.FlowAccountResponse;
 import com.cortesdev.mygym.models.dto.GymClosureCreateRequest;
@@ -232,6 +233,15 @@ public class GymAdminController {
             @AuthenticationPrincipal Jwt jwt, @Valid @RequestBody GymIdentityUpdateRequest request) {
         Long gymId = AuthenticatedUser.from(jwt).gymId();
         gymService.updateIdentity(gymId, request);
+        return gymService.getGym(gymId);
+    }
+
+    // Pestaña Horarios → tarjeta "Reglas de reserva" (ver BookingRulesRequest).
+    @PutMapping("/booking-rules")
+    public GymResponse updateMyBookingRules(
+            @AuthenticationPrincipal Jwt jwt, @Valid @RequestBody BookingRulesRequest request) {
+        Long gymId = AuthenticatedUser.from(jwt).gymId();
+        gymService.updateBookingRules(gymId, request);
         return gymService.getGym(gymId);
     }
 

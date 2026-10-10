@@ -66,7 +66,26 @@ public class Gym {
 
     private String whatsappNumber;
 
+    /** @deprecated reemplazado por {@link #bookingWindowMinutes} y
+     *  {@link #cancellationWindowMinutes} (ambos en minutos, independientes) — ver migración V36.
+     *  Columna queda en la tabla sin uso; se borra en una migración posterior. */
+    @Deprecated
     private int cancellationWindowHours;
+
+    /** Hasta cuántos minutos antes del inicio de una clase se puede RESERVAR. */
+    private int bookingWindowMinutes;
+
+    /** Hasta cuántos minutos antes del inicio de una clase se puede CANCELAR sin que cuente como
+     *  usada — independiente de {@link #bookingWindowMinutes} (ver V36: antes era un solo dato). */
+    private int cancellationWindowMinutes;
+
+    /** Minutos de ventaja que tiene el primero de la lista de espera antes de avisarle al resto
+     *  (ver WaitlistService.escalateExpiredHeadStarts). 0 = se avisa a todos al mismo tiempo. */
+    private int waitlistHeadStartMinutes;
+
+    /** Si los socios pueden ver el roster de asistentes de una clase en /member (botón "Ver quién
+     *  va"). La pantalla de TV del gimnasio NUNCA se ve afectada por este flag. */
+    private boolean showAttendeesToMembers;
 
     // Datos bancarios para que un socio transfiera directo (alternativa a Flow) —
     // todo nullable, se considera "configurado" solo si los 4 campos clave están

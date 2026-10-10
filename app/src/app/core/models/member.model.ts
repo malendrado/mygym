@@ -38,6 +38,9 @@ export interface CreateMemberRequest {
 
 export interface MarkPaidRequest {
   planId: number;
+  /** Banco con el que el socio le transfirió al gym (lista CHILE_BANKS; "Otro" = texto libre) —
+   *  queda guardado para informes posteriores (ManualPayment en el backend). */
+  bank: string;
 }
 
 /**

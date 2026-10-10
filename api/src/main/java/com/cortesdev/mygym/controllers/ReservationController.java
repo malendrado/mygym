@@ -125,7 +125,7 @@ public class ReservationController {
             @PathVariable Long blockId,
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate classDate) {
         Long gymId = AuthenticatedUser.from(jwt).gymId();
-        return reservationService.getOccurrenceAttendees(gymId, blockId, classDate).stream()
+        return reservationService.getOccurrenceAttendeesForMember(gymId, blockId, classDate).stream()
                 .map(this::toAttendeeSummary)
                 .toList();
     }

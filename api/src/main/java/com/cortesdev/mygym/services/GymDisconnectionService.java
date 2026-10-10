@@ -6,6 +6,7 @@ import com.cortesdev.mygym.models.GymBlock;
 import com.cortesdev.mygym.models.GymDeletionAudit;
 import com.cortesdev.mygym.models.GymPhoto;
 import com.cortesdev.mygym.models.GymPlan;
+import com.cortesdev.mygym.models.ManualPayment;
 import com.cortesdev.mygym.models.Payment;
 import com.cortesdev.mygym.models.Reservation;
 import com.cortesdev.mygym.models.Role;
@@ -17,6 +18,7 @@ import com.cortesdev.mygym.repositories.GymDeletionAuditRepository;
 import com.cortesdev.mygym.repositories.GymPhotoRepository;
 import com.cortesdev.mygym.repositories.GymPlanRepository;
 import com.cortesdev.mygym.repositories.GymRepository;
+import com.cortesdev.mygym.repositories.ManualPaymentRepository;
 import com.cortesdev.mygym.repositories.PaymentRepository;
 import com.cortesdev.mygym.repositories.ReservationRepository;
 import com.cortesdev.mygym.services.exception.GymDisconnectionEmailFailedException;
@@ -66,6 +68,7 @@ public class GymDisconnectionService {
     private final GymPhotoRepository gymPhotoRepository;
     private final ReservationRepository reservationRepository;
     private final PaymentRepository paymentRepository;
+    private final ManualPaymentRepository manualPaymentRepository;
     private final GymDeletionAuditRepository gymDeletionAuditRepository;
     private final GymDisconnectionEmailService emailService;
     // Solo para reusar periodEnd(user) — la misma cuenta de "1 mes calendario desde paidAt" que
@@ -99,7 +102,9 @@ public class GymDisconnectionService {
         Map<Long, Integer> lastPaidAmountByMember = lastPaidAmountByMember(payments);
 
         String membersCsv = buildMembersCsv(members, planNames, reservationCountByMember, lastPaidAmountByMember);
-        String paymentsCsv = buildPaymentsCsv(payments, memberEmailById, planNames);
+        // Pagos marcados a mano (con el banco) — van en el mismo pagos.csv, ver buildPaymentsCsv.
+        List<ManualPayment> manualPayments = manualPaymentRepository.findByGymId(gymId);
+        String paymentsCsv = buildPaymentsCsv(payments, manualPayments, memberEmailById, planNames);
 
         // executedAt se fija a mano acá (no solo vía @PrePersist de GymDeletionAudit) porque
         // este objeto todavía sin guardar se usa para armar el email a los admins ANTES del
@@ -111,7 +116,7 @@ public class GymDisconnectionService {
                 .adminEmails(admins.stream().map(AppUser::getEmail).collect(Collectors.joining(", ")))
                 .memberCount(members.size())
                 .reservationCount(reservations.size())
-                .paymentCount(payments.size())
+                .paymentCount(payments.size() + manualPayments.size())
                 .blockCount(blocks.size())
                 .planCount(plans.size())
                 .photoCount(photos.size())
@@ -218,8 +223,12 @@ public class GymDisconnectionService {
         return value == null ? "" : DATE_FORMAT.format(value.toInstant());
     }
 
-    private String buildPaymentsCsv(List<Payment> payments, Map<Long, String> memberEmailById, Map<Long, String> planNames) {
-        StringBuilder csv = new StringBuilder("Email del socio,Plan,Monto CLP,Estado,Fecha de pago,Orden\n");
+    private String buildPaymentsCsv(
+            List<Payment> payments,
+            List<ManualPayment> manualPayments,
+            Map<Long, String> memberEmailById,
+            Map<Long, String> planNames) {
+        StringBuilder csv = new StringBuilder("Email del socio,Plan,Monto CLP,Estado,Fecha de pago,Orden,Banco\n");
         for (Payment p : payments) {
             csv.append(csvField(memberEmailById.getOrDefault(p.getMemberId(), "")))
                     .append(',')
@@ -232,6 +241,23 @@ public class GymDisconnectionService {
                     .append(csvField(formatInstant(p.getPaidAt())))
                     .append(',')
                     .append(csvField(p.getCommerceOrder()))
+                    .append(',')
+                    .append('\n');
+        }
+        // Pagos marcados a mano: sin orden de Flow, con el banco que el admin registró.
+        for (ManualPayment p : manualPayments) {
+            csv.append(csvField(memberEmailById.getOrDefault(p.getMemberId(), "")))
+                    .append(',')
+                    .append(csvField(p.getPlanId() != null ? planNames.getOrDefault(p.getPlanId(), "") : ""))
+                    .append(',')
+                    .append(p.getAmountClp() != null ? p.getAmountClp() : "")
+                    .append(',')
+                    .append("Manual")
+                    .append(',')
+                    .append(csvField(formatInstant(p.getPaidAt())))
+                    .append(',')
+                    .append(',')
+                    .append(csvField(p.getBank()))
                     .append('\n');
         }
         return csv.toString();

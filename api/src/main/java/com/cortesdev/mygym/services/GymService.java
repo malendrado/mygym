@@ -6,12 +6,14 @@ import com.cortesdev.mygym.models.Gym;
 import com.cortesdev.mygym.models.GymBlock;
 import com.cortesdev.mygym.models.GymPhoto;
 import com.cortesdev.mygym.models.GymPlan;
+import com.cortesdev.mygym.models.ManualPayment;
 import com.cortesdev.mygym.models.Role;
 import com.cortesdev.mygym.models.dto.AdminCreateRequest;
 import com.cortesdev.mygym.models.dto.AdminResponse;
 import com.cortesdev.mygym.models.dto.GymAdminListItemResponse;
 import com.cortesdev.mygym.models.dto.AdminStatusUpdateRequest;
 import com.cortesdev.mygym.models.dto.BlockCreateRequest;
+import com.cortesdev.mygym.models.dto.BookingRulesRequest;
 import com.cortesdev.mygym.models.dto.BlockCreateResult;
 import com.cortesdev.mygym.models.dto.BlockResponse;
 import com.cortesdev.mygym.models.dto.BlockUpdateRequest;
@@ -41,6 +43,7 @@ import com.cortesdev.mygym.repositories.GymBlockRepository;
 import com.cortesdev.mygym.repositories.GymPhotoRepository;
 import com.cortesdev.mygym.repositories.GymPlanRepository;
 import com.cortesdev.mygym.repositories.GymRepository;
+import com.cortesdev.mygym.repositories.ManualPaymentRepository;
 import com.cortesdev.mygym.repositories.ReservationRepository;
 import com.cortesdev.mygym.services.exception.AdminNotFoundException;
 import com.cortesdev.mygym.services.exception.DuplicateOwnerEmailException;
@@ -88,6 +91,7 @@ public class GymService {
     private final GymPhotoRepository gymPhotoRepository;
     private final AppUserRepository appUserRepository;
     private final ReservationRepository reservationRepository;
+    private final ManualPaymentRepository manualPaymentRepository;
     private final AdminInviteEmailService adminInviteEmailService;
     private final MemberLifecycleEmailService memberLifecycleEmailService;
     private final DemoTourService demoTourService;
@@ -107,7 +111,10 @@ public class GymService {
                 .googleLoginEnabled(true)
                 .themeColor(request.themeColor())
                 .logoSvg(request.logoSvg())
-                .cancellationWindowHours(2)
+                .bookingWindowMinutes(120)
+                .cancellationWindowMinutes(120)
+                .waitlistHeadStartMinutes(30)
+                .showAttendeesToMembers(true)
                 .build();
         gym = gymRepository.save(gym);
 
@@ -199,7 +206,9 @@ public class GymService {
                 gym.getDescription(),
                 gym.getInstagramUrl(),
                 gym.getWhatsappNumber(),
-                gym.getCancellationWindowHours(),
+                gym.getBookingWindowMinutes(),
+                gym.getCancellationWindowMinutes(),
+                gym.isShowAttendeesToMembers(),
                 hasFlowCredentials(gym));
     }
 
@@ -233,7 +242,17 @@ public class GymService {
         gym.setDescription(request.description());
         gym.setInstagramUrl(request.instagramUrl());
         gym.setWhatsappNumber(request.whatsappNumber());
-        gym.setCancellationWindowHours(request.cancellationWindowHours());
+        gymRepository.save(gym);
+    }
+
+    /** Pestaña Horarios: los 4 datos de la tarjeta "Reglas de reserva" (ver BookingRulesRequest) —
+     *  antes de V36 esto era un solo campo (cancellationWindowHours) editado junto a Mi marca. */
+    public void updateBookingRules(Long gymId, BookingRulesRequest request) {
+        Gym gym = findGymOrThrow(gymId);
+        gym.setBookingWindowMinutes(request.bookingWindowMinutes());
+        gym.setCancellationWindowMinutes(request.cancellationWindowMinutes());
+        gym.setWaitlistHeadStartMinutes(request.waitlistHeadStartMinutes());
+        gym.setShowAttendeesToMembers(request.showAttendeesToMembers());
         gymRepository.save(gym);
     }
 
@@ -507,6 +526,9 @@ public class GymService {
     // real sí recibe una, pensar esto si se pide más adelante).
 
     public AdminResponse addProfesor(Long gymId, AdminCreateRequest request) {
+        // Ahora también lo llama el super-admin con un gymId de la URL: sin esto, un id inexistente
+        // llegaba hasta la FK y salía como 500 en vez de un 404 claro.
+        findGymOrThrow(gymId);
         if (appUserRepository.existsByEmail(AppUser.normalizeEmail(request.email()))) {
             throw new DuplicateOwnerEmailException(request.email());
         }
@@ -749,18 +771,30 @@ public class GymService {
      * FlowPaymentService.handleWebhook, que es quien persiste
      * plan_id/paid_at reales cuando el pago SÍ pasó por Flow).
      */
-    public void simulatePlanPayment(Long gymId, Long memberId, Long planId) {
+    public void simulatePlanPayment(Long gymId, Long memberId, Long planId, String bank, Long registeredByUserId) {
         Gym gym = findGymOrThrow(gymId);
         GymPlan plan = findPlanOrThrow(gymId, planId);
         AppUser member = appUserRepository
                 .findByIdAndGymId(memberId, gymId)
                 .orElseThrow(() -> new MemberNotFoundException(memberId));
         member.setPlanId(planId);
-        member.setPaidAt(Instant.now());
+        Instant now = Instant.now();
+        member.setPaidAt(now);
         // Renovación real — cualquier "ya venía usando N clases" que traía de una importación
         // por Excel quedó atrás con el período anterior, no se arrastra (ver AppUser.usedSessionsAtImport).
         member.setUsedSessionsAtImport(null);
         appUserRepository.save(member);
+        // Antes esto no dejaba ningún rastro del pago (solo planId/paidAt del socio) — con el
+        // banco guardado acá se pueden armar informes después (ver ManualPayment, V36).
+        manualPaymentRepository.save(ManualPayment.builder()
+                .gymId(gymId)
+                .memberId(memberId)
+                .planId(planId)
+                .amountClp(plan.getPriceClp())
+                .bank(bank)
+                .registeredByUserId(registeredByUserId)
+                .paidAt(now)
+                .build());
         List<String> adminEmails = appUserRepository.findByGymIdAndRole(gymId, Role.GYM_ADMIN).stream()
                 .map(AppUser::getEmail)
                 .toList();
@@ -849,7 +883,10 @@ public class GymService {
                 gym.getDescription(),
                 gym.getInstagramUrl(),
                 gym.getWhatsappNumber(),
-                gym.getCancellationWindowHours(),
+                gym.getBookingWindowMinutes(),
+                gym.getCancellationWindowMinutes(),
+                gym.getWaitlistHeadStartMinutes(),
+                gym.isShowAttendeesToMembers(),
                 gym.getBankName(),
                 gym.getBankAccountType(),
                 gym.getBankAccountNumber(),

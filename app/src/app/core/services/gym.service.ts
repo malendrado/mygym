@@ -10,6 +10,7 @@ import {
   AnalyticsSummary,
   BankTransferInfo,
   BankTransferUpdateRequest,
+  BookingRulesRequest,
   BlockCreateResult,
   BlockOccurrenceAttendees,
   BrandingSuggestion,
@@ -326,6 +327,10 @@ export class GymService {
     return this.http.put<Gym>(`${this.base}/${gymId}/identity`, payload);
   }
 
+  updateBookingRules(gymId: number, payload: BookingRulesRequest): Observable<Gym> {
+    return this.http.put<Gym>(`${this.base}/${gymId}/booking-rules`, payload);
+  }
+
   updateBankTransfer(gymId: number, payload: BankTransferUpdateRequest): Observable<Gym> {
     return this.http.put<Gym>(`${this.base}/${gymId}/bank-transfer`, payload);
   }
@@ -457,6 +462,10 @@ export class GymService {
 
   updateMyIdentity(payload: GymIdentityUpdateRequest): Observable<Gym> {
     return this.http.put<Gym>(`${this.myGymBase}/identity`, payload);
+  }
+
+  updateMyBookingRules(payload: BookingRulesRequest): Observable<Gym> {
+    return this.http.put<Gym>(`${this.myGymBase}/booking-rules`, payload);
   }
 
   updateMyBankTransfer(payload: BankTransferUpdateRequest): Observable<Gym> {

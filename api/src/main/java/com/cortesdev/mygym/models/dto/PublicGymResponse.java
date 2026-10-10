@@ -13,7 +13,11 @@ public record PublicGymResponse(
         String description,
         String instagramUrl,
         String whatsappNumber,
-        int cancellationWindowHours,
+        int bookingWindowMinutes,
+        int cancellationWindowMinutes,
+        /** Si los socios pueden ver el roster de "Ver quién va" en /member — la pantalla de TV
+         *  del gimnasio nunca se ve afectada por esto (ver ReservationController/V36). */
+        boolean showAttendeesToMembers,
         /** true si el gym tiene su propia cuenta Flow configurada — si es false, el
          *  frontend oculta "Pagar con Flow" y solo ofrece transferencia bancaria. */
         boolean flowConfigured) {}

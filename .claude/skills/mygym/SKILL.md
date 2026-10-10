@@ -332,6 +332,15 @@ Skill viva: se va completando a medida que trabajamos en el proyecto. No repetir
   **Lección general reforzada de esta sesión:** antes de repetir un elemento "por tarjeta", preguntarse si el dato que muestra es realmente por-tarjeta o si es GLOBAL a toda la pantalla — si es global, mostrarlo una sola vez en la zona compartida, nunca duplicado.
   Compilado y verificado en local (Chrome real abierto para el usuario, no solo capturas mías) antes de subir.
 
+### Reglas de reserva, pago manual con banco y "Ver quién va" (2026-10-10, SIN deploy al escribir esto)
+
+- **Dos límites en minutos, no uno en horas** (migración V36): `Gym.bookingWindowMinutes` (hasta cuándo se puede RESERVAR) y `Gym.cancellationWindowMinutes` (hasta cuándo se puede CANCELAR sin que cuente como usada). Se editan en la tarjeta compartida `app-booking-rules-card`, al INICIO de la pestaña Horarios de ambos paneles (`PUT /api/gym-admin/gym/booking-rules` y `PUT /api/gyms/{id}/booking-rules`). `cancellation_window_hours` queda en la tabla sin uso (V36 soltó su CHECK `> 0`, si no, crear un gym nuevo fallaría); se borra en una migración posterior.
+- **Ventaja de la lista de espera por gym** (`waitlistHeadStartMinutes`, default 30; antes constante global de 10 min). Con 0 se avisa a toda la lista a la vez.
+- **`showAttendeesToMembers`** (default true): si es false, `ReservationService.getOccurrenceAttendeesForMember` lanza `AttendeesHiddenException` (403) y /member oculta "Ver quién va". El panel del admin y la TV usan `getOccurrenceAttendees` (sin flag) — la TV nunca se ve afectada.
+- **Pago manual deja registro**: `GymService.simulatePlanPayment(gym, member, plan, bank, registeredBy)` guarda una fila en `manual_payment` (monto del plan al momento, banco de `CHILE_BANKS` o texto libre de "Otro"). `MarkPaidRequest.bank` es obligatorio; el modal compartido `MarkPaidModal` lo pide. El pagos.csv de la desvinculación de un gym incluye estos pagos (columna Banco). Los informes se arman después.
+- **Super-admin ahora también tiene** el link de alta (General) y la gestión de profesores (Socios, `/api/gyms/{id}/profesores`). Pestaña "Marca" se llama "Mi marca".
+- Los tests de contexto Spring (`*ControllerTest`, `GymRepositoryTest`, `contextLoads`) no corren sin base de datos y ya fallaban antes; la red real son los tests Mockito (`ReservationServiceWindowsTest`, `WaitlistServiceHeadStartTest`, `GymServiceManualPaymentTest` + los anteriores).
+
 ## Cómo mantener esta skill
 
 Cada vez que resolvamos algo no trivial, tomemos una decisión de arquitectura, o descubramos una convención o gotcha del proyecto: agregar una entrada corta (qué + por qué) en la sección que corresponda. Fecha las entradas si el contexto puede volverse obsoleto.

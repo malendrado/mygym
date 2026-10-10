@@ -241,18 +241,23 @@ function shortTime(time: string): string {
   return time.slice(0, 5);
 }
 
+// Un solo Intl.DateTimeFormat para toda la página: canCancel() lo invoca desde el template por
+// cada tarjeta de clase en cada cambio de detección, y construir uno nuevo cada vez es lo más
+// caro de esa función.
+const GYM_ZONE_FORMAT = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'America/Santiago',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hourCycle: 'h23',
+});
+
 /** "YYYY-MM-DDTHH:mm:ss" en hora de Chile — comparable lexicográficamente contra `classDate + 'T' + endTime`. */
 function nowInGymZoneIso(): string {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/Santiago',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hourCycle: 'h23',
-  }).formatToParts(new Date());
+  const parts = GYM_ZONE_FORMAT.formatToParts(new Date());
   const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '00';
   return `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get('minute')}:${get('second')}`;
 }
@@ -416,7 +421,7 @@ export class MemberPage {
   // plan, `quotaTotal()` es null, así que da `false` (no "agotado").
   protected readonly canBook = computed(() => this.membership().status === 'active');
   // "Sin cupo" antes se mostraba también cuando la clase seguía con lugar libre pero ya
-  // estaba fuera de la ventana mínima de reserva del gym (cancellationWindowHours) — el
+  // estaba fuera del límite de reserva del gym (bookingWindowMinutes) — el
   // socio leía "no queda lugar" cuando el problema real era otro (la clase está por
   // empezar). `!occurrence.bookable` cubre ambos casos; esto distingue cuál es cuál sin
   // tocar el backend (capacity/taken ya venían en la respuesta).
@@ -1608,19 +1613,31 @@ export class MemberPage {
     return start <= this.nowChileIso && this.nowChileIso <= end;
   }
 
-  // Misma regla que ReservationService.requireWithinBookingWindow: solo se puede cancelar si
-  // faltan MÁS de `cancellationWindowHours` horas para el inicio (el admin del gym la define).
-  // Antes el botón salía siempre y el backend rechazaba después con un error. Se calcula con
-  // "ahora" fresco (no el snapshot de la página) porque ésta puede quedar abierta horas.
+  // Misma regla que ReservationService.cancel: solo se puede cancelar si faltan MÁS de
+  // `cancellationWindowMinutes` minutos para el inicio (el admin del gym la define, y es un dato
+  // DISTINTO al límite para reservar). Antes el botón salía siempre y el backend rechazaba
+  // después con un error. Se calcula con "ahora" fresco (no el snapshot de la página) porque
+  // ésta puede quedar abierta horas.
   protected canCancel(classDate: string, startTime: string): boolean {
-    const windowHours = this.gym()?.cancellationWindowHours ?? 0;
+    const windowMinutes = this.gym()?.cancellationWindowMinutes ?? 0;
     const toMs = (iso: string) => {
       const [date, time = '00:00:00'] = iso.split('T');
       const [y, mo, d] = date.split('-').map(Number);
       const [h, mi, s = 0] = time.split(':').map(Number);
       return Date.UTC(y, mo - 1, d, h, mi, s);
     };
-    return toMs(nowInGymZoneIso()) + windowHours * 3_600_000 < toMs(`${classDate}T${startTime}`);
+    return toMs(nowInGymZoneIso()) + windowMinutes * 60_000 < toMs(`${classDate}T${startTime}`);
+  }
+
+  // "2 h", "1 h 30 min", "45 min" — mismo formato que los mensajes de error del backend.
+  protected minutesLabel(minutes: number | undefined): string {
+    const total = minutes ?? 0;
+    const hours = Math.floor(total / 60);
+    const rest = total % 60;
+    if (hours === 0) {
+      return `${rest} min`;
+    }
+    return rest === 0 ? `${hours} h` : `${hours} h ${rest} min`;
   }
 
   protected isReservationLive(reservation: Reservation): boolean {

@@ -84,7 +84,7 @@ public class DemoPreviewController {
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable Long blockId,
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate classDate) {
-        return reservationService.getOccurrenceAttendees(gymId(jwt), blockId, classDate).stream()
+        return reservationService.getOccurrenceAttendeesForMember(gymId(jwt), blockId, classDate).stream()
                 .map(mr -> {
                     String name = mr.member().getName();
                     String firstName = name == null ? "Socio" : name.split(" ")[0];

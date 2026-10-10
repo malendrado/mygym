@@ -30,7 +30,35 @@
       </button>
     }
   </div>
-  <p class="item-hint">Queda registrado igual que un pago real de Flow.cl.</p>
+  <p class="mark-paid-plans__label">¿Con qué banco te transfirió?</p>
+  <ion-item class="mark-paid-bank">
+    <ion-select
+      label="Banco"
+      labelPlacement="stacked"
+      placeholder="Elige el banco"
+      interface="popover"
+      [value]="bank()"
+      (ionChange)="bank.set($any($event.detail.value) ?? '')"
+    >
+      @for (option of banks; track option) {
+        <ion-select-option [value]="option">{{ option }}</ion-select-option>
+      }
+    </ion-select>
+  </ion-item>
+  @if (bank() === 'Otro') {
+    <ion-item class="mark-paid-bank">
+      <ion-input
+        label="Nombre del banco"
+        labelPlacement="stacked"
+        maxlength="60"
+        [value]="bankOther()"
+        (ionInput)="bankOther.set($any($event.detail.value) ?? '')"
+      />
+    </ion-item>
+  }
+  <p class="item-hint">
+    Queda registrado igual que un pago real de Flow.cl, con el banco para tus informes. Es obligatorio.
+  </p>
 </ion-content>
 
 <ion-footer>

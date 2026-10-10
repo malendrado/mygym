@@ -33,7 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
  * se libera un cupo, en vez de quedarse sin enterarse cuando alguien cancela.
  *
  * Orden de llegada (FIFO por created_at). Al primero de la lista se le avisa apenas se libera un
- * cupo, con {@link #HEAD_START} de ventaja antes de avisarle al resto — si nadie reserva en ese
+ * cupo, con la ventaja que define cada gym (Gym.waitlistHeadStartMinutes, default 30) antes de avisarle al resto — si nadie reserva en ese
  * tiempo, se le avisa a todos los demás de una (a partir de ahí es orden de llegada real: gana
  * el que reserve primero). Reservar (por cualquier vía) saca al socio de la lista de esa clase;
  * si no llega a tiempo, se queda anotado para la PRÓXIMA cancelación de esa misma clase.
@@ -45,7 +45,6 @@ public class WaitlistService {
 
     private static final Logger log = LoggerFactory.getLogger(WaitlistService.class);
     private static final ZoneId GYM_ZONE = ZoneId.of("America/Santiago");
-    private static final long HEAD_START_MINUTES = 10;
 
     private final ClassWaitlistRepository waitlistRepository;
     private final GymBlockRepository gymBlockRepository;
@@ -127,6 +126,13 @@ public class WaitlistService {
             return;
         }
 
+        // Ventaja 0 = el admin quiere avisar a TODA la lista al mismo tiempo (sin cabeza de lista).
+        if (gym.getWaitlistHeadStartMinutes() == 0) {
+            for (ClassWaitlistEntry entry : unnotified) {
+                notifyEntry(entry, gym, block, false);
+            }
+            return;
+        }
         for (int i = 0; i < Math.min(openSpots, unnotified.size()); i++) {
             notifyEntry(unnotified.get(i), gym, block, true);
         }
@@ -143,35 +149,52 @@ public class WaitlistService {
         if (upcoming.isEmpty()) {
             return;
         }
-        Instant cutoff = Instant.now().minus(HEAD_START_MINUTES, ChronoUnit.MINUTES);
+        Instant now = Instant.now();
 
         Map<String, List<ClassWaitlistEntry>> byOccurrence =
                 upcoming.stream().collect(Collectors.groupingBy(e -> e.getGymBlockId() + "|" + e.getClassDate()));
 
+        // Bloques y gyms en 2 consultas en lote (antes, 2 consultas por cada ocurrencia con gente
+        // sin avisar, CADA minuto) — mismo criterio anti-N+1 del resto del servicio.
+        Map<Long, GymBlock> blocksById = gymBlockRepository
+                .findAllById(byOccurrence.values().stream().map(g -> g.get(0).getGymBlockId()).distinct().toList())
+                .stream()
+                .collect(Collectors.toMap(GymBlock::getId, b -> b));
+        Map<Long, Gym> gymsById = gymRepository
+                .findAllById(blocksById.values().stream().map(GymBlock::getGymId).distinct().toList())
+                .stream()
+                .collect(Collectors.toMap(Gym::getId, g -> g));
+
         int escalated = 0;
         for (List<ClassWaitlistEntry> group : byOccurrence.values()) {
-            boolean headStartExpired =
-                    group.stream().anyMatch(e -> e.getNotifiedAt() != null && e.getNotifiedAt().isBefore(cutoff));
             List<ClassWaitlistEntry> unnotified =
                     group.stream().filter(e -> e.getNotifiedAt() == null).toList();
-            if (!headStartExpired || unnotified.isEmpty()) {
+            if (unnotified.isEmpty()) {
                 continue;
             }
 
             Long gymBlockId = group.get(0).getGymBlockId();
             LocalDate classDate = group.get(0).getClassDate();
-            GymBlock block = gymBlockRepository.findById(gymBlockId).orElse(null);
+            GymBlock block = blocksById.get(gymBlockId);
             if (block == null) {
+                continue;
+            }
+            Gym gym = gymsById.get(block.getGymId());
+            if (gym == null) {
+                continue;
+            }
+            // La ventaja es POR GYM (antes una constante global de 10 min): cada ocurrencia se
+            // compara contra los minutos de su propio gimnasio.
+            Instant cutoff = now.minus(gym.getWaitlistHeadStartMinutes(), ChronoUnit.MINUTES);
+            boolean headStartExpired =
+                    group.stream().anyMatch(e -> e.getNotifiedAt() != null && e.getNotifiedAt().isBefore(cutoff));
+            if (!headStartExpired) {
                 continue;
             }
             int taken = reservationRepository.countByGymBlockIdAndClassDateAndStatus(
                     gymBlockId, classDate, ReservationStatus.BOOKED);
             if (taken >= block.getCapacity()) {
                 continue; // el cupo ya no está — nadie más a quien avisarle por esta vuelta.
-            }
-            Gym gym = gymRepository.findById(block.getGymId()).orElse(null);
-            if (gym == null) {
-                continue;
             }
             for (ClassWaitlistEntry entry : unnotified) {
                 notifyEntry(entry, gym, block, false);
@@ -192,7 +215,8 @@ public class WaitlistService {
         entry.setNotifiedAt(Instant.now());
         waitlistRepository.save(entry);
         if (headStart) {
-            emailService.sendWaitlistHeadStart(gym, member, block, entry.getClassDate(), HEAD_START_MINUTES);
+            emailService.sendWaitlistHeadStart(
+                    gym, member, block, entry.getClassDate(), gym.getWaitlistHeadStartMinutes());
         } else {
             emailService.sendWaitlistSpotOpen(gym, member, block, entry.getClassDate());
         }

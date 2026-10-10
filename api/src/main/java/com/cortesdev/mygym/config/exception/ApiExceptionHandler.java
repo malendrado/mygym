@@ -2,6 +2,7 @@ package com.cortesdev.mygym.config.exception;
 
 import com.cortesdev.mygym.services.exception.AdminNotFoundException;
 import com.cortesdev.mygym.services.exception.AlreadyCheckedInException;
+import com.cortesdev.mygym.services.exception.AttendeesHiddenException;
 import com.cortesdev.mygym.services.exception.BookingWindowClosedException;
 import com.cortesdev.mygym.services.exception.BrandingSuggestionException;
 import com.cortesdev.mygym.services.exception.CapacityExceededException;
@@ -332,6 +333,14 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
         problem.setTitle("Administrador no encontrado");
         problem.setProperty("timestamp", Instant.now());
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problem);
+    }
+
+    @ExceptionHandler(AttendeesHiddenException.class)
+    public ResponseEntity<ProblemDetail> handleAttendeesHidden(AttendeesHiddenException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, ex.getMessage());
+        problem.setTitle("Lista de asistentes no disponible");
+        problem.setProperty("timestamp", Instant.now());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(problem);
     }
 
     @ExceptionHandler(ForbiddenGymAccessException.class)

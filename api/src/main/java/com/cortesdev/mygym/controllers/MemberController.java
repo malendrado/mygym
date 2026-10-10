@@ -77,7 +77,8 @@ public class MemberController {
     @PostMapping("/{memberId}/mark-paid")
     public ResponseEntity<Void> markPaid(
             @AuthenticationPrincipal Jwt jwt, @PathVariable Long memberId, @Valid @RequestBody MarkPaidRequest request) {
-        gymService.simulatePlanPayment(AuthenticatedUser.from(jwt).gymId(), memberId, request.planId());
+        AuthenticatedUser user = AuthenticatedUser.from(jwt);
+        gymService.simulatePlanPayment(user.gymId(), memberId, request.planId(), request.bank().trim(), user.userId());
         return ResponseEntity.noContent().build();
     }
 

@@ -992,3 +992,50 @@ ion-segment-button.segment-button-checked {
     font-size: 18px;
   }
 }
+
+// Tarjeta "Comparte el link de alta" — mismo diseño que la de gym-admin (General).
+.share-link-card {
+  border: 1px solid var(--brand-ink-surface-2);
+  border-radius: 14px;
+  padding: 0.9rem 1rem;
+  background: var(--brand-ink-surface-2);
+  margin-bottom: 1rem;
+}
+
+.share-link-card__title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0.3rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+
+  ion-icon {
+    color: var(--brand-accent);
+    font-size: 1.1rem;
+  }
+}
+
+.share-link-card__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+  flex-wrap: wrap;
+
+  code {
+    font-family: var(--brand-font-mono);
+    font-size: 0.85rem;
+    color: var(--brand-text);
+    background: var(--brand-ink-surface);
+    padding: 0.35rem 0.6rem;
+    border-radius: 8px;
+    overflow-wrap: anywhere;
+  }
+
+  ion-button {
+    margin: 0;
+    flex-shrink: 0;
+  }
+}

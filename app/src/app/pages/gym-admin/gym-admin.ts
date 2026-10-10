@@ -77,7 +77,7 @@ import {
   trashOutline,
   tvOutline,
 } from 'ionicons/icons';
-import { QuantityStepper } from '../../core/components/quantity-stepper/quantity-stepper';
+import { BookingRulesCard } from '../../core/components/booking-rules-card/booking-rules-card';
 import { firstValueFrom } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
 import { GymService } from '../../core/services/gym.service';
@@ -92,6 +92,7 @@ import {
   Admin,
   BANK_ACCOUNT_TYPES,
   BankTransferUpdateRequest,
+  BookingRulesRequest,
   BlockOccurrenceAttendees,
   CHILE_BANKS,
   CreateAdminRequest,
@@ -260,7 +261,7 @@ const SECTION_LABELS: Record<Section, string> = {
   blocks: 'Horarios',
   plans: 'Planes',
   members: 'Socios',
-  branding: 'Marca',
+  branding: 'Mi marca',
   screens: 'Pantallas',
   history: 'Historial',
   closures: 'Cierres',
@@ -419,7 +420,7 @@ const THEMED_ROOT_PROPERTIES = [
     ImportMembersModal,
     PaginationBar,
     WorkoutPlanModal,
-    QuantityStepper,
+    BookingRulesCard,
     IonSpinner,
     TourOverlay,
   ],
@@ -722,12 +723,12 @@ export class GymAdmin implements OnDestroy {
     description: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(600)] }),
     instagramUrl: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(200)] }),
     whatsappNumber: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(30)] }),
-    cancellationWindowHours: new FormControl(2, {
-      nonNullable: true,
-      validators: [Validators.required, Validators.min(1), Validators.max(72)],
-    }),
   });
   protected readonly identitySaving = signal(false);
+
+  // Pestaña Horarios → tarjeta "Reglas de reserva" (componente compartido con el super-admin).
+  protected readonly bookingRules = signal<BookingRulesRequest | null>(null);
+  protected readonly bookingRulesSaving = signal(false);
 
   protected readonly chileBanks = CHILE_BANKS;
   protected readonly bankAccountTypes = BANK_ACCOUNT_TYPES;
@@ -987,7 +988,7 @@ export class GymAdmin implements OnDestroy {
     },
     branding: {
       tour: 'A_BRANDING',
-      label: 'Marca',
+      label: 'Mi marca',
       steps: [
         {
           title: 'Sube tu logo',
@@ -1467,7 +1468,6 @@ export class GymAdmin implements OnDestroy {
         description: raw.description || null,
         instagramUrl: raw.instagramUrl || null,
         whatsappNumber: raw.whatsappNumber || null,
-        cancellationWindowHours: raw.cancellationWindowHours,
       })
       .subscribe({
         next: () => {
@@ -1479,6 +1479,21 @@ export class GymAdmin implements OnDestroy {
           this.handleWriteError(() => this.showToast('No pudimos guardar los cambios. Intenta nuevamente.', 'danger'));
         },
       });
+  }
+
+  protected saveBookingRules(rules: BookingRulesRequest): void {
+    this.bookingRulesSaving.set(true);
+    this.gymService.updateMyBookingRules(rules).subscribe({
+      next: () => {
+        this.bookingRulesSaving.set(false);
+        this.bookingRules.set(rules);
+        this.showToast('Reglas de reserva guardadas.');
+      },
+      error: () => {
+        this.bookingRulesSaving.set(false);
+        this.handleWriteError(() => this.showToast('No pudimos guardar las reglas. Intenta nuevamente.', 'danger'));
+      },
+    });
   }
 
   protected saveBankTransfer(): void {
@@ -1913,13 +1928,13 @@ export class GymAdmin implements OnDestroy {
     this.markPaidMember.set(null);
   }
 
-  protected confirmMarkPaid(planId: number): void {
+  protected confirmMarkPaid({ planId, bank }: { planId: number; bank: string }): void {
     const member = this.markPaidMember();
     if (!member) {
       return;
     }
     this.markingPaidId.set(member.id);
-    this.memberService.markPaid(member.id, { planId }).subscribe({
+    this.memberService.markPaid(member.id, { planId, bank }).subscribe({
       next: () => {
         this.markingPaidId.set(null);
         this.markPaidMember.set(null);
@@ -2233,7 +2248,12 @@ export class GymAdmin implements OnDestroy {
           description: gym.description ?? '',
           instagramUrl: gym.instagramUrl ?? '',
           whatsappNumber: gym.whatsappNumber ?? '',
-          cancellationWindowHours: gym.cancellationWindowHours,
+        });
+        this.bookingRules.set({
+          bookingWindowMinutes: gym.bookingWindowMinutes,
+          cancellationWindowMinutes: gym.cancellationWindowMinutes,
+          waitlistHeadStartMinutes: gym.waitlistHeadStartMinutes,
+          showAttendeesToMembers: gym.showAttendeesToMembers,
         });
         const knownBank = gym.bankName && (this.chileBanks as readonly string[]).includes(gym.bankName);
         this.bankTransferForm.patchValue({

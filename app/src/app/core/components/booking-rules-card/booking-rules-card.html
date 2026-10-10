@@ -1,0 +1,73 @@
+<ion-card data-tour="booking-rules">
+  <ion-card-header>
+    <ion-card-title>
+      <ion-icon name="timer-outline" aria-hidden="true"></ion-icon>
+      Reglas de reserva
+    </ion-card-title>
+  </ion-card-header>
+  <ion-card-content>
+    <p class="item-hint">
+      Dos límites distintos, cada uno en minutos antes del inicio de la clase. Reservar tarde llena los cupos de
+      última hora; cancelar tarde deja cupos vacíos que nadie alcanza a tomar.
+    </p>
+
+    <form [formGroup]="form" (ngSubmit)="submit()">
+      <div class="rule-block">
+        <app-quantity-stepper
+          label="Límite para reservar (minutos antes del inicio) *"
+          formControlName="bookingWindowMinutes"
+          [min]="0"
+          [max]="maxMinutes"
+          [step]="5"
+        />
+        <p class="rule-block__help">
+          Hasta cuántos minutos antes de que empiece la clase se puede <strong>reservar</strong>. Ej.: 30 = para una
+          clase de las 10:00, las reservas se cierran a las 9:30. Hoy: {{ label(form.controls.bookingWindowMinutes.value) }}.
+        </p>
+      </div>
+
+      <div class="rule-block">
+        <app-quantity-stepper
+          label="Límite para cancelar (minutos antes del inicio) *"
+          formControlName="cancellationWindowMinutes"
+          [min]="0"
+          [max]="maxMinutes"
+          [step]="5"
+        />
+        <p class="rule-block__help">
+          Hasta cuántos minutos antes se puede <strong>cancelar</strong> sin que la clase cuente como usada. Ej.: 120 =
+          se puede cancelar hasta las 8:00 para una clase de las 10:00. Hoy:
+          {{ label(form.controls.cancellationWindowMinutes.value) }}.
+        </p>
+      </div>
+
+      <div class="rule-block">
+        <app-quantity-stepper
+          label="Ventaja del primero en la lista de espera (minutos) *"
+          formControlName="waitlistHeadStartMinutes"
+          [min]="0"
+          [max]="maxMinutes"
+          [step]="5"
+        />
+        <p class="rule-block__help">
+          Cuando se libera un cupo en una clase llena, le avisamos primero a quien está primero en la lista de espera y
+          tiene estos minutos de ventaja para reservar. Si no reserva, avisamos a todos los demás. Con 0, avisamos a
+          todos al mismo tiempo. Hoy: {{ label(form.controls.waitlistHeadStartMinutes.value) }}.
+        </p>
+      </div>
+
+      <div class="rule-block">
+        <ion-toggle formControlName="showAttendeesToMembers" justify="space-between">
+          Los socios pueden ver quién va a cada clase
+        </ion-toggle>
+        <p class="rule-block__help">
+          Si lo apagas, tus socios no verán la lista de asistentes en la app. La pantalla de TV del gimnasio no cambia.
+        </p>
+      </div>
+
+      <ion-button type="submit" [disabled]="form.invalid || isSaving() || !loaded()" class="ion-margin-top">
+        {{ isSaving() ? 'Guardando...' : 'Guardar reglas de reserva' }}
+      </ion-button>
+    </form>
+  </ion-card-content>
+</ion-card>

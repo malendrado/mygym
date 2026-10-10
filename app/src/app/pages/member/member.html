@@ -358,7 +358,7 @@
                   }
                 }
                 <p class="class-tile__capacity">{{ occurrence.taken }}/{{ occurrence.capacity }} cupos</p>
-                @if (occurrence.taken > 0) {
+                @if (occurrence.taken > 0 && gym()?.showAttendeesToMembers !== false) {
                   <button
                     type="button"
                     class="class-tile__attendees-toggle"
@@ -419,7 +419,7 @@
                         </ion-button>
                       } @else {
                         <span class="class-tile__note class-tile__note--hint">
-                          Ya no se puede cancelar (hasta {{ gym()?.cancellationWindowHours }} h antes)
+                          Ya no se puede cancelar (hasta {{ minutesLabel(gym()?.cancellationWindowMinutes) }} antes)
                         </span>
                       }
                     }
@@ -475,7 +475,7 @@
                     </ion-button>
                     @if (!occurrence.bookable) {
                       <span class="class-tile__note class-tile__note--hint">
-                        Se puede reservar hasta {{ gym()?.cancellationWindowHours }} h antes del inicio
+                        Se puede reservar hasta {{ minutesLabel(gym()?.bookingWindowMinutes) }} antes del inicio
                       </span>
                     }
                   }
@@ -648,7 +648,7 @@
                 </ion-button>
               } @else {
                 <span class="class-tile__note class-tile__note--hint">
-                  Ya no se puede cancelar (hasta {{ gym()?.cancellationWindowHours }} h antes)
+                  Ya no se puede cancelar (hasta {{ minutesLabel(gym()?.cancellationWindowMinutes) }} antes)
                 </span>
               }
             </div>
