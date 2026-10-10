@@ -23,14 +23,15 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * Cron diario que avisa a un socio cuando le quedan 2 días de membresía — antes esto lo
+ * Cron diario que avisa a un socio cuando le quedan 3 días de membresía — antes esto lo
  * disparaba el propio cliente al notar el vencimiento en su pantalla (member.ts), lo que
  * significaba que si el socio no abría la app, nadie se enteraba. Con pago manual mes a mes
  * (sin cobro automático, ver FlowPaymentService) este aviso es lo único que le recuerda pagar
  * de nuevo antes de quedarse sin poder reservar.
  *
- * Pedido explícito del usuario: avisar "desde que le queden 2 días" — se manda una vez por día
- * mientras falten 2 o 1 días (dos avisos como máximo, uno por día, nunca antes de esa ventana).
+ * Pedido explícito del usuario (2026-10-10, antes eran 2 días): avisar "desde que le queden 3
+ * días" — se manda una vez por día mientras falten 3, 2 o 1 días (tres avisos como máximo, uno por
+ * día, nunca antes de esa ventana; coincide con el umbral de "Por vencer" de MemberService).
  * El aviso de "ya venció" se dispara aparte, una sola vez, el día que se cumple.
  */
 @Component
@@ -39,7 +40,7 @@ public class MembershipReminderJob {
 
     private static final Logger log = LoggerFactory.getLogger(MembershipReminderJob.class);
     private static final ZoneId GYM_ZONE = ZoneId.of("America/Santiago");
-    private static final long REMINDER_DAYS_BEFORE = 2;
+    private static final long REMINDER_DAYS_BEFORE = 3;
 
     private final AppUserRepository appUserRepository;
     private final MemberService memberService;

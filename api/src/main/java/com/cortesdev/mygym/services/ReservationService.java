@@ -3,6 +3,7 @@ package com.cortesdev.mygym.services;
 import com.cortesdev.mygym.models.AppUser;
 import com.cortesdev.mygym.models.Gym;
 import com.cortesdev.mygym.models.GymBlock;
+import com.cortesdev.mygym.models.GymPlan;
 import com.cortesdev.mygym.models.Reservation;
 import com.cortesdev.mygym.models.ReservationStatus;
 import com.cortesdev.mygym.models.Role;
@@ -16,6 +17,7 @@ import com.cortesdev.mygym.models.dto.ReservationCreateRequest;
 import com.cortesdev.mygym.models.dto.ReservationResponse;
 import com.cortesdev.mygym.repositories.AppUserRepository;
 import com.cortesdev.mygym.repositories.GymBlockRepository;
+import com.cortesdev.mygym.repositories.GymPlanRepository;
 import com.cortesdev.mygym.repositories.GymRepository;
 import com.cortesdev.mygym.repositories.ReservationRepository;
 import com.cortesdev.mygym.repositories.TvCheckinCodeRepository;
@@ -38,15 +40,19 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -60,6 +66,9 @@ import org.springframework.transaction.annotation.Transactional;
 public class ReservationService {
 
     private static final ZoneId GYM_ZONE = ZoneId.of("America/Santiago");
+    private static final Logger log = LoggerFactory.getLogger(ReservationService.class);
+    private static final DateTimeFormatter EXHAUSTED_DATE_FORMAT =
+            DateTimeFormatter.ofPattern("d 'de' MMMM", new Locale("es", "CL"));
 
     // Tope duro de página: aunque el cliente pida size=10000, nunca se devuelve más que esto.
     private static final int MAX_PAGE_SIZE = 50;
@@ -89,6 +98,8 @@ public class ReservationService {
     private final TvCheckinCodeRepository checkinCodeRepository;
     private final WaitlistService waitlistService;
     private final GymClosureService gymClosureService;
+    private final GymPlanRepository gymPlanRepository;
+    private final MemberLifecycleEmailService memberLifecycleEmailService;
 
     @Transactional(readOnly = true)
     public List<GymBlockOccurrenceResponse> listOccurrences(Long gymId, Long memberId, LocalDate from, LocalDate to) {
@@ -332,10 +343,32 @@ public class ReservationService {
                 .status(ReservationStatus.BOOKED)
                 .build();
         ReservationResponse response = toResponse(reservationRepository.save(reservation), block);
+        notifyIfClassesExhausted(gymId, member);
         // Si venía de la lista de espera (o simplemente estaba anotado y consiguió cupo por su
         // cuenta), ya no tiene sentido que siga esperando esta misma clase.
         waitlistService.clearOnBooked(block.getId(), request.classDate(), memberId);
         return response;
+    }
+
+    // Si la reserva recién guardada usó la ÚLTIMA clase del período, le llega un email "usaste todas
+    // tus clases" (la app muestra su propio aviso al abrir /member). Best-effort: el envío nunca
+    // tumba la reserva (MemberLifecycleEmailService.send ya traga sus errores; esto cubre el resto).
+    void notifyIfClassesExhausted(Long gymId, AppUser member) {
+        try {
+            Integer remaining = memberService.remainingClasses(member);
+            if (remaining == null || remaining > 0) {
+                return;
+            }
+            GymPlan plan = gymPlanRepository.findById(member.getPlanId()).orElse(null);
+            Gym gym = gymRepository.findById(gymId).orElse(null);
+            if (plan == null || gym == null) {
+                return;
+            }
+            String validUntil = EXHAUSTED_DATE_FORMAT.format(memberService.periodEnd(member).toLocalDate());
+            memberLifecycleEmailService.sendClassesExhaustedMember(gym, member, plan, validUntil);
+        } catch (RuntimeException e) {
+            log.warn("No se pudo avisar clases agotadas al socio {}: {}", member.getId(), e.getMessage());
+        }
     }
 
     public void cancel(Long memberId, Long reservationId) {

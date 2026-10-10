@@ -349,6 +349,29 @@ public class MemberLifecycleEmailService {
                         + " está por vencer.");
     }
 
+    // Aviso inmediato (lo dispara ReservationService.book cuando la reserva recién hecha usa la
+    // ÚLTIMA clase del período) — pedido del usuario 2026-10-10. Solo planes con tope mensual: un
+    // plan libre nunca llega acá. No es un aviso de vencimiento del plan: el plan puede seguir vigente.
+    public void sendClassesExhaustedMember(Gym gym, AppUser member, GymPlan plan, String validUntil) {
+        String headline = "Usaste todas tus clases";
+        String body = "<p style=\"margin:0 0 12px;\">Ya reservaste las <strong style=\"color:#eaf6f7;\">"
+                + plan.getMonthlyClasses() + " clases</strong> de tu plan <strong style=\"color:#eaf6f7;\">"
+                + escapeHtml(plan.getName()) + "</strong> de este período — no podrás reservar más hasta que renueves.</p>"
+                + "<p style=\"margin:0;\">Tu plan sigue vigente hasta el " + escapeHtml(validUntil)
+                + ". Si cancelas una reserva a tiempo, esa clase se libera y puedes usarla en otra.</p>";
+        send(
+                gym,
+                member.getEmail(),
+                "Usaste todas tus clases en " + gym.getName(),
+                "Clases agotadas",
+                headline,
+                body,
+                "Ver mi plan",
+                LOGIN_URL,
+                "Recibiste este correo porque usaste todas las clases de tu plan " + escapeHtml(plan.getName()) + " en "
+                        + escapeHtml(gym.getName()) + ".");
+    }
+
     public void sendMembershipExpiredMember(Gym gym, AppUser member, GymPlan plan) {
         String headline = "Tu membresía venció";
         String body = "<p style=\"margin:0 0 12px;\">Tu plan <strong style=\"color:#eaf6f7;\">" + escapeHtml(plan.getName())

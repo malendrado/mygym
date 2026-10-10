@@ -77,6 +77,7 @@ import {
   trashOutline,
   tvOutline,
 } from 'ionicons/icons';
+import { InstallGuide } from '../../core/components/install-guide/install-guide';
 import { BookingRulesCard } from '../../core/components/booking-rules-card/booking-rules-card';
 import { firstValueFrom } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
@@ -423,6 +424,7 @@ const THEMED_ROOT_PROPERTIES = [
     PaginationBar,
     WorkoutPlanModal,
     BookingRulesCard,
+    InstallGuide,
     IonSpinner,
     TourOverlay,
   ],
@@ -887,6 +889,21 @@ export class GymAdmin implements OnDestroy {
       label: 'Horarios',
       steps: [
         {
+          title: 'Define cuándo se puede reservar y cancelar',
+          body: 'Son dos límites distintos, en minutos antes de la clase: hasta cuándo se puede reservar y hasta cuándo se puede cancelar sin que la clase cuente como usada. Cada gimnasio pone los suyos.',
+          targetSelector: '[data-tour="booking-limits"]',
+        },
+        {
+          title: 'Lista de espera con ventaja',
+          body: 'Cuando se libera un cupo en una clase llena, el primero de la lista tiene unos minutos de ventaja para reservar antes de avisar al resto. Tú eliges cuántos.',
+          targetSelector: '[data-tour="booking-waitlist"]',
+        },
+        {
+          title: 'Privacidad de los asistentes',
+          body: 'Decide si tus socios pueden ver quién va a cada clase. Si lo apagas, la lista desaparece de su app; la pantalla de TV del gimnasio no cambia.',
+          targetSelector: '[data-tour="booking-attendees"]',
+        },
+        {
           title: 'Crea tus clases',
           body: 'Cada bloque es una clase recurrente: día, horario y cupo.',
           targetSelector: '[data-tour="blocks-add"]',
@@ -942,7 +959,7 @@ export class GymAdmin implements OnDestroy {
         },
         {
           title: 'Marca un pago en segundos',
-          body: 'Transferencia, efectivo o Flow — confirmas el pago de un socio sin pago con un clic, y pasa a "Activo" al instante.',
+          body: 'Transferencia, efectivo o Flow — confirmas el pago de un socio sin pago con un clic, indicando con qué banco te transfirió (queda guardado para tus informes), y pasa a "Activo" al instante.',
           targetSelector: '[data-tour="members-mark-paid"]',
         },
         {

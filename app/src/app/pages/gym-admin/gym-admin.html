@@ -216,6 +216,8 @@
       </div>
     </div>
 
+    <app-install-guide />
+
     @if (setupPending().length > 0) {
       <div class="setup-checklist">
         <p class="setup-checklist__title">
@@ -724,7 +726,7 @@
                 <p class="plan-card__description">{{ plan.description }}</p>
               }
               <div class="plan-card__meta">
-                <span class="plan-card__price">{{ formatClp(plan.priceClp) }} / mes + IVA</span>
+                <span class="plan-card__price">{{ formatClp(plan.priceClp) }} / mes</span>
                 <ion-badge color="medium">{{ quotaLabel(plan) }}</ion-badge>
                 @if (!plan.active) {
                   <ion-badge color="dark">Inactivo</ion-badge>

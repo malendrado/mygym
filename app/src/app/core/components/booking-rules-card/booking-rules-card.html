@@ -12,6 +12,7 @@
     </p>
 
     <form [formGroup]="form" (ngSubmit)="submit()">
+      <div data-tour="booking-limits">
       <div class="rule-block">
         <app-quantity-stepper
           label="Límite para reservar (minutos antes del inicio) *"
@@ -41,7 +42,9 @@
         </p>
       </div>
 
-      <div class="rule-block">
+      </div>
+
+      <div class="rule-block" data-tour="booking-waitlist">
         <app-quantity-stepper
           label="Ventaja del primero en la lista de espera (minutos) *"
           formControlName="waitlistHeadStartMinutes"
@@ -56,7 +59,7 @@
         </p>
       </div>
 
-      <div class="rule-block">
+      <div class="rule-block" data-tour="booking-attendees">
         <ion-toggle formControlName="showAttendeesToMembers" justify="space-between">
           Los socios pueden ver quién va a cada clase
         </ion-toggle>

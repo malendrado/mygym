@@ -245,14 +245,22 @@ public class MemberService {
     // nunca lo chequeaba. Reusa el mismo criterio de período [paidAt, paidAt+1mes) que
     // membershipStatus/toResponses, nunca lo duplica.
     public boolean hasQuotaAvailable(AppUser user) {
+        Integer remaining = remainingClasses(user);
+        return remaining == null || remaining > 0;
+    }
+
+    /** Clases que le quedan en el período actual; null = sin tope (plan libre, sin plan o sin pago).
+     *  Mismo cálculo que usa hasQuotaAvailable y que el aviso "usaste todas tus clases" de
+     *  ReservationService.book — nunca duplicarlo. */
+    public Integer remainingClasses(AppUser user) {
         Long planId = user.getPlanId();
         Instant paidAt = user.getPaidAt();
         if (planId == null || paidAt == null) {
-            return true;
+            return null;
         }
         GymPlan plan = gymPlanRepository.findById(planId).orElse(null);
         if (plan == null || plan.getMonthlyClasses() == null) {
-            return true;
+            return null;
         }
         ZonedDateTime start = paidAt.atZone(GYM_ZONE);
         LocalDate periodStart = start.toLocalDate();
@@ -260,7 +268,7 @@ public class MemberService {
         int used = reservationRepository.countByMemberIdAndStatusAndClassDateBetween(
                 user.getId(), ReservationStatus.BOOKED, periodStart, periodEndInclusive);
         int usedAtImport = user.getUsedSessionsAtImport() != null ? user.getUsedSessionsAtImport() : 0;
-        return used + usedAtImport < plan.getMonthlyClasses();
+        return plan.getMonthlyClasses() - (used + usedAtImport);
     }
 
     private String membershipStatus(AppUser user) {

@@ -17,6 +17,7 @@ import {
   IonText,
   IonTitle,
   IonToolbar,
+  AlertController,
   ToastController,
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
@@ -325,6 +326,7 @@ export class MemberPage {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly toastController = inject(ToastController);
+  private readonly alertController = inject(AlertController);
   private readonly destroyRef = inject(DestroyRef);
   private readonly demoPreviewService = inject(DemoPreviewService);
   private readonly tourService = inject(TourService);
@@ -822,6 +824,16 @@ export class MemberPage {
   });
 
   constructor() {
+    // Aviso al abrir /member: plan por vencer (≤3 días), plan vencido o clases agotadas. El email
+    // llega aparte (MembershipReminderJob / ReservationService.book); esto es el mismo mensaje
+    // dentro de la app, para quien no revisa el correo.
+    effect(() => {
+      if (this.membershipLoaded() && !this.membershipAlertChecked) {
+        this.membershipAlertChecked = true;
+        // Fuera del ciclo reactivo: crear el alert toca el DOM de Ionic.
+        setTimeout(() => void this.showMembershipAlert());
+      }
+    });
     this.loadDashboard();
     this.loadPhotos();
     this.loadOccurrences();
@@ -927,7 +939,7 @@ export class MemberPage {
         },
         {
           title: 'Cancela cuando quiera',
-          body: 'Tu socio gestiona sus propias reservas solo, sin llamar al gimnasio.',
+          body: 'Tu socio gestiona sus propias reservas solo, sin llamar al gimnasio. El gimnasio define hasta cuándo se puede cancelar: pasado ese límite el botón se oculta y se le explica por qué.',
           targetSelector: '[data-tour="reservas-cancel"]',
         },
         {
@@ -957,7 +969,7 @@ export class MemberPage {
         },
         {
           title: 'Ve quién más va',
-          body: 'Factor social: tu socio ve a sus compañeros anotados en la misma clase — refuerza que vuelva.',
+          body: 'Factor social: tu socio ve a sus compañeros anotados en la misma clase — refuerza que vuelva. Cada gimnasio decide si mostrarlo.',
           targetSelector: '[data-tour="class-attendees"]',
           // Este paso necesita una clase que ya tenga al menos un anotado (si no, el link "Ver
           // quién va" ni se renderiza) — no alcanza con "reservable a secas" como el paso anterior.
@@ -1661,6 +1673,80 @@ export class MemberPage {
       return `${rest} min`;
     }
     return rest === 0 ? `${hours} h` : `${hours} h ${rest} min`;
+  }
+
+  // ---- Aviso de membresía al abrir la app (plan por vencer / vencido / clases agotadas) ----
+
+  private membershipAlertChecked = false;
+
+  // "2026-02-03" → "3 de febrero"
+  private longDateLabel(iso: string): string {
+    const [y, m, d] = iso.split('-').map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString('es-CL', { day: 'numeric', month: 'long' });
+  }
+
+  private async showMembershipAlert(): Promise<void> {
+    // Nunca en la vista demo del admin ("Ver como socio") ni mientras corre el tour guiado.
+    if (this.isDemoPreview || this.tourService.isOpen()) {
+      return;
+    }
+    const membership = this.membership();
+    const planName = membership.plan?.name;
+    const periodEnd = this.membershipPeriodEnd();
+    const days = this.daysRemaining();
+    if (!planName || !periodEnd || days === null) {
+      return; // sin plan pagado nunca hubo nada que avisar
+    }
+    const expired = this.membershipExpired();
+    const expiring = this.expirySoon();
+    const exhausted = this.quotaExhausted() && !expired;
+
+    let key: string;
+    let header: string;
+    let message: string;
+    let renew = true;
+    if (expired) {
+      key = 'expired';
+      header = 'Tu plan venció';
+      message = `Tu plan ${planName} se cumplió. Mientras no lo renueves no podrás reservar clases nuevas.`;
+    } else if (expiring) {
+      key = 'expiring';
+      header = days === 1 ? 'Tu plan vence mañana' : `Tu plan vence en ${days} días`;
+      message =
+        `Tu plan ${planName} vence el ${this.longDateLabel(periodEnd)}. Renuévalo antes para no quedarte sin poder reservar.` +
+        (exhausted ? ' Además, ya usaste todas tus clases de este período.' : '');
+    } else if (exhausted) {
+      key = 'exhausted';
+      header = 'Usaste todas tus clases';
+      message = `Ya reservaste las clases de tu plan ${planName} de este período. Tu plan sigue vigente hasta el ${this.longDateLabel(periodEnd)}; si cancelas una reserva a tiempo, esa clase se libera.`;
+      renew = false;
+    } else {
+      return;
+    }
+
+    // Una vez por día por situación y período: si lo cierra, no se le insiste hasta mañana.
+    const storageKey = `mygym.alert.${key}.${periodEnd}`;
+    try {
+      if (localStorage.getItem(storageKey) === this.todayIso) {
+        return;
+      }
+      localStorage.setItem(storageKey, this.todayIso);
+    } catch {
+      // Sin almacenamiento (modo privado): se muestra, y vuelve a salir en la próxima apertura.
+    }
+
+    const alert = await this.alertController.create({
+      header,
+      message,
+      cssClass: 'membership-alert',
+      buttons: renew
+        ? [
+            { text: 'Después', role: 'cancel' },
+            { text: 'Renovar plan', role: 'confirm', handler: () => setTimeout(() => this.scrollToPlans(), 150) },
+          ]
+        : [{ text: 'Entendido', role: 'cancel' }],
+    });
+    await alert.present();
   }
 
   protected isReservationLive(reservation: Reservation): boolean {
