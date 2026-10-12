@@ -18,16 +18,20 @@ export interface AttendanceCounts {
 }
 
 /** Fecha y hora de "ahora" en Chile, como textos comparables ("2026-10-12", "19:04"). */
+// Construir un Intl.DateTimeFormat es caro y el Historial llama a santiagoNow decenas de veces por
+// render (cada clase de cada día): se crea una sola vez.
+const SANTIAGO_FORMAT = new Intl.DateTimeFormat('en-CA', {
+  timeZone: SANTIAGO,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+});
+
 export function santiagoNow(now: Date = new Date()): { date: string; time: string } {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: SANTIAGO,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-  }).formatToParts(now);
+  const parts = SANTIAGO_FORMAT.formatToParts(now);
   const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '00';
   return { date: `${get('year')}-${get('month')}-${get('day')}`, time: `${get('hour')}:${get('minute')}` };
 }

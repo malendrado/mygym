@@ -461,6 +461,17 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(problem);
     }
 
+    // Un parámetro con formato inválido (ej. weekday=FOO, una fecha mal escrita) es un 400, no un 500.
+    @ExceptionHandler(org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ProblemDetail> handleArgumentTypeMismatch(
+            org.springframework.web.method.annotation.MethodArgumentTypeMismatchException ex) {
+        ProblemDetail problem =
+                ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "El valor de «" + ex.getName() + "» no es válido.");
+        problem.setTitle("Parámetro inválido");
+        problem.setProperty("timestamp", Instant.now());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
+    }
+
     @ExceptionHandler(InvalidAttendanceException.class)
     public ResponseEntity<ProblemDetail> handleInvalidAttendance(InvalidAttendanceException ex) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
