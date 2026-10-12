@@ -1,6 +1,7 @@
 package com.cortesdev.mygym.models.dto;
 
 import com.cortesdev.mygym.models.AppUser;
+import com.cortesdev.mygym.models.CheckinMethod;
 import java.time.Instant;
 
 /**
@@ -11,4 +12,4 @@ import java.time.Instant;
  * checkedInAt viaja para que la TV pueda marcar quién ya confirmó asistencia (ver
  * TvScreenService.toSummary) — null si todavía no escaneó el QR de la clase.
  */
-public record MemberReservation(AppUser member, Long reservationId, Instant checkedInAt) {}
+public record MemberReservation(AppUser member, Long reservationId, Instant checkedInAt, CheckinMethod checkinMethod) {}

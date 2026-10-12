@@ -1,6 +1,7 @@
 package com.cortesdev.mygym.services;
 
 import com.cortesdev.mygym.models.AppUser;
+import com.cortesdev.mygym.models.CheckinMethod;
 import com.cortesdev.mygym.models.Gym;
 import com.cortesdev.mygym.models.GymBlock;
 import com.cortesdev.mygym.models.GymPlan;
@@ -21,6 +22,7 @@ import com.cortesdev.mygym.repositories.GymPlanRepository;
 import com.cortesdev.mygym.repositories.GymRepository;
 import com.cortesdev.mygym.repositories.ReservationRepository;
 import com.cortesdev.mygym.repositories.TvCheckinCodeRepository;
+import com.cortesdev.mygym.services.exception.InvalidAttendanceException;
 import com.cortesdev.mygym.services.exception.AlreadyCheckedInException;
 import com.cortesdev.mygym.services.exception.AttendeesHiddenException;
 import com.cortesdev.mygym.services.exception.BookingWindowClosedException;
@@ -90,6 +92,9 @@ public class ReservationService {
     // clases simultáneas, ver checkIn) — no hay forma de colarse en una clase que no reservó,
     // esto solo mira las reservas propias del socio.
     private static final Duration CHECKIN_LATE_WINDOW = Duration.ofMinutes(15);
+
+    // Hasta cuántos días después de terminada la clase se puede corregir su asistencia a mano.
+    static final int ATTENDANCE_EDIT_DAYS = 7;
 
     private final GymBlockRepository gymBlockRepository;
     private final ReservationRepository reservationRepository;
@@ -198,7 +203,7 @@ public class ReservationService {
                 .stream()
                 .collect(Collectors.toMap(AppUser::getId, member -> member));
         return reservations.stream()
-                .map(r -> new MemberReservation(membersById.get(r.getMemberId()), r.getId(), r.getCheckedInAt()))
+                .map(r -> new MemberReservation(membersById.get(r.getMemberId()), r.getId(), r.getCheckedInAt(), r.getCheckinMethod()))
                 .filter(mr -> mr.member() != null)
                 .sorted(Comparator.comparing(mr -> mr.member().getName()))
                 .toList();
@@ -288,7 +293,7 @@ public class ReservationService {
                         entry.getKey().gymBlockId(),
                         entry.getKey().classDate(),
                         entry.getValue().stream()
-                                .map(r -> new MemberReservation(membersById.get(r.getMemberId()), r.getId(), r.getCheckedInAt()))
+                                .map(r -> new MemberReservation(membersById.get(r.getMemberId()), r.getId(), r.getCheckedInAt(), r.getCheckinMethod()))
                                 .sorted(Comparator.comparing(mr -> mr.member().getName()))
                                 .toList()))
                 .toList();
@@ -522,12 +527,59 @@ public class ReservationService {
         List<String> classLabels = new ArrayList<>();
         for (Reservation reservation : matches) {
             reservation.setCheckedInAt(now);
+            reservation.setCheckinMethod(CheckinMethod.QR);
             reservationRepository.save(reservation);
             GymBlock block = blocksById.get(reservation.getGymBlockId());
             classLabels.add(block != null ? block.getLabel() : "tu clase");
         }
         return classLabels;
     }
+
+    /**
+     * Marca o desmarca a mano la asistencia (admin, profesor o super-admin). Solo desde que se abre la
+     * ventana del QR hasta ATTENDANCE_EDIT_DAYS después de terminar la clase: así el historial no se
+     * reescribe meses después. El cupo del plan no cambia (ya se descontó al reservar). Idempotente:
+     * marcar dos veces no cambia la hora original. Una reserva de otro gym responde 404.
+     */
+    public AttendeeMark setAttendance(Long gymId, Long reservationId, boolean attended, Long actorUserId) {
+        Reservation reservation = reservationRepository
+                .findById(reservationId)
+                .filter(r -> r.getStatus() == ReservationStatus.BOOKED)
+                .orElseThrow(() -> new ReservationNotFoundException(reservationId));
+        GymBlock block = gymBlockRepository
+                .findById(reservation.getGymBlockId())
+                .filter(b -> b.getGymId().equals(gymId))
+                .orElseThrow(() -> new ReservationNotFoundException(reservationId));
+        if (!isAttendanceEditable(reservation.getClassDate(), block.getStartTime(), block.getEndTime())) {
+            throw new InvalidAttendanceException(
+                    "Solo puedes marcar asistencia desde que empieza la clase y hasta " + ATTENDANCE_EDIT_DAYS + " días después.");
+        }
+        if (attended) {
+            if (reservation.getCheckedInAt() == null) {
+                reservation.setCheckedInAt(Instant.now());
+                reservation.setCheckinMethod(CheckinMethod.MANUAL);
+                reservation.setCheckedInByUserId(actorUserId);
+                reservationRepository.save(reservation);
+            }
+        } else if (reservation.getCheckedInAt() != null) {
+            reservation.setCheckedInAt(null);
+            reservation.setCheckinMethod(null);
+            reservation.setCheckedInByUserId(actorUserId);
+            reservationRepository.save(reservation);
+        }
+        return new AttendeeMark(reservation.getId(), reservation.getCheckedInAt(), reservation.getCheckinMethod());
+    }
+
+    /** Ventana de marcado a mano: desde 10 min antes del inicio hasta ATTENDANCE_EDIT_DAYS días después del fin. */
+    static boolean isAttendanceEditable(LocalDate classDate, LocalTime startTime, LocalTime endTime) {
+        ZonedDateTime now = ZonedDateTime.now(GYM_ZONE);
+        ZonedDateTime opens = ZonedDateTime.of(classDate, startTime, GYM_ZONE).minus(CHECKIN_EARLY_WINDOW);
+        ZonedDateTime closes = ZonedDateTime.of(classDate, endTime, GYM_ZONE).plusDays(ATTENDANCE_EDIT_DAYS);
+        return !now.isBefore(opens) && !now.isAfter(closes);
+    }
+
+    /** Resultado de marcar a mano: lo que el frontend necesita para actualizar su fila. */
+    public record AttendeeMark(Long reservationId, Instant checkedInAt, CheckinMethod checkinMethod) {}
 
     private String occurrenceKey(Long gymBlockId, LocalDate classDate) {
         return gymBlockId + "|" + classDate;

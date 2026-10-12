@@ -1,0 +1,230 @@
+@switch (view().kind) {
+  @case ('list') {
+    <section class="as-view" aria-live="polite">
+      <button type="button" class="as-back" (click)="back()">
+        <ion-icon name="chevron-back-outline" aria-hidden="true"></ion-icon>
+        Volver al resumen
+      </button>
+      <h3 class="as-title">{{ listTitle() }}</h3>
+      <ul class="as-people">
+        @for (m of listItems(); track m.memberId) {
+          <li class="as-person">
+            <button type="button" class="as-person__main" (click)="openMember(m.memberId)">
+              @if (m.photoUrl) {
+                <img [src]="m.photoUrl" alt="" class="as-avatar" loading="lazy" />
+              } @else {
+                <span class="as-avatar as-avatar--placeholder" aria-hidden="true">{{ m.name.charAt(0) }}</span>
+              }
+              <span class="as-person__text">
+                <span class="as-person__name">{{ m.name }}</span>
+                <span class="as-person__sub">
+                  <span class="as-num">{{ m.attended }} de {{ m.booked }}</span>
+                  @if (memberRate(m) !== null) {
+                    <span class="as-rate" [attr.data-tone]="tone(memberRate(m))">({{ memberRate(m) }}%)</span>
+                  }
+                  @if (m.missed > 0) {
+                    · {{ m.missed }} {{ m.missed === 1 ? 'falta' : 'faltas' }}
+                  }
+                </span>
+              </span>
+              <ion-icon name="chevron-forward-outline" aria-hidden="true"></ion-icon>
+            </button>
+            @if (m.missed > 0 && whatsapp(m); as wa) {
+              <a
+                class="as-icon-btn"
+                [href]="wa"
+                target="_blank"
+                rel="noopener noreferrer"
+                [attr.aria-label]="'Escribirle por WhatsApp a ' + m.name"
+              >
+                <ion-icon name="logo-whatsapp" aria-hidden="true"></ion-icon>
+              </a>
+            }
+          </li>
+        } @empty {
+          @if (!listLoading()) {
+            <li class="as-empty">No hay socios para mostrar en este período.</li>
+          }
+        }
+      </ul>
+      @if (listLoading()) {
+        <div class="as-center"><ion-spinner name="crescent"></ion-spinner></div>
+      } @else if (listHasNext()) {
+        <button type="button" class="as-more" (click)="loadMore()">Ver más</button>
+      }
+    </section>
+  }
+  @case ('member') {
+    <section class="as-view" aria-live="polite">
+      <button type="button" class="as-back" (click)="back()">
+        <ion-icon name="chevron-back-outline" aria-hidden="true"></ion-icon>
+        {{ view().kind === 'member' && $any(view()).from ? 'Volver a la lista' : 'Volver al resumen' }}
+      </button>
+      @if (detailLoading()) {
+        <div class="as-center"><ion-spinner name="crescent"></ion-spinner></div>
+      }
+      @if (detail(); as d) {
+        <h3 class="as-title">{{ d.member.name }}</h3>
+        <p class="as-sub">
+          <span class="as-num">{{ detailCounts().attended }} de {{ detailCounts().booked }}</span> clases terminadas
+          @if (detailCounts().rate !== null) {
+            · <span class="as-rate" [attr.data-tone]="tone(detailCounts().rate)">{{ detailCounts().rate }}%</span>
+          }
+        </p>
+        <ul class="as-people">
+          @for (row of d.rows; track row.reservationId) {
+            <li class="as-class-row">
+              <span class="as-class-row__main">
+                <span class="as-person__name">{{ dateLabel(row.classDate) }} · {{ row.startTime.slice(0, 5) }}</span>
+                <span class="as-person__sub">{{ row.blockLabel }}</span>
+              </span>
+              <span
+                class="as-state"
+                [class.as-state--ok]="effectiveAttended(row)"
+                [class.as-state--no]="!effectiveAttended(row) && row.ended"
+              >
+                @if (effectiveAttended(row)) {
+                  <ion-icon name="checkmark-circle-outline" aria-hidden="true"></ion-icon>
+                  Vino · {{ row.checkinMethod ? methodLabel(row) : 'a mano' }}
+                } @else if (row.ended) {
+                  <ion-icon name="close-circle-outline" aria-hidden="true"></ion-icon>
+                  No vino
+                } @else {
+                  Sin terminar
+                }
+              </span>
+              @if (row.editable) {
+                <button type="button" class="as-toggle" (click)="toggle(row)">
+                  {{ effectiveAttended(row) ? 'Marcar que no vino' : 'Marcar que vino' }}
+                </button>
+              }
+            </li>
+          } @empty {
+            <li class="as-empty">Este socio no tiene reservas en el período.</li>
+          }
+        </ul>
+        <p class="as-hint">Solo se pueden corregir las clases de los últimos 7 días.</p>
+      }
+    </section>
+  }
+  @default {
+    @if (loading() && !summary()) {
+      <div class="as-center"><ion-spinner name="crescent"></ion-spinner></div>
+    } @else if (loadFailed()) {
+      <p class="as-empty">
+        No pudimos cargar el resumen.
+        <button type="button" class="as-link" (click)="retry()">Reintentar</button>
+      </p>
+    } @else if (summary(); as s) {
+      @if (s.totals.booked === 0) {
+        <p class="as-empty">Todavía no hay clases terminadas con reservas en este período.</p>
+      } @else {
+        <div class="as-figures">
+          <button type="button" class="as-figure" (click)="openList({ title: 'Socios que reservaron' })">
+            <span class="as-figure__value">{{ s.totals.booked }}</span>
+            <span class="as-figure__label">Reservaron</span>
+          </button>
+          <button type="button" class="as-figure" (click)="openList({ title: 'Socios que vinieron' })">
+            <span class="as-figure__value">{{ s.totals.attended }}</span>
+            <span class="as-figure__label">Vinieron</span>
+          </button>
+          <button
+            type="button"
+            class="as-figure"
+            [disabled]="s.totals.missed === 0"
+            (click)="openList({ title: 'Socios que no vinieron', onlyMissed: true })"
+          >
+            <span class="as-figure__value">{{ s.totals.missed }}</span>
+            <span class="as-figure__label">No vinieron</span>
+          </button>
+          <div class="as-figure as-figure--static" [attr.data-tone]="rateTone()">
+            <span class="as-figure__value as-rate">{{ rate() }}%</span>
+            <span class="as-figure__label">Asistencia</span>
+            @if (variation(); as v) {
+              <span class="as-figure__variation">{{ v }}</span>
+            }
+          </div>
+        </div>
+        @if (isHalfWay()) {
+          <p class="as-hint">Hasta hoy: solo cuentan las clases que ya terminaron.</p>
+        }
+
+        <h3 class="as-heading">Por clase <span class="as-heading__hint">de peor a mejor asistencia</span></h3>
+        <ul class="as-people">
+          @for (c of s.byClass; track c.blockId) {
+            <li>
+              <button type="button" class="as-class" (click)="openClass(c)">
+                <span class="as-class__title">{{ classTitle(c) }}</span>
+                <span class="as-mini" [attr.data-tone]="tone(classRate(c))" aria-hidden="true">
+                  <span class="as-mini__fill" [style.transform]="'scaleX(' + (classRate(c) ?? 0) / 100 + ')'"></span>
+                </span>
+                <span class="as-num as-class__count">{{ c.attended }} / {{ c.booked }}</span>
+                <span class="as-rate as-class__rate" [attr.data-tone]="tone(classRate(c))">{{ classRate(c) }}%</span>
+                <ion-icon name="chevron-forward-outline" aria-hidden="true"></ion-icon>
+              </button>
+            </li>
+          }
+        </ul>
+
+        <h3 class="as-heading">Por día de la semana</h3>
+        <div class="as-days">
+          @for (d of weekdayBars(); track d.weekday) {
+            <button
+              type="button"
+              class="as-day"
+              [disabled]="d.booked === 0"
+              [attr.aria-label]="d.booked === 0 ? weekdayShort(d) + ': sin clases terminadas' : weekdayShort(d) + ': ' + d.rate + '% de asistencia. Ver socios'"
+              (click)="openWeekday(d)"
+            >
+              <span class="as-rate as-day__pct" [attr.data-tone]="tone(d.rate)">{{ d.rate === null ? '–' : d.rate + '%' }}</span>
+              <span class="as-day__track" [attr.data-tone]="tone(d.rate)" aria-hidden="true">
+                <span class="as-day__fill" [style.transform]="'scaleY(' + (d.rate ?? 0) / 100 + ')'"></span>
+              </span>
+              <span class="as-day__label">{{ weekdayShort(d) }}</span>
+            </button>
+          }
+        </div>
+
+        <h3 class="as-heading">Los que más faltan</h3>
+        <p class="as-hint">Socios con 3 o más reservas en el período. Toca uno para ver su detalle.</p>
+        <ul class="as-people">
+          @for (m of s.topAbsentees; track m.memberId) {
+            <li class="as-person">
+              <button type="button" class="as-person__main" (click)="openMember(m.memberId)">
+                @if (m.photoUrl) {
+                  <img [src]="m.photoUrl" alt="" class="as-avatar" loading="lazy" />
+                } @else {
+                  <span class="as-avatar as-avatar--placeholder" aria-hidden="true">{{ m.name.charAt(0) }}</span>
+                }
+                <span class="as-person__text">
+                  <span class="as-person__name">{{ m.name }}</span>
+                  <span class="as-person__sub">
+                    <span class="as-num">{{ m.missed }} {{ m.missed === 1 ? 'falta' : 'faltas' }} de {{ m.booked }} reservas</span>
+                    <span class="as-rate" [attr.data-tone]="tone(memberRate(m))">({{ memberRate(m) }}%)</span>
+                    @if (m.lastMissedDate) {
+                      · última: {{ dateLabel(m.lastMissedDate) }}
+                    }
+                  </span>
+                </span>
+                <ion-icon name="chevron-forward-outline" aria-hidden="true"></ion-icon>
+              </button>
+              @if (whatsapp(m); as wa) {
+                <a
+                  class="as-icon-btn"
+                  [href]="wa"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  [attr.aria-label]="'Escribirle por WhatsApp a ' + m.name"
+                >
+                  <ion-icon name="logo-whatsapp" aria-hidden="true"></ion-icon>
+                </a>
+              }
+            </li>
+          } @empty {
+            <li class="as-empty">Nadie faltó de forma repetida en este período.</li>
+          }
+        </ul>
+      }
+    }
+  }
+}

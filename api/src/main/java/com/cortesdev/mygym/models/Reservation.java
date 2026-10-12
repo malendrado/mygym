@@ -43,6 +43,13 @@ public class Reservation {
     // sigue null), no es un status aparte — ver ReservationService.checkIn.
     private Instant checkedInAt;
 
+    /** Cómo se marcó la asistencia: QR de la TV o a mano por un admin/profesor. Null = sin marcar. */
+    @Enumerated(EnumType.STRING)
+    private CheckinMethod checkinMethod;
+
+    /** Quién marcó o desmarcó a mano (null cuando fue por QR). Solo registro, sin FK. */
+    private Long checkedInByUserId;
+
     /** Null = cancelada por el socio o por el admin a mano. No-null = cancelada por un cierre de
      *  emergencia (ver GymClosureService) — permite saber el motivo real de la cancelación. */
     private Long cancelledByClosureId;

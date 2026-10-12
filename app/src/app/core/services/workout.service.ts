@@ -15,17 +15,28 @@ export class WorkoutService {
   private readonly http = inject(HttpClient);
   private readonly adminBase = `${environment.apiUrl}/api/gym-admin/members`;
   private readonly meBase = `${environment.apiUrl}/api/me/workout`;
+  private readonly gymsBase = `${environment.apiUrl}/api/gyms`;
+
+  // Sin gymId: el gym sale del JWT (admin/profesor). Con gymId: super-admin, gymId por path.
+  private memberBase(memberId: number, gymId: number | null): string {
+    return gymId === null ? `${this.adminBase}/${memberId}/workout` : `${this.gymsBase}/${gymId}/members/${memberId}/workout`;
+  }
 
   // ---- Lado profesor/gym-admin ----
 
-  getActivePlan(memberId: number): Observable<WorkoutPlan | null> {
-    return this.http.get<WorkoutPlan | null>(`${this.adminBase}/${memberId}/workout/plan`);
+  getActivePlan(memberId: number, gymId: number | null = null): Observable<WorkoutPlan | null> {
+    return this.http.get<WorkoutPlan | null>(`${this.memberBase(memberId, gymId)}/plan`);
   }
 
   /** "Redefinir la rutina" manda esto de nuevo — desactiva el plan activo anterior (si había) y
    *  crea uno nuevo, ver WorkoutService.replacePlan en el backend. */
-  replacePlan(memberId: number, payload: CreateWorkoutPlanRequest): Observable<WorkoutPlan> {
-    return this.http.post<WorkoutPlan>(`${this.adminBase}/${memberId}/workout/plan`, payload);
+  replacePlan(memberId: number, payload: CreateWorkoutPlanRequest, gymId: number | null = null): Observable<WorkoutPlan> {
+    return this.http.post<WorkoutPlan>(`${this.memberBase(memberId, gymId)}/plan`, payload);
+  }
+
+  /** Historial de registros del socio (los últimos 30, el más reciente primero). */
+  getLogHistory(memberId: number, gymId: number | null = null): Observable<MemberWorkoutLog[]> {
+    return this.http.get<MemberWorkoutLog[]>(`${this.memberBase(memberId, gymId)}/logs`);
   }
 
   getLatestLog(memberId: number): Observable<MemberWorkoutLog | null> {
@@ -36,6 +47,11 @@ export class WorkoutService {
 
   getPending(): Observable<PendingWorkout> {
     return this.http.get<PendingWorkout>(`${this.meBase}/pending`);
+  }
+
+  /** Mi historial: los últimos 30 registros. */
+  getMyHistory(): Observable<MemberWorkoutLog[]> {
+    return this.http.get<MemberWorkoutLog[]>(`${this.meBase}/history`);
   }
 
   createLog(reservationId: number, payload: SaveWorkoutLogRequest): Observable<MemberWorkoutLog> {

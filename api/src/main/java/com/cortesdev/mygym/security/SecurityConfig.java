@@ -72,7 +72,9 @@ public class SecurityConfig {
                                 "/api/gym-admin/members/*/fixed-classes",
                                 "/api/gym-admin/fixed-classes/**",
                                 // Datos de contacto del socio: el PROFESOR también los edita (2026-10-12).
-                                "/api/gym-admin/members/*/profile")
+                                "/api/gym-admin/members/*/profile",
+                                // Marcar asistencia a mano: el PROFESOR es quien está en la clase (2026-10-12).
+                                "/api/gym-admin/reservations/*/attendance")
                         .hasAnyRole("GYM_ADMIN", "PROFESOR")
                         // El tour guiado de la demo también lo dispara un DEMO_ADMIN (no solo un
                         // GYM_ADMIN real, si este mismo endpoint se reutiliza más adelante como

@@ -1334,3 +1334,20 @@ ion-segment-button.segment-button-checked {
   align-self: flex-start;
   margin: 0 0 0.35rem;
 }
+
+
+// Historial de registros de rutina del propio socio (últimos 30).
+.workout-history__title {
+  margin: 0 0 0.6rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.workout-history__item {
+  padding: 0.7rem 0;
+  border-top: 1px solid var(--brand-ink-surface-2);
+
+  &:first-of-type {
+    border-top: 0;
+  }
+}

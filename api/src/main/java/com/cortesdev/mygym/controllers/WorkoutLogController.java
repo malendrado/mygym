@@ -30,6 +30,12 @@ public class WorkoutLogController {
         return workoutService.getPendingWorkout(AuthenticatedUser.from(jwt).userId());
     }
 
+    /** Historial propio: los últimos 30 registros. */
+    @GetMapping("/history")
+    public java.util.List<MemberWorkoutLogResponse> history(@AuthenticationPrincipal Jwt jwt) {
+        return workoutService.getMyLogHistory(AuthenticatedUser.from(jwt).userId());
+    }
+
     @PostMapping("/logs/{reservationId}")
     public MemberWorkoutLogResponse createLog(
             @AuthenticationPrincipal Jwt jwt,

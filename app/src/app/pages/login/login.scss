@@ -107,6 +107,32 @@
   border: 2px solid var(--brand-accent);
   background: var(--brand-ink-surface);
   box-shadow: 0 0 18px rgba(198, 255, 61, 0.3);
+  // Parpadeo al abrir: el marco existe desde el primer instante, pero el botón real (un iframe de Google)
+  // recién aparece cuando carga su script (~1-2 s). Medido: primero un puntito brillante de 10x10 y
+  // luego un salto a 225x50. Ahora el marco reserva su tamaño final desde el inicio y, mientras no
+  // hay iframe, muestra solo un esqueleto neutro (sin borde de color ni brillo) que se funde al botón.
+  min-width: 225px;
+  min-height: 50px;
+  box-sizing: border-box;
+  position: relative;
+  transition: border-color 0.2s ease-out, box-shadow 0.2s ease-out;
+
+  &:not(:has(iframe)) {
+    border-color: transparent;
+    box-shadow: none;
+
+    &::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--brand-text-dim, #8a9ba8) 14%, transparent);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
 }
 
 .login-loading {

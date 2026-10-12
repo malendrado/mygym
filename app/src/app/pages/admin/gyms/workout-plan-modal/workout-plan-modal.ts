@@ -56,8 +56,9 @@ export class WorkoutPlanModal {
     this._dayTitles.set(value && value.days.length > 0 ? value.days.map((d) => d.title) : ['']);
   }
 
-  @Input() set latestLog(value: MemberWorkoutLog | null) {
-    this._latestLog.set(value);
+  /** Registros del socio, el más reciente primero (máx. 30). */
+  @Input() set history(value: MemberWorkoutLog[]) {
+    this._history.set(value);
   }
 
   @Input() set saving(value: boolean) {
@@ -73,29 +74,21 @@ export class WorkoutPlanModal {
   private readonly _dayTitles = signal<string[]>(['']);
   protected readonly dayTitles = this._dayTitles.asReadonly();
 
-  private readonly _latestLog = signal<MemberWorkoutLog | null>(null);
-  protected readonly latestLogValue = this._latestLog.asReadonly();
+  private readonly _history = signal<MemberWorkoutLog[]>([]);
+  protected readonly historyValue = this._history.asReadonly();
 
   private readonly _saving = signal(false);
   protected readonly isSaving = this._saving.asReadonly();
 
   // Se desvió si escribió texto libre (planDayId null) o si eligió un día distinto al sugerido —
   // en ambos casos el profesor necesita ver "qué pasó realmente" antes de hablar con el socio.
-  protected readonly deviated = computed(() => {
-    const log = this._latestLog();
-    if (!log) {
-      return false;
-    }
+  protected deviated(log: MemberWorkoutLog): boolean {
     return log.planDayId === null || log.planDayId !== log.suggestedPlanDayId;
-  });
+  }
 
-  protected readonly doneLabel = computed(() => {
-    const log = this._latestLog();
-    if (!log) {
-      return '';
-    }
-    return log.planDayId !== null ? log.planDayTitle : log.freeTextLabel;
-  });
+  protected doneLabel(log: MemberWorkoutLog): string {
+    return (log.planDayId !== null ? log.planDayTitle : log.freeTextLabel) ?? '';
+  }
 
   protected readonly canSave = computed(
     () => this._name().trim().length > 0 && this._dayTitles().every((t) => t.trim().length > 0) && !this._saving(),

@@ -38,7 +38,14 @@ import com.cortesdev.mygym.models.dto.MemberCreateRequest;
 import com.cortesdev.mygym.models.dto.MemberReservation;
 import com.cortesdev.mygym.models.dto.MemberResponse;
 import com.cortesdev.mygym.models.dto.MemberSummaryResponse;
+import com.cortesdev.mygym.models.dto.AttendanceSummaryResponse;
+import com.cortesdev.mygym.models.dto.AttendanceUpdateRequest;
+import com.cortesdev.mygym.models.dto.MemberAttendanceDetail;
+import com.cortesdev.mygym.models.dto.MemberAttendanceRow;
+import com.cortesdev.mygym.models.dto.MemberWorkoutLogResponse;
 import com.cortesdev.mygym.models.dto.PageResponse;
+import com.cortesdev.mygym.models.dto.WorkoutPlanCreateRequest;
+import com.cortesdev.mygym.models.dto.WorkoutPlanResponse;
 import com.cortesdev.mygym.models.dto.OccurrenceAttendees;
 import com.cortesdev.mygym.models.dto.FixedClassImportMemberResult;
 import com.cortesdev.mygym.models.dto.FixedClassImportRequest;
@@ -62,10 +69,13 @@ import com.cortesdev.mygym.services.GymDisconnectionService;
 import com.cortesdev.mygym.services.GymService;
 import com.cortesdev.mygym.services.MemberProfileService;
 import com.cortesdev.mygym.services.MemberService;
+import com.cortesdev.mygym.services.AttendanceSummaryService;
 import com.cortesdev.mygym.services.ReservationService;
+import com.cortesdev.mygym.services.WorkoutService;
 import com.cortesdev.mygym.services.TvScreenService;
 import jakarta.validation.Valid;
 import java.net.URI;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -92,12 +102,14 @@ public class GymController {
     private final MemberService memberService;
     private final BrandingSuggestionService brandingSuggestionService;
     private final ReservationService reservationService;
+    private final AttendanceSummaryService attendanceSummaryService;
     private final GymDisconnectionService gymDisconnectionService;
     private final TvScreenService tvScreenService;
     private final GymClosureService gymClosureService;
     private final FixedClassService fixedClassService;
     private final MemberProfileService memberProfileService;
     private final FixedClassImportService fixedClassImportService;
+    private final WorkoutService workoutService;
 
     @PostMapping("/suggest-branding")
     public BrandingSuggestionResponse suggestBranding(@Valid @RequestBody BrandingSuggestionRequest request) {
@@ -178,7 +190,14 @@ public class GymController {
 
     private AttendeeResponse toAttendeeResponse(MemberReservation mr) {
         return new AttendeeResponse(
-                mr.member().getId(), mr.member().getName(), mr.member().getEmail(), mr.member().getPhotoUrl(), mr.reservationId());
+                mr.member().getId(),
+                mr.member().getName(),
+                mr.member().getEmail(),
+                mr.member().getPhotoUrl(),
+                mr.reservationId(),
+                mr.checkedInAt(),
+                mr.checkinMethod(),
+                mr.member().getPhone());
     }
 
     // Contraparte SUPER_ADMIN de GymAdminController.myHistoryAttendees — mismo backend, gymId por path.
@@ -197,6 +216,65 @@ public class GymController {
                 occurrence.gymBlockId(),
                 occurrence.classDate(),
                 occurrence.attendees().stream().map(this::toAttendeeResponse).toList());
+    }
+
+    // Contrapartes SUPER_ADMIN de WorkoutPlanController (rutina del socio) — mismo backend, gymId por path.
+    @GetMapping("/{id}/members/{memberId}/workout/plan")
+    public WorkoutPlanResponse workoutPlan(@PathVariable Long id, @PathVariable Long memberId) {
+        return workoutService.getActivePlan(id, memberId);
+    }
+
+    @PostMapping("/{id}/members/{memberId}/workout/plan")
+    public WorkoutPlanResponse replaceWorkoutPlan(
+            @PathVariable Long id, @PathVariable Long memberId, @Valid @RequestBody WorkoutPlanCreateRequest request) {
+        return workoutService.replacePlan(id, memberId, request);
+    }
+
+    @GetMapping("/{id}/members/{memberId}/workout/logs")
+    public List<MemberWorkoutLogResponse> workoutLogs(@PathVariable Long id, @PathVariable Long memberId) {
+        return workoutService.getLogHistory(id, memberId);
+    }
+
+    // Contrapartes SUPER_ADMIN de AttendanceController — mismo backend, gymId por path.
+    @PutMapping("/{id}/reservations/{reservationId}/attendance")
+    public ReservationService.AttendeeMark setAttendance(
+            @PathVariable Long id,
+            @PathVariable Long reservationId,
+            @Valid @RequestBody AttendanceUpdateRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
+        return reservationService.setAttendance(
+                id, reservationId, request.attended(), AuthenticatedUser.from(jwt).userId());
+    }
+
+    @GetMapping("/{id}/attendance-summary")
+    public AttendanceSummaryResponse attendanceSummary(
+            @PathVariable Long id,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate previousFrom) {
+        return attendanceSummaryService.summary(id, from, to, previousFrom);
+    }
+
+    @GetMapping("/{id}/attendance-summary/members")
+    public PageResponse<MemberAttendanceRow> attendanceMembers(
+            @PathVariable Long id,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false) Long blockId,
+            @RequestParam(required = false) DayOfWeek weekday,
+            @RequestParam(defaultValue = "false") boolean onlyMissed,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "25") int size) {
+        return attendanceSummaryService.members(id, from, to, blockId, weekday, onlyMissed, page, size);
+    }
+
+    @GetMapping("/{id}/attendance-summary/members/{memberId}")
+    public MemberAttendanceDetail attendanceMemberDetail(
+            @PathVariable Long id,
+            @PathVariable Long memberId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return attendanceSummaryService.memberDetail(id, memberId, from, to);
     }
 
     // Contraparte SUPER_ADMIN de GymAdminController.searchMyReservations — mismo backend, gymId por path.

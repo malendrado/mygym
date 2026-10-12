@@ -87,7 +87,14 @@ public class GymAdminController {
 
     private AttendeeResponse toAttendeeResponse(MemberReservation mr) {
         return new AttendeeResponse(
-                mr.member().getId(), mr.member().getName(), mr.member().getEmail(), mr.member().getPhotoUrl(), mr.reservationId());
+                mr.member().getId(),
+                mr.member().getName(),
+                mr.member().getEmail(),
+                mr.member().getPhotoUrl(),
+                mr.reservationId(),
+                mr.checkedInAt(),
+                mr.checkinMethod(),
+                mr.member().getPhone());
     }
 
     // Batch para la pestaña Historial — una sola llamada por semana en vez de una por cada

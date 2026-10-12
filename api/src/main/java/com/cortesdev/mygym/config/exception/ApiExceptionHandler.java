@@ -21,6 +21,7 @@ import com.cortesdev.mygym.services.exception.GymClosedException;
 import com.cortesdev.mygym.services.exception.GymClosureNotFoundException;
 import com.cortesdev.mygym.services.exception.GymNotFoundException;
 import com.cortesdev.mygym.services.exception.InvalidClosureRequestException;
+import com.cortesdev.mygym.services.exception.InvalidAttendanceException;
 import com.cortesdev.mygym.services.exception.InvalidFixedClassException;
 import com.cortesdev.mygym.services.exception.InvalidMemberProfileException;
 import com.cortesdev.mygym.services.exception.ProfileIncompleteException;
@@ -458,6 +459,14 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
         problem.setProperty("code", "PROFILE_INCOMPLETE");
         problem.setProperty("timestamp", Instant.now());
         return ResponseEntity.status(HttpStatus.CONFLICT).body(problem);
+    }
+
+    @ExceptionHandler(InvalidAttendanceException.class)
+    public ResponseEntity<ProblemDetail> handleInvalidAttendance(InvalidAttendanceException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+        problem.setTitle("Asistencia inválida");
+        problem.setProperty("timestamp", Instant.now());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
     }
 
     @ExceptionHandler(InvalidFixedClassException.class)

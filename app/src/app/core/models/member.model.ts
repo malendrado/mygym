@@ -101,6 +101,10 @@ export interface Attendee {
   email: string;
   photoUrl: string | null;
   reservationId: number;
+  /** Instante en que marcó asistencia; null = sin marcar (si la clase ya terminó, no vino). */
+  checkedInAt: string | null;
+  checkinMethod: 'QR' | 'MANUAL' | null;
+  phone: string | null;
 }
 
 /** Vista reducida para otros socios — nunca email ni apellido. */

@@ -95,7 +95,53 @@ public class WorkoutService {
         return latest == null ? null : toLogResponse(latest, days);
     }
 
+    /** Historial de registros de rutina del socio, para el profesor/admin (los más recientes primero). */
+    @Transactional(readOnly = true)
+    public List<MemberWorkoutLogResponse> getLogHistory(Long gymId, Long memberId) {
+        requireMember(gymId, memberId);
+        return logHistory(memberId);
+    }
+
+    /** Tope de registros que se devuelven en el historial — pedido del usuario (2026-10-12). */
+    static final int MAX_HISTORY = 30;
+
+    /** Todos los registros del socio sin importar a qué plan pertenecían (el plan puede haber cambiado):
+     *  se ordenan por fecha de la clase, se cortan en MAX_HISTORY y los títulos de los días se
+     *  resuelven con UNA consulta de días, no una por registro. */
+    private List<MemberWorkoutLogResponse> logHistory(Long memberId) {
+        List<Reservation> attended =
+                reservationRepository.findByMemberIdAndCheckedInAtIsNotNullOrderByClassDateDesc(memberId);
+        if (attended.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, LocalDate> classDateByReservation =
+                attended.stream().collect(Collectors.toMap(Reservation::getId, Reservation::getClassDate));
+        List<MemberWorkoutLog> logs = memberWorkoutLogRepository.findByReservationIdIn(List.copyOf(classDateByReservation.keySet()))
+                .stream()
+                .sorted(Comparator.comparing((MemberWorkoutLog l) -> classDateByReservation.get(l.getReservationId()))
+                        .reversed())
+                .limit(MAX_HISTORY)
+                .toList();
+        Set<Long> dayIds = new java.util.HashSet<>();
+        for (MemberWorkoutLog l : logs) {
+            dayIds.add(l.getSuggestedPlanDayId());
+            if (l.getPlanDayId() != null) {
+                dayIds.add(l.getPlanDayId());
+            }
+        }
+        List<PlanDay> days = planDayRepository.findAllById(dayIds);
+        return logs.stream()
+                .map(l -> toLogResponse(l, days, classDateByReservation.get(l.getReservationId())))
+                .toList();
+    }
+
     // ---- Lado socio (self-service, /api/me) ----
+
+    @Transactional(readOnly = true)
+    public List<MemberWorkoutLogResponse> getMyLogHistory(Long memberId) {
+        return logHistory(memberId);
+    }
+
 
     @Transactional(readOnly = true)
     public PendingWorkoutResponse getPendingWorkout(Long memberId) {

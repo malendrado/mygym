@@ -363,4 +363,39 @@ class WorkoutServiceTest {
         assertThat(updated.freeTextLabel()).isNull();
         assertThat(updated.suggestedPlanDayId()).isEqualTo(day2.getId()); // no cambia, es histórico
     }
+
+    @Test
+    void historialDevuelveSoloLosUltimos30MasRecientesPrimeroConTitulos() {
+        List<Reservation> reservations = new ArrayList<>();
+        List<MemberWorkoutLog> logs = new ArrayList<>();
+        for (long i = 1; i <= 35; i++) {
+            reservations.add(reservation(i, LocalDate.of(2026, 9, 1).plusDays(i)));
+            logs.add(MemberWorkoutLog.builder()
+                    .id(1000 + i)
+                    .reservationId(i)
+                    .suggestedPlanDayId(100L)
+                    .planDayId(100L)
+                    .build());
+        }
+        reservations.sort((a, b) -> b.getClassDate().compareTo(a.getClassDate()));
+        when(reservationRepository.findByMemberIdAndCheckedInAtIsNotNullOrderByClassDateDesc(MEMBER_ID))
+                .thenReturn(reservations);
+        when(memberWorkoutLogRepository.findByReservationIdIn(anyList())).thenReturn(logs);
+        when(planDayRepository.findAllById(any())).thenReturn(List.of(day1));
+
+        List<MemberWorkoutLogResponse> history = workoutService.getMyLogHistory(MEMBER_ID);
+
+        assertThat(history).hasSize(30);
+        assertThat(history.get(0).classDate()).isEqualTo(LocalDate.of(2026, 9, 1).plusDays(35));
+        assertThat(history.get(29).classDate()).isEqualTo(LocalDate.of(2026, 9, 1).plusDays(6));
+        assertThat(history.get(0).planDayTitle()).isEqualTo("Día 1: Pecho");
+    }
+
+    @Test
+    void historialSinAsistenciasEstaVacio() {
+        when(reservationRepository.findByMemberIdAndCheckedInAtIsNotNullOrderByClassDateDesc(MEMBER_ID))
+                .thenReturn(List.of());
+
+        assertThat(workoutService.getMyLogHistory(MEMBER_ID)).isEmpty();
+    }
 }

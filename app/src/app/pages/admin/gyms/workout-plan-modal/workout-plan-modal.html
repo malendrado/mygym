@@ -12,15 +12,15 @@
 </ion-header>
 
 <ion-content class="ion-padding">
-  <p class="workout-plan-modal__label">Último registro</p>
-  @if (latestLogValue(); as log) {
+  <p class="workout-plan-modal__label">Historial de registros</p>
+  @for (log of historyValue(); track log.id) {
     <div class="workout-plan-modal__memory">
       <p class="workout-plan-modal__memory-date">{{ formatClassDate(log.classDate) }}</p>
-      @if (deviated()) {
+      @if (deviated(log)) {
         <p class="workout-plan-modal__memory-deviation">
           <ion-icon name="information-circle-outline" aria-hidden="true"></ion-icon>
           Le tocaba <strong>{{ log.suggestedPlanDayTitle }}</strong> pero hizo:
-          <strong>{{ doneLabel() }}</strong>
+          <strong>{{ doneLabel(log) }}</strong>
         </p>
       } @else {
         <p>{{ log.planDayTitle }}</p>
@@ -33,8 +33,11 @@
         </ul>
       }
     </div>
-  } @else {
+  } @empty {
     <p class="item-hint">Sin registros aún.</p>
+  }
+  @if (historyValue().length >= 30) {
+    <p class="item-hint">Se muestran los últimos 30 registros.</p>
   }
 
   <p class="workout-plan-modal__label">Rutina</p>

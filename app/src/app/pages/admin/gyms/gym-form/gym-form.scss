@@ -1053,3 +1053,120 @@ ion-segment-button.segment-button-checked {
 .member-plan-info__item--pending {
   color: var(--ion-color-warning);
 }
+
+
+// Historial: selector Semana | Mes, chip de asistencia del día y botón "Asistencia".
+.history-mode {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  margin-bottom: 0.75rem;
+  border: 1px solid var(--brand-ink-surface-2);
+  border-radius: 12px;
+  background: var(--brand-ink-surface);
+}
+
+.history-mode__btn {
+  min-height: 44px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--brand-text-dim);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+
+  &--active {
+    background: var(--brand-accent);
+    color: var(--brand-accent-contrast, #fff);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--brand-accent);
+    outline-offset: 2px;
+  }
+}
+
+.history-summary {
+  display: block;
+  margin: 0.5rem 0 1rem;
+}
+
+.history-day__attendance {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.4rem 1rem 0.6rem;
+  background: var(--gym-panel-card, var(--brand-ink-surface-2));
+}
+
+.history-chip {
+  --chip-tone: var(--brand-text-dim);
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.6rem;
+  border: 1px solid var(--chip-tone);
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--brand-text);
+
+  &[data-tone='good'] {
+    --chip-tone: var(--ion-color-success, #2dd36f);
+  }
+  &[data-tone='warn'] {
+    --chip-tone: var(--ion-color-warning, #ffc409);
+  }
+  &[data-tone='bad'] {
+    --chip-tone: var(--ion-color-danger, #eb445a);
+  }
+}
+
+.history-chip__note {
+  font-weight: 400;
+  color: var(--brand-text-dim);
+}
+
+.history-attendance-btn {
+  min-height: 44px;
+  padding: 0 1rem;
+  border: 1px solid var(--brand-accent);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--brand-accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover {
+    background: color-mix(in srgb, var(--brand-accent) 12%, transparent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--brand-accent);
+    outline-offset: 2px;
+  }
+}
+
+
+// Acciones por socio en mobile: igual que en gym-admin — quedan estado, Marcar pago y WhatsApp, y el
+// resto pasa al botón "Acciones" (hoja inferior, openMemberActions).
+.member-actions__more {
+  display: none;
+}
+
+@media (max-width: 600px) {
+  .member-action-btn--secondary {
+    display: none;
+  }
+
+  .member-actions__more {
+    display: inline-block;
+  }
+}

@@ -1,0 +1,169 @@
+<div class="ion-page">
+<ion-header>
+  <ion-toolbar>
+    <ion-title>
+      <ion-icon name="people-outline" aria-hidden="true"></ion-icon>
+      Asistencia · {{ dateLabel }}
+    </ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="dismiss.emit()">Cerrar</ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  @if (selected(); as row) {
+    <!-- Detalle de una clase -->
+    @if (canGoBack()) {
+      <button type="button" class="am-back" (click)="backToList()">
+        <ion-icon name="chevron-back-outline" aria-hidden="true"></ion-icon>
+        Todas las clases del día
+      </button>
+    }
+    <h2 class="am-class-title">{{ blockTitle(row) }}</h2>
+    @if (row.ended) {
+      <p class="am-class-sub">
+        <span class="am-num">{{ row.counts.attended }}</span> de <span class="am-num">{{ row.counts.booked }}</span>
+        {{ row.counts.attended === 1 ? 'vino' : 'vinieron' }}
+        @if (row.rate !== null) {
+          · <span class="am-rate" [attr.data-tone]="toneOf(row.rate)">{{ row.rate }}%</span>
+        }
+      </p>
+    } @else {
+      <p class="am-class-sub">
+        {{ row.started ? 'En curso' : 'Por empezar' }} · {{ row.counts.attended }} de {{ row.counts.booked }}
+        ya marcaron
+      </p>
+    }
+
+    <div class="am-tabs" role="tablist">
+      <button
+        type="button"
+        role="tab"
+        class="am-tab"
+        [class.am-tab--active]="tab() === 'attended'"
+        [attr.aria-selected]="tab() === 'attended'"
+        (click)="setTab('attended')"
+      >
+        Vinieron ({{ attendedRows().length }})
+      </button>
+      <button
+        type="button"
+        role="tab"
+        class="am-tab"
+        [class.am-tab--active]="tab() === 'missed'"
+        [attr.aria-selected]="tab() === 'missed'"
+        (click)="setTab('missed')"
+      >
+        {{ row.ended ? 'No vinieron' : 'Sin marcar todavía' }} ({{ notAttendedRows().length }})
+      </button>
+    </div>
+
+    @if (tooOld()) {
+      <p class="am-hint">Solo lectura: pasaron más de 7 días desde la clase, ya no se puede corregir.</p>
+    } @else if (!editable()) {
+      <p class="am-hint">Podrás marcar asistencia desde 10 minutos antes de que empiece la clase.</p>
+    }
+
+    <ul class="am-list">
+      @for (item of tab() === 'attended' ? attendedRows() : notAttendedRows(); track item.attendee.reservationId) {
+        <li class="am-person">
+          @if (item.attendee.photoUrl) {
+            <img [src]="item.attendee.photoUrl" alt="" class="am-avatar" loading="lazy" />
+          } @else {
+            <span class="am-avatar am-avatar--placeholder" aria-hidden="true">{{ item.attendee.name.charAt(0) }}</span>
+          }
+          <span class="am-person__main">
+            <span class="am-person__name">{{ item.attendee.name }}</span>
+            <span class="am-person__state" [class.am-person__state--ok]="item.attended" [class.am-person__state--no]="!item.attended && row.ended">
+              @if (item.attended) {
+                <ion-icon name="checkmark-circle-outline" aria-hidden="true"></ion-icon>
+                Vino · {{ item.stamp }}
+              } @else if (row.ended) {
+                <ion-icon name="close-circle-outline" aria-hidden="true"></ion-icon>
+                No vino
+              } @else {
+                Sin marcar
+              }
+            </span>
+          </span>
+          @if (!item.attended && item.whatsapp) {
+            <a
+              class="am-icon-btn am-icon-btn--whatsapp"
+              [href]="item.whatsapp"
+              target="_blank"
+              rel="noopener noreferrer"
+              [attr.aria-label]="'Escribirle por WhatsApp a ' + item.attendee.name"
+            >
+              <ion-icon name="logo-whatsapp" aria-hidden="true"></ion-icon>
+            </a>
+          }
+          @if (editable()) {
+            <button type="button" class="am-toggle" (click)="toggle(item)">
+              {{ item.attended ? 'Marcar que no vino' : 'Marcar que vino' }}
+            </button>
+          }
+        </li>
+      } @empty {
+        <li class="am-empty">
+          {{ tab() === 'attended' ? 'Todavía nadie marcó asistencia.' : row.ended ? 'Nadie faltó.' : 'Todos ya marcaron.' }}
+        </li>
+      }
+    </ul>
+  } @else {
+    <!-- Resumen del día + lista de clases -->
+    <div class="am-figures">
+      <div class="am-figure">
+        <span class="am-figure__value">{{ dayTotals().booked }}</span>
+        <span class="am-figure__label">Reservaron</span>
+      </div>
+      <div class="am-figure">
+        <span class="am-figure__value">{{ dayTotals().attended }}</span>
+        <span class="am-figure__label">Vinieron</span>
+      </div>
+      <div class="am-figure">
+        <span class="am-figure__value">{{ dayTotals().missed }}</span>
+        <span class="am-figure__label">No vinieron</span>
+      </div>
+    </div>
+    @if (dayRate() !== null) {
+      <div class="am-bar" [attr.data-tone]="dayTone()" aria-hidden="true">
+        <span class="am-bar__fill" [style.transform]="'scaleX(' + dayRate()! / 100 + ')'"></span>
+      </div>
+      <p class="am-bar-text">
+        <span class="am-rate" [attr.data-tone]="dayTone()">{{ dayRate() }}%</span> de asistencia
+        @if (hasUnfinished()) {
+          <span class="am-muted">(solo clases terminadas)</span>
+        }
+      </p>
+    } @else {
+      <p class="am-bar-text am-muted">Todavía no hay clases terminadas este día.</p>
+    }
+
+    <ul class="am-classes">
+      @for (row of classRows(); track row.block.id) {
+        <li>
+          <button type="button" class="am-class" (click)="openClass(row.block.id)">
+            <span class="am-class__main">
+              <span class="am-class__title">{{ blockTitle(row) }}</span>
+              @if (row.block.instructorName) {
+                <span class="am-class__sub">{{ row.block.instructorName }}</span>
+              }
+            </span>
+            @if (row.ended) {
+              <span class="am-mini" [attr.data-tone]="toneOf(row.rate)" aria-hidden="true">
+                <span class="am-mini__fill" [style.transform]="'scaleX(' + (row.rate ?? 0) / 100 + ')'"></span>
+              </span>
+              <span class="am-class__count">{{ row.counts.attended }} / {{ row.counts.booked }}</span>
+            } @else {
+              <span class="am-class__status">{{ row.started ? 'En curso' : 'Por empezar' }}</span>
+              <span class="am-class__count">{{ row.counts.booked }} {{ row.counts.booked === 1 ? 'reserva' : 'reservas' }}</span>
+            }
+            <ion-icon name="chevron-forward-outline" aria-hidden="true"></ion-icon>
+          </button>
+        </li>
+      }
+    </ul>
+  }
+</ion-content>
+</div>

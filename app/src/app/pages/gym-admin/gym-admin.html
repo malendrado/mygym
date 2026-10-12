@@ -1065,7 +1065,7 @@
                     fill="outline"
                     size="small"
                     color="danger"
-                    class="member-action-btn"
+                    class="member-action-btn member-action-btn--secondary"
                     [disabled]="revokingPlanId() === member.id"
                     (click)="revokeMemberPlan(member)"
                   >
@@ -1081,7 +1081,7 @@
                   [attr.data-tour]="member.id === firstMemberId() ? 'members-workout' : null"
                   fill="outline"
                   size="small"
-                  class="member-action-btn"
+                  class="member-action-btn member-action-btn--secondary"
                   (click)="openWorkoutPlanModal(member)"
                 >
                   <ion-icon name="barbell-outline" slot="start" aria-hidden="true"></ion-icon>
@@ -1091,7 +1091,7 @@
                   [attr.data-tour]="member.id === firstMemberId() ? 'members-fixed-classes' : null"
                   fill="outline"
                   size="small"
-                  class="member-action-btn"
+                  class="member-action-btn member-action-btn--secondary"
                   [disabled]="loadingFixedClassesId() === member.id"
                   (click)="openFixedClassesModal(member)"
                 >
@@ -1120,7 +1120,7 @@
                   [attr.data-tour]="member.id === firstMemberId() ? 'members-profile' : null"
                   fill="outline"
                   size="small"
-                  class="member-action-btn"
+                  class="member-action-btn member-action-btn--secondary"
                   (click)="openMemberProfile(member)"
                 >
                   <ion-icon name="id-card-outline" slot="start" aria-hidden="true"></ion-icon>
@@ -1132,7 +1132,7 @@
                     fill="clear"
                     size="small"
                     color="danger"
-                    class="member-action-btn"
+                    class="member-action-btn member-action-btn--secondary"
                     [disabled]="deletingMemberId() === member.id"
                     (click)="deleteMember(member)"
                     aria-label="Eliminar socio permanentemente"
@@ -1144,6 +1144,16 @@
                     }
                   </ion-button>
                 }
+                <ion-button
+                  fill="outline"
+                  size="small"
+                  class="member-action-btn member-actions__more"
+                  [attr.aria-label]="'Acciones para ' + member.name"
+                  (click)="openMemberActions(member)"
+                >
+                  <ion-icon name="ellipsis-horizontal" slot="start" aria-hidden="true"></ion-icon>
+                  Acciones
+                </ion-button>
                 </div>
                 </div>
               </ion-label>
@@ -1212,7 +1222,7 @@
         <app-workout-plan-modal
           [memberName]="workoutPlanMember()?.name ?? ''"
           [plan]="workoutPlan()"
-          [latestLog]="workoutLatestLog()"
+          [history]="workoutHistory()"
           [saving]="savingWorkoutPlan()"
           (saved)="confirmWorkoutPlan($event)"
           (dismiss)="closeWorkoutPlanModal()"
@@ -1594,8 +1604,30 @@
           ></ion-input>
         </ion-item>
         @if (reservationSearchBlocks() === null) {
+        <div class="history-mode" role="tablist" aria-label="Período del resumen" data-tour="history-summary">
+          <button
+            type="button"
+            role="tab"
+            class="history-mode__btn"
+            [class.history-mode__btn--active]="historyMode() === 'week'"
+            [attr.aria-selected]="historyMode() === 'week'"
+            (click)="setHistoryMode('week')"
+          >
+            Semana
+          </button>
+          <button
+            type="button"
+            role="tab"
+            class="history-mode__btn"
+            [class.history-mode__btn--active]="historyMode() === 'month'"
+            [attr.aria-selected]="historyMode() === 'month'"
+            (click)="setHistoryMode('month')"
+          >
+            Mes
+          </button>
+        </div>
         <ion-item lines="none" class="history-date-item">
-          <ion-label position="stacked">Semana de</ion-label>
+          <ion-label position="stacked">{{ historyMode() === 'week' ? 'Semana de' : 'Mes de' }}</ion-label>
           <input
             type="date"
             class="history-date-input"
@@ -1604,14 +1636,23 @@
           />
         </ion-item>
         <div class="history-week-nav" data-tour="history-week-nav">
-          <button type="button" class="calendar-nav-btn" (click)="shiftHistoryWeek(-1)" aria-label="Semana anterior">
+          <button type="button" class="calendar-nav-btn" (click)="shiftHistoryWeek(-1)" [attr.aria-label]="historyMode() === 'week' ? 'Semana anterior' : 'Mes anterior'">
             <ion-icon name="chevron-back-outline" aria-hidden="true"></ion-icon>
           </button>
-          <span class="history-week-label">{{ historyWeekLabel() }}</span>
-          <button type="button" class="calendar-nav-btn" (click)="shiftHistoryWeek(1)" aria-label="Semana siguiente">
+          <span class="history-week-label">{{ historyPeriod().label }}</span>
+          <button type="button" class="calendar-nav-btn" (click)="shiftHistoryWeek(1)" [attr.aria-label]="historyMode() === 'week' ? 'Semana siguiente' : 'Mes siguiente'">
             <ion-icon name="chevron-forward-outline" aria-hidden="true"></ion-icon>
           </button>
         </div>
+        <app-attendance-summary
+          class="history-summary"
+          [period]="historyPeriod()"
+          [gymId]="attendanceGymId()"
+          [demo]="attendanceDemo()"
+          [refreshToken]="summaryRefresh()"
+          (attendanceChanged)="onSummaryAttendanceChanged()"
+        />
+        @if (historyMode() === 'week') {
         @if (historyLoading()) {
           <div class="ion-text-center">
             <ion-spinner name="crescent"></ion-spinner>
@@ -1638,8 +1679,34 @@
                   ></ion-icon>
                 } @else if (!historyLoading()) {
                   <span class="history-day__summary history-day__summary--muted">Sin reservas</span>
-                }
-              </button>
+                    }
+                  </button>
+                  @if (day.attendance || day.canOpenAttendance) {
+                    <div class="history-day__attendance">
+                      @if (day.attendance; as att) {
+                        <span class="history-chip" [attr.data-tone]="att.tone">
+                          <span aria-hidden="true">✓</span>
+                          {{ att.counts.attended }} de {{ att.counts.booked }} vinieron
+                          @if (att.rate !== null) {
+                            · {{ att.rate }}%
+                          }
+                          @if (att.partial) {
+                            <span class="history-chip__note">(clases terminadas)</span>
+                          }
+                        </span>
+                      }
+                      @if (day.canOpenAttendance) {
+                        <button
+                          type="button"
+                          class="history-attendance-btn"
+                          [attr.data-tour]="day.date === historyFirstAttendanceDate() ? 'history-attendance' : null"
+                          (click)="openAttendance(day.date)"
+                        >
+                          Asistencia
+                        </button>
+                      }
+                    </div>
+                  }
               @if (isHistoryDayExpanded(day.date) && day.blocks.length) {
                 <div class="block-grid">
                   @for (block of day.blocks; track block.id) {
@@ -1707,6 +1774,7 @@
         @if (!historyLoading() && !historyWeekHasBookings()) {
           <p class="item-hint">Nadie reservó ninguna clase esta semana.</p>
         }
+        }
         } @else {
         @if (reservationSearchLoading()) {
           <div class="ion-text-center">
@@ -1761,8 +1829,31 @@
         </div>
         }
       </ion-card-content>
-    </ion-card>
-  } @else if (section() === 'closures') {
+      </ion-card>
+
+      <ion-modal
+            class="wide-modal"
+            [isOpen]="attendanceDate() !== null"
+            (didDismiss)="closeAttendance()"
+            [style.--ion-color-primary]="themeColor()"
+            [style.--ion-color-primary-contrast]="themeContrast()"
+            [style.--brand-accent]="themeColor()"
+            [style.--brand-accent-contrast]="themeContrast()"
+          >
+        <ng-template>
+          <app-attendance-modal
+            [date]="attendanceDate()!"
+            [dateLabel]="attendanceDayLabel()"
+            [blocks]="attendanceBlocks()"
+            [attendeesByBlock]="attendanceMap()"
+            [gymId]="attendanceGymId()"
+            [demo]="attendanceDemo()"
+            (changed)="onAttendanceChanged($event)"
+            (dismiss)="closeAttendance()"
+          />
+        </ng-template>
+      </ion-modal>
+      } @else if (section() === 'closures') {
     <ion-card>
       <ion-card-header class="card-header-row">
         <ion-card-title>

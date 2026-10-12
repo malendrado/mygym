@@ -1093,9 +1093,30 @@ export class MemberPage {
     this.useFreeText() ? this.freeTextLabel().trim().length > 0 : this.selectedPlanDayId() !== null,
   );
 
-  private loadPendingWorkout(): void {
+  // Los últimos 30 registros del propio socio — antes no había dónde volver a ver lo anotado: el
+  // registro recién guardado se mostraba un instante y desaparecía al recargar.
+  protected readonly workoutHistory = signal<MemberWorkoutLog[]>([]);
+
+  private loadWorkoutHistory(): void {
+    if (this.isDemoPreview) {
+      return;
+    }
+    this.workoutService.getMyHistory().subscribe({
+      next: (logs) => this.workoutHistory.set(logs),
+      error: () => undefined,
+    });
+  }
+
+  protected workoutDeviated(log: MemberWorkoutLog): boolean {
+    return log.planDayId === null || log.planDayId !== log.suggestedPlanDayId;
+  }
+
+  private loadPendingWorkout(keepSavedLog = false): void {
     this.loadingWorkout.set(true);
-    this.justSavedLog.set(null);
+    if (!keepSavedLog) {
+      this.justSavedLog.set(null);
+    }
+    this.loadWorkoutHistory();
     (this.isDemoPreview ? this.demoPreviewService.getPendingWorkout() : this.workoutService.getPending()).subscribe({
       next: (pending) => {
         this.pendingWorkout.set(pending);
@@ -1167,7 +1188,7 @@ export class MemberPage {
         this.justSavedLog.set(log);
         this.editingSavedLog.set(false);
         this.showToast('Registro guardado.');
-        this.loadPendingWorkout();
+        this.loadPendingWorkout(true);
       },
       error: () => {
         this.savingWorkout.set(false);
@@ -1207,6 +1228,7 @@ export class MemberPage {
         this.justSavedLog.set(updated);
         this.editingSavedLog.set(false);
         this.showToast('Registro actualizado.');
+        this.loadWorkoutHistory();
       },
       error: () => {
         this.savingWorkout.set(false);

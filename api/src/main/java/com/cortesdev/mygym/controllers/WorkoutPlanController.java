@@ -38,6 +38,13 @@ public class WorkoutPlanController {
         return workoutService.replacePlan(AuthenticatedUser.from(jwt).gymId(), memberId, request);
     }
 
+    /** Historial de registros del socio (los últimos 30) para el profesor/admin. */
+    @GetMapping("/logs")
+    public java.util.List<MemberWorkoutLogResponse> getLogHistory(
+            @AuthenticationPrincipal Jwt jwt, @PathVariable Long memberId) {
+        return workoutService.getLogHistory(AuthenticatedUser.from(jwt).gymId(), memberId);
+    }
+
     @GetMapping("/latest-log")
     public MemberWorkoutLogResponse getLatestLog(@AuthenticationPrincipal Jwt jwt, @PathVariable Long memberId) {
         return workoutService.getLatestLog(AuthenticatedUser.from(jwt).gymId(), memberId);
