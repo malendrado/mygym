@@ -1024,6 +1024,7 @@
                 <ion-icon name="person-circle-outline" slot="start" aria-hidden="true"></ion-icon>
               }
               <ion-label>
+                <div class="member-row-wrapper">
                 <div class="member-row">
                   <span class="member-row__name">{{ member.name }}</span>
                   <span class="member-row__email">{{ member.email }}</span>
@@ -1072,8 +1073,9 @@
                     </span>
                   }
                 </div>
-              </ion-label>
-              <ion-badge slot="end" [color]="statusColor(member.membershipStatus)">
+              
+                <div class="member-actions">
+              <ion-badge [color]="statusColor(member.membershipStatus)">
                 {{ statusLabel(member.membershipStatus) }}
               </ion-badge>
               @if (!member.planId) {
@@ -1175,6 +1177,10 @@
                 <ion-icon name="ellipsis-horizontal" slot="start" aria-hidden="true"></ion-icon>
                 Acciones
               </ion-button>
+            
+                </div>
+                </div>
+              </ion-label>
             </ion-item>
           } @empty {
             @if (memberList.loaded() && !memberList.error()) {

@@ -1170,3 +1170,48 @@ ion-segment-button.segment-button-checked {
     display: inline-block;
   }
 }
+
+
+// Fila de socio: nombre/estado a un lado y acciones al otro (apiladas en mobile). Igual que gym-admin.
+.member-row-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  width: 100%;
+}
+
+.member-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.4rem;
+  row-gap: 0.35rem;
+  flex-shrink: 0;
+  max-width: 55%;
+}
+
+// Mismo breakpoint que el resto del panel usa para mobile — acá sí es simplemente apilar: el
+// wrapper pasa a columna, `.member-row` deja de scrollear horizontal (nunca más "se perdió la
+// info", ver guía de la skill UX: el contenido nunca debe depender de un scroll lateral que nadie
+// descubre) y `.member-actions` ocupa todo el ancho para que sus botones (ya en size="small",
+// 44px de alto — no se achican más para no romper el tamaño mínimo de touch target) tengan
+// espacio real en vez de amontonarse en una columna angosta.
+@media (max-width: 600px) {
+  .member-row-wrapper {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .member-row {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+
+  .member-actions {
+    max-width: 100%;
+    justify-content: flex-start;
+  }
+}
+

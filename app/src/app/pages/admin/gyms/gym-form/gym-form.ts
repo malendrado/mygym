@@ -864,6 +864,7 @@ export class GymForm implements OnDestroy {
   protected viewMembersByStatus(status: MembershipStatus): void {
     this.memberList.setStatusFilter(status);
     this.section.set('members');
+    this.scrollToMembersList();
   }
 
   protected clearMemberStatusFilter(): void {
@@ -873,6 +874,7 @@ export class GymForm implements OnDestroy {
   protected viewMembersByInvite(status: Exclude<InviteStatus, null>): void {
     this.memberList.setInviteFilter(status);
     this.section.set('members');
+    this.scrollToMembersList();
   }
 
   protected clearMemberInviteFilter(): void {
@@ -881,7 +883,25 @@ export class GymForm implements OnDestroy {
 
   protected onMemberPage(page: number): void {
     this.memberList.goTo(page);
-    document.getElementById('members-list-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    this.scrollToMembersList();
+  }
+
+  // Tocar una caluga o cambiar de página ya filtraba la lista pero la pantalla se quedaba arriba. Se
+  // usa la API propia de Ionic (scrollToPoint): scrollIntoView dentro de ion-content falla en
+  // celulares reales. Se repite una vez cuando la lista termina de acomodarse. Igual que gym-admin.
+  private scrollToMembersList(): void {
+    const run = async (): Promise<void> => {
+      const card = document.getElementById('members-list-card');
+      const content = card?.closest('ion-content') as HTMLIonContentElement | null;
+      if (!card || !content) {
+        return;
+      }
+      const scrollEl = await content.getScrollElement();
+      const top = card.getBoundingClientRect().top - scrollEl.getBoundingClientRect().top + scrollEl.scrollTop - 8;
+      await content.scrollToPoint(0, Math.max(top, 0), 300);
+    };
+    setTimeout(() => void run());
+    setTimeout(() => void run(), 450);
   }
 
   protected inviteStatusLabel(status: Exclude<InviteStatus, null>): string {

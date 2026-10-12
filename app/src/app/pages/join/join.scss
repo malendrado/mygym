@@ -634,3 +634,14 @@ $ease-out: cubic-bezier(0.23, 1, 0.32, 1);
     transition: opacity 200ms ease;
   }
 }
+
+
+// El iframe de Google es 20 px más ancho y 4 px más alto que el botón (margin negativo propio) y, cuando
+// su esquema de color no coincide con el de la página (modo oscuro), el navegador le pinta un fondo
+// blanco opaco: en celulares asomaba como un rectángulo blanco al costado de la píldora. Se recorta el
+// host al tamaño exacto del botón, con su misma forma, para que no pueda sobresalir nada.
+.google-auth__frame asl-google-signin-button {
+  display: block;
+  overflow: hidden;
+  border-radius: 999px;
+}
