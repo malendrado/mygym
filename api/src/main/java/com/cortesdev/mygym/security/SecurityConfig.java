@@ -66,6 +66,14 @@ public class SecurityConfig {
                         // genérico hasRole("GYM_ADMIN") de abajo.
                         .requestMatchers("/api/gym-admin/members/*/workout/**")
                         .hasAnyRole("GYM_ADMIN", "PROFESOR")
+                        // Clases fijas: el PROFESOR también las edita y sube el Excel (pedido explícito
+                        // del usuario 2026-10-12). Mismo gotcha de orden: antes del genérico GYM_ADMIN.
+                        .requestMatchers(
+                                "/api/gym-admin/members/*/fixed-classes",
+                                "/api/gym-admin/fixed-classes/**",
+                                // Datos de contacto del socio: el PROFESOR también los edita (2026-10-12).
+                                "/api/gym-admin/members/*/profile")
+                        .hasAnyRole("GYM_ADMIN", "PROFESOR")
                         // El tour guiado de la demo también lo dispara un DEMO_ADMIN (no solo un
                         // GYM_ADMIN real, si este mismo endpoint se reutiliza más adelante como
                         // onboarding) — mismo gotcha de orden que arriba: va ANTES del genérico.

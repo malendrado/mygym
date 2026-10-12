@@ -10,6 +10,7 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.Locale;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -69,6 +70,17 @@ public class AppUser {
      *  más que su unicidad de siempre. */
     private Instant invitedAt;
 
+    /** Datos de contacto obligatorios del socio (solo MEMBER). Null en los socios que ya existían:
+     *  la app se los pide al entrar y no pueden reservar hasta completarlos (ver isProfileComplete). */
+    private String rut;
+
+    private String address;
+
+    private LocalDate birthDate;
+
+    /** Celular en formato internacional ("+56912345678") — sirve directo para wa.me. */
+    private String phone;
+
     private Instant createdAt;
 
     private Instant updatedAt;
@@ -77,6 +89,15 @@ public class AppUser {
      *  updatedAt, que solo se toca cuando algo cambia (googleSub la primera vez, o si cambió la
      *  foto de Google), así que updatedAt no sirve para saber "cuándo entró por última vez". */
     private Instant lastLoginAt;
+
+    /** Los cuatro datos de contacto cargados (los admins no los necesitan, ver ReservationService.book). */
+    public boolean isProfileComplete() {
+        return notBlank(rut) && notBlank(address) && notBlank(phone) && birthDate != null;
+    }
+
+    private static boolean notBlank(String value) {
+        return value != null && !value.isBlank();
+    }
 
     @PrePersist
     void onCreate() {

@@ -115,6 +115,16 @@ import { BloqueSeriesModal } from '../bloque-series-modal/bloque-series-modal';
 import { PlanFormModal } from '../plan-form-modal/plan-form-modal';
 import { MarkPaidModal } from '../mark-paid-modal/mark-paid-modal';
 import { ClosureModal } from '../closure-modal/closure-modal';
+import { MemberProfileModal } from '../../../../core/components/member-profile-modal/member-profile-modal';
+import { MemberProfile } from '../../../../core/models/member.model';
+import { MemberProfileService } from '../../../../core/services/member-profile.service';
+import { formatMobile, whatsappUrl } from '../../../../core/utils/member-profile';
+import { FixedClassesModal } from '../fixed-classes-modal/fixed-classes-modal';
+import { ImportFixedClassesModal } from '../import-fixed-classes-modal/import-fixed-classes-modal';
+import { FixedClass } from '../../../../core/models/fixed-class.model';
+import { FixedClassService } from '../../../../core/services/fixed-class.service';
+import { fixedClassSaveMessage } from '../../../../core/utils/fixed-class-import';
+import { errorText } from '../../../../core/utils/error-text';
 import { EditClosureModal } from '../edit-closure-modal/edit-closure-modal';
 import { BookingRulesCard } from '../../../../core/components/booking-rules-card/booking-rules-card';
 import { QuantityStepper } from '../../../../core/components/quantity-stepper/quantity-stepper';
@@ -365,6 +375,9 @@ const THEMED_ROOT_PROPERTIES = [
     MarkPaidModal,
     ClosureModal,
     EditClosureModal,
+    FixedClassesModal,
+    ImportFixedClassesModal,
+    MemberProfileModal,
     QuantityStepper,
     BookingRulesCard,
   ],
@@ -1040,7 +1053,7 @@ export class GymForm implements OnDestroy {
       },
       error: (err: Error) => {
         this.status.set('idle');
-        this.adminError.set(err.message || 'No pudimos agregar al administrador. Intenta nuevamente.');
+        this.adminError.set(errorText(err, 'No pudimos agregar al administrador. Intenta nuevamente.'));
       },
     });
   }
@@ -1061,7 +1074,7 @@ export class GymForm implements OnDestroy {
       },
       error: (err: Error) => {
         this.status.set('idle');
-        this.demoAdminError.set(err.message || 'No pudimos otorgar el acceso a la demo. Intenta nuevamente.');
+        this.demoAdminError.set(errorText(err, 'No pudimos otorgar el acceso a la demo. Intenta nuevamente.'));
       },
     });
   }
@@ -1806,11 +1819,11 @@ export class GymForm implements OnDestroy {
     this.themeSaving.set(true);
     this.gymService.updateTheme(id, { themeColor: hex, themeMode: mode }).subscribe({
       next: () => this.themeSaving.set(false),
-      error: () => {
+      error: (err: Error) => {
         this.themeColor.set(previousColor);
         this.themeMode.set(previousMode);
         this.themeSaving.set(false);
-        this.showToast('No pudimos guardar el color. Intenta nuevamente.', 'danger');
+        this.showToast(errorText(err, 'No pudimos guardar el color. Intenta nuevamente.'), 'danger');
       },
     });
   }
@@ -1834,9 +1847,9 @@ export class GymForm implements OnDestroy {
           this.identitySaving.set(false);
           this.showToast('Identidad actualizada.');
         },
-        error: () => {
+        error: (err: Error) => {
           this.identitySaving.set(false);
-          this.showToast('No pudimos guardar los cambios. Intenta nuevamente.', 'danger');
+          this.showToast(errorText(err, 'No pudimos guardar los cambios. Intenta nuevamente.'), 'danger');
         },
       });
   }
@@ -1853,9 +1866,9 @@ export class GymForm implements OnDestroy {
         this.bookingRules.set(rules);
         this.showToast('Reglas de reserva guardadas.');
       },
-      error: () => {
+      error: (err: Error) => {
         this.bookingRulesSaving.set(false);
-        this.showToast('No pudimos guardar las reglas. Intenta nuevamente.', 'danger');
+        this.showToast(errorText(err, 'No pudimos guardar las reglas. Intenta nuevamente.'), 'danger');
       },
     });
   }
@@ -1901,9 +1914,9 @@ export class GymForm implements OnDestroy {
         this.newProfesorEmail.set('');
         this.showToast(`${profesor.name} ya puede entrar como profesor.`);
       },
-      error: () => {
+      error: (err: Error) => {
         this.creatingProfesor.set(false);
-        this.showToast('No pudimos agregar al profesor. Intenta nuevamente.', 'danger');
+        this.showToast(errorText(err, 'No pudimos agregar al profesor. Intenta nuevamente.'), 'danger');
       },
     });
   }
@@ -1956,9 +1969,9 @@ export class GymForm implements OnDestroy {
         this.bankTransferSaving.set(false);
         this.showToast('Datos bancarios actualizados.');
       },
-      error: () => {
+      error: (err: Error) => {
         this.bankTransferSaving.set(false);
-        this.showToast('No pudimos guardar los datos bancarios. Intenta nuevamente.', 'danger');
+        this.showToast(errorText(err, 'No pudimos guardar los datos bancarios. Intenta nuevamente.'), 'danger');
       },
     });
   }
@@ -2001,9 +2014,9 @@ export class GymForm implements OnDestroy {
         this.flowAccountForm.patchValue({ apiKey: '', secretKey: '' });
         this.showToast('Cuenta Pago Online actualizada.');
       },
-      error: () => {
+      error: (err: Error) => {
         this.flowAccountSaving.set(false);
-        this.showToast('No pudimos guardar la cuenta Pago Online. Intenta nuevamente.', 'danger');
+        this.showToast(errorText(err, 'No pudimos guardar la cuenta Pago Online. Intenta nuevamente.'), 'danger');
       },
     });
   }
@@ -2197,6 +2210,121 @@ export class GymForm implements OnDestroy {
     });
   }
 
+  // ---- Datos de contacto del socio (RUT, dirección, nacimiento, celular) + WhatsApp ----
+
+  private readonly memberProfileService = inject(MemberProfileService);
+  protected readonly profileMember = signal<Member | null>(null);
+  protected readonly savingMemberProfile = signal(false);
+  protected readonly memberProfileError = signal<string | null>(null);
+  protected readonly whatsappUrl = whatsappUrl;
+  protected readonly formatMobile = formatMobile;
+
+  protected openMemberProfile(member: Member): void {
+    this.memberProfileError.set(null);
+    this.profileMember.set(member);
+  }
+
+  protected closeMemberProfile(): void {
+    this.profileMember.set(null);
+  }
+
+  protected confirmMemberProfile(profile: MemberProfile): void {
+    const member = this.profileMember();
+    if (!member) {
+      return;
+    }
+    this.savingMemberProfile.set(true);
+    this.memberProfileError.set(null);
+    this.memberProfileService.updateForGymMember(this.gymId()!, member.id, profile).subscribe({
+      next: () => {
+        this.savingMemberProfile.set(false);
+        this.profileMember.set(null);
+        this.showToast(`Datos de ${member.name} guardados.`);
+        this.memberList.reload();
+      },
+      error: (err: Error) => {
+        this.savingMemberProfile.set(false);
+        this.memberProfileError.set(errorText(err, 'No pudimos guardar los datos. Intenta nuevamente.'));
+      },
+    });
+  }
+
+  // ---- Clases fijas (editor por socio + importación por Excel), versión super-admin ----
+  // Mismo flujo que gym-admin.ts, con el gymId explícito en vez de salir del JWT.
+
+  private readonly fixedClassService = inject(FixedClassService);
+  protected readonly fixedClassesMember = signal<Member | null>(null);
+  protected readonly fixedClassesCurrent = signal<FixedClass[]>([]);
+  protected readonly savingFixedClasses = signal(false);
+  protected readonly loadingFixedClassesId = signal<number | null>(null);
+  protected readonly isImportFixedClassesOpen = signal(false);
+
+  protected fixedClassesHint(member: Member | null): string {
+    if (!member) {
+      return '';
+    }
+    const active = member.membershipStatus === 'ACTIVE' || member.membershipStatus === 'EXPIRING_SOON';
+    return active
+      ? `Se reservarán desde hoy hasta el ${this.formatDate(member.planEndDate)}, hasta completar las clases de su plan. Al renovar se reservan solas.`
+      : 'No tiene plan activo: se guardan sus clases fijas y se reservan cuando pague.';
+  }
+
+  protected openFixedClassesModal(member: Member): void {
+    const id = this.gymId();
+    if (id === null) {
+      return;
+    }
+    this.loadingFixedClassesId.set(member.id);
+    this.fixedClassService.list(member.id, id).subscribe({
+      next: (classes) => {
+        this.loadingFixedClassesId.set(null);
+        this.fixedClassesCurrent.set(classes);
+        this.fixedClassesMember.set(member);
+      },
+      error: () => {
+        this.loadingFixedClassesId.set(null);
+        this.showToast('No pudimos cargar las clases fijas. Intenta nuevamente.', 'danger');
+      },
+    });
+  }
+
+  protected closeFixedClassesModal(): void {
+    this.fixedClassesMember.set(null);
+  }
+
+  protected confirmFixedClasses(blockIds: number[]): void {
+    const id = this.gymId();
+    const member = this.fixedClassesMember();
+    if (id === null || !member) {
+      return;
+    }
+    this.savingFixedClasses.set(true);
+    this.fixedClassService.save(member.id, blockIds, id).subscribe({
+      next: (result) => {
+        this.savingFixedClasses.set(false);
+        this.fixedClassesMember.set(null);
+        this.showToast(fixedClassSaveMessage(result, member.name));
+        this.memberList.reload();
+      },
+      error: (err) => {
+        this.savingFixedClasses.set(false);
+        this.showToast(errorText(err, 'No pudimos guardar las clases fijas. Intenta nuevamente.'), 'danger');
+      },
+    });
+  }
+
+  protected openImportFixedClasses(): void {
+    this.isImportFixedClassesOpen.set(true);
+  }
+
+  protected closeImportFixedClasses(): void {
+    this.isImportFixedClassesOpen.set(false);
+  }
+
+  protected onFixedClassesImported(): void {
+    this.memberList.reload();
+  }
+
   protected openClosureModal(): void {
     this.closurePreview.set(null);
     this.closurePreviewError.set(null);
@@ -2222,7 +2350,7 @@ export class GymForm implements OnDestroy {
       },
       error: (err) => {
         this.closurePreviewing.set(false);
-        this.closurePreviewError.set(err?.message || 'No pudimos calcular el impacto. Intenta nuevamente.');
+        this.closurePreviewError.set(errorText(err, 'No pudimos calcular el impacto. Intenta nuevamente.'));
       },
     });
   }
@@ -2244,7 +2372,7 @@ export class GymForm implements OnDestroy {
       },
       error: (err) => {
         this.closureSaving.set(false);
-        this.showToast(err.message || 'No pudimos aplicar el cierre. Intenta nuevamente.', 'danger');
+        this.showToast(errorText(err, 'No pudimos aplicar el cierre. Intenta nuevamente.'), 'danger');
       },
     });
   }
@@ -2302,7 +2430,7 @@ export class GymForm implements OnDestroy {
       },
       error: (err) => {
         this.editClosurePreviewing.set(false);
-        this.editClosurePreviewError.set(err?.message || 'No pudimos calcular el impacto. Intenta nuevamente.');
+        this.editClosurePreviewError.set(errorText(err, 'No pudimos calcular el impacto. Intenta nuevamente.'));
       },
     });
   }
@@ -2323,7 +2451,7 @@ export class GymForm implements OnDestroy {
       },
       error: (err) => {
         this.editClosureSaving.set(false);
-        this.showToast(err.message || 'No pudimos editar el cierre. Intenta nuevamente.', 'danger');
+        this.showToast(errorText(err, 'No pudimos editar el cierre. Intenta nuevamente.'), 'danger');
       },
     });
   }

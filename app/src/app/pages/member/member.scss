@@ -1327,3 +1327,10 @@ ion-segment-button.segment-button-checked {
 .class-tile__scan {
   margin-top: 0.4rem;
 }
+
+// Etiqueta "Clase fija" de una reserva que nació de una clase fija del socio.
+.class-tile__fixed-badge {
+  display: inline-block;
+  align-self: flex-start;
+  margin: 0 0 0.35rem;
+}

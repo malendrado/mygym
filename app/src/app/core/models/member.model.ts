@@ -27,6 +27,26 @@ export interface Member {
   /** Eje independiente de membershipStatus: null (se auto-registró) | 'PENDING' (el admin lo agregó a
    *  mano, todavía no entró con Google) | 'REGISTERED' (el admin lo agregó a mano y ya entró). */
   inviteStatus: InviteStatus;
+  /** "Lun 19:00 GAP · Mié 19:00 GAP" — null si no tiene clases fijas. */
+  fixedClassesSummary: string | null;
+  /** Datos de contacto del socio — null mientras no los complete. El PROFESOR solo recibe el celular. */
+  rut: string | null;
+  address: string | null;
+  /** "YYYY-MM-DD" */
+  birthDate: string | null;
+  /** Formato internacional ("+56912345678") — de acá sale el link de WhatsApp (ver whatsappUrl). */
+  phone: string | null;
+  /** false = todavía no completa sus datos: no puede reservar (el servidor lo hace cumplir). */
+  profileComplete: boolean;
+}
+
+/** Los cuatro datos de contacto juntos — PUT /api/me/profile y los de admin/super-admin. */
+export interface MemberProfile {
+  rut: string;
+  address: string;
+  /** "YYYY-MM-DD" */
+  birthDate: string;
+  phone: string;
 }
 
 export type InviteStatus = 'PENDING' | 'REGISTERED' | null;
@@ -56,6 +76,12 @@ export interface MemberImportRow {
   expiresAt: string | null;
   /** Solo aplica si el plan tiene cupo limitado — clases que ya venía usando ese mes. */
   usedSessions: number | null;
+  /** Opcionales en el Excel (el socio los completa al entrar si faltan); el servidor los valida igual. */
+  rut: string | null;
+  address: string | null;
+  /** "YYYY-MM-DD" */
+  birthDate: string | null;
+  phone: string | null;
 }
 
 export interface MemberImportRowResult {

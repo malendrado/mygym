@@ -635,11 +635,10 @@ ion-segment-button.segment-button-checked {
 
 .member-row {
   display: flex;
-  flex-wrap: nowrap;
+  // Con RUT/celular/clases fijas la fila lleva más datos: pasa a otra línea en vez de esconderlos tras un scroll.
+  flex-wrap: wrap;
   align-items: center;
-  gap: 0.6rem;
-  overflow-x: auto;
-  scrollbar-width: none;
+  gap: 0.25rem 0.6rem;
 
   &::-webkit-scrollbar {
     display: none;
@@ -1048,4 +1047,9 @@ ion-segment-button.segment-button-checked {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--brand-text-dim);
+}
+
+// "Datos pendientes": el socio todavía no completa RUT, dirección, nacimiento y celular.
+.member-plan-info__item--pending {
+  color: var(--ion-color-warning);
 }

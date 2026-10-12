@@ -14,4 +14,6 @@ public record ReservationResponse(
         LocalTime endTime,
         ReservationStatus status,
         Instant createdAt,
-        Instant checkedInAt) {}
+        Instant checkedInAt,
+        /** true = la reserva viene de una clase fija del socio. */
+        boolean fixed) {}

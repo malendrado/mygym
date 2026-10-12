@@ -21,6 +21,7 @@ import { VersionTag } from '../../core/components/version-tag/version-tag';
 import {
   arrowForwardOutline,
   barbellOutline,
+  repeatOutline,
   businessOutline,
   cardOutline,
   chevronDownOutline,
@@ -52,6 +53,7 @@ addIcons({
   'shield-checkmark-outline': shieldCheckmarkOutline,
   'arrow-forward-outline': arrowForwardOutline,
   'barbell-outline': barbellOutline,
+  'repeat-outline': repeatOutline,
 });
 
 const WHATSAPP_NUMBER = '56964641042';
@@ -152,7 +154,7 @@ export class Landing implements OnInit, AfterViewInit, OnDestroy {
     },
     {
       title: 'Cierre de emergencia',
-      body: 'Por fuerza mayor o un problema de seguridad: cancela las clases afectadas, devuelve el cupo y avisa a cada socio por email, todo en un clic.',
+      body: 'Por fuerza mayor o un problema de seguridad: cierra días completos o solo las clases que elijas (ordenadas por día y hora), devuelve el cupo y avisa a cada socio por email.',
       span: 'small',
       tint: 'surface-2',
     },
@@ -172,6 +174,18 @@ export class Landing implements OnInit, AfterViewInit, OnDestroy {
       title: 'App para socios',
       body: 'Se instala en el celular como una app. Entran con Google o con email y contraseña, reservan, ven su plan y pagan sin llamarte.',
       span: 'small',
+      tint: 'surface',
+    },
+    {
+      title: 'Clases fijas',
+      body: 'Deja precargada la clase a la que va siempre cada socio: se le reserva sola cada semana, se le descuenta de su plan y se renueva cuando paga. Desde la ficha o con un Excel.',
+      span: 'small',
+      tint: 'surface-2',
+    },
+    {
+      title: 'Datos de tus socios, al día',
+      body: 'RUT, dirección, fecha de nacimiento y celular, validados: el socio los completa una sola vez al entrar. Y desde tu lista, un toque en WhatsApp para escribirle directo.',
+      span: 'large',
       tint: 'surface',
     },
     {
@@ -208,6 +222,11 @@ export class Landing implements OnInit, AfterViewInit, OnDestroy {
       icon: 'notifications-outline',
       title: 'Te avisamos antes, no después',
       body: 'Un aviso si se libera un cupo en la clase que estabas esperando, o si tu plan está por vencer.',
+    },
+    {
+      icon: 'repeat-outline',
+      title: 'Tu clase de siempre, ya reservada',
+      body: 'Si entrenas los mismos días, tu gimnasio te deja la clase fija: aparece reservada cada semana y, si un día no vas, la cancelas con un toque.',
     },
     {
       icon: 'barbell-outline',

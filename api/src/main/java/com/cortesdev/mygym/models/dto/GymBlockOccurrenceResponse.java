@@ -22,4 +22,6 @@ public record GymBlockOccurrenceResponse(
         Long myReservationId,
         boolean waitlisted,
         Instant myCheckedInAt,
-        boolean closed) {}
+        boolean closed,
+        /** true = mi reserva en esta clase viene de una clase fija mía. */
+        boolean myReservationFixed) {}

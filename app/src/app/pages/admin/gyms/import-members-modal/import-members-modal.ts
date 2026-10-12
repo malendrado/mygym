@@ -19,13 +19,16 @@ import {
   documentTextOutline,
   rocketOutline,
 } from 'ionicons/icons';
-import { HttpErrorResponse } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
+import { of, throwError } from 'rxjs';
 import { retry, timeout } from 'rxjs/operators';
 import * as XLSX from 'xlsx';
 import { GymPlan } from '../../../../core/models/gym.model';
 import { MemberImportRow, MemberImportRowResult } from '../../../../core/models/member.model';
 import { AuthService } from '../../../../core/services/auth.service';
+import { errorText } from '../../../../core/utils/error-text';
+import { addressError, birthDateError, normalizeMobile, parseBirthDateCell } from '../../../../core/utils/member-profile';
+import { cleanRut, formatRut, isValidRut } from '../../../../core/utils/rut';
 import { MemberService } from '../../../../core/services/member.service';
 
 addIcons({
@@ -49,6 +52,11 @@ interface ParsedRow {
   expiresAtIso: string | null;
   expiresAtLabel: string | null;
   usedSessions: number | null;
+  // Datos de contacto opcionales (el socio los completa al entrar si faltan).
+  rut: string | null;
+  address: string | null;
+  birthDate: string | null;
+  phone: string | null;
   // 'warning' = se puede importar igual (el admin decide), a diferencia de 'error' que bloquea
   // la fila del todo — ver parseRow: email que no es Gmail o "clases usadas" en un plan libre.
   status: 'ok' | 'warning' | 'error';
@@ -81,6 +89,17 @@ const HEADER_SYNONYMS: Record<string, keyof ColumnIndex> = {
   'clases usadas': 'usedSessions',
   'clases ocupadas': 'usedSessions',
   'sesiones usadas': 'usedSessions',
+  rut: 'rut',
+  direccion: 'address',
+  domicilio: 'address',
+  'fecha de nacimiento': 'birthDate',
+  nacimiento: 'birthDate',
+  'fecha nacimiento': 'birthDate',
+  telefono: 'phone',
+  celular: 'phone',
+  'telefono de contacto': 'phone',
+  'telefono contacto': 'phone',
+  whatsapp: 'phone',
 };
 
 interface ColumnIndex {
@@ -90,6 +109,10 @@ interface ColumnIndex {
   amount: number;
   expiresAt: number;
   usedSessions: number;
+  rut: number;
+  address: number;
+  birthDate: number;
+  phone: number;
 }
 
 const GMAIL_WARNING =
@@ -97,6 +120,12 @@ const GMAIL_WARNING =
 
 const CHUNK_SIZE = 20;
 const REQUEST_TIMEOUT_MS = 45000;
+
+// Una respuesta 4xx del servidor (validación, conflicto) no mejora reintentando.
+function isClientError(e: unknown): boolean {
+  const status = (e as { status?: number })?.status ?? 0;
+  return status >= 400 && status < 500;
+}
 
 function pad2(n: number): string {
   return n.toString().padStart(2, '0');
@@ -169,12 +198,12 @@ export class ImportMembersModal {
   });
 
   protected downloadTemplate(): void {
-    const headers = ['Nombre', 'Email', 'Plan', 'Monto pagado CLP', 'Fecha de vencimiento', 'Clases usadas'];
-    const example1 = ['Javiera Pulgar', 'javiera@gmail.com', '', '', '', ''];
-    const example2 = ['Diego Soto', 'diego@gmail.com', 'Plan Libre', 39990, '15-10-2026', ''];
-    const example3 = ['Camila Rojas', 'camila@gmail.com', 'Plan 8 clases', 29990, '20-10-2026', 3];
+    const headers = ['Nombre', 'Email', 'Plan', 'Monto pagado CLP', 'Fecha de vencimiento', 'Clases usadas', 'RUT', 'Dirección', 'Fecha de nacimiento', 'Teléfono'];
+    const example1 = ['Javiera Pulgar', 'javiera@gmail.com', '', '', '', '', '', '', '', ''];
+    const example2 = ['Diego Soto', 'diego@gmail.com', 'Plan Libre', 39990, '15-10-2026', '', '12.345.678-5', 'Av. Siempre Viva 742, Ñuñoa', '20-05-1990', '+56 9 1234 5678'];
+    const example3 = ['Camila Rojas', 'camila@gmail.com', 'Plan 8 clases', 29990, '20-10-2026', 3, '', '', '', ''];
     const sheet = XLSX.utils.aoa_to_sheet([headers, example1, example2, example3]);
-    sheet['!cols'] = [{ wch: 22 }, { wch: 28 }, { wch: 18 }, { wch: 18 }, { wch: 20 }, { wch: 16 }];
+    sheet['!cols'] = [{ wch: 22 }, { wch: 28 }, { wch: 18 }, { wch: 18 }, { wch: 20 }, { wch: 16 }, { wch: 14 }, { wch: 30 }, { wch: 20 }, { wch: 18 }];
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, sheet, 'Socios');
     XLSX.writeFile(workbook, 'plantilla-socios-mygym.xlsx');
@@ -270,6 +299,12 @@ export class ImportMembersModal {
     const amountRaw = cellAt(columnIndex.amount);
     const expiresRaw = cellAt(columnIndex.expiresAt);
     const usedSessionsRaw = cellAt(columnIndex.usedSessions);
+    const contact = this.parseContact(
+      cellAt(columnIndex.rut),
+      cellAt(columnIndex.address),
+      cellAt(columnIndex.birthDate),
+      cellAt(columnIndex.phone),
+    );
 
     const base: Omit<ParsedRow, 'status' | 'statusLabel' | 'error'> = {
       rowNumber,
@@ -281,6 +316,10 @@ export class ImportMembersModal {
       expiresAtIso: null,
       expiresAtLabel: null,
       usedSessions: null,
+      rut: contact.rut,
+      address: contact.address,
+      birthDate: contact.birthDate,
+      phone: contact.phone,
       included: true,
     };
     const error = (message: string): ParsedRow => ({ ...base, status: 'error', statusLabel: '', error: message });
@@ -306,6 +345,9 @@ export class ImportMembersModal {
       return error('Email repetido en este mismo archivo.');
     }
     seenInFile.add(normalizedEmail);
+    if (contact.error) {
+      return error(contact.error);
+    }
 
     const warnings: string[] = [];
     if (!normalizedEmail.endsWith('@gmail.com')) {
@@ -379,6 +421,52 @@ export class ImportMembersModal {
     });
   }
 
+  // Datos de contacto OPCIONALES del Excel: los que vengan se validan igual que cuando los escribe el
+  // propio socio (el servidor repite la validación); uno inválido deja la fila en error.
+  private parseContact(
+    rutRaw: unknown,
+    addressRaw: unknown,
+    birthRaw: unknown,
+    phoneRaw: unknown,
+  ): { rut: string | null; address: string | null; birthDate: string | null; phone: string | null; error: string | null } {
+    const has = (v: unknown): boolean => v !== null && String(v).trim() !== '';
+    const out = { rut: null as string | null, address: null as string | null, birthDate: null as string | null, phone: null as string | null, error: null as string | null };
+    if (has(rutRaw)) {
+      const rut = String(rutRaw).trim();
+      if (!isValidRut(rut)) {
+        out.error = 'RUT inválido. Revisa el número y el dígito verificador.';
+        return out;
+      }
+      out.rut = formatRut(cleanRut(rut));
+    }
+    if (has(addressRaw)) {
+      const err = addressError(addressRaw);
+      if (err) {
+        out.error = err;
+        return out;
+      }
+      out.address = String(addressRaw).trim().replace(/\s+/g, ' ');
+    }
+    if (has(birthRaw)) {
+      const iso = parseBirthDateCell(birthRaw);
+      const err = iso ? birthDateError(iso) : 'Fecha de nacimiento ilegible — usa el formato dd-mm-aaaa.';
+      if (err || !iso) {
+        out.error = err;
+        return out;
+      }
+      out.birthDate = iso;
+    }
+    if (has(phoneRaw)) {
+      const phone = normalizeMobile(phoneRaw);
+      if (!phone) {
+        out.error = 'Celular inválido. Usa un celular chileno, por ejemplo +56 9 1234 5678.';
+        return out;
+      }
+      out.phone = phone;
+    }
+    return out;
+  }
+
   private parseAmount(raw: unknown): number | null {
     if (typeof raw === 'number' && !isNaN(raw)) {
       return Math.round(raw);
@@ -448,10 +536,14 @@ export class ImportMembersModal {
         amountClp: r.amountClp,
         expiresAt: r.expiresAtIso,
         usedSessions: r.usedSessions,
+        rut: r.rut,
+        address: r.address,
+        birthDate: r.birthDate,
+        phone: r.phone,
       }));
       try {
         const results = await firstValueFrom(
-          this.memberService.importBatch(payload).pipe(timeout(REQUEST_TIMEOUT_MS), retry(1)),
+          this.memberService.importBatch(payload).pipe(timeout(REQUEST_TIMEOUT_MS), retry({ count: 1, delay: (e) => (isClientError(e) ? throwError(() => e) : of(null)) })),
         );
         for (const result of results as MemberImportRowResult[]) {
           if (result.success) {
@@ -465,13 +557,16 @@ export class ImportMembersModal {
         // cambió en otra pestaña) — un 403 acá es casi seguro el bloqueo real de escritura del
         // backend para DEMO_ADMIN, no un problema de conexión. Corta el resto de los bloques:
         // todos van a fallar exactamente igual, no tiene sentido seguir intentando.
-        if (err instanceof HttpErrorResponse && err.status === 403) {
+        if (err instanceof Error && err.message.startsWith('Esta es una demo de solo lectura')) {
           this.demoBlocked.set(true);
           this.stage.set('done');
           return;
         }
         chunk.forEach((r) =>
-          failedDetails.push({ email: r.email, error: 'No se pudo conectar con el servidor para este bloque.' }),
+          failedDetails.push({
+            email: r.email,
+            error: errorText(err, 'No se pudo conectar con el servidor para este bloque.'),
+          }),
         );
       }
       this.progress.update((p) => ({ ...p, done: p.done + chunk.length }));

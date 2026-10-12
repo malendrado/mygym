@@ -40,6 +40,13 @@ import com.cortesdev.mygym.models.dto.MemberResponse;
 import com.cortesdev.mygym.models.dto.MemberSummaryResponse;
 import com.cortesdev.mygym.models.dto.PageResponse;
 import com.cortesdev.mygym.models.dto.OccurrenceAttendees;
+import com.cortesdev.mygym.models.dto.FixedClassImportMemberResult;
+import com.cortesdev.mygym.models.dto.FixedClassImportRequest;
+import com.cortesdev.mygym.models.dto.FixedClassResponse;
+import com.cortesdev.mygym.models.dto.FixedClassRowResult;
+import com.cortesdev.mygym.models.dto.FixedClassesSaveResponse;
+import com.cortesdev.mygym.models.dto.FixedClassesUpdateRequest;
+import com.cortesdev.mygym.models.dto.MemberProfileRequest;
 import com.cortesdev.mygym.models.dto.PlanCreateRequest;
 import com.cortesdev.mygym.models.dto.PlanResponse;
 import com.cortesdev.mygym.models.dto.PlanUpdateRequest;
@@ -48,9 +55,12 @@ import com.cortesdev.mygym.models.dto.TvScreenClaimRequest;
 import com.cortesdev.mygym.models.dto.TvScreenResponse;
 import com.cortesdev.mygym.security.AuthenticatedUser;
 import com.cortesdev.mygym.services.BrandingSuggestionService;
+import com.cortesdev.mygym.services.FixedClassImportService;
+import com.cortesdev.mygym.services.FixedClassService;
 import com.cortesdev.mygym.services.GymClosureService;
 import com.cortesdev.mygym.services.GymDisconnectionService;
 import com.cortesdev.mygym.services.GymService;
+import com.cortesdev.mygym.services.MemberProfileService;
 import com.cortesdev.mygym.services.MemberService;
 import com.cortesdev.mygym.services.ReservationService;
 import com.cortesdev.mygym.services.TvScreenService;
@@ -85,6 +95,9 @@ public class GymController {
     private final GymDisconnectionService gymDisconnectionService;
     private final TvScreenService tvScreenService;
     private final GymClosureService gymClosureService;
+    private final FixedClassService fixedClassService;
+    private final MemberProfileService memberProfileService;
+    private final FixedClassImportService fixedClassImportService;
 
     @PostMapping("/suggest-branding")
     public BrandingSuggestionResponse suggestBranding(@Valid @RequestBody BrandingSuggestionRequest request) {
@@ -396,6 +409,40 @@ public class GymController {
             @PathVariable Long id, @Valid @RequestBody MemberCreateRequest request) {
         MemberResponse member = memberService.createMember(id, request);
         return ResponseEntity.created(URI.create("/api/gyms/" + id + "/members/" + member.id())).body(member);
+    }
+
+    /** Contraparte SUPER_ADMIN de MemberProfileController — mismo backend, gymId por path. */
+    @PutMapping("/{id}/members/{memberId}/profile")
+    public MemberResponse updateMemberProfile(
+            @PathVariable Long id, @PathVariable Long memberId, @Valid @RequestBody MemberProfileRequest request) {
+        return memberProfileService.updateForGym(id, memberId, request);
+    }
+
+    /** Contrapartes SUPER_ADMIN de FixedClassController — mismo backend, gymId por path. */
+    @GetMapping("/{id}/members/{memberId}/fixed-classes")
+    public List<FixedClassResponse> listFixedClasses(@PathVariable Long id, @PathVariable Long memberId) {
+        return fixedClassService.list(id, memberId);
+    }
+
+    @PutMapping("/{id}/members/{memberId}/fixed-classes")
+    public FixedClassesSaveResponse replaceFixedClasses(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long id,
+            @PathVariable Long memberId,
+            @Valid @RequestBody FixedClassesUpdateRequest request) {
+        return fixedClassService.replaceForMember(id, memberId, request.blockIds(), AuthenticatedUser.from(jwt).userId());
+    }
+
+    @PostMapping("/{id}/fixed-classes/import/validate")
+    public List<FixedClassRowResult> validateFixedClassImport(
+            @PathVariable Long id, @Valid @RequestBody FixedClassImportRequest request) {
+        return fixedClassImportService.validate(id, request.rows());
+    }
+
+    @PostMapping("/{id}/fixed-classes/import")
+    public List<FixedClassImportMemberResult> importFixedClasses(
+            @AuthenticationPrincipal Jwt jwt, @PathVariable Long id, @Valid @RequestBody FixedClassImportRequest request) {
+        return fixedClassImportService.importRows(id, request.rows(), AuthenticatedUser.from(jwt).userId());
     }
 
     /** Contraparte SUPER_ADMIN de MemberController.markPaid — mismo backend, gymId por path. */

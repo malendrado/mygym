@@ -2,7 +2,9 @@ package com.cortesdev.mygym.services;
 
 import com.cortesdev.mygym.models.AppUser;
 import com.cortesdev.mygym.models.Gym;
+import com.cortesdev.mygym.models.GymBlock;
 import com.cortesdev.mygym.models.GymPlan;
+import com.cortesdev.mygym.models.MemberFixedClass;
 import com.cortesdev.mygym.models.Reservation;
 import com.cortesdev.mygym.models.ReservationStatus;
 import com.cortesdev.mygym.models.Role;
@@ -13,8 +15,10 @@ import com.cortesdev.mygym.models.dto.MemberResponse;
 import com.cortesdev.mygym.models.dto.MemberSummaryResponse;
 import com.cortesdev.mygym.models.dto.PageResponse;
 import com.cortesdev.mygym.repositories.AppUserRepository;
+import com.cortesdev.mygym.repositories.GymBlockRepository;
 import com.cortesdev.mygym.repositories.GymPlanRepository;
 import com.cortesdev.mygym.repositories.GymRepository;
+import com.cortesdev.mygym.repositories.MemberFixedClassRepository;
 import com.cortesdev.mygym.repositories.ReservationRepository;
 import com.cortesdev.mygym.services.exception.DuplicateMemberEmailException;
 import com.cortesdev.mygym.services.exception.GymNotFoundException;
@@ -59,6 +63,8 @@ public class MemberService {
     private final MemberLifecycleEmailService memberLifecycleEmailService;
     private final MemberImportRowService memberImportRowService;
     private final PasswordAuthService passwordAuthService;
+    private final MemberFixedClassRepository memberFixedClassRepository;
+    private final GymBlockRepository gymBlockRepository;
 
     public MemberResponse createMember(Long gymId, MemberCreateRequest request) {
         if (appUserRepository.existsByEmail(AppUser.normalizeEmail(request.email()))) {
@@ -140,7 +146,10 @@ public class MemberService {
         List<AppUser> matches = appUserRepository.findByGymIdAndRole(gymId, Role.MEMBER).stream()
                 .filter(u -> status == null || status.isBlank() || status.equals(membershipStatus(u)))
                 .filter(u -> invite == null || invite.isBlank() || invite.equals(inviteStatus(u)))
-                .filter(u -> needle.isEmpty() || contains(u.getName(), needle) || contains(u.getEmail(), needle))
+                .filter(u -> needle.isEmpty()
+                        || contains(u.getName(), needle)
+                        || contains(u.getEmail(), needle)
+                        || matchesContactDigits(u, needle))
                 .sorted(Comparator.comparing((AppUser u) -> u.getName() == null ? "" : u.getName().toLowerCase())
                         .thenComparing(AppUser::getId))
                 .toList();
@@ -150,6 +159,19 @@ public class MemberService {
         int to = Math.min(from + safeSize, matches.size());
         return new PageResponse<>(
                 toResponses(matches.subList(from, to)), safePage, safeSize, matches.size(), to < matches.size());
+    }
+
+    // Búsqueda por RUT o celular: solo con 3+ dígitos ("k" cuenta, es el dígito verificador) y sin importar puntos, guión, +56 o espacios.
+    private static boolean matchesContactDigits(AppUser user, String needle) {
+        String digits = needle.replaceAll("[^0-9k]", "");
+        if (digits.length() < 3) {
+            return false;
+        }
+        return onlyDigits(user.getRut()).contains(digits) || onlyDigits(user.getPhone()).contains(digits);
+    }
+
+    private static String onlyDigits(String value) {
+        return value == null ? "" : value.toLowerCase().replaceAll("[^0-9k]", "");
     }
 
     private static boolean contains(String value, String needle) {
@@ -262,13 +284,24 @@ public class MemberService {
         if (plan == null || plan.getMonthlyClasses() == null) {
             return null;
         }
-        ZonedDateTime start = paidAt.atZone(GYM_ZONE);
-        LocalDate periodStart = start.toLocalDate();
-        LocalDate periodEndInclusive = start.plusMonths(1).toLocalDate().minusDays(1);
+        PeriodRange period = currentPeriod(user);
         int used = reservationRepository.countByMemberIdAndStatusAndClassDateBetween(
-                user.getId(), ReservationStatus.BOOKED, periodStart, periodEndInclusive);
+                user.getId(), ReservationStatus.BOOKED, period.start(), period.endInclusive());
         int usedAtImport = user.getUsedSessionsAtImport() != null ? user.getUsedSessionsAtImport() : 0;
         return plan.getMonthlyClasses() - (used + usedAtImport);
+    }
+
+    /** Período vigente del socio: de la fecha de pago al día anterior a paidAt + 1 mes (ambos
+     *  inclusive) — el mismo rango que usa remainingClasses. */
+    public record PeriodRange(LocalDate start, LocalDate endInclusive) {}
+
+    /** null si nunca pagó. Única cuenta del período, nunca duplicarla (ver remainingClasses). */
+    public PeriodRange currentPeriod(AppUser user) {
+        if (user.getPaidAt() == null) {
+            return null;
+        }
+        ZonedDateTime start = user.getPaidAt().atZone(GYM_ZONE);
+        return new PeriodRange(start.toLocalDate(), start.plusMonths(1).toLocalDate().minusDays(1));
     }
 
     private String membershipStatus(AppUser user) {
@@ -336,6 +369,23 @@ public class MemberService {
                                     .count()));
         }
 
+        // Clases fijas: 1 query por página (no una por socio) + 1 de los bloques involucrados.
+        List<Long> allMemberIds = users.stream().map(AppUser::getId).toList();
+        Map<Long, List<MemberFixedClass>> fixedByMember = allMemberIds.isEmpty()
+                ? Map.of()
+                : memberFixedClassRepository.findByMemberIdIn(allMemberIds).stream()
+                        .collect(Collectors.groupingBy(MemberFixedClass::getMemberId));
+        Map<Long, GymBlock> blocksById = fixedByMember.isEmpty()
+                ? Map.of()
+                : gymBlockRepository
+                        .findAllById(fixedByMember.values().stream()
+                                .flatMap(List::stream)
+                                .map(MemberFixedClass::getGymBlockId)
+                                .distinct()
+                                .toList())
+                        .stream()
+                        .collect(Collectors.toMap(GymBlock::getId, b -> b));
+
         List<MemberResponse> responses = new ArrayList<>();
         for (AppUser user : users) {
             String planName = null;
@@ -375,7 +425,16 @@ public class MemberService {
                     monthlyClasses,
                     sessionsRemaining,
                     user.getPhotoUrl(),
-                    inviteStatus(user)));
+                    inviteStatus(user),
+                    FixedClassFormat.summary(fixedByMember.getOrDefault(user.getId(), List.of()).stream()
+                            .map(f -> blocksById.get(f.getGymBlockId()))
+                            .filter(Objects::nonNull)
+                            .toList()),
+                    user.getRut(),
+                    user.getAddress(),
+                    user.getBirthDate(),
+                    user.getPhone(),
+                    user.isProfileComplete()));
         }
         return responses;
     }

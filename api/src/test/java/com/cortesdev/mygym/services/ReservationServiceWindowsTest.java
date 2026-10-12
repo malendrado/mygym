@@ -47,6 +47,7 @@ class ReservationServiceWindowsTest {
     @Mock private GymClosureService gymClosureService;
     @Mock private WaitlistService waitlistService;
     @Mock private com.cortesdev.mygym.repositories.AppUserRepository appUserRepository;
+    @Mock private MemberService memberService;
     @InjectMocks private ReservationService reservationService;
 
     /** Bloque que empieza dentro de `minutesFromNow` minutos (redondeado hacia arriba al minuto). */
@@ -141,6 +142,41 @@ class ReservationServiceWindowsTest {
         assertThatThrownBy(() -> reservationService.book(
                         GYM_ID, MEMBER_ID, new ReservationCreateRequest(BLOCK_ID, classDateOf(60))))
                 .isNotInstanceOf(BookingWindowClosedException.class);
+    }
+
+    // --- datos de contacto obligatorios para reservar ---
+
+    private void stubBookUpToTheProfileGate(com.cortesdev.mygym.models.AppUser member) {
+        when(gymRepository.findById(GYM_ID)).thenReturn(Optional.of(gym(10, 10)));
+        when(gymBlockRepository.findByIdAndGymId(BLOCK_ID, GYM_ID)).thenReturn(Optional.of(blockStartingIn(60)));
+        when(appUserRepository.findByIdAndGymId(MEMBER_ID, GYM_ID)).thenReturn(Optional.of(member));
+        when(memberService.hasActiveMembership(member)).thenReturn(true);
+        when(memberService.hasQuotaAvailable(member)).thenReturn(true);
+    }
+
+    @Test
+    void bookIsRefusedUntilTheMemberCompletedTheirContactData() {
+        com.cortesdev.mygym.models.AppUser member = com.cortesdev.mygym.models.AppUser.builder()
+                .id(MEMBER_ID).gymId(GYM_ID).rut("12.345.678-5").build(); // faltan dirección, celular y fecha
+        stubBookUpToTheProfileGate(member);
+
+        assertThatThrownBy(() -> reservationService.book(
+                        GYM_ID, MEMBER_ID, new ReservationCreateRequest(BLOCK_ID, classDateOf(60))))
+                .isInstanceOf(com.cortesdev.mygym.services.exception.ProfileIncompleteException.class);
+        verify(reservationRepository, never()).save(any());
+    }
+
+    @Test
+    void bookWorksOnceTheContactDataIsComplete() {
+        com.cortesdev.mygym.models.AppUser member = com.cortesdev.mygym.models.AppUser.builder()
+                .id(MEMBER_ID).gymId(GYM_ID).rut("12.345.678-5").address("Av. Siempre Viva 742, Ñuñoa")
+                .phone("+56912345678").birthDate(LocalDate.of(1990, 5, 20)).build();
+        stubBookUpToTheProfileGate(member);
+        when(reservationRepository.save(any(Reservation.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        reservationService.book(GYM_ID, MEMBER_ID, new ReservationCreateRequest(BLOCK_ID, classDateOf(60)));
+
+        verify(reservationRepository).save(any(Reservation.class));
     }
 
     // --- formato de minutos ---

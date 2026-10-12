@@ -21,6 +21,9 @@ import com.cortesdev.mygym.services.exception.GymClosedException;
 import com.cortesdev.mygym.services.exception.GymClosureNotFoundException;
 import com.cortesdev.mygym.services.exception.GymNotFoundException;
 import com.cortesdev.mygym.services.exception.InvalidClosureRequestException;
+import com.cortesdev.mygym.services.exception.InvalidFixedClassException;
+import com.cortesdev.mygym.services.exception.InvalidMemberProfileException;
+import com.cortesdev.mygym.services.exception.ProfileIncompleteException;
 import com.cortesdev.mygym.services.exception.GymPhotoNotFoundException;
 import com.cortesdev.mygym.services.exception.GymPlanNotFoundException;
 import com.cortesdev.mygym.services.exception.InvalidBlockScheduleException;
@@ -397,6 +400,16 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     public ResponseEntity<ProblemDetail> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
         // Catches the race where two requests for the same member+slot both pass the
         // service-layer duplicate check and hit the DB unique index at the same time.
+        // Dos personas guardando a la vez las clases fijas del mismo socio (uk_member_fixed_class, V37).
+        String root = ex.getMostSpecificCause().getMessage();
+        if (root != null && root.contains("uk_member_fixed_class")) {
+            ProblemDetail fixed = ProblemDetail.forStatusAndDetail(
+                    HttpStatus.CONFLICT,
+                    "Otra persona está guardando las clases fijas de este socio en este momento. Vuelve a intentarlo.");
+            fixed.setTitle("Clases fijas en uso");
+            fixed.setProperty("timestamp", Instant.now());
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(fixed);
+        }
         ProblemDetail problem =
                 ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, "Ya tienes una reserva para esta clase");
         problem.setTitle("Reserva duplicada");
@@ -426,6 +439,33 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
         problem.setTitle("Cupo mensual agotado");
         problem.setProperty("timestamp", Instant.now());
         return ResponseEntity.status(HttpStatus.CONFLICT).body(problem);
+    }
+
+    @ExceptionHandler(InvalidMemberProfileException.class)
+    public ResponseEntity<ProblemDetail> handleInvalidMemberProfile(InvalidMemberProfileException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+        problem.setTitle("Datos inválidos");
+        problem.setProperty("timestamp", Instant.now());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
+    }
+
+    @ExceptionHandler(ProfileIncompleteException.class)
+    public ResponseEntity<ProblemDetail> handleProfileIncomplete(ProfileIncompleteException ex) {
+        // 409 y no 403: el interceptor del frontend convierte todo 403 de un POST/PUT en "esta es una
+        // demo de solo lectura", que aquí sería un mensaje falso.
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+        problem.setTitle("Perfil incompleto");
+        problem.setProperty("code", "PROFILE_INCOMPLETE");
+        problem.setProperty("timestamp", Instant.now());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(problem);
+    }
+
+    @ExceptionHandler(InvalidFixedClassException.class)
+    public ResponseEntity<ProblemDetail> handleInvalidFixedClass(InvalidFixedClassException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+        problem.setTitle("Clase fija inválida");
+        problem.setProperty("timestamp", Instant.now());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
     }
 
     @ExceptionHandler(InvalidClosureRequestException.class)

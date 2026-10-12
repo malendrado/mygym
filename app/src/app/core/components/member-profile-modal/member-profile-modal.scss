@@ -1,0 +1,43 @@
+.mp-intro {
+  margin: 0 0 1rem;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: var(--brand-text);
+}
+
+ion-item {
+  margin-top: 0.35rem;
+}
+
+ion-note {
+  display: block;
+  margin: 0.2rem 0.25rem 0;
+  font-size: 0.8rem;
+}
+
+.mp-date {
+  margin: 0.75rem 0.25rem 0;
+
+  label {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--brand-text-dim);
+  }
+}
+
+.mp-date__input {
+  margin-top: 0.35rem;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--brand-ink-surface-2);
+  border-radius: 10px;
+  background: var(--brand-ink-surface);
+  color: var(--brand-text);
+  font-family: inherit;
+  font-size: 0.95rem;
+  min-height: 44px;
+  width: 100%;
+}
+
+.mp-server-error {
+  margin-top: 0.75rem;
+}

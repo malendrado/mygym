@@ -1,0 +1,94 @@
+<div class="ion-page">
+<ion-header>
+  <ion-toolbar>
+    <ion-title>
+      <ion-icon name="id-card-outline" aria-hidden="true"></ion-icon>
+      {{ title }}
+    </ion-title>
+    @if (!required) {
+      <ion-buttons slot="end">
+        <ion-button (click)="cancel()">Cerrar</ion-button>
+      </ion-buttons>
+    }
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  @if (intro) {
+    <p class="mp-intro">{{ intro }}</p>
+  }
+
+  <form [formGroup]="form" (ngSubmit)="save()" novalidate>
+    <ion-item lines="none">
+      <ion-input
+        label="RUT *"
+        labelPlacement="stacked"
+        formControlName="rut"
+        placeholder="12.345.678-5"
+        autocomplete="off"
+        inputmode="text"
+        maxlength="12"
+        (ionBlur)="tidyRut()"
+      />
+    </ion-item>
+    @if (showError('rut')) {
+      <ion-note color="danger">{{ errorText('rut') }}</ion-note>
+    }
+
+    <ion-item lines="none">
+      <ion-input
+        label="Dirección *"
+        labelPlacement="stacked"
+        formControlName="address"
+        placeholder="Calle, número y comuna"
+        autocomplete="street-address"
+        [maxlength]="maxAddress"
+      />
+    </ion-item>
+    @if (showError('address')) {
+      <ion-note color="danger">{{ errorText('address') }}</ion-note>
+    }
+
+    <div class="mp-date">
+      <label for="mp-birth">Fecha de nacimiento *</label>
+      <input id="mp-birth" type="date" class="mp-date__input" formControlName="birthDate" [max]="maxBirthDate" autocomplete="bday" />
+    </div>
+    @if (showError('birthDate')) {
+      <ion-note color="danger">{{ errorText('birthDate') }}</ion-note>
+    }
+
+    <ion-item lines="none">
+      <ion-input
+        label="Celular de contacto *"
+        labelPlacement="stacked"
+        type="tel"
+        formControlName="phone"
+        placeholder="+56 9 1234 5678"
+        autocomplete="tel"
+        inputmode="tel"
+        (ionBlur)="tidyPhone()"
+      />
+    </ion-item>
+    @if (showError('phone')) {
+      <ion-note color="danger">{{ errorText('phone') }}</ion-note>
+    }
+
+    @if (serverErrorText()) {
+      <ion-note color="danger" class="mp-server-error">{{ serverErrorText() }}</ion-note>
+    }
+  </form>
+</ion-content>
+
+<ion-footer>
+  <ion-toolbar>
+    <ion-button type="button" expand="block" [disabled]="isSaving()" (click)="save()">
+      @if (isSaving()) {
+        <ion-spinner name="crescent" slot="start"></ion-spinner>
+        Guardando...
+      } @else {
+        {{ submitLabel }}
+      }
+    </ion-button>
+  </ion-toolbar>
+</ion-footer>
+</div>

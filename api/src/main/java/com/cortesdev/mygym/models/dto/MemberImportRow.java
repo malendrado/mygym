@@ -3,6 +3,7 @@ package com.cortesdev.mygym.models.dto;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
+import java.time.LocalDate;
 
 /**
  * Una fila del Excel de importación masiva (POST /api/gym-admin/members/import). planId/amountClp/expiresAt
@@ -18,4 +19,10 @@ public record MemberImportRow(
         Instant expiresAt,
         /** Solo aplica si el plan tiene cupo limitado (no "libre") — clases que el socio ya venía
          *  usando este mes en el sistema anterior del gym. Ver AppUser.usedSessionsAtImport. */
-        Integer usedSessions) {}
+        Integer usedSessions,
+        /** Datos de contacto opcionales en el Excel (el socio los completa al entrar si faltan). Los que
+         *  vengan se validan igual que cuando los escribe el propio socio — ver MemberProfileRules. */
+        String rut,
+        String address,
+        LocalDate birthDate,
+        String phone) {}

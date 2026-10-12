@@ -1,0 +1,19 @@
+// Estilos propios de este modal; el resto (import-*) viene de import-members-modal.scss (ver styleUrls).
+
+.import-note {
+  margin: 0.6rem 0 0.9rem;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--brand-text-dim);
+}
+
+.import-row__class {
+  margin: 0.15rem 0 0;
+  font-size: 0.8rem;
+  color: var(--brand-text);
+}
+
+.import-row__status ion-icon {
+  flex: none;
+  font-size: 1rem;
+}

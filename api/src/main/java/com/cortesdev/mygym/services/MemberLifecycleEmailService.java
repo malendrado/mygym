@@ -372,6 +372,32 @@ public class MemberLifecycleEmailService {
                         + escapeHtml(gym.getName()) + ".");
     }
 
+    // Aviso de clases fijas (2026-10-12): UN correo por carga que creó al menos una reserva (Excel,
+    // edición manual o renovación del plan). classesText ya viene armado ("lunes 19:00 (GAP) y ...").
+    public void sendFixedClassesScheduled(
+            Gym gym, AppUser member, String classesText, int created, String firstDate, String lastDate, String skippedNote) {
+        String headline = "Te reservamos tus clases fijas";
+        String body = "<p style=\"margin:0 0 12px;\">Te reservamos <strong style=\"color:#eaf6f7;\">"
+                + created + (created == 1 ? " clase" : " clases") + "</strong> en " + escapeHtml(gym.getName())
+                + ": " + escapeHtml(classesText) + ", entre el " + escapeHtml(firstDate) + " y el "
+                + escapeHtml(lastDate) + ".</p>"
+                + (skippedNote == null || skippedNote.isBlank()
+                        ? ""
+                        : "<p style=\"margin:0 0 12px;\">" + escapeHtml(skippedNote) + "</p>")
+                + "<p style=\"margin:0;\">Si no puedes ir a una, cancélala desde la app dentro del plazo que fija el gimnasio: "
+                + "así esa clase vuelve a tu cupo.</p>";
+        send(
+                gym,
+                member.getEmail(),
+                "Te reservamos tus clases fijas en " + gym.getName(),
+                "Clases fijas",
+                headline,
+                body,
+                "Ver mis reservas",
+                LOGIN_URL,
+                "Recibiste este correo porque " + escapeHtml(gym.getName()) + " te dejó clases fijas en tu plan.");
+    }
+
     public void sendMembershipExpiredMember(Gym gym, AppUser member, GymPlan plan) {
         String headline = "Tu membresía venció";
         String body = "<p style=\"margin:0 0 12px;\">Tu plan <strong style=\"color:#eaf6f7;\">" + escapeHtml(plan.getName())

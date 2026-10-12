@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output, signal } from '@angular/core';
+import { Component, EventEmitter, Input, Output, computed, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import {
   IonButton,
@@ -16,7 +16,7 @@ import {
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { alertCircleOutline, banOutline, warningOutline } from 'ionicons/icons';
-import { GymBlock, GymClosureCreateRequest, GymClosurePreview, sortBlocksBySchedule } from '../../../../core/models/gym.model';
+import { DayOfWeek, GymBlock, GymClosureCreateRequest, GymClosurePreview, sortBlocksBySchedule } from '../../../../core/models/gym.model';
 
 addIcons({ 'ban-outline': banOutline, 'warning-outline': warningOutline, 'alert-circle-outline': alertCircleOutline });
 
@@ -24,6 +24,43 @@ addIcons({ 'ban-outline': banOutline, 'warning-outline': warningOutline, 'alert-
 // `new Date(isoString)`, para no repetir el bug de interpretación UTC ya encontrado ahí.
 function todayIsoDate(): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Santiago' }).format(new Date());
+}
+
+const DAY_LABELS: Record<DayOfWeek, string> = {
+  MONDAY: 'Lunes',
+  TUESDAY: 'Martes',
+  WEDNESDAY: 'Miércoles',
+  THURSDAY: 'Jueves',
+  FRIDAY: 'Viernes',
+  SATURDAY: 'Sábado',
+  SUNDAY: 'Domingo',
+};
+// Índice de Date.getUTCDay() (0 = domingo) → día de la semana del backend.
+const UTC_DAY_TO_DOW: DayOfWeek[] = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
+
+/** Días de la semana (sin repetir) que caen entre dos fechas ISO "YYYY-MM-DD". Se hace en UTC
+ *  sobre las partes numéricas, nunca `new Date(iso)` con huso local, para no correr el día. */
+function weekdaysBetween(startIso: string, endIso: string): Set<DayOfWeek> {
+  const days = new Set<DayOfWeek>();
+  const parse = (iso: string): number => {
+    const [y, m, d] = iso.split('-').map(Number);
+    return Date.UTC(y, m - 1, d);
+  };
+  const start = parse(startIso);
+  const end = parse(endIso);
+  if (Number.isNaN(start) || Number.isNaN(end) || end < start) {
+    return days;
+  }
+  for (let t = start, i = 0; t <= end && i < 7; t += 86_400_000, i++) {
+    days.add(UTC_DAY_TO_DOW[new Date(t).getUTCDay()]);
+  }
+  return days;
+}
+
+export interface ClosureDayGroup {
+  day: DayOfWeek;
+  label: string;
+  blocks: GymBlock[];
 }
 
 /**
@@ -85,6 +122,23 @@ export class ClosureModal {
   private readonly _blocks = signal<GymBlock[]>([]);
   protected readonly blocksList = this._blocks.asReadonly();
 
+  // Rango de fechas como signal (el FormGroup reactivo no lo es): de él salen los días visibles.
+  private readonly range = signal({ start: todayIsoDate(), end: todayIsoDate() });
+
+  /** Clases activas agrupadas por día, solo de los días de la semana que caen en el rango. */
+  protected readonly dayGroups = computed<ClosureDayGroup[]>(() => {
+    const { start, end } = this.range();
+    const inRange = weekdaysBetween(start, end);
+    const groups = new Map<DayOfWeek, GymBlock[]>();
+    for (const block of this._blocks()) {
+      if (block.active === false || !inRange.has(block.dayOfWeek)) {
+        continue;
+      }
+      groups.set(block.dayOfWeek, [...(groups.get(block.dayOfWeek) ?? []), block]);
+    }
+    return Array.from(groups, ([day, blocks]) => ({ day, label: DAY_LABELS[day], blocks }));
+  });
+
   private readonly _previewResult = signal<GymClosurePreview | null>(null);
   protected readonly previewResultValue = this._previewResult.asReadonly();
 
@@ -106,6 +160,39 @@ export class ClosureModal {
     wholeDays: new FormControl(true, { nonNullable: true }),
     reason: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.maxLength(500)] }),
   });
+
+  constructor() {
+    this.form.valueChanges.subscribe(() => {
+      const start = this.form.controls.startDate.value;
+      const end = this.form.controls.endDate.value;
+      const current = this.range();
+      if (start === current.start && end === current.end) {
+        return;
+      }
+      this.range.set({ start, end });
+      // Si el rango cambió, soltar las clases elegidas de días que ya no se ven: nunca deben
+      // viajar en el request clases que el usuario no tiene a la vista.
+      const visible = new Set(this.dayGroups().flatMap((g) => g.blocks.map((b) => b.id)));
+      this.selectedBlockIds.update((ids) => new Set([...ids].filter((id) => visible.has(id))));
+    });
+  }
+
+  protected blockTime(block: GymBlock): string {
+    return `${block.startTime.slice(0, 5)} – ${block.endTime.slice(0, 5)}`;
+  }
+
+  protected blockDetail(block: GymBlock): string {
+    return [block.category, block.instructorName].filter(Boolean).join(' · ');
+  }
+
+  protected selectedInGroup(group: ClosureDayGroup): number {
+    const ids = this.selectedBlockIds();
+    return group.blocks.filter((b) => ids.has(b.id)).length;
+  }
+
+  protected clearBlocks(): void {
+    this.selectedBlockIds.set(new Set());
+  }
 
   // Método plano, NO computed(): el FormGroup reactivo no es un signal, así que un computed()
   // que solo lee form.invalid/form.controls.x.value queda cacheado para siempre tras la primera

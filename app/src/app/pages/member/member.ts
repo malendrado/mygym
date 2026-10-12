@@ -13,6 +13,7 @@ import {
   IonLabel,
   IonSegment,
   IonSegmentButton,
+  IonModal,
   IonSpinner,
   IonText,
   IonTitle,
@@ -64,6 +65,10 @@ import { AttendeeSummary, Member } from '../../core/models/member.model';
 import { ExerciseLogEntry, MemberWorkoutLog, PendingWorkout, SaveWorkoutLogRequest } from '../../core/models/workout.model';
 import { deriveSurfaceTint, ensureMinContrastColor, syncThemeOverrides } from '../../core/utils/gym-theme';
 import { registerClassCategoryIcons, resolveClassCategoryIcon } from '../../core/utils/class-category';
+import { MemberProfileModal } from '../../core/components/member-profile-modal/member-profile-modal';
+import { MemberProfile } from '../../core/models/member.model';
+import { MemberProfileService } from '../../core/services/member-profile.service';
+import { errorText } from '../../core/utils/error-text';
 import { VersionTag } from '../../core/components/version-tag/version-tag';
 
 registerClassCategoryIcons();
@@ -295,6 +300,8 @@ const OCCURRENCES_LOADING_MESSAGES = [
   selector: 'app-member',
   imports: [
     VersionTag,
+    MemberProfileModal,
+    IonModal,
     IonHeader,
     IonToolbar,
     IonTitle,
@@ -326,6 +333,7 @@ export class MemberPage {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly toastController = inject(ToastController);
+  private readonly memberProfileService = inject(MemberProfileService);
   private readonly alertController = inject(AlertController);
   private readonly destroyRef = inject(DestroyRef);
   private readonly demoPreviewService = inject(DemoPreviewService);
@@ -828,7 +836,7 @@ export class MemberPage {
     // llega aparte (MembershipReminderJob / ReservationService.book); esto es el mismo mensaje
     // dentro de la app, para quien no revisa el correo.
     effect(() => {
-      if (this.membershipLoaded() && !this.membershipAlertChecked) {
+      if (this.membershipLoaded() && this.reservationsLoaded() && !this.membershipAlertChecked) {
         this.membershipAlertChecked = true;
         // Fuera del ciclo reactivo: crear el alert toca el DOM de Ionic.
         setTimeout(() => void this.showMembershipAlert());
@@ -1229,7 +1237,7 @@ export class MemberPage {
       });
   }
 
-  protected cancel(reservationId: number): void {
+  protected cancel(reservationId: number, fixed = false): void {
     if (this.blockedInDemo()) {
       return;
     }
@@ -1240,7 +1248,11 @@ export class MemberPage {
         this.membership.update((m) => ({ ...m, classesUsed: Math.max(m.classesUsed - 1, 0) }));
         this.loadOccurrences();
         this.loadMyReservations();
-        this.showToast('Reserva cancelada.');
+        this.showToast(
+          fixed
+            ? 'Cancelaste solo esta fecha. Tu clase fija sigue para las próximas semanas.'
+            : 'Reserva cancelada.',
+        );
       },
       error: (err: Error) => {
         this.cancelingId.set(null);
@@ -1326,9 +1338,9 @@ export class MemberPage {
       next: (res) => {
         window.location.href = res.redirectUrl;
       },
-      error: () => {
+      error: (err: Error) => {
         this.membership.update((m) => ({ ...m, status: 'none' }));
-        this.showToast('No pudimos iniciar el pago. Intenta nuevamente.', 'danger');
+        this.showToast(errorText(err, 'No pudimos iniciar el pago. Intenta nuevamente.'), 'danger');
       },
     });
   }
@@ -1455,6 +1467,16 @@ export class MemberPage {
   private applyMembership(member: Member): void {
     if (this.isDemoPreview) {
       this.demoMemberName.set(member.name);
+    } else {
+      // RUT, dirección, fecha de nacimiento y celular son obligatorios: si faltan, pantalla de datos
+      // (no se puede cerrar) — el servidor además no deja reservar hasta que estén completos.
+      this.profileIncomplete.set(!member.profileComplete);
+      this.memberProfile.set({
+        rut: member.rut ?? '',
+        address: member.address ?? '',
+        birthDate: member.birthDate ?? '',
+        phone: member.phone ?? '',
+      });
     }
     if (!member.planId || !member.paidAt) {
       this.membershipLoaded.set(true);
@@ -1598,8 +1620,14 @@ export class MemberPage {
       ? this.demoPreviewService.listReservations()
       : this.reservationService.myReservations()
     ).subscribe({
-      next: (reservations) => this.myReservations.set(reservations),
-      error: () => this.status.set('error'),
+      next: (reservations) => {
+        this.myReservations.set(reservations);
+        this.reservationsLoaded.set(true);
+      },
+      error: () => {
+        this.reservationsLoaded.set(true);
+        this.status.set('error');
+      },
     });
   }
 
@@ -1679,6 +1707,31 @@ export class MemberPage {
 
   private membershipAlertChecked = false;
 
+  // ---- Datos de contacto obligatorios (RUT, dirección, fecha de nacimiento, celular) ----
+  protected readonly profileIncomplete = signal(false);
+  protected readonly memberProfile = signal<Partial<MemberProfile> | null>(null);
+  protected readonly savingProfile = signal(false);
+  protected readonly profileError = signal<string | null>(null);
+
+  protected saveProfile(profile: MemberProfile): void {
+    this.savingProfile.set(true);
+    this.profileError.set(null);
+    this.memberProfileService.updateOwn(profile).subscribe({
+      next: () => {
+        this.savingProfile.set(false);
+        this.profileIncomplete.set(false);
+        this.showToast('Listo, tus datos quedaron guardados.');
+      },
+      error: (err: Error) => {
+        this.savingProfile.set(false);
+        this.profileError.set(err.message || 'No pudimos guardar tus datos. Intenta nuevamente.');
+      },
+    });
+  }
+  // El aviso de "clases agotadas" distingue si las clases están reservadas como clases fijas, así que
+  // espera a que lleguen las reservas (también si fallan: no se queda esperando para siempre).
+  private readonly reservationsLoaded = signal(false);
+
   // "2026-02-03" → "3 de febrero"
   private longDateLabel(iso: string): string {
     const [y, m, d] = iso.split('-').map(Number);
@@ -1687,7 +1740,8 @@ export class MemberPage {
 
   private async showMembershipAlert(): Promise<void> {
     // Nunca en la vista demo del admin ("Ver como socio") ni mientras corre el tour guiado.
-    if (this.isDemoPreview || this.tourService.isOpen()) {
+    // Mientras la pantalla de datos obligatoria está abierta no se apila otro aviso encima.
+    if (this.isDemoPreview || this.tourService.isOpen() || this.profileIncomplete()) {
       return;
     }
     const membership = this.membership();
@@ -1716,9 +1770,17 @@ export class MemberPage {
         `Tu plan ${planName} vence el ${this.longDateLabel(periodEnd)}. Renuévalo antes para no quedarte sin poder reservar.` +
         (exhausted ? ' Además, ya usaste todas tus clases de este período.' : '');
     } else if (exhausted) {
-      key = 'exhausted';
-      header = 'Usaste todas tus clases';
-      message = `Ya reservaste las clases de tu plan ${planName} de este período. Tu plan sigue vigente hasta el ${this.longDateLabel(periodEnd)}; si cancelas una reserva a tiempo, esa clase se libera.`;
+      // Con clases fijas el socio no "usó" nada: ya están reservadas por el gimnasio.
+      const hasFixed = this.myReservations().some((r) => r.fixed && !this.isReservationPast(r));
+      if (hasFixed) {
+        key = 'exhausted-fixed';
+        header = 'Tus clases ya están reservadas';
+        message = `Las clases de tu plan ${planName} de este período ya están reservadas como clases fijas. Tu plan sigue vigente hasta el ${this.longDateLabel(periodEnd)}; si cancelas una a tiempo, esa clase vuelve a tu cupo.`;
+      } else {
+        key = 'exhausted';
+        header = 'Usaste todas tus clases';
+        message = `Ya reservaste las clases de tu plan ${planName} de este período. Tu plan sigue vigente hasta el ${this.longDateLabel(periodEnd)}; si cancelas una reserva a tiempo, esa clase se libera.`;
+      }
       renew = false;
     } else {
       return;

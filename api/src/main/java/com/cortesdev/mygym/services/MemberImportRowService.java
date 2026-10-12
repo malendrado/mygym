@@ -10,9 +10,11 @@ import com.cortesdev.mygym.models.dto.MemberImportRowResult;
 import com.cortesdev.mygym.repositories.AppUserRepository;
 import com.cortesdev.mygym.repositories.PaymentRepository;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
+import com.cortesdev.mygym.services.exception.InvalidMemberProfileException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -76,7 +78,8 @@ public class MemberImportRowService {
                     // Plan libre/ilimitado — "clases usadas" no tiene contra qué medirse, se ignora
                     // en vez de rechazar la fila entera (el frontend ya avisa esto como advertencia,
                     // no como error — ver ImportMembersModal).
-                    row = new MemberImportRow(row.name(), row.email(), row.planId(), row.amountClp(), row.expiresAt(), null);
+                    row = new MemberImportRow(row.name(), row.email(), row.planId(), row.amountClp(), row.expiresAt(), null,
+                            row.rut(), row.address(), row.birthDate(), row.phone());
                 } else if (row.usedSessions() < 0 || row.usedSessions() > plan.getMonthlyClasses()) {
                     return new MemberImportRowResult(
                             row.email(),
@@ -86,7 +89,25 @@ public class MemberImportRowService {
             }
         }
 
+        // Datos de contacto opcionales: los que vengan se validan; uno inválido rechaza la fila entera.
+        String rut = null;
+        String address = null;
+        String phone = null;
+        LocalDate birthDate = null;
+        try {
+            rut = isBlank(row.rut()) ? null : MemberProfileRules.normalizeRut(row.rut());
+            address = isBlank(row.address()) ? null : MemberProfileRules.normalizeAddress(row.address());
+            phone = isBlank(row.phone()) ? null : MemberProfileRules.normalizePhone(row.phone());
+            birthDate = row.birthDate() == null ? null : MemberProfileRules.validateBirthDate(row.birthDate());
+        } catch (InvalidMemberProfileException e) {
+            return new MemberImportRowResult(row.email(), false, e.getMessage());
+        }
+
         AppUser.AppUserBuilder builder = AppUser.builder()
+                .rut(rut)
+                .address(address)
+                .phone(phone)
+                .birthDate(birthDate)
                 .name(row.name())
                 .email(row.email())
                 .role(Role.MEMBER)
@@ -122,5 +143,9 @@ public class MemberImportRowService {
         }
 
         return new MemberImportRowResult(row.email(), true, null);
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 }

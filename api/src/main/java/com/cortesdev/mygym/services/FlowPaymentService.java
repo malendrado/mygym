@@ -20,6 +20,7 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClientException;
@@ -58,6 +59,7 @@ public class FlowPaymentService {
     private final GymRepository gymRepository;
     private final PaymentRepository paymentRepository;
     private final MemberLifecycleEmailService memberLifecycleEmailService;
+    private final ApplicationEventPublisher eventPublisher;
     private final String returnUrl;
     private final String webhookUrl;
 
@@ -68,6 +70,7 @@ public class FlowPaymentService {
             GymRepository gymRepository,
             PaymentRepository paymentRepository,
             MemberLifecycleEmailService memberLifecycleEmailService,
+            ApplicationEventPublisher eventPublisher,
             @Value("${app.flow.return-url}") String returnUrl,
             @Value("${app.flow.webhook-url}") String webhookUrl) {
         this.flowApiClient = flowApiClient;
@@ -76,6 +79,7 @@ public class FlowPaymentService {
         this.gymRepository = gymRepository;
         this.paymentRepository = paymentRepository;
         this.memberLifecycleEmailService = memberLifecycleEmailService;
+        this.eventPublisher = eventPublisher;
         this.returnUrl = returnUrl;
         this.webhookUrl = webhookUrl;
     }
@@ -198,6 +202,8 @@ public class FlowPaymentService {
                 .toList();
         memberLifecycleEmailService.sendPaymentConfirmedMember(gym, member, plan);
         memberLifecycleEmailService.sendPaymentConfirmedAdmin(gym, member, plan, adminEmails);
+        // Reserva sus clases fijas del período nuevo, después del commit (ver FixedClassService).
+        eventPublisher.publishEvent(new MembershipPaidEvent(member.getId()));
     }
 
     private static boolean isBlank(String value) {

@@ -29,6 +29,7 @@ class MemberServiceSearchTest {
     private static final ZoneId ZONE = ZoneId.of("America/Santiago");
 
     @Mock private AppUserRepository appUserRepository;
+    @Mock private com.cortesdev.mygym.repositories.MemberFixedClassRepository memberFixedClassRepository;
     @InjectMocks private MemberService memberService;
 
     private long nextId = 1;
@@ -75,6 +76,22 @@ class MemberServiceSearchTest {
         PageResponse<MemberResponse> second = memberService.searchMembers(GYM_ID, null, null, null, 1, 4);
         assertThat(second.items()).extracting(MemberResponse::name).containsExactly("Elena", "zoe");
         assertThat(second.hasNext()).isFalse();
+    }
+
+    @Test
+    void findsMembersByRutOrPhoneIgnoringFormatButOnlyWithThreeOrMoreDigits() {
+        List<AppUser> roster = appUserRepository.findByGymIdAndRole(GYM_ID, Role.MEMBER);
+        AppUser zoe = roster.stream().filter(u -> "zoe".equals(u.getName())).findFirst().orElseThrow();
+        zoe.setRut("12.345.678-5");
+        zoe.setPhone("+56912345678");
+
+        for (String needle : new String[] {"12345678", "12.345.678-5", "9 1234 5678", "+56 9 1234 5678"}) {
+            assertThat(memberService.searchMembers(GYM_ID, needle, null, null, 0, 10).items())
+                    .as(needle)
+                    .extracting(MemberResponse::name)
+                    .containsExactly("zoe");
+        }
+        assertThat(memberService.searchMembers(GYM_ID, "12", null, null, 0, 10).items()).isEmpty();
     }
 
     @Test

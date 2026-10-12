@@ -1,0 +1,91 @@
+<div class="ion-page">
+<ion-header>
+  <ion-toolbar>
+    <ion-title>
+      <ion-icon name="repeat-outline" aria-hidden="true"></ion-icon>
+      Clases fijas
+    </ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="cancel()">Cerrar</ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <p class="fc-intro">
+    <strong>{{ memberName }}</strong> va siempre a estas clases: se le reservan solas cada semana y se le descuentan
+    de su plan. Una clase por día.
+  </p>
+
+  @for (group of groups(); track group.day) {
+    <section class="fc-day">
+      <h3 class="fc-day__title">
+        {{ group.label }}
+        <span>{{ selectedLabel(group) ?? (group.blocks.length === 1 ? '1 clase' : group.blocks.length + ' clases') }}</span>
+      </h3>
+      <div class="fc-rows" role="radiogroup" [attr.aria-label]="'Clase fija del ' + group.label">
+        @for (block of group.blocks; track block.id) {
+          <button
+            type="button"
+            class="fc-row"
+            role="radio"
+            [attr.aria-checked]="isSelected(block)"
+            (click)="toggle(block)"
+          >
+            <span class="fc-row__mark" aria-hidden="true"></span>
+            <span class="fc-row__time">{{ blockTime(block) }}</span>
+            <span class="fc-row__meta">
+              <span>{{ block.label }}</span>
+              @if (blockDetail(block)) {
+                <span>{{ blockDetail(block) }}</span>
+              }
+            </span>
+          </button>
+        }
+      </div>
+    </section>
+  } @empty {
+    <p class="fc-hint">Tu gimnasio todavía no tiene clases activas. Crea tus horarios en la pestaña Horarios.</p>
+  }
+
+  @if (inactiveClasses().length > 0) {
+    <p class="fc-warning">
+      <ion-icon name="information-circle-outline" aria-hidden="true"></ion-icon>
+      <span>
+        Tiene clases fijas en horarios desactivados ({{ inactiveText() }}).
+        Al guardar se quitan.
+      </span>
+    </p>
+  }
+
+  @if (hint) {
+    <p class="fc-hint">
+      <ion-icon name="information-circle-outline" aria-hidden="true"></ion-icon>
+      <span>{{ hint }}</span>
+    </p>
+  }
+</ion-content>
+
+<ion-footer>
+  <ion-toolbar>
+    <div class="fc-summary">
+      <span>
+        @if (selectedCount() === 0) {
+          Sin clases fijas
+        } @else {
+          <strong>{{ selectedCount() }}</strong> {{ selectedCount() === 1 ? 'clase fija' : 'clases fijas' }}
+        }
+      </span>
+      <button type="button" class="fc-summary__clear" [disabled]="selectedCount() === 0" (click)="clearAll()">Quitar todas</button>
+    </div>
+    <ion-button type="button" expand="block" [disabled]="isSaving()" (click)="save()">
+      @if (isSaving()) {
+        <ion-spinner name="crescent" slot="start"></ion-spinner>
+        Guardando...
+      } @else {
+        Guardar clases fijas
+      }
+    </ion-button>
+  </ion-toolbar>
+</ion-footer>
+</div>

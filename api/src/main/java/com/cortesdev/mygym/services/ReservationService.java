@@ -32,6 +32,7 @@ import com.cortesdev.mygym.services.exception.GymNotFoundException;
 import com.cortesdev.mygym.services.exception.MemberNotFoundException;
 import com.cortesdev.mygym.services.exception.MonthlyQuotaExceededException;
 import com.cortesdev.mygym.services.exception.NoActiveReservationException;
+import com.cortesdev.mygym.services.exception.ProfileIncompleteException;
 import com.cortesdev.mygym.services.exception.ReservationNotFoundException;
 import com.cortesdev.mygym.services.exception.SubscriptionRequiredException;
 import java.time.Duration;
@@ -125,12 +126,16 @@ public class ReservationService {
         Map<String, Integer> takenByOccurrence = new HashMap<>();
         Map<String, Long> myReservationIdByOccurrence = new HashMap<>();
         Map<String, Instant> myCheckedInAtByOccurrence = new HashMap<>();
+        Set<String> myFixedOccurrences = new java.util.HashSet<>();
         for (Reservation reservation : bookedInRange) {
             String key = occurrenceKey(reservation.getGymBlockId(), reservation.getClassDate());
             takenByOccurrence.merge(key, 1, Integer::sum);
             if (reservation.getMemberId().equals(memberId)) {
                 myReservationIdByOccurrence.put(key, reservation.getId());
                 myCheckedInAtByOccurrence.put(key, reservation.getCheckedInAt());
+                if (reservation.getFixedClassId() != null) {
+                    myFixedOccurrences.add(key);
+                }
             }
         }
 
@@ -167,7 +172,8 @@ public class ReservationService {
                         myReservationId,
                         waitlisted,
                         myCheckedInAtByOccurrence.get(key),
-                        closed));
+                        closed,
+                        myFixedOccurrences.contains(key)));
             }
         }
         result.sort(Comparator.comparing(GymBlockOccurrenceResponse::classDate)
@@ -335,19 +341,30 @@ public class ReservationService {
         if (!memberService.hasQuotaAvailable(member)) {
             throw new MonthlyQuotaExceededException();
         }
+        // RUT, dirección, fecha de nacimiento y celular son obligatorios (pantalla de datos de /member);
+        // el servidor lo hace cumplir igual para quien llame a la API directo.
+        if (!member.isProfileComplete()) {
+            throw new ProfileIncompleteException();
+        }
 
-        Reservation reservation = Reservation.builder()
-                .gymBlockId(block.getId())
-                .memberId(memberId)
-                .classDate(request.classDate())
-                .status(ReservationStatus.BOOKED)
-                .build();
-        ReservationResponse response = toResponse(reservationRepository.save(reservation), block);
+        ReservationResponse response = toResponse(createBooked(block.getId(), memberId, request.classDate(), null), block);
         notifyIfClassesExhausted(gymId, member);
         // Si venía de la lista de espera (o simplemente estaba anotado y consiguió cupo por su
         // cuenta), ya no tiene sentido que siga esperando esta misma clase.
         waitlistService.clearOnBooked(block.getId(), request.classDate(), memberId);
         return response;
+    }
+
+    /** Crea y guarda la reserva BOOKED — sin validar nada (el llamador ya validó lo que le toca):
+     *  la usa book() y la generación de clases fijas (que NO valida capacidad ni ventana). */
+    Reservation createBooked(Long gymBlockId, Long memberId, LocalDate classDate, Long fixedClassId) {
+        return reservationRepository.save(Reservation.builder()
+                .gymBlockId(gymBlockId)
+                .memberId(memberId)
+                .classDate(classDate)
+                .status(ReservationStatus.BOOKED)
+                .fixedClassId(fixedClassId)
+                .build());
     }
 
     // Si la reserva recién guardada usó la ÚLTIMA clase del período, le llega un email "usaste todas
@@ -553,6 +570,7 @@ public class ReservationService {
                 block != null ? block.getEndTime() : null,
                 reservation.getStatus(),
                 reservation.getCreatedAt(),
-                reservation.getCheckedInAt());
+                reservation.getCheckedInAt(),
+                reservation.getFixedClassId() != null);
     }
 }

@@ -127,6 +127,16 @@ import { ClosureModal } from '../admin/gyms/closure-modal/closure-modal';
 import { EditClosureModal } from '../admin/gyms/edit-closure-modal/edit-closure-modal';
 import { ImportMembersModal } from '../admin/gyms/import-members-modal/import-members-modal';
 import { WorkoutPlanModal } from '../admin/gyms/workout-plan-modal/workout-plan-modal';
+import { MemberProfileModal } from '../../core/components/member-profile-modal/member-profile-modal';
+import { MemberProfile } from '../../core/models/member.model';
+import { MemberProfileService } from '../../core/services/member-profile.service';
+import { formatMobile, whatsappUrl } from '../../core/utils/member-profile';
+import { FixedClassesModal } from '../admin/gyms/fixed-classes-modal/fixed-classes-modal';
+import { ImportFixedClassesModal } from '../admin/gyms/import-fixed-classes-modal/import-fixed-classes-modal';
+import { FixedClass } from '../../core/models/fixed-class.model';
+import { FixedClassService } from '../../core/services/fixed-class.service';
+import { fixedClassSaveMessage } from '../../core/utils/fixed-class-import';
+import { errorText } from '../../core/utils/error-text';
 import { registerClassCategoryIcons, resolveClassCategoryIcon } from '../../core/utils/class-category';
 import { formatRut, rutFormatValidator } from '../../core/utils/rut';
 import { toLogoImgSrc } from '../../core/utils/logo-src';
@@ -394,6 +404,9 @@ const THEMED_ROOT_PROPERTIES = [
     ImportMembersModal,
     PaginationBar,
     WorkoutPlanModal,
+    FixedClassesModal,
+    ImportFixedClassesModal,
+    MemberProfileModal,
     BookingRulesCard,
     InstallBanner,
     IonSpinner,
@@ -949,6 +962,16 @@ export class GymAdmin implements OnDestroy {
           targetSelector: '[data-tour="members-workout"]',
         },
         {
+          title: 'Clases fijas para tus socios de siempre',
+          body: 'Deja precargada la clase a la que va cada socio (por ejemplo lunes y miércoles a las 19:00): se le reserva sola cada semana, se le descuenta de su plan y se renueva cuando paga. También puedes subirlas desde un Excel.',
+          targetSelector: '[data-tour="members-fixed-classes"]',
+        },
+        {
+          title: 'Datos de cada socio, y WhatsApp directo',
+          body: 'RUT, dirección, fecha de nacimiento y celular, todos validados: el socio los completa al entrar y tú puedes cargarlos o corregirlos aquí. Con su celular, un botón verde te abre WhatsApp para escribirle al instante.',
+          targetSelector: '[data-tour="members-profile"]',
+        },
+        {
           title: 'Gestiona bajas reales',
           body: 'Elimina a un socio permanentemente cuando deja el gimnasio — no solo altas, control completo del ciclo de vida.',
           targetSelector: '[data-tour="members-delete"]',
@@ -1024,7 +1047,7 @@ export class GymAdmin implements OnDestroy {
       steps: [
         {
           title: 'Cierre de emergencia',
-          body: 'Por fuerza mayor: cancela las clases afectadas y avisa a todos tus socios, con un clic.',
+          body: 'Por fuerza mayor: cierra días completos o solo las clases que elijas (agrupadas por día y hora) y avisa a todos tus socios, con un clic.',
           targetSelector: '[data-tour="closures-open"]',
         },
         {
@@ -1433,11 +1456,11 @@ export class GymAdmin implements OnDestroy {
     this.themeSaving.set(true);
     this.gymService.updateMyTheme({ themeColor: hex, themeMode: mode }).subscribe({
       next: () => this.themeSaving.set(false),
-      error: () => {
+      error: (err: Error) => {
         this.themeColor.set(previousColor);
         this.themeMode.set(previousMode);
         this.themeSaving.set(false);
-        this.handleWriteError(() => this.showToast('No pudimos guardar el color. Intenta nuevamente.', 'danger'));
+        this.handleWriteError(() => this.showToast(errorText(err, 'No pudimos guardar el color. Intenta nuevamente.'), 'danger'));
       },
     });
   }
@@ -1460,9 +1483,9 @@ export class GymAdmin implements OnDestroy {
           this.identitySaving.set(false);
           this.showToast('Identidad actualizada.');
         },
-        error: () => {
+        error: (err: Error) => {
           this.identitySaving.set(false);
-          this.handleWriteError(() => this.showToast('No pudimos guardar los cambios. Intenta nuevamente.', 'danger'));
+          this.handleWriteError(() => this.showToast(errorText(err, 'No pudimos guardar los cambios. Intenta nuevamente.'), 'danger'));
         },
       });
   }
@@ -1475,9 +1498,9 @@ export class GymAdmin implements OnDestroy {
         this.bookingRules.set(rules);
         this.showToast('Reglas de reserva guardadas.');
       },
-      error: () => {
+      error: (err: Error) => {
         this.bookingRulesSaving.set(false);
-        this.handleWriteError(() => this.showToast('No pudimos guardar las reglas. Intenta nuevamente.', 'danger'));
+        this.handleWriteError(() => this.showToast(errorText(err, 'No pudimos guardar las reglas. Intenta nuevamente.'), 'danger'));
       },
     });
   }
@@ -1502,9 +1525,9 @@ export class GymAdmin implements OnDestroy {
         this.bankTransferSaving.set(false);
         this.showToast('Datos bancarios actualizados.');
       },
-      error: () => {
+      error: (err: Error) => {
         this.bankTransferSaving.set(false);
-        this.handleWriteError(() => this.showToast('No pudimos guardar los datos bancarios. Intenta nuevamente.', 'danger'));
+        this.handleWriteError(() => this.showToast(errorText(err, 'No pudimos guardar los datos bancarios. Intenta nuevamente.'), 'danger'));
       },
     });
   }
@@ -1541,10 +1564,10 @@ export class GymAdmin implements OnDestroy {
         this.flowAccount.set(account);
         this.showToast('Datos de la cuenta Pago Online actualizados.');
       },
-      error: () => {
+      error: (err: Error) => {
         this.flowAccountSaving.set(false);
         this.handleWriteError(() =>
-          this.showToast('No pudimos guardar la cuenta Pago Online. Intenta nuevamente.', 'danger'),
+          this.showToast(errorText(err, 'No pudimos guardar la cuenta Pago Online. Intenta nuevamente.'), 'danger'),
         );
       },
     });
@@ -1606,9 +1629,9 @@ export class GymAdmin implements OnDestroy {
     this.logoSvg.set(logo);
     this.gymService.updateMyLogo(logo).subscribe({
       next: () => this.showToast('Logo actualizado.'),
-      error: () => {
+      error: (err: Error) => {
         this.logoSvg.set(previous);
-        this.handleWriteError(() => this.showToast('No pudimos guardar el logo. Intenta con otra imagen.', 'danger'));
+        this.handleWriteError(() => this.showToast(errorText(err, 'No pudimos guardar el logo. Intenta con otra imagen.'), 'danger'));
       },
     });
   }
@@ -1744,7 +1767,7 @@ export class GymAdmin implements OnDestroy {
       error: (err: Error) => {
         this.status.set('idle');
         this.handleWriteError(() =>
-          this.showToast(err.message || 'No pudimos guardar el bloque. Intenta nuevamente.', 'danger'),
+          this.showToast(errorText(err, 'No pudimos guardar el bloque. Intenta nuevamente.'), 'danger'),
         );
       },
     });
@@ -1761,7 +1784,7 @@ export class GymAdmin implements OnDestroy {
     this.gymService.deleteMyBlock(block.id).subscribe({
       next: () => this.loadBlocks(),
       error: (err: Error) =>
-        this.handleWriteError(() => this.showToast(err.message || 'No pudimos eliminar el bloque.', 'danger')),
+        this.handleWriteError(() => this.showToast(errorText(err, 'No pudimos eliminar el bloque.'), 'danger')),
     });
   }
 
@@ -1795,7 +1818,7 @@ export class GymAdmin implements OnDestroy {
       error: (err: Error) => {
         this.status.set('idle');
         this.handleWriteError(() =>
-          this.showToast(err.message || 'No pudimos guardar el plan. Intenta nuevamente.', 'danger'),
+          this.showToast(errorText(err, 'No pudimos guardar el plan. Intenta nuevamente.'), 'danger'),
         );
       },
     });
@@ -1809,7 +1832,7 @@ export class GymAdmin implements OnDestroy {
     this.gymService.deleteMyPlan(plan.id).subscribe({
       next: () => this.loadPlans(),
       error: (err: Error) =>
-        this.handleWriteError(() => this.showToast(err.message || 'No pudimos eliminar el plan.', 'danger')),
+        this.handleWriteError(() => this.showToast(errorText(err, 'No pudimos eliminar el plan.'), 'danger')),
     });
   }
 
@@ -1842,10 +1865,122 @@ export class GymAdmin implements OnDestroy {
       error: (err: Error) => {
         this.status.set('idle');
         this.handleWriteError(() =>
-          this.showToast(err.message || 'No pudimos agregar al socio. Intenta nuevamente.', 'danger'),
+          this.showToast(errorText(err, 'No pudimos agregar al socio. Intenta nuevamente.'), 'danger'),
         );
       },
     });
+  }
+
+  // ---- Datos de contacto del socio (RUT, dirección, nacimiento, celular) + WhatsApp ----
+
+  private readonly memberProfileService = inject(MemberProfileService);
+  protected readonly profileMember = signal<Member | null>(null);
+  protected readonly savingMemberProfile = signal(false);
+  protected readonly memberProfileError = signal<string | null>(null);
+  protected readonly whatsappUrl = whatsappUrl;
+  protected readonly formatMobile = formatMobile;
+
+  protected openMemberProfile(member: Member): void {
+    this.memberProfileError.set(null);
+    this.profileMember.set(member);
+  }
+
+  protected closeMemberProfile(): void {
+    this.profileMember.set(null);
+  }
+
+  protected confirmMemberProfile(profile: MemberProfile): void {
+    const member = this.profileMember();
+    if (!member) {
+      return;
+    }
+    this.savingMemberProfile.set(true);
+    this.memberProfileError.set(null);
+    this.memberProfileService.updateForMember(member.id, profile).subscribe({
+      next: () => {
+        this.savingMemberProfile.set(false);
+        this.profileMember.set(null);
+        this.showToast(`Datos de ${member.name} guardados.`);
+        this.loadMembers();
+      },
+      error: (err: Error) => {
+        this.savingMemberProfile.set(false);
+        this.memberProfileError.set(errorText(err, 'No pudimos guardar los datos. Intenta nuevamente.'));
+      },
+    });
+  }
+
+  // ---- Clases fijas (editor por socio + importación por Excel) ----
+  // El PROFESOR también las edita y sube el Excel (pedido explícito 2026-10-12).
+
+  private readonly fixedClassService = inject(FixedClassService);
+  protected readonly fixedClassesMember = signal<Member | null>(null);
+  protected readonly fixedClassesCurrent = signal<FixedClass[]>([]);
+  protected readonly savingFixedClasses = signal(false);
+  protected readonly loadingFixedClassesId = signal<number | null>(null);
+  protected readonly isImportFixedClassesOpen = signal(false);
+
+  protected fixedClassesHint(member: Member | null): string {
+    if (!member) {
+      return '';
+    }
+    const active = member.membershipStatus === 'ACTIVE' || member.membershipStatus === 'EXPIRING_SOON';
+    return active
+      ? `Se reservarán desde hoy hasta el ${this.formatDate(member.planEndDate)}, hasta completar las clases de su plan. Al renovar se reservan solas.`
+      : 'No tiene plan activo: se guardan sus clases fijas y se reservan cuando pague.';
+  }
+
+  protected openFixedClassesModal(member: Member): void {
+    this.loadingFixedClassesId.set(member.id);
+    this.fixedClassService.list(member.id).subscribe({
+      next: (classes) => {
+        this.loadingFixedClassesId.set(null);
+        this.fixedClassesCurrent.set(classes);
+        this.fixedClassesMember.set(member);
+      },
+      error: () => {
+        this.loadingFixedClassesId.set(null);
+        this.showToast('No pudimos cargar las clases fijas. Intenta nuevamente.', 'danger');
+      },
+    });
+  }
+
+  protected closeFixedClassesModal(): void {
+    this.fixedClassesMember.set(null);
+  }
+
+  protected confirmFixedClasses(blockIds: number[]): void {
+    const member = this.fixedClassesMember();
+    if (!member) {
+      return;
+    }
+    this.savingFixedClasses.set(true);
+    this.fixedClassService.save(member.id, blockIds).subscribe({
+      next: (result) => {
+        this.savingFixedClasses.set(false);
+        this.fixedClassesMember.set(null);
+        this.showToast(fixedClassSaveMessage(result, member.name));
+        this.loadMembers();
+      },
+      error: (err) => {
+        this.savingFixedClasses.set(false);
+        this.handleWriteError(() =>
+          this.showToast(errorText(err, 'No pudimos guardar las clases fijas. Intenta nuevamente.'), 'danger'),
+        );
+      },
+    });
+  }
+
+  protected openImportFixedClasses(): void {
+    this.isImportFixedClassesOpen.set(true);
+  }
+
+  protected closeImportFixedClasses(): void {
+    this.isImportFixedClassesOpen.set(false);
+  }
+
+  protected onFixedClassesImported(): void {
+    this.loadMembers();
   }
 
   protected openImportModal(): void {
@@ -2011,9 +2146,9 @@ export class GymAdmin implements OnDestroy {
         this.newProfesorEmail.set('');
         this.showToast(`${profesor.name} ya puede entrar como profesor.`);
       },
-      error: () => {
+      error: (err: Error) => {
         this.creatingProfesor.set(false);
-        this.handleWriteError(() => this.showToast('No pudimos agregar al profesor. Intenta nuevamente.', 'danger'));
+        this.handleWriteError(() => this.showToast(errorText(err, 'No pudimos agregar al profesor. Intenta nuevamente.'), 'danger'));
       },
     });
   }
@@ -2072,7 +2207,7 @@ export class GymAdmin implements OnDestroy {
       error: (err: Error) => {
         this.addingAdmin.set(false);
         this.handleWriteError(() =>
-          this.showToast(err.message || 'No pudimos agregar al administrador. Intenta nuevamente.', 'danger'),
+          this.showToast(errorText(err, 'No pudimos agregar al administrador. Intenta nuevamente.'), 'danger'),
         );
       },
     });
@@ -2398,7 +2533,7 @@ export class GymAdmin implements OnDestroy {
         this.closurePreviewError.set(
           this.isDemoAdmin()
             ? 'Estás en una cuenta demo — esta acción está deshabilitada a propósito.'
-            : err?.message || 'No pudimos calcular el impacto. Intenta nuevamente.',
+            : errorText(err, 'No pudimos calcular el impacto. Intenta nuevamente.'),
         );
       },
     });
@@ -2417,7 +2552,7 @@ export class GymAdmin implements OnDestroy {
       },
       error: (err) => {
         this.closureSaving.set(false);
-        this.handleWriteError(() => this.showToast(err.message || 'No pudimos aplicar el cierre. Intenta nuevamente.', 'danger'));
+        this.handleWriteError(() => this.showToast(errorText(err, 'No pudimos aplicar el cierre. Intenta nuevamente.'), 'danger'));
       },
     });
   }
@@ -2473,7 +2608,7 @@ export class GymAdmin implements OnDestroy {
         this.editClosurePreviewError.set(
           this.isDemoAdmin()
             ? 'Estás en una cuenta demo — esta acción está deshabilitada a propósito.'
-            : err?.message || 'No pudimos calcular el impacto. Intenta nuevamente.',
+            : errorText(err, 'No pudimos calcular el impacto. Intenta nuevamente.'),
         );
       },
     });
@@ -2494,7 +2629,7 @@ export class GymAdmin implements OnDestroy {
       },
       error: (err) => {
         this.editClosureSaving.set(false);
-        this.handleWriteError(() => this.showToast(err.message || 'No pudimos editar el cierre. Intenta nuevamente.', 'danger'));
+        this.handleWriteError(() => this.showToast(errorText(err, 'No pudimos editar el cierre. Intenta nuevamente.'), 'danger'));
       },
     });
   }

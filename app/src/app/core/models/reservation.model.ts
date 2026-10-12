@@ -20,6 +20,8 @@ export interface GymBlockOccurrence {
   /** true si esta ocurrencia cae dentro de un cierre de emergencia vigente (ver GymClosure) —
    *  nunca reservable aunque capacity/ventana de reserva digan lo contrario. */
   closed: boolean;
+  /** true = mi reserva en esta clase viene de una clase fija mía. */
+  myReservationFixed: boolean;
 }
 
 export type ReservationStatus = 'BOOKED' | 'CANCELLED';
@@ -34,6 +36,8 @@ export interface Reservation {
   status: ReservationStatus;
   createdAt: string;
   checkedInAt: string | null;
+  /** true = la reserva viene de una clase fija del socio. */
+  fixed: boolean;
 }
 
 export interface CreateReservationRequest {

@@ -405,6 +405,9 @@
                     } @else {
                       <ion-badge color="success">Reservado</ion-badge>
                     }
+                    @if (occurrence.myReservationFixed) {
+                      <ion-badge color="medium" class="class-tile__fixed-badge">Clase fija</ion-badge>
+                    }
                     @if (!occurrence.past) {
                       @if (canCancel(occurrence.classDate, occurrence.startTime)) {
                         <ion-button
@@ -413,7 +416,7 @@
                           color="danger"
                           size="small"
                           [disabled]="cancelingId() === occurrence.myReservationId"
-                          (click)="cancel(occurrence.myReservationId!)"
+                          (click)="cancel(occurrence.myReservationId!, occurrence.myReservationFixed)"
                         >
                           {{ cancelingId() === occurrence.myReservationId ? 'Cancelando...' : 'Cancelar reserva' }}
                         </ion-button>
@@ -595,6 +598,9 @@
             [class.class-tile--live-pending]="isReservationLive(reservation) && !reservation.checkedInAt"
           >
             <p class="class-tile__title">{{ reservation.blockLabel }}</p>
+            @if (reservation.fixed) {
+              <ion-badge color="medium" class="class-tile__fixed-badge">Clase fija</ion-badge>
+            }
             <p class="class-tile__datetime">
               {{ formatShortDate(reservation.classDate) }} · {{ shortTime(reservation.startTime) }}-{{ shortTime(reservation.endTime) }}
             </p>
@@ -641,7 +647,7 @@
                   color="danger"
                   size="small"
                   [disabled]="cancelingId() === reservation.id"
-                  (click)="cancel(reservation.id)"
+                  (click)="cancel(reservation.id, reservation.fixed)"
                 >
                   {{ cancelingId() === reservation.id ? 'Cancelando...' : 'Cancelar reserva' }}
                 </ion-button>
@@ -858,6 +864,27 @@
     <app-version-tag variant="subtle" />
   </ion-content>
   <app-tour-overlay />
+  <ion-modal
+    [isOpen]="profileIncomplete()"
+    [backdropDismiss]="false"
+    [keyboardClose]="false"
+    [style.--ion-color-primary]="gym()?.themeColor ?? '#c6ff3d'"
+    [style.--ion-color-primary-contrast]="gym()?.themeContrast ?? '#1a2b00'"
+    [style.--brand-accent]="gym()?.themeColor ?? '#c6ff3d'"
+    [style.--brand-accent-contrast]="gym()?.themeContrast ?? '#1a2b00'"
+  >
+    <ng-template>
+      <app-member-profile-modal
+        title="Completa tus datos"
+        intro="Para reservar clases necesitamos tu RUT, dirección, fecha de nacimiento y un celular de contacto. Es solo una vez."
+        [required]="true"
+        [initial]="memberProfile()"
+        [saving]="savingProfile()"
+        [serverError]="profileError()"
+        (saved)="saveProfile($event)"
+      />
+    </ng-template>
+  </ion-modal>
   @if (scannerOpen()) {
     <app-qr-scanner (scanned)="onQrScanned($event)" (closed)="closeQrScanner()" />
   }

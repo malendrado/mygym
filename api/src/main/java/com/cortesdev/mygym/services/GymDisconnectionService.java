@@ -176,7 +176,7 @@ public class GymDisconnectionService {
             Map<Long, Long> reservationCountByMember,
             Map<Long, Integer> lastPaidAmountByMember) {
         StringBuilder csv = new StringBuilder(
-                "Nombre,Email,Plan,Monto pagado (CLP),Fecha de pago,Fecha de vencimiento del plan,Fecha de invitación,Fecha de alta,Reservas totales\n");
+                "Nombre,Email,Plan,Monto pagado (CLP),Fecha de pago,Fecha de vencimiento del plan,Fecha de invitación,Fecha de alta,Reservas totales,RUT,Dirección,Fecha de nacimiento,Teléfono\n");
         for (AppUser m : members) {
             // El precio del plan puede haber cambiado desde que pagó — el monto real cobrado
             // sale del último Payment PAID de este socio, nunca del precio actual de GymPlan.
@@ -201,6 +201,15 @@ public class GymDisconnectionService {
                     .append(csvField(formatInstant(m.getCreatedAt())))
                     .append(',')
                     .append(reservationCountByMember.getOrDefault(m.getId(), 0L))
+                    .append(',')
+                    .append(csvField(m.getRut()))
+                    .append(',')
+                    .append(csvField(m.getAddress()))
+                    .append(',')
+                    .append(m.getBirthDate() != null ? m.getBirthDate().toString() : "")
+                    .append(',')
+                    // Sin el "+": una celda que empieza con + Excel la toma por fórmula (ver csvField).
+                    .append(m.getPhone() != null ? m.getPhone().replace("+", "") : "")
                     .append('\n');
         }
         return csv.toString();
@@ -269,11 +278,16 @@ public class GymDisconnectionService {
 
     /** Envuelve en comillas y escapa comillas internas si el valor trae coma, comilla o salto de
      *  línea — sin esto un nombre o plan con coma rompe el CSV. */
-    private String csvField(String value) {
+    static String csvField(String value) {
         if (value == null) {
             return "";
         }
-        boolean needsQuoting = value.contains(",") || value.contains("\"") || value.contains("\n");
+        // Inyección de fórmulas: nombre, dirección, banco… los escribe el propio socio o el admin, y el CSV
+        // se abre en Excel — una celda que empieza con = + - @ (o tab/retorno) se ejecuta como fórmula.
+        if (!value.isEmpty() && "=+-@\t\r".indexOf(value.charAt(0)) >= 0) {
+            value = "'" + value;
+        }
+        boolean needsQuoting = value.contains(",") || value.contains("\"") || value.contains("\n") || value.contains("\r");
         String escaped = value.replace("\"", "\"\"");
         return needsQuoting ? "\"" + escaped + "\"" : escaped;
     }

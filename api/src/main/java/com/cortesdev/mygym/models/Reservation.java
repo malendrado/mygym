@@ -47,6 +47,11 @@ public class Reservation {
      *  emergencia (ver GymClosureService) — permite saber el motivo real de la cancelación. */
     private Long cancelledByClosureId;
 
+    /** No-null = la reserva nació de una clase fija del socio (ver FixedClassService). Se pone en
+     *  null al cancelarla por quitar el plan o la clase fija, para que no cuente como "el socio la
+     *  soltó a propósito". */
+    private Long fixedClassId;
+
     private Instant createdAt;
 
     private Instant updatedAt;

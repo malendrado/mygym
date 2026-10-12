@@ -891,6 +891,10 @@
             Agregar socio
           </ion-button>
         </form>
+        <ion-button expand="block" fill="clear" (click)="openImportFixedClasses()">
+          <ion-icon name="repeat-outline" slot="start" aria-hidden="true"></ion-icon>
+          Importar clases fijas desde Excel
+        </ion-button>
       </ion-card-content>
     </ion-card>
 
@@ -1049,6 +1053,24 @@
                       {{ formatDate(member.paidAt) }} → {{ formatDate(member.planEndDate) }}
                     </span>
                   }
+                  @if (member.phone) {
+                    <span class="member-plan-info__item">
+                      <ion-icon name="call-outline" aria-hidden="true"></ion-icon>
+                      {{ formatMobile(member.phone) }}
+                    </span>
+                  }
+                  @if (!member.profileComplete) {
+                    <span class="member-plan-info__item member-plan-info__item--pending">
+                      <ion-icon name="alert-circle-outline" aria-hidden="true"></ion-icon>
+                      Datos pendientes
+                    </span>
+                  }
+                  @if (member.fixedClassesSummary) {
+                    <span class="member-plan-info__item">
+                      <ion-icon name="repeat-outline" aria-hidden="true"></ion-icon>
+                      Fija: {{ member.fixedClassesSummary }}
+                    </span>
+                  }
                 </div>
               </ion-label>
               <ion-badge slot="end" [color]="statusColor(member.membershipStatus)">
@@ -1087,6 +1109,38 @@
                   Quitar plan
                 </ion-button>
               }
+              <ion-button
+                fill="outline"
+                size="small"
+                class="member-action-btn"
+                [disabled]="loadingFixedClassesId() === member.id"
+                (click)="openFixedClassesModal(member)"
+              >
+                @if (loadingFixedClassesId() === member.id) {
+                  <ion-spinner name="crescent" slot="start"></ion-spinner>
+                } @else {
+                  <ion-icon name="repeat-outline" slot="start" aria-hidden="true"></ion-icon>
+                }
+                Clases fijas
+              </ion-button>
+              @if (whatsappUrl(member.phone); as wa) {
+                <ion-button
+                  fill="outline"
+                  size="small"
+                  color="success"
+                  class="member-action-btn"
+                  [href]="wa"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  [attr.aria-label]="'Escribir a ' + member.name + ' por WhatsApp'"
+                >
+                  <ion-icon name="logo-whatsapp" slot="icon-only" aria-hidden="true"></ion-icon>
+                </ion-button>
+              }
+              <ion-button fill="outline" size="small" class="member-action-btn" (click)="openMemberProfile(member)">
+                <ion-icon name="id-card-outline" slot="start" aria-hidden="true"></ion-icon>
+                Datos
+              </ion-button>
               <ion-button
                 fill="clear"
                 size="small"
@@ -1832,6 +1886,70 @@
         }
       </ion-card-content>
     </ion-card>
+
+    <ion-modal
+      class="wide-modal"
+      [isOpen]="profileMember() !== null"
+      (didDismiss)="closeMemberProfile()"
+      [style.--ion-color-primary]="themeColor()"
+      [style.--ion-color-primary-contrast]="themeContrast()"
+      [style.--brand-accent]="themeColor()"
+      [style.--brand-accent-contrast]="themeContrast()"
+    >
+      <ng-template>
+        <app-member-profile-modal
+          [title]="'Datos de ' + (profileMember()?.name ?? '')"
+          intro="RUT, dirección, fecha de nacimiento y celular de contacto. Si el socio los completa él mismo al entrar, también quedan acá."
+          submitLabel="Guardar datos"
+          [initial]="profileMember()"
+          [saving]="savingMemberProfile()"
+          [serverError]="memberProfileError()"
+          (saved)="confirmMemberProfile($event)"
+          (dismiss)="closeMemberProfile()"
+        />
+      </ng-template>
+    </ion-modal>
+
+    <ion-modal
+      class="wide-modal"
+      [isOpen]="fixedClassesMember() !== null"
+      (didDismiss)="closeFixedClassesModal()"
+      [style.--ion-color-primary]="themeColor()"
+      [style.--ion-color-primary-contrast]="themeContrast()"
+      [style.--brand-accent]="themeColor()"
+      [style.--brand-accent-contrast]="themeContrast()"
+    >
+      <ng-template>
+        <app-fixed-classes-modal
+          [memberName]="fixedClassesMember()?.name ?? ''"
+          [blocks]="blocks()"
+          [current]="fixedClassesCurrent()"
+          [hint]="fixedClassesHint(fixedClassesMember())"
+          [saving]="savingFixedClasses()"
+          (saved)="confirmFixedClasses($event)"
+          (dismiss)="closeFixedClassesModal()"
+        />
+      </ng-template>
+    </ion-modal>
+
+    <ion-modal
+      class="wide-modal"
+      [isOpen]="isImportFixedClassesOpen()"
+      (didDismiss)="closeImportFixedClasses()"
+      [style.--ion-color-primary]="themeColor()"
+      [style.--ion-color-primary-contrast]="themeContrast()"
+      [style.--brand-accent]="themeColor()"
+      [style.--brand-accent-contrast]="themeContrast()"
+    >
+      <ng-template>
+        <app-import-fixed-classes-modal
+          [gymId]="gymId()"
+          [blocks]="blocks()"
+          (imported)="onFixedClassesImported()"
+          (dismiss)="closeImportFixedClasses()"
+        />
+      </ng-template>
+    </ion-modal>
 
     <ion-modal
       class="wide-modal"

@@ -95,6 +95,7 @@ public class GymService {
     private final AdminInviteEmailService adminInviteEmailService;
     private final MemberLifecycleEmailService memberLifecycleEmailService;
     private final DemoTourService demoTourService;
+    private final org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     public GymResponse createGym(GymCreateRequest request) {
         if (gymRepository.existsBySlug(request.slug())) {
@@ -800,6 +801,8 @@ public class GymService {
                 .toList();
         memberLifecycleEmailService.sendPaymentConfirmedMember(gym, member, plan);
         memberLifecycleEmailService.sendPaymentConfirmedAdmin(gym, member, plan, adminEmails);
+        // Reserva sus clases fijas del período nuevo, después del commit (ver FixedClassService).
+        eventPublisher.publishEvent(new MembershipPaidEvent(memberId));
     }
 
     /**
@@ -828,7 +831,12 @@ public class GymService {
         LocalDate today = LocalDate.now(GYM_ZONE);
         List<Reservation> futureReservations = reservationRepository
                 .findByMemberIdAndStatusAndClassDateGreaterThanEqual(memberId, ReservationStatus.BOOKED, today);
-        futureReservations.forEach(r -> r.setStatus(ReservationStatus.CANCELLED));
+        // fixedClassId a null: estas cancelaciones las hizo el admin al quitar el plan, no el socio
+        // — si vuelve a pagar, sus clases fijas se reservan de nuevo (ver FixedClassService).
+        futureReservations.forEach(r -> {
+            r.setStatus(ReservationStatus.CANCELLED);
+            r.setFixedClassId(null);
+        });
         reservationRepository.saveAll(futureReservations);
     }
 

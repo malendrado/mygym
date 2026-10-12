@@ -41,6 +41,10 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
 
     List<Reservation> findByMemberIdIn(List<Long> memberIds);
 
+    /** Todas las reservas del socio en un rango, de cualquier estado — la generación de clases
+     *  fijas necesita ver también las CANCELLED para no re-crear una fecha que el socio soltó. */
+    List<Reservation> findByMemberIdAndClassDateBetween(Long memberId, LocalDate from, LocalDate to);
+
     List<Reservation> findByMemberIdAndClassDateAndStatus(Long memberId, LocalDate classDate, ReservationStatus status);
 
     int countByMemberIdIn(List<Long> memberIds);

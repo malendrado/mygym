@@ -38,6 +38,7 @@ class GymServiceManualPaymentTest {
     @Mock private AppUserRepository appUserRepository;
     @Mock private ManualPaymentRepository manualPaymentRepository;
     @Mock private MemberLifecycleEmailService memberLifecycleEmailService;
+    @Mock private org.springframework.context.ApplicationEventPublisher eventPublisher;
     @InjectMocks private GymService gymService;
 
     @Test
@@ -65,6 +66,8 @@ class GymServiceManualPaymentTest {
         // el socio sigue quedando con el plan y la fecha de pago, como antes
         assertThat(member.getPlanId()).isEqualTo(PLAN_ID);
         assertThat(member.getPaidAt()).isEqualTo(payment.getPaidAt());
+        // y se avisa que hay un período nuevo, para que se reserven sus clases fijas (después del commit)
+        verify(eventPublisher).publishEvent(new MembershipPaidEvent(MEMBER_ID));
     }
 
     @Test
