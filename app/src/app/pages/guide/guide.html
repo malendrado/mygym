@@ -1,0 +1,207 @@
+<ion-content
+  class="guide-content"
+  [scrollY]="false"
+  [style.--guide-bg]="themeSurface().bg"
+  [style.--guide-card]="themeSurface().card"
+  [style.--brand-accent]="gym()?.themeColor ?? '#c6ff3d'"
+  [style.--brand-accent-contrast]="gym()?.themeContrast ?? '#1a2b00'"
+  [style.--brand-accent-text-safe]="accentTextSafe()"
+>
+  @switch (status()) {
+    @case ('loading') {
+      <div class="guide-center" role="status" aria-label="Cargando la guía">
+        <ion-spinner name="crescent"></ion-spinner>
+      </div>
+    }
+    @case ('invalid') {
+      <div class="guide-center">
+        <div class="guide-invalid">
+          <h1>Este enlace ya no está disponible</h1>
+          <p>
+            La guía se abre desde el correo de bienvenida y dura 30 días. Pídele a tu gimnasio que te envíe el
+            acceso de nuevo.
+          </p>
+          <a class="guide-btn guide-btn--ghost" routerLink="/login">Ir a la app</a>
+        </div>
+      </div>
+    }
+    @case ('ready') {
+      <div class="guide">
+        <header class="guide__top">
+          <div class="guide__brand">
+            @if (logoSrc()) {
+              <img [src]="logoSrc()" alt="" class="guide__logo" />
+            }
+            <span class="guide__gym">{{ gym()?.name }}</span>
+          </div>
+          @if (!onLastScreen()) {
+            <button type="button" class="guide__skip" (click)="skip()">Saltar</button>
+          }
+        </header>
+
+        <nav class="guide__progress" aria-label="Pasos de la guía">
+          @for (slide of slides; track slide.kind; let i = $index) {
+            <button
+              type="button"
+              class="guide__seg"
+              [class.is-done]="i < index()"
+              [class.is-current]="i === index()"
+              [attr.aria-label]="'Ir al paso ' + (i + 1) + ': ' + slide.title"
+              [attr.aria-current]="i === index() ? 'step' : null"
+              (click)="goTo(i)"
+            ></button>
+          }
+        </nav>
+        <p class="guide__step" aria-live="polite">{{ stepLabel() }}</p>
+
+        <div class="guide__stage" (pointerdown)="onPointerDown($event)" (pointerup)="onPointerUp($event)">
+          @for (slide of slides; track slide.kind; let i = $index) {
+            <section
+              class="slide"
+              [attr.data-offset]="offset(i)"
+              [class.is-active]="i === index()"
+              [attr.aria-hidden]="i === index() ? null : 'true'"
+              [attr.inert]="i === index() ? null : ''"
+            >
+              <div class="phone" aria-hidden="true">
+                @switch (slide.kind) {
+                  @case ('install') {
+                    <div class="mock mock--install">
+                      @if (pwa.isInstalled()) {
+                        <div class="mock__done">
+                          <span class="mock__tick"><ion-icon name="checkmark"></ion-icon></span>
+                          <strong>Ya la tienes instalada</strong>
+                        </div>
+                      } @else if (pwa.isIosSafari) {
+                        <ol class="mock__steps">
+                          <li><ion-icon name="share-outline"></ion-icon><span>Toca <b>Compartir</b></span></li>
+                          <li>
+                            <ion-icon name="add-circle-outline"></ion-icon>
+                            <span>Elige <b>Agregar a inicio</b></span>
+                          </li>
+                          <li><ion-icon name="checkmark"></ion-icon><span>Toca <b>Agregar</b></span></li>
+                        </ol>
+                      } @else {
+                        <ol class="mock__steps">
+                          <li><ion-icon name="ellipsis-vertical"></ion-icon><span>Toca el menú <b>⋮</b></span></li>
+                          <li>
+                            <ion-icon name="download-outline"></ion-icon>
+                            <span>Elige <b>Instalar app</b></span>
+                          </li>
+                          <li><ion-icon name="checkmark"></ion-icon><span>Confirma y listo</span></li>
+                        </ol>
+                      }
+                    </div>
+                  }
+                  @case ('book') {
+                    <div class="mock mock--book">
+                      <div class="mock__row">
+                        <div><b>Funcional</b><small>Mañana · 18:30</small></div>
+                        <span class="mock__btn"><span class="mock__btn-a">Reservar</span><span class="mock__btn-b">Reservado</span></span>
+                      </div>
+                      <div class="mock__row mock__row--dim">
+                        <div><b>Movilidad</b><small>Mañana · 20:00</small></div>
+                        <span class="mock__btn mock__btn--idle">Reservar</span>
+                      </div>
+                    </div>
+                  }
+                  @case ('cancel') {
+                    <div class="mock mock--cancel">
+                      <div class="mock__row">
+                        <div><b>Funcional</b><small>Mañana · 18:30</small></div>
+                        <span class="mock__btn mock__btn--danger"><span class="mock__btn-a">Cancelar</span><span class="mock__btn-b">Cancelada</span></span>
+                      </div>
+                      <div class="mock__note">Clase llena: entra a la lista de espera y te avisamos si se libera un cupo.</div>
+                    </div>
+                  }
+                  @case ('checkin') {
+                    <div class="mock mock--checkin">
+                      <div class="mock__qr">
+                        @for (c of [1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 0, 0, 1, 0, 1, 1]; track $index) {
+                          <i [class.on]="c === 1"></i>
+                        }
+                        <span class="mock__scan"></span>
+                      </div>
+                      <div class="mock__ok"><ion-icon name="checkmark"></ion-icon> ¡Asistencia marcada!</div>
+                    </div>
+                  }
+                  @case ('pay') {
+                    <div class="mock mock--pay">
+                      <div class="mock__row">
+                        <div><b>Plan mensual</b><small>$29.990 al mes</small></div>
+                        <span class="mock__btn"><span class="mock__btn-a">Pagar</span><span class="mock__btn-b">Pagado</span></span>
+                      </div>
+                      <div class="mock__chips">
+                        @if (gym()?.flowConfigured) {
+                          <span>Tarjeta</span>
+                        }
+                        <span>Transferencia</span>
+                      </div>
+                    </div>
+                  }
+                  @case ('plan') {
+                    <div class="mock mock--plan">
+                      <b>Plan mensual</b>
+                      <div class="mock__bar"><span></span></div>
+                      <small>Te quedan 6 clases · vence el 30</small>
+                    </div>
+                  }
+                  @case ('history') {
+                    <div class="mock mock--history">
+                      <div class="mock__days">
+                        @for (d of ['L', 'M', 'M', 'J', 'V', 'S']; track $index) {
+                          <span [class.on]="$index !== 2 && $index !== 5">{{ d }}</span>
+                        }
+                      </div>
+                      <div class="mock__row"><div><b>Rutina de hoy</b><small>Anota lo que hiciste</small></div></div>
+                    </div>
+                  }
+                }
+              </div>
+
+              <h1 class="slide__title">{{ slide.title }}</h1>
+              <p class="slide__caption">{{ slide.kind === 'pay' ? payCaption() : slide.caption }}</p>
+
+              @if (slide.kind === 'install' && !pwa.isInstalled() && pwa.canInstallNatively()) {
+                <button type="button" class="guide-btn" (click)="installNow()">
+                  <ion-icon name="download-outline"></ion-icon> Instalar ahora
+                </button>
+              }
+            </section>
+          }
+
+          <section
+            class="slide slide--final"
+            [attr.data-offset]="offset(lastIndex)"
+            [class.is-active]="onLastScreen()"
+            [attr.aria-hidden]="onLastScreen() ? null : 'true'"
+            [attr.inert]="onLastScreen() ? null : ''"
+          >
+            <div class="final__ring" aria-hidden="true"><ion-icon name="checkmark"></ion-icon></div>
+            <h1 class="slide__title">
+              @if (firstName()) {
+                ¡Listo, {{ firstName() }}!
+              } @else {
+                ¡Listo!
+              }
+            </h1>
+            <p class="slide__caption">Ya sabes lo necesario. Reserva tu primera clase en {{ gym()?.name }}.</p>
+            <a class="guide-btn" routerLink="/member">Ir a mi gimnasio</a>
+            <button type="button" class="guide-btn guide-btn--ghost" (click)="restart()">Ver la guía de nuevo</button>
+          </section>
+        </div>
+
+        @if (!onLastScreen()) {
+          <footer class="guide__nav">
+            <button type="button" class="guide-btn guide-btn--ghost guide-btn--sm" [disabled]="index() === 0" (click)="back()">
+              <ion-icon name="chevron-back-outline"></ion-icon> Atrás
+            </button>
+            <button type="button" class="guide-btn guide-btn--grow" (click)="next()">
+              Siguiente <ion-icon name="chevron-forward-outline"></ion-icon>
+            </button>
+          </footer>
+        }
+      </div>
+    }
+  }
+</ion-content>

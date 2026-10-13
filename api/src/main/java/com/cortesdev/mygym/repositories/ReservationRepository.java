@@ -21,6 +21,12 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
 
     Optional<Reservation> findByIdAndMemberId(Long id, Long memberId);
 
+    /** Misión de bienvenida: ¿alguna vez reservó (aunque después cancelara)? */
+    boolean existsByMemberId(Long memberId);
+
+    /** Misión de bienvenida: ¿alguna vez hizo check-in? */
+    boolean existsByMemberIdAndCheckedInAtIsNotNull(Long memberId);
+
     /** "Mis reservas · Próximas": hoy en adelante, completo (acotado por la ventana de reserva). */
     List<Reservation> findByMemberIdAndStatusAndClassDateGreaterThanEqualOrderByClassDateAsc(
             Long memberId, ReservationStatus status, LocalDate from);

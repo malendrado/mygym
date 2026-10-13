@@ -16,4 +16,7 @@ public record MemberDashboardResponse(
         MemberResponse membership,
         List<MemberPlanResponse> plans,
         BankTransferInfoResponse bankTransfer,
-        GymClosureNoticeResponse closureNotice) {}
+        GymClosureNoticeResponse closureNotice,
+        // Avance de la "Misión de bienvenida" — se deduce de las reservas reales, nunca se guarda aparte.
+        boolean hasBookedClass,
+        boolean hasCheckedIn) {}

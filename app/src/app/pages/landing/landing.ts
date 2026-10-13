@@ -142,7 +142,7 @@ export class Landing implements OnInit, AfterViewInit, OnDestroy {
     },
     {
       title: 'Membresías y cobros',
-      body: 'Cuatro estados claros: activo, por vencer, vencido y sin pago. Recordatorio automático por email antes de que venza el plan.',
+      body: 'Cuatro estados claros: activo, por vencer, vencido y sin pago. Activa el plan con su fecha real de inicio y las clases que ya usó, y el socio recibe un recordatorio por email antes de que venza.',
       span: 'large',
       tint: 'surface-2',
     },
@@ -178,15 +178,21 @@ export class Landing implements OnInit, AfterViewInit, OnDestroy {
     },
     {
       title: 'Clases fijas',
-      body: 'Deja precargada la clase a la que va siempre cada socio: se le reserva sola cada semana, se le descuenta de su plan y se renueva cuando paga. Desde la ficha o con un Excel.',
+      body: 'Deja precargada la clase a la que va siempre cada socio: se le reserva sola cada semana, se le descuenta de su plan y se renueva cuando paga. Desde la ficha o con un Excel. Si quieres, solo podrán cambiarla dentro de la semana en curso.',
       span: 'small',
       tint: 'surface-2',
     },
     {
       title: 'Datos de tus socios, al día',
-      body: 'RUT, dirección, fecha de nacimiento y celular, validados: el socio los completa una sola vez al entrar. Y desde tu lista, un toque en WhatsApp para escribirle directo.',
+      body: 'RUT, dirección, fecha de nacimiento, celular y contacto de emergencia, validados: el socio los completa una sola vez al entrar. Y desde tu lista, un toque en WhatsApp para escribirle directo.',
       span: 'large',
       tint: 'surface',
+    },
+    {
+      title: 'Asistencia: quién vino de verdad',
+      body: 'Elige un día, toca una clase y ve quién reservó y quién llegó, con QR o marcado a mano. Escríbele por WhatsApp a quien faltó y revisa cada semana o mes quiénes vienen más y quiénes faltan.',
+      span: 'large',
+      tint: 'surface-2',
     },
     {
       title: 'Pantalla de TV',
@@ -196,7 +202,7 @@ export class Landing implements OnInit, AfterViewInit, OnDestroy {
     },
     {
       title: 'Memoria Viva: seguimiento de rutinas',
-      body: 'El profesor arma una pauta simple y el socio anota qué hizo cada vez que entrena. Antes de hablar con él, el profesor ve al toque si siguió el plan o se desvió — sin tener que acordarse ni preguntar.',
+      body: 'El profesor arma una pauta simple y el socio anota qué hizo cada vez que entrena. Y en "En clase" ve quiénes vienen a la clase en curso y a la siguiente, cada uno con su rutina del día. Antes de hablar con el socio, el profesor ve al toque si siguió el plan o se desvió — sin tener que acordarse ni preguntar.',
       span: 'full',
       tint: 'surface-2',
     },

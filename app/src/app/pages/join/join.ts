@@ -20,6 +20,7 @@ import {
   eyeOffOutline,
   eyeOutline,
   informationCircleOutline,
+  arrowForwardOutline,
   logoInstagram,
   logoWhatsapp,
   sparklesOutline,
@@ -32,6 +33,7 @@ import { deriveSurfaceTint, ensureMinContrastColor, syncThemeOverrides } from '.
 import { toLogoImgSrc } from '../../core/utils/logo-src';
 
 addIcons({
+  'arrow-forward-outline': arrowForwardOutline,
   'logo-instagram': logoInstagram,
   'logo-whatsapp': logoWhatsapp,
   'information-circle-outline': informationCircleOutline,
@@ -119,7 +121,24 @@ export class Join {
   protected readonly registerSent = signal(false);
   protected readonly passwordVisible = signal(false);
 
-  protected readonly instagramUrl = computed(() => this.gym()?.instagramUrl || null);
+  // El admin escribe el campo a mano (hasta 200 caracteres, sin validar): acepta la URL del perfil o
+  // solo "@usuario". Si no se puede sacar un usuario ni una URL http(s), no se muestra la tarjeta.
+  protected readonly instagramHandle = computed(() => {
+    const raw = this.gym()?.instagramUrl?.trim();
+    if (!raw) {
+      return null;
+    }
+    const match = raw.match(/instagram\.com\/@?([A-Za-z0-9._]{1,30})/i) ?? raw.match(/^@?([A-Za-z0-9._]{1,30})$/);
+    return match ? match[1] : null;
+  });
+  protected readonly instagramLink = computed(() => {
+    const handle = this.instagramHandle();
+    if (handle) {
+      return `https://www.instagram.com/${handle}/`;
+    }
+    const raw = this.gym()?.instagramUrl?.trim();
+    return raw && /^https?:\/\//i.test(raw) ? raw : null;
+  });
   protected readonly whatsappLink = computed(() => {
     const number = this.gym()?.whatsappNumber;
     return number ? `https://wa.me/${number.replace(/[^\d]/g, '')}` : null;

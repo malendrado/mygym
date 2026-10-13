@@ -39,6 +39,7 @@ import {
   GymPhoto,
   GymPlan,
   GymStats,
+  GuideInfo,
   ReservationSearchResponse,
   MemberDashboard,
   MemberPlan,
@@ -65,6 +66,11 @@ export class GymService {
   /** No auth required — powers the public join page for a specific gym. */
   getPublicBySlug(slug: string): Observable<PublicGym> {
     return this.http.get<PublicGym>(`${this.publicGymsBase}/${slug}`);
+  }
+
+  /** Sin sesión: el token firmado del enlace del correo de bienvenida es la credencial. 404 = inválido o vencido. */
+  getGuide(token: string): Observable<GuideInfo> {
+    return this.http.get<GuideInfo>(`${environment.apiUrl}/api/public/guide`, { params: { t: token } });
   }
 
   /** No auth required — planes activos de un gym para mostrar antes del alta en /j/{slug}. */

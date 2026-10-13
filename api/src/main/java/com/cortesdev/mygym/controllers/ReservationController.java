@@ -52,6 +52,7 @@ public class ReservationController {
     private final FlowPaymentService flowPaymentService;
     private final WaitlistService waitlistService;
     private final GymClosureService gymClosureService;
+    private final com.cortesdev.mygym.repositories.ReservationRepository reservationRepository;
 
     @GetMapping("/gym")
     public PublicGymResponse myGym(@AuthenticationPrincipal Jwt jwt) {
@@ -71,7 +72,9 @@ public class ReservationController {
                 memberService.getOwnMembership(user.userId()),
                 gymService.listActivePlans(user.gymId()),
                 gymService.getBankTransferInfo(user.gymId()),
-                gymClosureService.activeOrUpcomingNotice(user.gymId()));
+                gymClosureService.activeOrUpcomingNotice(user.gymId()),
+                reservationRepository.existsByMemberId(user.userId()),
+                reservationRepository.existsByMemberIdAndCheckedInAtIsNotNull(user.userId()));
     }
 
     // Banner de cierre de emergencia (ver GymClosureService) — 204 si no hay ninguno vigente ni próximo.

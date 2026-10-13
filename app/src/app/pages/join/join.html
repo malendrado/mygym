@@ -86,22 +86,46 @@
           <p class="join-description">{{ gym()!.description }}</p>
         }
 
-        @if (instagramUrl() || whatsappLink()) {
-          <div class="join-contact">
-            @if (whatsappLink()) {
-              <a class="join-contact__btn join-contact__btn--wa" [href]="whatsappLink()" target="_blank" rel="noopener">
-                <ion-icon name="logo-whatsapp" aria-hidden="true"></ion-icon>
-                ¿Dudas? Escríbenos por WhatsApp
-              </a>
-            }
-            @if (instagramUrl()) {
-              <a class="join-contact__btn" [href]="instagramUrl()" target="_blank" rel="noopener">
-                <ion-icon name="logo-instagram" aria-hidden="true"></ion-icon>
-                Instagram
-              </a>
-            }
-          </div>
+        @if (whatsappLink(); as waLink) {
+          <a
+            class="join-ig join-ig--wa"
+            [href]="waLink"
+            target="_blank"
+            rel="noopener"
+            [attr.aria-label]="'Escribir por WhatsApp a ' + gym()!.name + ' (se abre en una pestaña nueva)'"
+          >
+            <span class="join-ig__glyph" aria-hidden="true"><ion-icon name="logo-whatsapp"></ion-icon></span>
+            <span class="join-ig__text">
+              <strong>¿Dudas antes de unirte?</strong>
+              <small>Escríbenos por WhatsApp</small>
+            </span>
+            <ion-icon class="join-ig__go" name="arrow-forward-outline" aria-hidden="true"></ion-icon>
+          </a>
         }
+
+        @if (instagramLink(); as igLink) {
+          <a
+            class="join-ig"
+            [href]="igLink"
+            target="_blank"
+            rel="noopener"
+            [attr.aria-label]="'Ver el Instagram de ' + gym()!.name + ' (se abre en una pestaña nueva)'"
+          >
+            <span class="join-ig__glyph" aria-hidden="true"><ion-icon name="logo-instagram"></ion-icon></span>
+            <span class="join-ig__text">
+              <strong>Mira cómo se entrena en {{ gym()!.name }}</strong>
+              <small>
+                @if (instagramHandle(); as handle) {
+                  &#64;{{ handle }} · Síguenos en Instagram
+                } @else {
+                  Síguenos en Instagram
+                }
+              </small>
+            </span>
+            <ion-icon class="join-ig__go" name="arrow-forward-outline" aria-hidden="true"></ion-icon>
+          </a>
+        }
+
       </div>
 
       <div class="join-card__action">

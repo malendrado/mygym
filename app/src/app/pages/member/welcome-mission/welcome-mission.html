@@ -1,0 +1,54 @@
+@if (visible()) {
+  <section class="mission" [class.mission--done]="allDone()" aria-labelledby="mission-title">
+    <header class="mission__head">
+      <div>
+        <p class="mission__eyebrow">Misión de bienvenida</p>
+        <h2 id="mission-title" class="mission__title">
+          @if (allDone()) {
+            ¡Ya eres parte de {{ gymName() }}!
+          } @else {
+            Tu primera semana en {{ gymName() }}
+          }
+        </h2>
+      </div>
+      <button type="button" class="mission__close" aria-label="Ocultar la misión de bienvenida" (click)="hide()">
+        <ion-icon name="close-outline" aria-hidden="true"></ion-icon>
+      </button>
+    </header>
+
+    <div class="mission__progress" role="progressbar" [attr.aria-valuenow]="doneCount()" aria-valuemin="0" [attr.aria-valuemax]="steps().length" [attr.aria-label]="doneCount() + ' de ' + steps().length + ' pasos completados'">
+      <span [style.transform]="'scaleX(' + progress() + ')'"></span>
+    </div>
+
+    @if (allDone()) {
+      <p class="mission__cheer">Completaste todos los pasos. Ahora solo queda entrenar.</p>
+    } @else {
+      <ol class="mission__steps">
+        @for (step of steps(); track step.id) {
+          <li class="mission__step" [class.is-done]="step.done">
+            <span class="mission__mark" aria-hidden="true">
+              <ion-icon [name]="step.done ? 'checkmark' : step.icon"></ion-icon>
+            </span>
+            <div class="mission__text">
+              <strong>{{ step.title }}</strong>
+              @if (step.done) {
+                <small>¡Listo!</small>
+              } @else {
+                <small>{{ step.hint }}</small>
+              }
+              @if (step.id === 'install' && iosHintOpen() && !step.done) {
+                <small class="mission__ios">
+                  Toca <ion-icon name="share-outline" aria-hidden="true"></ion-icon> <b>Compartir</b> y luego
+                  <b>Agregar a inicio</b>.
+                </small>
+              }
+            </div>
+            @if (!step.done && step.cta) {
+              <button type="button" class="mission__cta" (click)="act(step)">{{ step.cta }}</button>
+            }
+          </li>
+        }
+      </ol>
+    }
+  </section>
+}

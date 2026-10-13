@@ -92,6 +92,15 @@ export interface MemberDashboard {
   plans: MemberPlan[];
   bankTransfer: BankTransferInfo;
   closureNotice: GymClosureNotice | null;
+  /** Avance de la misión de bienvenida, deducido de reservas reales. */
+  hasBookedClass: boolean;
+  hasCheckedIn: boolean;
+}
+
+/** GET /api/public/guide?t= — nombre de pila y branding de quien abre el enlace de la guía. */
+export interface GuideInfo {
+  firstName: string;
+  gym: PublicGym;
 }
 
 /** PUT .../theme (gym-admin y super-admin comparten el mismo shape). */

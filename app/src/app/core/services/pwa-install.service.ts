@@ -22,6 +22,10 @@ export class PwaInstallService {
   private readonly canPrompt = signal(false);
   private readonly dismissed = signal(readDismissed());
   private readonly installed = signal(readInstalled());
+  /** Instalada en este dispositivo (marca local; el servidor no lo sabe). */
+  readonly isInstalled = computed(() => this.isStandalone || this.installed());
+  /** Hay prompt nativo disponible ahora mismo (Android/Chrome). */
+  readonly canInstallNatively = computed(() => this.canPrompt());
 
   readonly isStandalone =
     window.matchMedia?.('(display-mode: standalone)').matches ||

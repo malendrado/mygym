@@ -22,6 +22,12 @@ export const webRoutes: Routes = [
     loadComponent: () => import('./pages/activate/activate').then((m) => m.Activate),
   },
   {
+    // Guía del socio en formato historias — el token firmado del correo de bienvenida es la
+    // credencial (ver PublicGuideController). Sin link desde la landing ni indexable.
+    path: 'guia/:token',
+    loadComponent: () => import('./pages/guide/guide').then((m) => m.GuidePage),
+  },
+  {
     // Públicas, sin link desde la landing ni el brochure todavía — pedido explícito del
     // usuario (2026-09-23): subirlas a una ruta real para poder compartirlas, sin agregarlas
     // a la navegación hasta que decida publicarlas.

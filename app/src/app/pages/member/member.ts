@@ -23,6 +23,7 @@ import {
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { InstallBanner } from './install-banner/install-banner';
+import { WelcomeMission } from './welcome-mission/welcome-mission';
 import { QrScanner } from '../../core/components/qr-scanner/qr-scanner';
 import { extractCheckinCode } from '../../core/utils/qr-code';
 import { TourOverlay } from '../../core/components/tour-overlay/tour-overlay';
@@ -302,6 +303,7 @@ const OCCURRENCES_LOADING_MESSAGES = [
 @Component({
   selector: 'app-member',
   imports: [
+    WelcomeMission,
     VersionTag,
     MemberProfileModal,
     IonModal,
@@ -359,6 +361,10 @@ export class MemberPage {
   protected readonly logoSrc = computed(() => toLogoImgSrc(this.gym()?.logoSvg));
   protected readonly occurrences = signal<GymBlockOccurrence[]>([]);
   protected readonly myReservations = signal<Reservation[]>([]);
+  // Misión de bienvenida: se alimenta del dashboard y se actualiza al reservar / marcar asistencia.
+  protected readonly missionReady = signal(false);
+  protected readonly missionBooked = signal(false);
+  protected readonly missionCheckedIn = signal(false);
   protected readonly bookingId = signal<number | null>(null);
   protected readonly cancelingId = signal<number | null>(null);
   protected readonly waitlistingId = signal<number | null>(null);
@@ -1285,6 +1291,7 @@ export class MemberPage {
       .subscribe({
         next: () => {
           this.bookingId.set(null);
+          this.missionBooked.set(true);
           this.membership.update((m) => ({ ...m, classesUsed: m.classesUsed + 1 }));
           this.loadOccurrences();
           this.loadMyReservations();
@@ -1464,6 +1471,12 @@ export class MemberPage {
     this.scannerOpen.set(true);
   }
 
+  // Paso "reservar" de la misión: lleva al calendario, que es donde se elige la clase.
+  protected onMissionBook(): void {
+    this.setSection('reservar');
+    setTimeout(() => document.querySelector('.member-columns__calendar')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  }
+
   protected closeQrScanner(): void {
     this.scannerOpen.set(false);
   }
@@ -1479,6 +1492,7 @@ export class MemberPage {
     this.reservationService.checkIn(code).subscribe({
       next: (res) => {
         this.checkinBusy.set(false);
+        this.missionCheckedIn.set(true);
         this.showCheckinToast(`¡Asistencia marcada${res.classLabels.length ? ' en ' + res.classLabels.join(' y ') : ''}!`);
         this.loadMyReservations();
         this.loadTodayRoutine();
@@ -1641,6 +1655,9 @@ export class MemberPage {
         this.plansLoaded.set(true);
         this.bankTransfer.set(dashboard.bankTransfer);
         this.closureNotice.set(dashboard.closureNotice);
+        this.missionBooked.set(dashboard.hasBookedClass);
+        this.missionCheckedIn.set(dashboard.hasCheckedIn);
+        this.missionReady.set(true);
         this.applyMembership(dashboard.membership);
       },
       error: () => {

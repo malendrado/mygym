@@ -2,6 +2,7 @@ package com.cortesdev.mygym.services;
 
 import com.cortesdev.mygym.models.AppUser;
 import com.cortesdev.mygym.models.Gym;
+import com.cortesdev.mygym.security.JwtService;
 import com.cortesdev.mygym.models.GymBlock;
 import com.cortesdev.mygym.models.GymPlan;
 import java.io.IOException;
@@ -40,6 +41,7 @@ public class MemberLifecycleEmailService {
 
     private static final Logger log = LoggerFactory.getLogger(MemberLifecycleEmailService.class);
     private static final String LOGIN_URL = "https://www.mygym.cl/login";
+    private static final String GUIDE_BASE_URL = "https://www.mygym.cl/guia/";
     private static final ZoneId GYM_ZONE = ZoneId.of("America/Santiago");
     private static final DateTimeFormatter IMPORT_DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     // Hora de una clase en los emails: "18:30" (nunca segundos ni fracciones, aunque el dato los traiga).
@@ -51,23 +53,30 @@ public class MemberLifecycleEmailService {
     private final String apiKey;
     private final String from;
     private final String template;
+    private final JwtService jwtService;
 
     public MemberLifecycleEmailService(
             RestClient.Builder restClientBuilder,
+            JwtService jwtService,
             @Value("${app.resend.api-key}") String apiKey,
             @Value("${app.resend.from}") String from) {
         this.restClient = restClientBuilder.baseUrl("https://api.resend.com").build();
         this.apiKey = apiKey;
         this.from = from;
         this.template = loadTemplate();
+        this.jwtService = jwtService;
     }
 
     public void sendMemberWelcome(Gym gym, AppUser member) {
         String headline = "¡Bienvenido a " + gym.getName() + ", " + firstName(member) + "!";
+        String guideUrl = GUIDE_BASE_URL + jwtService.issueGuideToken(member.getId(), gym.getId());
         String body = "<p style=\"margin:0 0 12px;\">Tu cuenta ya está lista — desde ahora puedes reservar tus clases en "
                 + "<strong style=\"color:#eaf6f7;\">" + escapeHtml(gym.getName())
                 + "</strong> directo desde el celular, sin escribir por WhatsApp ni esperar respuesta.</p>"
-                + "<p style=\"margin:0;\">Elige un plan y agenda tu primera clase — te está esperando.</p>";
+                + "<p style=\"margin:0 0 12px;\">Te preparamos una guía de 2 minutos, paso a paso, para que le saques el "
+                + "jugo a la app desde tu primera clase.</p>"
+                + "<p style=\"margin:0;\">¿Ya sabes cómo? <a href=\"" + LOGIN_URL
+                + "\" style=\"color:inherit;text-decoration:underline;\">Entra directo a la app</a>.</p>";
         send(
                 gym,
                 member.getEmail(),
@@ -75,8 +84,8 @@ public class MemberLifecycleEmailService {
                 "Nuevo socio",
                 headline,
                 body,
-                "Entrar con Google",
-                LOGIN_URL,
+                "Ver la guía de 2 minutos",
+                guideUrl,
                 "Recibiste este correo porque te uniste a " + escapeHtml(gym.getName()) + " a través de mygym.");
     }
 
@@ -103,6 +112,7 @@ public class MemberLifecycleEmailService {
             body.append(planTeaserHtml(gym, activePlans));
         }
         body.append(passwordAlternativeHtml(activationUrl));
+        body.append(guideButtonHtml(gym, member));
         send(
                 gym,
                 member.getEmail(),
@@ -163,6 +173,22 @@ public class MemberLifecycleEmailService {
         }
         sb.append("</tr></table>");
         return sb.toString();
+    }
+
+    // Botón de la "Guía del socio" para los correos de alta por administrador: idéntico al CTA
+    // del template (mismo color del gym, mismo tamaño), pero dentro del cuerpo porque el CTA
+    // del template ya es "Activar mi cupo". Va justo encima de ese botón.
+    private String guideButtonHtml(Gym gym, AppUser member) {
+        String guideUrl = GUIDE_BASE_URL + jwtService.issueGuideToken(member.getId(), gym.getId());
+        String themeColor = gym.getThemeColor() != null ? gym.getThemeColor() : GymPalette.defaultHex();
+        String themeContrast = GymPalette.contrastFor(themeColor);
+        return "<p style=\"margin:20px 0 12px;\">¿Primera vez con la app? Mira cómo reservar, cancelar y marcar tu asistencia.</p>"
+                + "<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tr>"
+                + "<td align=\"center\" style=\"background-color:" + themeColor + "; border-radius:999px;\">"
+                + "<a href=\"" + guideUrl + "\" target=\"_blank\" style=\"display:inline-block; padding:14px 32px; "
+                + "font-family:Helvetica Neue, Helvetica, Arial, sans-serif; font-size:15px; font-weight:bold; "
+                + "letter-spacing:0.3px; color:" + themeContrast + "; text-decoration:none;\">Ver la guía de 2 minutos</a>"
+                + "</td></tr></table>";
     }
 
     // Agregado al cuerpo de los emails de invitación/aviso de plan — ofrece la alternativa de
@@ -264,11 +290,13 @@ public class MemberLifecycleEmailService {
                         + " — esa fecha ya pasó, así que para reservar clases vas a necesitar renovarlo.</p>"
                         + "<p style=\"margin:0;\">Activa tu cuenta con Google para ver el detalle y renovar cuando quieras.</p>"
                         + passwordAlternativeHtml(activationUrl)
+                        + guideButtonHtml(gym, member)
                 : "<p style=\"margin:0 0 12px;\">" + escapeHtml(gym.getName()) + " activó tu plan <strong style=\"color:#eaf6f7;\">"
                         + escapeHtml(plan.getName()) + "</strong>, con " + quota + ", vigente hasta el " + dateLabel + "."
                         + usedNote + "</p>"
                         + "<p style=\"margin:0;\">Activa tu cuenta con Google para reservar tu primera clase.</p>"
-                        + passwordAlternativeHtml(activationUrl);
+                        + passwordAlternativeHtml(activationUrl)
+                        + guideButtonHtml(gym, member);
         send(
                 gym,
                 member.getEmail(),

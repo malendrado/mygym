@@ -1,0 +1,649 @@
+// Curvas de Emil Kowalski: ease-out fuerte para entradas (arranca rápido, se siente que responde).
+$ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+
+.guide-content {
+  --background: var(--guide-bg, var(--brand-ink));
+  --guide-ink: var(--brand-text);
+  --guide-dim: var(--brand-text-dim);
+}
+
+.guide-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100%;
+  padding: 1.5rem 1rem;
+
+  ion-spinner {
+    width: 48px;
+    height: 48px;
+  }
+}
+
+.guide-invalid {
+  max-width: 380px;
+  text-align: center;
+  background: var(--guide-card, var(--brand-ink-surface-2));
+  border-radius: 16px;
+  padding: 2rem 1.5rem;
+
+  h1 {
+    font-family: var(--brand-font-display);
+    font-size: 1.4rem;
+    margin: 0 0 0.75rem;
+  }
+
+  p {
+    color: var(--guide-dim);
+    line-height: 1.5;
+    margin: 0 0 1.25rem;
+  }
+}
+
+.guide {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: max(env(safe-area-inset-top), 0.75rem) 1rem max(env(safe-area-inset-bottom), 1rem);
+  color: var(--guide-ink);
+}
+
+.guide__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+}
+
+.guide__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.guide__logo {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+.guide__gym {
+  font-family: var(--brand-font-heading);
+  font-size: 1.15rem;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.guide__skip {
+  min-height: 44px;
+  padding: 0 0.5rem;
+  background: none;
+  border: 0;
+  color: var(--guide-dim);
+  font: inherit;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.guide__progress {
+  display: flex;
+  gap: 6px;
+  margin-top: 0.25rem;
+}
+
+// El área táctil real es alta (44px) aunque la barra se dibuje fina.
+.guide__seg {
+  position: relative;
+  flex: 1;
+  height: 44px;
+  padding: 0;
+  background: none;
+  border: 0;
+  cursor: pointer;
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 4px;
+    margin-top: -2px;
+    border-radius: 2px;
+    background: color-mix(in srgb, var(--guide-ink) 22%, transparent);
+    transition: background-color 200ms $ease-out;
+  }
+
+  &.is-done::before,
+  &.is-current::before {
+    background: var(--brand-accent);
+  }
+
+  &.is-current::before {
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-accent) 30%, transparent);
+  }
+}
+
+.guide__step {
+  margin: -0.5rem 0 0;
+  font-size: 0.95rem;
+  color: var(--guide-dim);
+}
+
+.guide__stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  margin-top: 0.75rem;
+  touch-action: pan-y;
+  overflow: hidden;
+}
+
+// Desplazamiento corto + fade (no cruza toda la pantalla): se siente continuo sin ser pesado.
+.slide {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 0 0.25rem;
+  overflow-y: auto;
+  text-align: center;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(24px);
+  transition:
+    transform 260ms $ease-out,
+    opacity 200ms $ease-out,
+    visibility 0s linear 260ms;
+
+  &[data-offset='-1'] {
+    transform: translateX(-24px);
+  }
+
+  &.is-active {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+    transition:
+      transform 260ms $ease-out,
+      opacity 200ms $ease-out;
+  }
+}
+
+.slide__title {
+  font-family: var(--brand-font-heading);
+  font-size: clamp(1.9rem, 8vw, 2.4rem);
+  line-height: 1.1;
+  margin: 0.75rem 0 0;
+  text-wrap: balance;
+}
+
+.slide__caption {
+  max-width: 34ch;
+  margin: 0;
+  font-size: 1.125rem;
+  line-height: 1.5;
+  color: var(--guide-dim);
+  text-wrap: pretty;
+}
+
+// Marco de "celular" donde se dibuja la acción real de la app, con la marca del gym.
+.phone {
+  width: min(78vw, 300px);
+  min-height: 190px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.1rem;
+  border-radius: 28px;
+  background: var(--guide-card, var(--brand-ink-surface-2));
+  border: 1px solid color-mix(in srgb, var(--guide-ink) 14%, transparent);
+  box-shadow: 0 18px 40px -18px rgba(0, 0, 0, 0.45);
+}
+
+.mock {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  text-align: left;
+  font-size: 1rem;
+
+  small {
+    display: block;
+    color: var(--guide-dim);
+    font-size: 0.85rem;
+    margin-top: 2px;
+  }
+}
+
+.mock__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.7rem 0.8rem;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--guide-ink) 8%, transparent);
+
+  &--dim {
+    opacity: 0.55;
+  }
+}
+
+.mock__btn {
+  position: relative;
+  display: inline-grid;
+  min-width: 96px;
+  padding: 0.5rem 0.9rem;
+  border-radius: 999px;
+  background: var(--brand-accent);
+  color: var(--brand-accent-contrast);
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-align: center;
+
+  &--idle {
+    background: color-mix(in srgb, var(--guide-ink) 18%, transparent);
+    color: var(--guide-ink);
+  }
+
+  &--danger {
+    background: transparent;
+    color: var(--guide-ink);
+    box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--guide-ink) 45%, transparent);
+  }
+
+  // Dos etiquetas apiladas: la "antes" se desvanece y la "después" aparece, sin saltos de ancho.
+  .mock__btn-a,
+  .mock__btn-b {
+    grid-area: 1 / 1;
+  }
+
+  .mock__btn-b {
+    opacity: 0;
+  }
+}
+
+.mock__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+
+  span {
+    padding: 0.4rem 0.85rem;
+    border-radius: 999px;
+    font-size: 0.9rem;
+    box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--guide-ink) 30%, transparent);
+  }
+}
+
+.mock__note {
+  font-size: 0.9rem;
+  line-height: 1.4;
+  color: var(--guide-dim);
+  padding: 0 0.25rem;
+}
+
+.mock__steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 1.05rem;
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  ion-icon {
+    flex: none;
+    width: 40px;
+    height: 40px;
+    padding: 9px;
+    box-sizing: border-box;
+    border-radius: 12px;
+    background: var(--brand-accent);
+    color: var(--brand-accent-contrast);
+  }
+}
+
+.mock__done {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  text-align: center;
+}
+
+.mock__tick,
+.final__ring {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--brand-accent);
+  color: var(--brand-accent-contrast);
+
+  ion-icon {
+    width: 30px;
+    height: 30px;
+  }
+}
+
+.mock__qr {
+  position: relative;
+  align-self: center;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 5px;
+  width: 112px;
+  height: 112px;
+  padding: 10px;
+  border-radius: 14px;
+  background: #fff;
+
+  i {
+    border-radius: 3px;
+    background: transparent;
+
+    &.on {
+      background: #111;
+    }
+  }
+}
+
+.mock__scan {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  top: 8px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--brand-accent);
+  box-shadow: 0 0 10px var(--brand-accent);
+  opacity: 0;
+}
+
+.mock__ok {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  background: var(--brand-accent);
+  color: var(--brand-accent-contrast);
+  font-weight: 700;
+  opacity: 0;
+  transform: scale(0.95);
+}
+
+.mock__bar {
+  height: 14px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--guide-ink) 16%, transparent);
+  overflow: hidden;
+
+  span {
+    display: block;
+    width: 50%;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--brand-accent);
+    transform-origin: left;
+    transform: scaleX(0);
+  }
+}
+
+.mock__days {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+
+  span {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    font-weight: 700;
+    background: color-mix(in srgb, var(--guide-ink) 12%, transparent);
+    color: var(--guide-dim);
+    opacity: 0;
+    transform: translateY(6px);
+
+    &.on {
+      background: var(--brand-accent);
+      color: var(--brand-accent-contrast);
+    }
+  }
+}
+
+// Cada animación corre UNA vez al entrar la pantalla (no en bucle): es contenido de primera vez,
+// y repetirla sin parar distrae y cansa. El estado final queda estático.
+.slide.is-active {
+  .mock--install .mock__steps li {
+    animation: rise 320ms $ease-out forwards;
+
+    @for $i from 1 through 3 {
+      &:nth-child(#{$i}) {
+        animation-delay: #{80ms + ($i - 1) * 90ms};
+      }
+    }
+  }
+
+  .mock--book .mock__btn:not(.mock__btn--idle),
+  .mock--pay .mock__btn,
+  .mock--cancel .mock__btn {
+    animation: press 160ms ease-out 800ms both;
+
+    .mock__btn-a {
+      animation: fade-out 160ms ease-out 880ms forwards;
+    }
+
+    .mock__btn-b {
+      animation: fade-in 200ms ease-out 880ms forwards;
+    }
+  }
+
+  .mock--checkin {
+    .mock__scan {
+      animation: scan 900ms ease-in-out 400ms forwards;
+    }
+
+    .mock__ok {
+      animation: pop 260ms $ease-out 1400ms forwards;
+    }
+  }
+
+  .mock--plan .mock__bar span {
+    animation: fill 700ms $ease-out 350ms forwards;
+  }
+
+  .mock--history .mock__days span {
+    animation: rise 280ms $ease-out forwards;
+
+    @for $i from 1 through 6 {
+      &:nth-child(#{$i}) {
+        animation-delay: #{80ms + ($i - 1) * 55ms};
+      }
+    }
+  }
+}
+
+@keyframes rise {
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes press {
+  50% {
+    transform: scale(0.95);
+  }
+}
+
+@keyframes fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes fade-in {
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scan {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(88px);
+  }
+}
+
+@keyframes pop {
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes fill {
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.slide--final {
+  .final__ring {
+    width: 88px;
+    height: 88px;
+    margin-bottom: 0.25rem;
+    opacity: 0;
+    transform: scale(0.9);
+
+    ion-icon {
+      width: 48px;
+      height: 48px;
+    }
+  }
+
+  &.is-active .final__ring {
+    animation: pop 320ms $ease-out 120ms forwards;
+  }
+}
+
+.guide-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 52px;
+  padding: 0 1.5rem;
+  border: 0;
+  border-radius: 14px;
+  background: var(--brand-accent);
+  color: var(--brand-accent-contrast);
+  font: inherit;
+  font-size: 1.1rem;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    transform 160ms ease-out,
+    opacity 160ms ease-out;
+
+  &:active {
+    transform: scale(0.97);
+  }
+
+  &:disabled {
+    opacity: 0.35;
+    cursor: default;
+  }
+
+  &--ghost {
+    background: transparent;
+    color: var(--guide-ink);
+    box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--guide-ink) 30%, transparent);
+  }
+
+  &--sm {
+    padding: 0 1rem;
+  }
+
+  &--grow {
+    flex: 1;
+  }
+
+  &:focus-visible,
+  .guide__skip:focus-visible,
+  .guide__seg:focus-visible {
+    outline: 3px solid var(--brand-accent);
+    outline-offset: 2px;
+  }
+}
+
+.guide__nav {
+  display: flex;
+  gap: 0.75rem;
+  padding-top: 0.75rem;
+}
+
+// Movimiento reducido: sin desplazamientos ni animaciones, solo se muestra el estado final.
+@media (prefers-reduced-motion: reduce) {
+  .slide,
+  .slide.is-active {
+    transform: none;
+    transition: opacity 150ms ease, visibility 0s;
+  }
+
+  .slide.is-active * {
+    animation: none !important;
+  }
+
+  .mock__steps li,
+  .mock__days span,
+  .mock__ok,
+  .final__ring {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .mock__bar span {
+    transform: none !important;
+  }
+
+  .mock .mock__btn-a {
+    opacity: 0;
+  }
+
+  .mock .mock__btn-b {
+    opacity: 1;
+  }
+}

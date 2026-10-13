@@ -534,48 +534,120 @@ $ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   }
 }
 
-// Contacto: de dos links chicos a botones reales. WhatsApp (el canal que más usa un socio dudoso)
-// va primero y lleno; Instagram queda como secundario.
-.join-contact {
+// Invitación a Instagram / WhatsApp del gym (solo si lo configuró; WhatsApp va primero, es el canal que
+// más usa un socio con dudas): ocupa el hueco bajo la galería en desktop y es
+// la acción de "conócenos" más visible. El aro con el degradado de Instagram gira despacio — decorativo,
+// se detiene con "reducir movimiento".
+.join-ig {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.6rem;
-  margin-top: 0.5rem;
-}
-
-.join-contact__btn {
-  display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
-  min-height: 44px;
-  padding: 0 1rem;
-  border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--brand-text) 22%, transparent);
+  gap: 0.85rem;
+  min-height: 72px;
+  margin-top: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, var(--brand-text) 16%, transparent);
+  background: color-mix(in srgb, var(--brand-accent) 7%, var(--join-card, var(--brand-ink-surface-2)));
   color: var(--brand-text);
+  text-align: left;
   text-decoration: none;
-  font-size: 0.85rem;
-  font-weight: 600;
+  animation: join-rise 380ms $ease-out both;
+  animation-delay: 200ms;
   transition:
-    transform 160ms ease,
-    background-color 160ms ease;
-
-  ion-icon {
-    font-size: 1.15rem;
-  }
+    transform 160ms ease-out,
+    border-color 160ms ease-out;
 
   &:active {
-    transform: scale(0.97);
+    transform: scale(0.98);
   }
 
-  &--wa {
-    background: color-mix(in srgb, var(--brand-accent) 18%, transparent);
-    border-color: var(--brand-accent);
+  &:focus-visible {
+    outline: 2px solid var(--brand-accent);
+    outline-offset: 2px;
   }
 
   @media (hover: hover) and (pointer: fine) {
     &:hover {
-      background: color-mix(in srgb, var(--brand-accent) 26%, transparent);
+      transform: translateY(-2px);
+      border-color: color-mix(in srgb, var(--join-ig-hover, #ee2a7b) 60%, transparent);
+
+      .join-ig__go {
+        transform: translateX(3px);
+      }
     }
+  }
+}
+
+.join-ig--wa {
+  --join-ig-ring: conic-gradient(from 0deg, #25d366, #128c7e, #7bf0a8, #25d366);
+  --join-ig-hover: #25d366;
+}
+
+.join-ig__glyph {
+  position: relative;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  isolation: isolate;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -2;
+    border-radius: inherit;
+    background: var(--join-ig-ring, conic-gradient(from 0deg, #f9ce34, #ee2a7b, #6228d7, #f9ce34));
+    animation: join-ig-spin 6s linear infinite;
+  }
+
+  // Disco interior: deja ver solo 3px del aro de color.
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 3px;
+    z-index: -1;
+    border-radius: inherit;
+    background: var(--join-card, var(--brand-ink-surface-2));
+  }
+
+  ion-icon {
+    font-size: 1.6rem;
+  }
+}
+
+.join-ig__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  strong {
+    font-size: 1rem;
+    line-height: 1.25;
+  }
+
+  small {
+    font-size: 0.85rem;
+    color: var(--brand-text-dim);
+    overflow-wrap: anywhere;
+  }
+}
+
+.join-ig__go {
+  flex: none;
+  font-size: 1.3rem;
+  color: var(--brand-text-dim);
+  transition: transform 160ms ease-out;
+}
+
+@keyframes join-ig-spin {
+  to {
+    transform: rotate(360deg);
   }
 }
 
@@ -625,7 +697,12 @@ $ease-out: cubic-bezier(0.23, 1, 0.32, 1);
 @media (prefers-reduced-motion: reduce) {
   .join-hero__caption,
   .join-thumbs__btn,
-  .join-plan-card {
+  .join-plan-card,
+  .join-ig {
+    animation: none;
+  }
+
+  .join-ig__glyph::before {
     animation: none;
   }
 

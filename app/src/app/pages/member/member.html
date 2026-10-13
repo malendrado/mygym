@@ -99,6 +99,16 @@
     </div>
 
     @if (section() === 'reservar') {
+    @if (!isDemoPreview) {
+      <app-welcome-mission
+        [ready]="missionReady()"
+        [gymName]="gym()?.name ?? ''"
+        [hasBooked]="missionBooked()"
+        [hasCheckedIn]="missionCheckedIn()"
+        (bookClick)="onMissionBook()"
+        (checkinClick)="openQrScanner()"
+      />
+    }
     <p class="section-hook">Elige un día y reserva tu clase en segundos.</p>
     @if (fixedWeekOnly()) {
       <p class="item-hint fixed-week-notice">
