@@ -429,7 +429,7 @@ public class GymService {
 
     @Transactional(readOnly = true)
     public List<GymPhotoResponse> listPhotos(Long gymId) {
-        findGymOrThrow(gymId);
+        assertGymExists(gymId);
         return gymPhotoRepository.findByGymIdOrderBySortOrderAsc(gymId).stream()
                 .map(this::toResponse)
                 .toList();
@@ -448,7 +448,7 @@ public class GymService {
     }
 
     public GymPhotoResponse addPhoto(Long gymId, GymPhotoCreateRequest request) {
-        findGymOrThrow(gymId);
+        assertGymExists(gymId);
         long existing = gymPhotoRepository.countByGymId(gymId);
         if (existing >= MAX_GYM_PHOTOS) {
             throw new TooManyGymPhotosException(MAX_GYM_PHOTOS);
@@ -469,7 +469,7 @@ public class GymService {
     }
 
     public void removePhoto(Long gymId, Long photoId) {
-        findGymOrThrow(gymId);
+        assertGymExists(gymId);
         GymPhoto photo = gymPhotoRepository
                 .findByIdAndGymId(photoId, gymId)
                 .orElseThrow(() -> new GymPhotoNotFoundException(gymId, photoId));
@@ -482,7 +482,7 @@ public class GymService {
 
     @Transactional(readOnly = true)
     public List<AdminResponse> listAdmins(Long gymId) {
-        findGymOrThrow(gymId);
+        assertGymExists(gymId);
         return appUserRepository.findByGymIdAndRole(gymId, Role.GYM_ADMIN).stream()
                 .map(this::toResponse)
                 .toList();
@@ -536,7 +536,7 @@ public class GymService {
     public AdminResponse addProfesor(Long gymId, AdminCreateRequest request) {
         // Ahora también lo llama el super-admin con un gymId de la URL: sin esto, un id inexistente
         // llegaba hasta la FK y salía como 500 en vez de un 404 claro.
-        findGymOrThrow(gymId);
+        assertGymExists(gymId);
         if (appUserRepository.existsByEmail(AppUser.normalizeEmail(request.email()))) {
             throw new DuplicateOwnerEmailException(request.email());
         }
@@ -551,7 +551,7 @@ public class GymService {
     }
 
     public List<AdminResponse> listProfesores(Long gymId) {
-        findGymOrThrow(gymId);
+        assertGymExists(gymId);
         return appUserRepository.findByGymIdAndRole(gymId, Role.PROFESOR).stream()
                 .map(this::toResponse)
                 .toList();
@@ -607,7 +607,7 @@ public class GymService {
     // email — nunca se debe confundir con addAdmin, que da acceso de escritura real a un gym real.
     @Transactional(readOnly = true)
     public List<AdminResponse> listDemoAdmins(Long gymId) {
-        findGymOrThrow(gymId);
+        assertGymExists(gymId);
         List<AppUser> demoAdmins = appUserRepository.findByGymIdAndRole(gymId, Role.DEMO_ADMIN);
         Map<Long, List<DemoTourProgress>> progressByAdmin =
                 demoTourService.findProgressByAdminIds(demoAdmins.stream().map(AppUser::getId).toList());
@@ -647,7 +647,7 @@ public class GymService {
     }
 
     public BlockResponse addBlock(Long gymId, BlockCreateRequest request) {
-        findGymOrThrow(gymId);
+        assertGymExists(gymId);
         validateSchedule(request.startTime(), request.endTime());
         GymBlock block = GymBlock.builder()
                 .gymId(gymId)
@@ -670,7 +670,7 @@ public class GymService {
     // bloque sigue siendo independiente (try/catch por item, igual que MemberService.
     // importMembers): un horario inválido en uno no tumba el resto del lote.
     public List<BlockCreateResult> addBlocks(Long gymId, List<BlockCreateRequest> requests) {
-        findGymOrThrow(gymId);
+        assertGymExists(gymId);
         List<BlockCreateResult> results = new ArrayList<>();
         for (BlockCreateRequest request : requests) {
             try {
@@ -684,12 +684,12 @@ public class GymService {
 
     @Transactional(readOnly = true)
     public List<BlockResponse> listBlocks(Long gymId) {
-        findGymOrThrow(gymId);
+        assertGymExists(gymId);
         return gymBlockRepository.findByGymId(gymId).stream().map(this::toResponse).toList();
     }
 
     public BlockResponse updateBlock(Long gymId, Long blockId, BlockUpdateRequest request) {
-        findGymOrThrow(gymId);
+        assertGymExists(gymId);
         GymBlock block = findBlockOrThrow(gymId, blockId);
         validateSchedule(request.startTime(), request.endTime());
         block.setLabel(request.label());
@@ -706,13 +706,13 @@ public class GymService {
     }
 
     public void removeBlock(Long gymId, Long blockId) {
-        findGymOrThrow(gymId);
+        assertGymExists(gymId);
         GymBlock block = findBlockOrThrow(gymId, blockId);
         gymBlockRepository.delete(block);
     }
 
     public PlanResponse addPlan(Long gymId, PlanCreateRequest request) {
-        findGymOrThrow(gymId);
+        assertGymExists(gymId);
         GymPlan plan = GymPlan.builder()
                 .gymId(gymId)
                 .name(request.name())
@@ -727,12 +727,12 @@ public class GymService {
 
     @Transactional(readOnly = true)
     public List<PlanResponse> listPlans(Long gymId) {
-        findGymOrThrow(gymId);
+        assertGymExists(gymId);
         return gymPlanRepository.findByGymId(gymId).stream().map(this::toResponse).toList();
     }
 
     public PlanResponse updatePlan(Long gymId, Long planId, PlanUpdateRequest request) {
-        findGymOrThrow(gymId);
+        assertGymExists(gymId);
         GymPlan plan = findPlanOrThrow(gymId, planId);
         plan.setName(request.name());
         plan.setDescription(request.description());
@@ -744,7 +744,7 @@ public class GymService {
     }
 
     public void removePlan(Long gymId, Long planId) {
-        findGymOrThrow(gymId);
+        assertGymExists(gymId);
         GymPlan plan = findPlanOrThrow(gymId, planId);
         gymPlanRepository.delete(plan);
     }
@@ -752,7 +752,7 @@ public class GymService {
     /** Vista del socio: solo planes activos, sin campos internos (gymId, active). */
     @Transactional(readOnly = true)
     public List<MemberPlanResponse> listActivePlans(Long gymId) {
-        findGymOrThrow(gymId);
+        assertGymExists(gymId);
         return gymPlanRepository.findByGymId(gymId).stream()
                 .filter(GymPlan::isActive)
                 .map(this::toMemberResponse)
@@ -879,7 +879,7 @@ public class GymService {
     @Transactional(readOnly = true)
     public PaymentPreviewResponse previewPlanPayment(
             Long gymId, Long memberId, Long planId, LocalDate startDate, Integer usedClasses) {
-        findGymOrThrow(gymId);
+        assertGymExists(gymId);
         GymPlan plan = findPlanOrThrow(gymId, planId);
         appUserRepository
                 .findByIdAndGymId(memberId, gymId)
@@ -918,7 +918,7 @@ public class GymService {
      * pasadas no se tocan, quedan como historial de la cuenta.
      */
     public void revokePlan(Long gymId, Long memberId) {
-        findGymOrThrow(gymId);
+        assertGymExists(gymId);
         AppUser member = appUserRepository
                 .findByIdAndGymId(memberId, gymId)
                 .orElseThrow(() -> new MemberNotFoundException(memberId));
@@ -947,6 +947,15 @@ public class GymService {
 
     private Gym findGymOrThrow(Long id) {
         return gymRepository.findById(id).orElseThrow(() -> new GymNotFoundException(id));
+    }
+
+    // Para los métodos que solo necesitan saber que el gimnasio existe: findById trae la fila completa (logo_svg de hasta
+    // cientos de KB y las llaves de Flow, que además se descifran) y el resultado se descartaba. Al abrir el panel eso
+    // pasaba 7 veces.
+    private void assertGymExists(Long id) {
+        if (!gymRepository.existsById(id)) {
+            throw new GymNotFoundException(id);
+        }
     }
 
     private GymBlock findBlockOrThrow(Long gymId, Long blockId) {

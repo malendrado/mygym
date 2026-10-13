@@ -1,0 +1,250 @@
+// Buscador de socios de Clases. Tokens --brand-* del panel. El desplegable aparece rápido (140ms, ease-out, desde su
+// borde superior) y se va sin animar; con reduced-motion no se mueve.
+
+:host {
+  display: block;
+  margin-bottom: 0.75rem;
+}
+
+.ms {
+  position: relative;
+}
+
+.ms-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.ms-field {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 48px;
+  padding: 0 0.4rem 0 0.8rem;
+  border: 1px solid var(--brand-ink-surface-2);
+  border-radius: 12px;
+  background: var(--brand-ink-surface);
+  transition: border-color 120ms ease-out;
+
+  &:focus-within {
+    border-color: var(--brand-accent);
+  }
+}
+
+.ms-field__icon {
+  flex-shrink: 0;
+  font-size: 1.2rem;
+  color: var(--brand-text-dim);
+}
+
+.ms-input {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  color: var(--brand-text);
+  font: inherit;
+  font-size: 1rem; // 16px: Safari no hace zoom al enfocar
+  outline: none;
+
+  &::placeholder {
+    color: var(--brand-text-dim);
+  }
+
+  // El navegador pinta su propia "x"; usamos la nuestra (con tooltip y 44px).
+  &::-webkit-search-cancel-button {
+    display: none;
+  }
+}
+
+.ms-field__spinner {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  color: var(--brand-text-dim);
+}
+
+.ms-field__clear,
+.ms-chip__clear {
+  display: grid;
+  place-items: center;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--brand-text-dim);
+  cursor: pointer;
+  transition:
+    background-color 120ms ease-out,
+    color 120ms ease-out,
+    transform 120ms ease-out;
+
+  ion-icon {
+    font-size: 1.3rem;
+  }
+
+  &:hover {
+    background: var(--brand-ink-surface-2);
+    color: var(--brand-text);
+  }
+
+  &:active {
+    transform: scale(0.94);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--brand-accent);
+    outline-offset: 1px;
+  }
+
+  @media (pointer: fine) {
+    flex-basis: 36px;
+    width: 36px;
+    height: 36px;
+  }
+}
+
+// ---- resultados ----
+
+.ms-list {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 40;
+  max-height: min(60vh, 420px);
+  margin: 0;
+  padding: 0.3rem;
+  overflow-y: auto;
+  list-style: none;
+  border: 1px solid var(--brand-ink-surface-2);
+  border-radius: 12px;
+  background: var(--brand-ink-surface);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+  transform-origin: top;
+  transition:
+    opacity 140ms ease-out,
+    transform 140ms ease-out;
+
+  @starting-style {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+}
+
+.ms-opt {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-height: 52px;
+  padding: 0.3rem 0.55rem;
+  border-radius: 9px;
+  cursor: pointer;
+
+  &--active {
+    background: var(--brand-ink-surface-2);
+  }
+}
+
+.ms-opt__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ms-opt__name {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--brand-text);
+  overflow-wrap: break-word;
+}
+
+.ms-opt__sub {
+  font-size: 0.76rem;
+  color: var(--brand-text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ms-note {
+  padding: 0.8rem 0.6rem;
+  font-size: 0.86rem;
+  color: var(--brand-text-dim);
+}
+
+.ms-retry {
+  min-height: 36px;
+  margin-left: 0.4rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--brand-accent-text-safe, var(--brand-accent));
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.ms-avatar {
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+
+  &--placeholder {
+    display: grid;
+    place-items: center;
+    background: var(--brand-ink-surface-2);
+    color: var(--brand-text);
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+}
+
+// ---- socio elegido ----
+
+.ms-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-height: 56px;
+  padding: 0.3rem 0.4rem 0.3rem 0.65rem;
+  border: 1px solid var(--brand-accent);
+  border-radius: 12px;
+  background: var(--brand-ink-surface);
+}
+
+.ms-chip__text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ms-chip__label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--brand-text-dim);
+}
+
+.ms-chip__name {
+  font-weight: 700;
+  color: var(--brand-text);
+  overflow-wrap: break-word;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ms-list {
+    transition: none;
+  }
+}

@@ -8,6 +8,7 @@ import com.cortesdev.mygym.models.GymPlan;
 import com.cortesdev.mygym.models.Reservation;
 import com.cortesdev.mygym.models.ReservationStatus;
 import com.cortesdev.mygym.models.Role;
+import com.cortesdev.mygym.models.dto.AgendaOccurrence;
 import com.cortesdev.mygym.models.dto.GymBlockOccurrenceResponse;
 import com.cortesdev.mygym.models.dto.MemberReservation;
 import com.cortesdev.mygym.models.dto.OccurrenceAttendees;
@@ -44,6 +45,7 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -95,6 +97,9 @@ public class ReservationService {
 
     // Hasta cuántos días después de terminada la clase se puede corregir su asistencia a mano.
     static final int ATTENDANCE_EDIT_DAYS = 7;
+
+    // Tope del rango que puede pedir la Agenda del admin (la UI pide de a 7 días).
+    static final int MAX_AGENDA_DAYS = 31;
 
     private final GymBlockRepository gymBlockRepository;
     private final ReservationRepository reservationRepository;
@@ -239,6 +244,60 @@ public class ReservationService {
                 : reservationRepository.findByGymBlockIdInAndClassDateBetweenAndStatus(
                         blockIds, from, to, ReservationStatus.BOOKED);
         return groupByOccurrence(bookedInRange);
+    }
+
+    // Agenda del admin (pestaña Clases): UNA entrada por cada ocurrencia (bloque × fecha que coincide con su
+    // día de la semana) con cupos, cierre de emergencia, lista de espera y asistentes — incluidas las clases
+    // sin reservas. Todo en lote (una query de reservas, una de cierres, una de espera, un findAllById):
+    // el pool de Hikari es de solo 5 conexiones, ver getOccurrenceAttendeesForRange. Incluye los bloques
+    // activos y los inactivos que igual tuvieron reservas ese día (para no perder historial).
+    @Transactional(readOnly = true)
+    public List<AgendaOccurrence> getAgenda(Long gymId, LocalDate from, LocalDate to) {
+        if (to.isBefore(from) || ChronoUnit.DAYS.between(from, to) >= MAX_AGENDA_DAYS) {
+            throw new InvalidAttendanceException("El rango de la agenda debe ser de 1 a " + MAX_AGENDA_DAYS + " días");
+        }
+        List<GymBlock> blocks = gymBlockRepository.findByGymId(gymId);
+        if (blocks.isEmpty()) {
+            return List.of();
+        }
+        List<Long> blockIds = blocks.stream().map(GymBlock::getId).toList();
+        Map<String, OccurrenceAttendees> attendeesByKey = new HashMap<>();
+        for (OccurrenceAttendees occurrence : groupByOccurrence(reservationRepository
+                .findByGymBlockIdInAndClassDateBetweenAndStatus(blockIds, from, to, ReservationStatus.BOOKED))) {
+            attendeesByKey.put(occurrenceKey(occurrence.gymBlockId(), occurrence.classDate()), occurrence);
+        }
+        GymClosureService.ClosureSchedule closures = gymClosureService.scheduleFor(gymId, from, to);
+        Map<String, Integer> waiting = waitlistService.countWaitingByOccurrence(blockIds, from, to);
+
+        List<AgendaOccurrence> result = new ArrayList<>();
+        Map<Long, LocalTime> startByBlock = new HashMap<>();
+        for (GymBlock block : blocks) {
+            startByBlock.put(block.getId(), block.getStartTime());
+            for (LocalDate date = from; !date.isAfter(to); date = date.plusDays(1)) {
+                if (date.getDayOfWeek() != block.getDayOfWeek()) {
+                    continue;
+                }
+                String key = occurrenceKey(block.getId(), date);
+                OccurrenceAttendees occurrence = attendeesByKey.get(key);
+                List<MemberReservation> attendees = occurrence == null ? List.of() : occurrence.attendees();
+                if (!block.isActive() && attendees.isEmpty()) {
+                    continue;
+                }
+                boolean closed = closures.isClosed(block.getId(), date);
+                result.add(new AgendaOccurrence(
+                        block.getId(),
+                        date,
+                        block.getCapacity(),
+                        attendees.size(),
+                        closed,
+                        closed ? closures.reasonFor(block.getId(), date) : null,
+                        waiting.getOrDefault(key, 0),
+                        attendees));
+            }
+        }
+        result.sort(Comparator.comparing(AgendaOccurrence::classDate)
+                .thenComparing(o -> startByBlock.get(o.gymBlockId())));
+        return result;
     }
 
     // Buscador de reservas futuras por nombre de socio — pedido explícito del usuario para no

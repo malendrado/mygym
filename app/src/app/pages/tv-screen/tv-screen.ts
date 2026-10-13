@@ -2,7 +2,7 @@ import { NgTemplateOutlet } from '@angular/common';
 import { Component, OnDestroy, computed, inject, signal } from '@angular/core';
 import { IonContent } from '@ionic/angular';
 import { toCanvas as qrToCanvas } from 'qrcode';
-import { TvAttendeeSummary, TvBlockOccurrence, TvSchedule } from '../../core/models/tv-screen.model';
+import { TvAttendeeSummary, TvBlockOccurrence, TvPhoto, TvSchedule } from '../../core/models/tv-screen.model';
 import { TvScreenService } from '../../core/services/tv-screen.service';
 import { FitTier, TvFitDirective } from './tv-fit.directive';
 import {
@@ -22,6 +22,8 @@ const QR_LOGO_SIZE_RATIO = 0.26;
 
 const TV_TOKEN_KEY = 'mygym.tv.screenToken';
 const SCHEDULE_POLL_MS = 25_000;
+// La galería se baja al conectarse y se renueva cada 10 minutos (no viaja en cada poll del schedule).
+const PHOTOS_REFRESH_MS = 600_000;
 const PAIRING_POLL_MS = 3_000;
 // Longevidad del kiosco: una pestaña de TV queda abierta meses — un reload periódico evita
 // leaks de memoria de una SPA que nunca se cierra, sin cortar el show por más de un segundo.
@@ -130,6 +132,9 @@ export class TvScreenPage implements OnDestroy {
   protected readonly stage = signal<Stage>('pairing');
   protected readonly pairingCode = signal<string | null>(null);
   protected readonly schedule = signal<TvSchedule | null>(null);
+  protected readonly photos = signal<TvPhoto[]>([]);
+  private photosLoadedAt = 0;
+  private photosLoading = false;
   protected readonly now = signal<Date>(new Date());
 
   // QR de asistencia — solo tiene sentido mientras hay al menos una clase en curso (ver
@@ -144,7 +149,7 @@ export class TvScreenPage implements OnDestroy {
   // Con pocas fotos (ej. 2), una vuelta no alcanza a cubrir el ancho de la columna y quedaba un
   // hueco a la derecha — se repite la lista hasta tener al menos PHOTO_STRIP_MIN_ITEMS por vuelta.
   protected readonly photoStrip = computed(() => {
-    const list = this.schedule()?.photos ?? [];
+    const list = this.photos();
     if (!list.length) return [];
     let lap = [...list];
     while (lap.length < PHOTO_STRIP_MIN_ITEMS) lap = [...lap, ...list];
@@ -410,6 +415,24 @@ export class TvScreenPage implements OnDestroy {
     });
   }
 
+  // Pide la galería si nunca se bajó o pasaron 10 minutos. Si falla se deja la anterior y se reintenta en el próximo poll.
+  private refreshPhotos(token: string): void {
+    if (this.photosLoading || Date.now() - this.photosLoadedAt < PHOTOS_REFRESH_MS) {
+      return;
+    }
+    this.photosLoading = true;
+    this.tvScreenService.photos(token).subscribe({
+      next: (photos) => {
+        this.photos.set(photos);
+        this.photosLoadedAt = Date.now();
+        this.photosLoading = false;
+      },
+      error: () => {
+        this.photosLoading = false;
+      },
+    });
+  }
+
   private startSchedulePolling(token: string): void {
     const poll = () => {
       this.tvScreenService.schedule(token).subscribe({
@@ -418,6 +441,7 @@ export class TvScreenPage implements OnDestroy {
           this.lastSuccessfulPollAt.set(Date.now());
           this.schedule.set(data);
           this.stage.set('display');
+          this.refreshPhotos(token);
           syncThemeOverrides(data.themeMode === 'LIGHT' ? 'LIGHT' : 'DARK', data.themeColor);
           // Solo tiene sentido marcar asistencia mientras hay una clase en curso — sin eso, se
           // limpia (no queda un QR "viejo" apuntando a un código ya vencido con nada que canjear).

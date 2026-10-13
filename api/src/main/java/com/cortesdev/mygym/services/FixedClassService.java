@@ -213,7 +213,7 @@ public class FixedClassService {
                 continue;
             }
             if (closures.isClosed(o.block().getId(), o.date())) {
-                String closedReason = gymClosureService.closedReasonFor(member.getGymId(), o.block().getId(), o.date());
+                String closedReason = closures.reasonFor(o.block().getId(), o.date());
                 skipped.add(new FixedClassSkipped(
                         o.date(), o.block().getLabel(), "Cierre" + (closedReason != null ? ": " + closedReason : "")));
                 continue;

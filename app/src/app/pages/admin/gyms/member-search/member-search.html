@@ -1,0 +1,96 @@
+<div class="ms" role="search">
+  @if (selected) {
+    <div class="ms-chip">
+      @if (selected.photoUrl) {
+        <img [src]="selected.photoUrl" alt="" class="ms-avatar" loading="lazy" />
+      } @else {
+        <span class="ms-avatar ms-avatar--placeholder" aria-hidden="true">{{ selected.name.charAt(0) }}</span>
+      }
+      <span class="ms-chip__text">
+        <span class="ms-chip__label">Viendo solo a</span>
+        <span class="ms-chip__name">{{ selected.name }}</span>
+      </span>
+      <button
+        type="button"
+        class="ms-chip__clear"
+        [attr.aria-label]="'Quitar el filtro de ' + selected.name"
+        data-tip="Quitar el filtro"
+        (click)="clearSelection()"
+      >
+        <ion-icon name="close-outline" aria-hidden="true"></ion-icon>
+      </button>
+    </div>
+  } @else {
+    <div class="ms-field">
+      <ion-icon name="search-outline" class="ms-field__icon" aria-hidden="true"></ion-icon>
+      <input
+        class="ms-input"
+        type="search"
+        role="combobox"
+        aria-label="Buscar socio por nombre"
+        aria-autocomplete="list"
+        aria-controls="ms-list"
+        [attr.aria-expanded]="open()"
+        [attr.aria-activedescendant]="activeId()"
+        placeholder="Buscar socio por nombre…"
+        autocomplete="off"
+        spellcheck="false"
+        [value]="query()"
+        (input)="onInput($event)"
+        (keydown)="onKey($event)"
+        (focus)="onFocus()"
+        (blur)="onBlur()"
+      />
+      @if (loading()) {
+        <ion-spinner name="crescent" class="ms-field__spinner" aria-hidden="true"></ion-spinner>
+      }
+      @if (query()) {
+        <button type="button" class="ms-field__clear" aria-label="Borrar la búsqueda" data-tip="Borrar la búsqueda" (mousedown)="$event.preventDefault()" (click)="clearQuery()">
+          <ion-icon name="close-outline" aria-hidden="true"></ion-icon>
+        </button>
+      }
+    </div>
+    @if (open()) {
+      <ul class="ms-list" id="ms-list" role="listbox" aria-label="Socios encontrados">
+        @if (tooShort()) {
+          <li class="ms-note" role="presentation">Escribe al menos 2 letras.</li>
+        } @else if (failed()) {
+          <li class="ms-note" role="presentation">
+            No pudimos buscar.
+            <button type="button" class="ms-retry" (mousedown)="$event.preventDefault()" (click)="retry()">Reintentar</button>
+          </li>
+        } @else {
+          @for (m of results(); track m.id; let i = $index) {
+            <li
+              class="ms-opt"
+              role="option"
+              [id]="'ms-opt-' + i"
+              [class.ms-opt--active]="i === active()"
+              [attr.aria-selected]="i === active()"
+              (mousedown)="$event.preventDefault()"
+              (mouseenter)="active.set(i)"
+              (click)="pick(m)"
+            >
+              @if (m.photoUrl) {
+                <img [src]="m.photoUrl" alt="" class="ms-avatar" loading="lazy" />
+              } @else {
+                <span class="ms-avatar ms-avatar--placeholder" aria-hidden="true">{{ m.name.charAt(0) }}</span>
+              }
+              <span class="ms-opt__text">
+                <span class="ms-opt__name">{{ m.name }}</span>
+                <span class="ms-opt__sub">{{ m.email }}</span>
+              </span>
+            </li>
+          } @empty {
+            @if (settled()) {
+              <li class="ms-note" role="presentation">No encontramos socios con «{{ trimmed() }}».</li>
+            } @else {
+              <li class="ms-note" role="presentation">Buscando…</li>
+            }
+          }
+        }
+      </ul>
+    }
+  }
+  <span class="ms-sr" role="status" aria-live="polite">{{ liveText() }}</span>
+</div>

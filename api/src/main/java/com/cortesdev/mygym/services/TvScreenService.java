@@ -184,10 +184,6 @@ public class TvScreenService {
 
         NextOccurrence next = findNextOccurrence(activeBlocks, nowZoned, closures);
 
-        List<GymPhotoResponse> photos = gymPhotoRepository.findByGymIdOrderBySortOrderAsc(gym.getId()).stream()
-                .map(p -> new GymPhotoResponse(p.getId(), p.getData(), p.getCaption()))
-                .toList();
-
         List<GymPlan> gymPlans = gymPlanRepository.findByGymId(gym.getId());
         Map<Long, GymPlan> plansById = gymPlans.stream().collect(java.util.stream.Collectors.toMap(GymPlan::getId, p -> p));
 
@@ -219,7 +215,6 @@ public class TvScreenService {
                 gym.getThemeColor(),
                 gym.getThemeMode(),
                 gym.getTagline(),
-                photos,
                 Instant.now(),
                 currentBlocks.stream().map(b -> toOccurrence(b, today, plansById, attendeesByOccurrence)).toList(),
                 next == null
@@ -230,6 +225,21 @@ public class TvScreenService {
                 next == null
                         ? List.of()
                         : next.later().stream().map(b -> toOccurrence(b, next.date(), plansById, attendeesByOccurrence)).toList());
+    }
+
+    /**
+     * Galería de la pantalla. La TV la pide APARTE del schedule: ese se repite cada 25 s y arrastraba hasta 8 fotos en
+     * base64 (1–3 MB) en cada vuelta; la galería casi no cambia, así que la TV la baja al conectarse y cada 10 minutos
+     * (el controller la marca cacheable).
+     */
+    public List<GymPhotoResponse> getPhotos(String token) {
+        TvScreen screen = tvScreenRepository
+                .findByToken(token)
+                .filter(this::isActive)
+                .orElseThrow(() -> new TvScreenNotFoundException(token));
+        return gymPhotoRepository.findByGymIdOrderBySortOrderAsc(screen.getGymId()).stream()
+                .map(p -> new GymPhotoResponse(p.getId(), p.getData(), p.getCaption()))
+                .toList();
     }
 
     /** Clave de lookup para el batch de asistentes de getSchedule — mismo criterio de

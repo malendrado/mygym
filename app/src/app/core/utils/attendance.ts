@@ -93,6 +93,29 @@ export function ratePct(attended: number, booked: number): number | null {
   return booked > 0 ? Math.round((attended / booked) * 100) : null;
 }
 
+/**
+ * Período fijo para ver las clases de UN socio desde la Agenda: 2 semanas atrás y 6 adelante (56 días, dentro del tope
+ * de 62 que acepta el servidor). Así se ven sus reservas próximas y lo que acaba de pasar.
+ */
+export function memberAgendaPeriod(today: string = santiagoNow().date): Period {
+  return {
+    mode: 'month',
+    from: addDays(today, -14),
+    to: addDays(today, 41),
+    label: 'Últimas 2 semanas y próximas 6',
+    versus: '',
+    previousFrom: addDays(today, -28),
+  };
+}
+
+/** Cupos de una clase para la Agenda: % lleno (entero 0–100, con tope) y si está llena. Capacidad 0 → 0% y no llena. */
+export function capacityState(taken: number, capacity: number): { fillPct: number; full: boolean } {
+  if (capacity <= 0) {
+    return { fillPct: 0, full: false };
+  }
+  return { fillPct: Math.min(100, Math.round((taken / capacity) * 100)), full: taken >= capacity };
+}
+
 /** verde ≥ 80%, amarillo 50–79%, rojo < 50%. El color nunca va solo: siempre acompaña al número. */
 export function rateTone(rate: number): RateTone {
   return rate >= 80 ? 'good' : rate >= 50 ? 'warn' : 'bad';

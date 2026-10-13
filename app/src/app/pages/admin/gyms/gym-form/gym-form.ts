@@ -118,6 +118,10 @@ import { BloqueSeriesModal } from '../bloque-series-modal/bloque-series-modal';
 import { PlanFormModal } from '../plan-form-modal/plan-form-modal';
 import { MarkPaidModal } from '../mark-paid-modal/mark-paid-modal';
 import { ClosureModal } from '../closure-modal/closure-modal';
+import { AttendanceTab } from '../attendance-tab/attendance-tab';
+import { AttendanceSummaryView, CancelReservationRequest } from '../attendance-summary/attendance-summary';
+import { MemberRef, MemberSearch } from '../member-search/member-search';
+import { memberAgendaPeriod } from '../../../../core/utils/attendance';
 import { HistoryBoard } from '../history-board/history-board';
 import { MemberProfileModal } from '../../../../core/components/member-profile-modal/member-profile-modal';
 import { WorkoutPlanModal } from '../workout-plan-modal/workout-plan-modal';
@@ -204,7 +208,9 @@ addIcons({
 
 type Status = 'idle' | 'loading' | 'saving' | 'error';
 type SuggestStatus = 'idle' | 'loading' | 'error';
-type Section = 'general' | 'blocks' | 'plans' | 'members' | 'branding' | 'flow' | 'screens' | 'history' | 'closures';
+type Section = 'general' | 'classes' | 'plans' | 'members' | 'branding' | 'flow' | 'screens' | 'closures';
+// Sub-pestañas de Clases (mismo criterio que gym-admin.ts): Agenda, Asistencia y Horarios.
+type ClassesSub = 'agenda' | 'attendance' | 'schedule';
 
 // Mismo criterio que gym-admin.ts (implementación paralela, no compartida)
 // — segundo eje de filtro para la grilla de horarios, con tooltip que
@@ -256,24 +262,14 @@ function nowTimeString(): string {
   }).format(new Date());
 }
 
-function nextOccurrenceDate(dayOfWeek: DayOfWeek): string {
-  const todayIso = todayIsoDate();
-  const [y, m, d] = todayIso.split('-').map(Number);
-  const today = new Date(y, m - 1, d);
-  const diff = (DAY_OF_WEEK_INDEX[dayOfWeek] - today.getDay() + 7) % 7;
-  const target = new Date(y, m - 1, d + diff);
-  return `${target.getFullYear()}-${pad2(target.getMonth() + 1)}-${pad2(target.getDate())}`;
-}
-
 const SECTION_LABELS: Record<Section, string> = {
   general: 'General',
-  blocks: 'Horarios',
+  classes: 'Clases',
   plans: 'Planes',
   members: 'Socios',
   branding: 'Mi marca',
   flow: 'Pago Online',
   screens: 'Pantallas',
-  history: 'Historial',
   closures: 'Cierres',
 };
 
@@ -364,6 +360,9 @@ const THEMED_ROOT_PROPERTIES = [
     MarkPaidModal,
     ClosureModal,
     HistoryBoard,
+    AttendanceTab,
+    AttendanceSummaryView,
+    MemberSearch,
     ClassBoardView,
     EditClosureModal,
     FixedClassesModal,
@@ -436,40 +435,18 @@ export class GymForm implements OnDestroy {
 
   // Planes (pestaña Planes) — misma lógica que gym-admin.ts, pero con gymId
   // explícito (el de la ruta) en vez de tomarlo del JWT del gym-admin logueado.
-  // Clave de cache con fecha incluida — ver comentario largo en gym-admin.ts.
-  protected readonly expandedAttendeesKey = signal<string | null>(null);
-  protected readonly attendeesByKey = signal<Record<string, Attendee[]>>({});
-  protected readonly loadingAttendeesKey = signal<string | null>(null);
+  // Clases tiene tres sub-pestañas — ver gym-admin.ts (implementación paralela, no compartida).
+  protected readonly classesSub = signal<ClassesSub>('agenda');
+  protected readonly attendanceAnchor = signal<string | null>(null);
   protected readonly attendanceGymId = this.gymId;
   protected readonly attendanceDemo = signal(false);
-  // Sube cuando el padre cambió algo del Historial por su lado (cancelar una reserva): el tablero se recarga.
+  // Sube cuando el padre cambió algo de la Agenda por su lado (cancelar una reserva): el tablero se recarga.
   protected readonly historyRefresh = signal(0);
 
-  // Buscador de reservas futuras por nombre de socio — mismo mecanismo que gym-admin.ts (ver
-  // ese archivo para el porqué: no es un filtro client-side, los rosters no están cargados
-  // completos en memoria). Mientras hay una búsqueda activa (≥2 caracteres), reemplaza la
-  // vista semanal normal de Historial por la lista de coincidencias.
-  protected readonly reservationSearchQuery = signal('');
-  protected readonly reservationSearchResults = signal<BlockOccurrenceAttendees[] | null>(null);
-  protected readonly reservationSearchLoading = signal(false);
-  // El servidor topa a 25 socios por búsqueda — true = hay más coincidencias de las mostradas.
-  protected readonly reservationSearchTruncated = signal(false);
-  private reservationSearchTimeout: ReturnType<typeof setTimeout> | null = null;
-
-  protected readonly reservationSearchBlocks = computed(() => {
-    const results = this.reservationSearchResults();
-    if (!results) {
-      return null;
-    }
-    const blocksById = new Map(this.blocks().map((b) => [b.id, b]));
-    return results
-      .map((occurrence) => {
-        const block = blocksById.get(occurrence.gymBlockId);
-        return block ? { block, date: occurrence.classDate, attendees: occurrence.attendees } : null;
-      })
-      .filter((entry): entry is { block: GymBlock; date: string; attendees: Attendee[] } => entry !== null)
-      .sort((a, b) => a.date.localeCompare(b.date) || a.block.startTime.localeCompare(b.block.startTime));
-  });
+  // Buscador de socios compartido de Clases (Agenda y Asistencia): el socio elegido se ve en las dos pestañas.
+  protected readonly selectedMember = signal<MemberRef | null>(null);
+  // Período fijo de "sus clases" en la Agenda: 2 semanas atrás y 6 adelante.
+  protected readonly agendaMemberPeriod = memberAgendaPeriod();
 
   protected readonly plans = signal<GymPlan[]>([]);
   protected readonly isPlanModalOpen = signal(false);
@@ -717,6 +694,10 @@ export class GymForm implements OnDestroy {
 
   protected setSection(section: Section): void {
     this.section.set(section);
+    if (section === 'classes') {
+      // Sin bloques la Agenda queda vacía: se abre directo en Horarios para crear el primero.
+      this.classesSub.set(this.blocks().length > 0 ? 'agenda' : 'schedule');
+    }
     if (section === 'members') {
       // Al entrar a Socios: si hay una clase en curso o que empieza en 15 min o menos, se abre en "En clase".
       const timing = classTiming(this.blocks(), BOARD_SOON_MINUTES);
@@ -1234,119 +1215,41 @@ export class GymForm implements OnDestroy {
     return 'Todavía no hay bloques configurados.';
   }
 
-  // Mismo motivo que en gym-admin.ts: nextOccurrenceDate() es una fecha
-  // calendario pura, sin hora/huso — formatDate() la interpretaría como
-  // medianoche UTC y se corre un día en husos negativos. Reordenar el
-  // string a mano evita el problema por completo.
-  protected nextOccurrenceLabel(block: GymBlock): string {
-    const [y, m, d] = nextOccurrenceDate(block.dayOfWeek).split('-');
-    return `${d}-${m}-${y}`;
+  protected setClassesSub(sub: ClassesSub): void {
+    this.classesSub.set(sub);
   }
 
-  private attendeesKey(blockId: number, date: string): string {
-    return `${blockId}_${date}`;
-  }
-
-  protected isAttendeesExpanded(blockId: number, date: string): boolean {
-    return this.expandedAttendeesKey() === this.attendeesKey(blockId, date);
-  }
-
-  protected isAttendeesLoading(blockId: number, date: string): boolean {
-    return this.loadingAttendeesKey() === this.attendeesKey(blockId, date);
-  }
-
-  protected attendeesForDate(blockId: number, date: string): Attendee[] {
-    return this.attendeesByKey()[this.attendeesKey(blockId, date)] ?? [];
-  }
-
-  protected toggleAttendeesFor(blockId: number, date: string): void {
-    const gymId = this.gymId();
-    if (!gymId) {
-      return;
-    }
-    const key = this.attendeesKey(blockId, date);
-    if (this.expandedAttendeesKey() === key) {
-      this.expandedAttendeesKey.set(null);
-      return;
-    }
-    this.expandedAttendeesKey.set(key);
-    if (key in this.attendeesByKey()) {
-      return;
-    }
-    this.loadingAttendeesKey.set(key);
-    this.gymService.getBlockAttendees(gymId, blockId, date).subscribe({
-      next: (attendees) => {
-        this.attendeesByKey.update((map) => ({ ...map, [key]: attendees }));
-        this.loadingAttendeesKey.set(null);
-      },
-      error: () => this.loadingAttendeesKey.set(null),
-    });
-  }
-
-  // Wrappers para la plantilla (Angular no puede llamar funciones sueltas
-  // del módulo, solo métodos/propiedades del componente).
-  protected attendeesFor(block: GymBlock): Attendee[] {
-    return this.attendeesForDate(block.id, nextOccurrenceDate(block.dayOfWeek));
-  }
-
-  protected toggleAttendees(block: GymBlock): void {
-    this.toggleAttendeesFor(block.id, nextOccurrenceDate(block.dayOfWeek));
-  }
-
-  protected isBlockAttendeesExpanded(block: GymBlock): boolean {
-    return this.isAttendeesExpanded(block.id, nextOccurrenceDate(block.dayOfWeek));
-  }
-
-  protected isBlockAttendeesLoading(block: GymBlock): boolean {
-    return this.isAttendeesLoading(block.id, nextOccurrenceDate(block.dayOfWeek));
-  }
-
-  // Necesaria en la plantilla para pasarle la fecha exacta a cancelReservation() —
-  // toggleAttendees/attendeesFor la calculan internamente pero no la exponen.
-  protected blockOccurrenceDate(block: GymBlock): string {
-    return nextOccurrenceDate(block.dayOfWeek);
+  // "Ver asistencia" al pie de la Agenda: el consolidado abre en la semana que se estaba mirando.
+  protected openAttendanceFrom(anchor: string): void {
+    this.attendanceAnchor.set(anchor);
+    this.classesSub.set('attendance');
   }
 
   protected onMemberSearchInput(value: string): void {
     this.memberList.setSearch(value);
   }
 
-  protected onReservationSearchInput(value: string): void {
-    this.reservationSearchQuery.set(value);
-    if (this.reservationSearchTimeout) {
-      clearTimeout(this.reservationSearchTimeout);
-    }
-    const trimmed = value.trim();
-    if (trimmed.length < 2) {
-      this.reservationSearchResults.set(null);
-      this.reservationSearchTruncated.set(false);
-      this.reservationSearchLoading.set(false);
-      return;
-    }
-    this.reservationSearchTimeout = setTimeout(() => this.runReservationSearch(trimmed), 300);
-  }
-
-  private runReservationSearch(query: string): void {
+  // Cancelar una reserva futura desde el detalle del socio elegido (misma vía de urgencia que cancelReservation).
+  protected async cancelReservationRequest(request: CancelReservationRequest): Promise<void> {
     const gymId = this.gymId();
     if (!gymId) {
       return;
     }
-    this.reservationSearchLoading.set(true);
-    this.gymService.searchReservations(gymId, query).subscribe({
-      next: (response) => {
-        this.reservationSearchResults.set(response.results);
-        this.reservationSearchTruncated.set(response.truncated);
-        this.reservationSearchLoading.set(false);
+    const confirmed = await this.confirmAction(
+      'Cancelar reserva',
+      `¿Cancelar la reserva de ${request.memberName} en ${request.classLabel}? Se libera el cupo.`,
+      'Cancelar reserva',
+    );
+    if (!confirmed) {
+      return;
+    }
+    this.gymService.cancelReservationForGym(gymId, request.reservationId).subscribe({
+      next: () => {
+        this.historyRefresh.update((n) => n + 1);
+        this.showToast('Reserva cancelada.');
       },
-      error: () => this.reservationSearchLoading.set(false),
+      error: () => this.showToast('No pudimos cancelar la reserva. Intenta nuevamente.', 'danger'),
     });
-  }
-
-  // El botón "Cancelar" de admin solo tiene sentido para clases que todavía no pasaron —
-  // cancelar algo que ya ocurrió reescribiría historial (mismo criterio que ya valida el
-  // backend en ReservationService.cancelAsAdmin).
-  protected canCancelOccurrence(date: string): boolean {
-    return date >= todayIsoDate();
   }
 
   // Vía de urgencia pedida explícitamente por el usuario: cancela la reserva de CUALQUIER
@@ -1367,22 +1270,6 @@ export class GymForm implements OnDestroy {
     }
     this.gymService.cancelReservationForGym(gymId, attendee.reservationId).subscribe({
       next: () => {
-        const key = this.attendeesKey(blockId, date);
-        this.attendeesByKey.update((map) => ({
-          ...map,
-          [key]: (map[key] ?? []).filter((a) => a.reservationId !== attendee.reservationId),
-        }));
-        this.reservationSearchResults.update((results) =>
-          results
-            ? results
-                .map((occurrence) =>
-                  occurrence.gymBlockId === blockId && occurrence.classDate === date
-                    ? { ...occurrence, attendees: occurrence.attendees.filter((a) => a.reservationId !== attendee.reservationId) }
-                    : occurrence,
-                )
-                .filter((occurrence) => occurrence.attendees.length > 0)
-            : results,
-        );
         this.historyRefresh.update((n) => n + 1);
         this.showToast('Reserva cancelada.');
       },

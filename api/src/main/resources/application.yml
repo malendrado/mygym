@@ -26,6 +26,11 @@ server:
     threads:
       max: 25
       min-spare: 5
+  # JSON comprimido (listas de socios, agenda, resumen): las fotos en base64 comprimen poco, el resto mucho.
+  compression:
+    enabled: true
+    mime-types: application/json
+    min-response-size: 1024
 
 app:
   jwt:

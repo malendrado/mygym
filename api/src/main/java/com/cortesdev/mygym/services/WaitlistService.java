@@ -16,6 +16,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -53,6 +54,19 @@ public class WaitlistService {
     private final GymRepository gymRepository;
     private final MemberLifecycleEmailService emailService;
     private final FixedWeekRule fixedWeekRule;
+
+    /** Cuántos socios esperan en cada ocurrencia del rango, en una sola query. Clave "bloqueId|fecha"
+     *  (mismo formato que ClosureSchedule); las ocurrencias sin espera no aparecen. */
+    @Transactional(readOnly = true)
+    public Map<String, Integer> countWaitingByOccurrence(Collection<Long> gymBlockIds, LocalDate from, LocalDate to) {
+        if (gymBlockIds.isEmpty()) {
+            return Map.of();
+        }
+        return waitlistRepository.findByGymBlockIdInAndClassDateBetween(gymBlockIds, from, to).stream()
+                .collect(Collectors.groupingBy(
+                        entry -> entry.getGymBlockId() + "|" + entry.getClassDate(),
+                        Collectors.collectingAndThen(Collectors.counting(), Long::intValue)));
+    }
 
     public void join(Long gymId, Long memberId, Long gymBlockId, LocalDate classDate) {
         // Un socio con clases fijas (y la regla de semana en curso encendida) no puede esperar una clase que después

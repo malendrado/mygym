@@ -12,6 +12,7 @@ import {
   BankTransferUpdateRequest,
   BookingRulesRequest,
   BlockCreateResult,
+  AgendaOccurrence,
   BlockOccurrenceAttendees,
   BrandingSuggestion,
   CheckoutResponse,
@@ -168,6 +169,17 @@ export class GymService {
   /** Contraparte SUPER_ADMIN de getMyHistoryAttendees — mismo backend, gymId por path. */
   getHistoryAttendees(gymId: number, from: string, to: string): Observable<BlockOccurrenceAttendees[]> {
     return this.http.get<BlockOccurrenceAttendees[]>(`${this.base}/${gymId}/history-attendees`, { params: { from, to } });
+  }
+
+  /** Agenda del admin (pestaña Clases, dueño del gym): cupos, cierres, espera y asistentes de cada clase del
+   *  rango, incluidas las que no tienen reservas — una sola llamada por semana. */
+  getMyAgenda(from: string, to: string): Observable<AgendaOccurrence[]> {
+    return this.http.get<AgendaOccurrence[]>(`${this.myGymBase}/agenda`, { params: { from, to } });
+  }
+
+  /** Contraparte SUPER_ADMIN de getMyAgenda — mismo backend, gymId por path. */
+  getAgenda(gymId: number, from: string, to: string): Observable<AgendaOccurrence[]> {
+    return this.http.get<AgendaOccurrence[]>(`${this.base}/${gymId}/agenda`, { params: { from, to } });
   }
 
   /** Buscador de reservas futuras por nombre de socio (dueño del gym) — mismo formato de

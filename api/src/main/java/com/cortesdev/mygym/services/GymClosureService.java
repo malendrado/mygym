@@ -69,9 +69,26 @@ public class GymClosureService {
 
     /** Qué ocurrencias (día completo, o bloque+día puntual) quedan cerradas dentro de un rango —
      *  calculado una sola vez por llamada a listOccurrences/getSchedule, nunca por ocurrencia. */
-    public record ClosureSchedule(Set<LocalDate> closedDates, Set<String> closedBlockDateKeys) {
+    public record ClosureSchedule(
+            Set<LocalDate> closedDates,
+            Set<String> closedBlockDateKeys,
+            // Motivo del cierre por día completo y por "bloqueId|fecha": se llena en scheduleFor con los cierres que ya
+            // están en memoria, para no hacer una consulta por cada ocurrencia cerrada (ver reasonFor).
+            Map<LocalDate, String> reasonByDate,
+            Map<String, String> reasonByBlockDate) {
+
+        public ClosureSchedule(Set<LocalDate> closedDates, Set<String> closedBlockDateKeys) {
+            this(closedDates, closedBlockDateKeys, Map.of(), Map.of());
+        }
+
         public boolean isClosed(Long gymBlockId, LocalDate date) {
             return closedDates.contains(date) || closedBlockDateKeys.contains(gymBlockId + "|" + date);
+        }
+
+        /** Motivo del cierre que aplica a esa clase y fecha (el del bloque puntual primero, luego el del día), o null. */
+        public String reasonFor(Long gymBlockId, LocalDate date) {
+            String specific = reasonByBlockDate.get(gymBlockId + "|" + date);
+            return specific != null ? specific : reasonByDate.get(date);
         }
     }
 
@@ -109,6 +126,8 @@ public class GymClosureService {
                 gymClosureRepository.findByGymIdAndStartDateLessThanEqualAndEndDateGreaterThanEqual(gymId, to, from);
         Set<LocalDate> closedDates = new HashSet<>();
         Set<String> closedBlockDateKeys = new HashSet<>();
+        Map<LocalDate, String> reasonByDate = new HashMap<>();
+        Map<String, String> reasonByBlockDate = new HashMap<>();
         List<Long> specificIds = new ArrayList<>();
         Map<Long, GymClosure> byId = new HashMap<>();
         for (GymClosure closure : candidates) {
@@ -120,6 +139,7 @@ public class GymClosureService {
             if (closure.isWholeDays()) {
                 for (LocalDate d = start; !d.isAfter(end); d = d.plusDays(1)) {
                     closedDates.add(d);
+                    reasonByDate.putIfAbsent(d, closure.getReason());
                 }
             } else {
                 specificIds.add(closure.getId());
@@ -132,11 +152,13 @@ public class GymClosureService {
                 LocalDate start = closure.getStartDate().isAfter(from) ? closure.getStartDate() : from;
                 LocalDate end = closure.effectiveEndDate().isBefore(to) ? closure.effectiveEndDate() : to;
                 for (LocalDate d = start; !d.isAfter(end); d = d.plusDays(1)) {
-                    closedBlockDateKeys.add(gcb.getGymBlockId() + "|" + d);
+                    String key = gcb.getGymBlockId() + "|" + d;
+                    closedBlockDateKeys.add(key);
+                    reasonByBlockDate.putIfAbsent(key, closure.getReason());
                 }
             }
         }
-        return new ClosureSchedule(closedDates, closedBlockDateKeys);
+        return new ClosureSchedule(closedDates, closedBlockDateKeys, reasonByDate, reasonByBlockDate);
     }
 
     /** Conveniencia para un único gymBlockId+fecha (ReservationService.book) — devuelve el motivo

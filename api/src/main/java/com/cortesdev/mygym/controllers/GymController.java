@@ -3,6 +3,8 @@ package com.cortesdev.mygym.controllers;
 import com.cortesdev.mygym.models.dto.AdminCreateRequest;
 import com.cortesdev.mygym.models.dto.AdminResponse;
 import com.cortesdev.mygym.models.dto.AdminStatusUpdateRequest;
+import com.cortesdev.mygym.models.dto.AgendaOccurrence;
+import com.cortesdev.mygym.models.dto.AgendaOccurrenceResponse;
 import com.cortesdev.mygym.models.dto.AttendeeResponse;
 import com.cortesdev.mygym.models.dto.BankTransferUpdateRequest;
 import com.cortesdev.mygym.models.dto.BookingRulesRequest;
@@ -214,6 +216,27 @@ public class GymController {
         return reservationService.getOccurrenceAttendeesForRange(id, from, to).stream()
                 .map(this::toBatchResponse)
                 .toList();
+    }
+
+    // Contraparte SUPER_ADMIN de GymAdminController.myAgenda — mismo backend, gymId por path.
+    @GetMapping("/{id}/agenda")
+    public List<AgendaOccurrenceResponse> agenda(
+            @PathVariable Long id,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return reservationService.getAgenda(id, from, to).stream().map(this::toAgendaResponse).toList();
+    }
+
+    private AgendaOccurrenceResponse toAgendaResponse(AgendaOccurrence occurrence) {
+        return new AgendaOccurrenceResponse(
+                occurrence.gymBlockId(),
+                occurrence.classDate(),
+                occurrence.capacity(),
+                occurrence.taken(),
+                occurrence.closed(),
+                occurrence.closedReason(),
+                occurrence.waitlistCount(),
+                occurrence.attendees().stream().map(this::toAttendeeResponse).toList());
     }
 
     private BlockOccurrenceAttendeesResponse toBatchResponse(OccurrenceAttendees occurrence) {

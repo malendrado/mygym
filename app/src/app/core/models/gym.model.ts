@@ -453,6 +453,20 @@ export interface BlockOccurrenceAttendees {
   attendees: Attendee[];
 }
 
+/** Una ocurrencia de la Agenda del admin (.../agenda?from=&to=): cupos, cierre de emergencia, lista de espera y
+ *  quién reservó. Viene UNA por cada bloque×fecha del rango, incluso sin reservas (a diferencia de history-attendees).
+ *  closedReason es null si la clase no está cerrada. */
+export interface AgendaOccurrence {
+  gymBlockId: number;
+  classDate: string;
+  capacity: number;
+  taken: number;
+  closed: boolean;
+  closedReason: string | null;
+  waitlistCount: number;
+  attendees: Attendee[];
+}
+
 /** Cierre de emergencia de gimnasio (ver GymClosureService) — rango de fechas completo
  *  (wholeDays=true) o clases puntuales (wholeDays=false, blockIds con los bloques elegidos). */
 export interface GymClosureCreateRequest {

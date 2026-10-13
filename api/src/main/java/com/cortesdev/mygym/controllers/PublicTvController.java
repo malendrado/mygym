@@ -1,11 +1,16 @@
 package com.cortesdev.mygym.controllers;
 
+import com.cortesdev.mygym.models.dto.GymPhotoResponse;
 import com.cortesdev.mygym.models.dto.TvCheckinCodeResponse;
 import com.cortesdev.mygym.models.dto.TvPairingCreateResponse;
 import com.cortesdev.mygym.models.dto.TvPairingStatusResponse;
 import com.cortesdev.mygym.models.dto.TvScheduleResponse;
 import com.cortesdev.mygym.services.TvScreenService;
+import java.time.Duration;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.CacheControl;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -38,6 +43,14 @@ public class PublicTvController {
     @GetMapping("/screens/{token}/schedule")
     public TvScheduleResponse schedule(@PathVariable String token) {
         return tvScreenService.getSchedule(token);
+    }
+
+    // Galería de la TV, aparte del schedule: la pide al conectarse y cada 10 min (max-age=600, privada: la URL lleva el token).
+    @GetMapping("/screens/{token}/photos")
+    public ResponseEntity<List<GymPhotoResponse>> photos(@PathVariable String token) {
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.maxAge(Duration.ofMinutes(10)).cachePrivate())
+                .body(tvScreenService.getPhotos(token));
     }
 
     // La TV pide uno nuevo periódicamente (ver CHECKIN_POLL_MS en tv-screen.ts) y lo renderiza

@@ -293,156 +293,6 @@ ion-header ion-toolbar ion-title {
   }
 }
 
-// Selector de fecha en Historial — input nativo (no ion-input) para que el
-// picker del sistema operativo maneje la accesibilidad del calendario.
-.history-date-item {
-  --padding-start: 0;
-  margin-bottom: 1rem;
-}
-
-.history-date-input {
-  margin-top: 0.35rem;
-  padding: 0.5rem 0.7rem;
-  border: 1px solid var(--brand-ink-surface-2);
-  border-radius: 10px;
-  background: var(--gym-panel-card, var(--brand-ink-surface-2));
-  color: var(--brand-text);
-  font-family: inherit;
-  font-size: 0.9rem;
-  min-height: 44px;
-}
-
-.history-week-nav {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
-}
-
-.history-week-label {
-  min-width: 11ch;
-  text-align: center;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
-.calendar-nav-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  border: none;
-  border-radius: 999px;
-  background: var(--brand-ink-surface-2);
-  color: var(--brand-text);
-  font-size: 1.1rem;
-
-  &:disabled {
-    opacity: 0.4;
-  }
-}
-
-.history-week {
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-}
-
-// Colapsado por día — pedido explícito del usuario: mostrar la semana
-// entera pero sin repetir la sobrecarga de información de Horarios, así
-// que cada día arranca como una sola fila resumen y solo se expande a
-// pedido.
-.history-day {
-  border: 1px solid var(--brand-ink-surface-2);
-  border-radius: 12px;
-  overflow: hidden;
-
-  &--empty {
-    opacity: 0.6;
-  }
-}
-
-.history-day__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  width: 100%;
-  min-height: 44px;
-  padding: 0.7rem 1rem;
-  border: none;
-  background: var(--gym-panel-card, var(--brand-ink-surface-2));
-  color: var(--brand-text);
-  text-align: left;
-  font-family: inherit;
-
-  &:disabled {
-    cursor: default;
-  }
-}
-
-.history-day__label {
-  font-weight: 600;
-}
-
-.history-day__summary {
-  margin-left: auto;
-  font-size: 0.82rem;
-  color: var(--brand-text-dim);
-
-  &--muted {
-    font-style: italic;
-  }
-}
-
-.history-day .block-grid {
-  padding: 0.75rem;
-}
-
-.attendees-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-  margin-top: 0.3rem;
-
-  ion-spinner {
-    width: 16px;
-    height: 16px;
-    color: var(--brand-accent);
-  }
-
-  &__item {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3rem;
-    padding: 0.15rem 0.5rem 0.15rem 0.15rem;
-    border-radius: 999px;
-    background: var(--brand-ink-surface-2);
-    font-size: 0.72rem;
-    color: var(--brand-text-dim);
-  }
-
-  &__avatar {
-    width: 18px;
-    height: 18px;
-    border-radius: 999px;
-    object-fit: cover;
-    flex-shrink: 0;
-
-    &--placeholder {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: var(--brand-accent);
-      color: var(--brand-accent-contrast);
-      font-size: 0.6rem;
-      font-weight: 700;
-    }
-  }
-}
-
 // Mismo patrón que .class-card__instructor en member.scss — antes el
 // instructor no se mostraba en ningún lado de esta lista, el admin no podía
 // confirmar visualmente que se había guardado.
@@ -1088,46 +938,6 @@ ion-header ion-toolbar ion-title {
   }
 }
 
-// Difumina una sección para que no sea replicable con solo ver la demo (pedido explícito del
-// usuario, ver conversación) — hoy solo se aplica a la sugerencia de marca con IA en Marca.
-// El overlay explica por qué está borroso en vez de dejar que parezca un bug.
-.demo-obscured {
-  position: relative;
-
-  &__content {
-    filter: blur(7px);
-    pointer-events: none;
-    user-select: none;
-  }
-
-  &__overlay {
-    position: absolute;
-    inset: 0;
-    z-index: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 0.4rem;
-    text-align: center;
-    padding: 1rem;
-    background: color-mix(in srgb, var(--brand-ink) 55%, transparent);
-    border-radius: 14px;
-
-    ion-icon {
-      font-size: 1.6rem;
-      color: var(--brand-accent-text-safe, var(--brand-accent));
-    }
-
-    p {
-      margin: 0;
-      max-width: 260px;
-      font-size: 0.85rem;
-      color: var(--brand-text);
-    }
-  }
-}
-
 // Teaser de la Pantalla de TV, SOLO para cuentas demo (isDemoAdmin) — el gym demo no tiene una TV
 // real vinculada, así que sin esto la sección quedaría vacía y el prospecto no se enteraría de que
 // la funcionalidad existe. Captura real (no un mockup dibujado) de /tv, recortada para no mostrar
@@ -1163,8 +973,7 @@ ion-header ion-toolbar ion-title {
   color: var(--ion-color-warning);
 }
 
-
-// Historial: selector Semana | Mes, chip de asistencia del día y botón "Asistencia".
+// Sub-pestañas de Clases (Agenda | Asistencia | Horarios) y de Socios (Mis socios | En clase).
 .history-mode {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1174,6 +983,11 @@ ion-header ion-toolbar ion-title {
   border: 1px solid var(--brand-ink-surface-2);
   border-radius: 12px;
   background: var(--brand-ink-surface);
+}
+
+// Clases: Agenda | Asistencia | Horarios.
+.history-mode--3 {
+  grid-template-columns: repeat(3, 1fr);
 }
 
 .history-mode__btn {
@@ -1197,73 +1011,6 @@ ion-header ion-toolbar ion-title {
   }
 }
 
-.history-summary {
-  display: block;
-  margin: 0.5rem 0 1rem;
-}
-
-.history-day__attendance {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.4rem 1rem 0.6rem;
-  background: var(--gym-panel-card, var(--brand-ink-surface-2));
-}
-
-.history-chip {
-  --chip-tone: var(--brand-text-dim);
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.3rem;
-  padding: 0.2rem 0.6rem;
-  border: 1px solid var(--chip-tone);
-  border-radius: 999px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  color: var(--brand-text);
-
-  &[data-tone='good'] {
-    --chip-tone: var(--ion-color-success, #2dd36f);
-  }
-  &[data-tone='warn'] {
-    --chip-tone: var(--ion-color-warning, #ffc409);
-  }
-  &[data-tone='bad'] {
-    --chip-tone: var(--ion-color-danger, #eb445a);
-  }
-}
-
-.history-chip__note {
-  font-weight: 400;
-  color: var(--brand-text-dim);
-}
-
-.history-attendance-btn {
-  min-height: 44px;
-  padding: 0 1rem;
-  border: 1px solid var(--brand-accent);
-  border-radius: 10px;
-  background: transparent;
-  color: var(--brand-accent);
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
-
-  &:hover {
-    background: color-mix(in srgb, var(--brand-accent) 12%, transparent);
-  }
-
-  &:focus-visible {
-    outline: 2px solid var(--brand-accent);
-    outline-offset: 2px;
-  }
-}
-
-
 // Acciones por socio en mobile: seis botones no caben en 360-430 px, así que quedan solo los
 // frecuentes (estado, Marcar pago, WhatsApp) y el resto pasa a un botón "Acciones" que abre una
 // hoja inferior con la lista (openMemberActions). En desktop sigue todo a la vista.
@@ -1280,7 +1027,6 @@ ion-header ion-toolbar ion-title {
     display: inline-block;
   }
 }
-
 
 // Aviso "tu clase empieza en N min" (15 minutos antes), visible en cualquier pestaña del panel.
 .class-banner {

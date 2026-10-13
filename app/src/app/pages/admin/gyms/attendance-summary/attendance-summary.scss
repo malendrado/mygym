@@ -87,68 +87,6 @@
   letter-spacing: 0;
 }
 
-// ---- cifras ----
-
-.as-figures {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 0.5rem;
-
-  @media (min-width: 640px) {
-    grid-template-columns: repeat(4, 1fr);
-  }
-}
-
-.as-figure {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.15rem;
-  min-height: 84px;
-  padding: 0.7rem 0.4rem;
-  border: 1px solid var(--brand-ink-surface-2);
-  border-radius: 12px;
-  background: var(--brand-ink-surface);
-  color: var(--brand-text);
-  font: inherit;
-  cursor: pointer;
-
-  &:hover:not(:disabled):not(.as-figure--static) {
-    border-color: var(--brand-accent);
-  }
-
-  &:focus-visible {
-    outline: 2px solid var(--brand-accent);
-    outline-offset: 2px;
-  }
-
-  &:disabled,
-  &--static {
-    cursor: default;
-  }
-}
-
-.as-figure__value {
-  font-family: var(--brand-font-display);
-  font-size: 1.8rem;
-  font-weight: 700;
-  line-height: 1;
-}
-
-.as-figure__label {
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--brand-text-dim);
-}
-
-.as-figure__variation {
-  font-size: 0.72rem;
-  color: var(--brand-text);
-  text-align: center;
-}
-
 // ---- por clase ----
 
 .as-people {
@@ -158,140 +96,6 @@
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
-}
-
-.as-class {
-  display: flex;
-  align-items: center;
-  gap: 0.7rem;
-  width: 100%;
-  min-height: 48px;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid var(--brand-ink-surface-2);
-  border-radius: 12px;
-  background: var(--brand-ink-surface);
-  color: var(--brand-text);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-
-  &:hover {
-    border-color: var(--brand-accent);
-  }
-
-  &:focus-visible {
-    outline: 2px solid var(--brand-accent);
-    outline-offset: 2px;
-  }
-
-  ion-icon {
-    flex-shrink: 0;
-    color: var(--brand-text-dim);
-  }
-}
-
-.as-class__title {
-  flex: 1;
-  min-width: 0;
-  font-weight: 600;
-  font-size: 0.9rem;
-  overflow-wrap: anywhere;
-}
-
-.as-class__count {
-  flex-shrink: 0;
-  font-size: 0.82rem;
-}
-
-.as-class__rate {
-  flex: 0 0 3rem;
-  text-align: right;
-  font-size: 0.85rem;
-}
-
-.as-mini {
-  flex: 0 0 56px;
-  height: 6px;
-  border-radius: 999px;
-  background: var(--brand-ink-surface-2);
-  overflow: hidden;
-
-  @media (max-width: 420px) {
-    display: none;
-  }
-}
-
-.as-mini__fill {
-  display: block;
-  width: 100%;
-  height: 100%;
-  background: var(--as-tone, var(--brand-ink-surface-2));
-  transform-origin: left center;
-}
-
-// ---- por día de la semana ----
-
-.as-days {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 0.35rem;
-}
-
-.as-day {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.3rem;
-  min-height: 44px;
-  padding: 0.4rem 0.1rem;
-  border: 1px solid transparent;
-  border-radius: 10px;
-  background: transparent;
-  color: var(--brand-text);
-  font: inherit;
-  cursor: pointer;
-
-  &:hover:not(:disabled) {
-    border-color: var(--brand-accent);
-  }
-
-  &:focus-visible {
-    outline: 2px solid var(--brand-accent);
-    outline-offset: 2px;
-  }
-
-  &:disabled {
-    cursor: default;
-    opacity: 0.6;
-  }
-}
-
-.as-day__pct {
-  font-size: 0.75rem;
-}
-
-.as-day__track {
-  display: flex;
-  align-items: flex-end;
-  width: 100%;
-  max-width: 28px;
-  height: 84px;
-  border-radius: 8px;
-  background: var(--brand-ink-surface-2);
-  overflow: hidden;
-}
-
-.as-day__fill {
-  display: block;
-  width: 100%;
-  height: 100%;
-  background: var(--as-tone, var(--brand-ink-surface-2));
-  transform-origin: center bottom;
-}
-
-.as-day__label {
-  font-size: 0.72rem;
-  color: var(--brand-text-dim);
 }
 
 // ---- personas ----
@@ -486,107 +290,432 @@
 }
 
 
-// ---- resumen simple: frase, pestañas Faltan / Vienen, detalle plegado ----
+// ---- panel: cifras, a quién escribirle, clases y mapa día × franja ----
+// Un bloque por pregunta, en orden de prioridad (¿cómo vamos? → ¿qué hago? → ¿dónde está el problema? → ¿qué horario
+// conviene?). Un solo tono de marca para las barras; el color de la tasa nunca va solo: siempre lleva su número.
 
-.as-headline {
+.as-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.75rem;
+
+  @media (min-width: 900px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+}
+
+.as-kpis,
+.as-panel__note,
+.as-card--wide {
+  grid-column: 1 / -1;
+}
+
+.as-panel__note {
+  margin: -0.25rem 0 0;
+}
+
+.as-kpis {
+  display: grid;
+  grid-template-columns: 1.35fr 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.as-kpi {
   display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.2rem 0.6rem;
-  width: 100%;
-  min-height: 56px;
-  padding: 0.7rem 0.9rem;
-  margin-bottom: 0.5rem;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0.2rem;
+  min-height: 96px;
+  padding: 0.75rem 0.85rem;
   border: 1px solid var(--brand-ink-surface-2);
-  border-radius: 12px;
+  border-radius: 14px;
   background: var(--brand-ink-surface);
   color: var(--brand-text);
   font: inherit;
   text-align: left;
   cursor: pointer;
+  transition:
+    transform 120ms ease-out,
+    border-color 120ms ease-out;
 
-  &:hover {
+  &:hover:not(:disabled) {
     border-color: var(--brand-accent);
+  }
+
+  &:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.7;
   }
 
   &:focus-visible {
     outline: 2px solid var(--brand-accent);
     outline-offset: 2px;
   }
+
+  &--hero {
+    border-color: var(--brand-accent);
+  }
 }
 
-.as-headline__value {
+.as-kpi__label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--brand-text-dim);
+}
+
+.as-kpi__value {
   font-family: var(--brand-font-display);
-  font-size: 1.3rem;
+  font-size: 1.9rem;
   font-weight: 700;
+  line-height: 1;
 }
 
-.as-headline__rate {
-  font-family: var(--brand-font-display);
-  font-size: 1.3rem;
+.as-kpi--hero .as-kpi__value {
+  font-size: 2.5rem;
 }
 
-.as-headline__variation {
-  flex-basis: 100%;
-  font-size: 0.8rem;
+.as-kpi__sub {
+  font-size: 0.74rem;
+  line-height: 1.25;
   color: var(--brand-text-dim);
 }
 
-.as-tabs {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.25rem;
-  padding: 0.25rem;
-  margin: 0.75rem 0 0.5rem;
-  border-radius: 12px;
-  background: var(--brand-ink-surface);
+.as-card {
+  padding: 0.9rem 0.9rem 0.8rem;
   border: 1px solid var(--brand-ink-surface-2);
+  border-radius: 14px;
+  background: var(--brand-ink-surface);
 }
 
-.as-tab {
-  min-height: 44px;
-  border: 0;
-  border-radius: 9px;
-  background: transparent;
+.as-card__title {
+  margin: 0;
+  font-family: var(--brand-font-display);
+  font-size: 1.05rem;
+  color: var(--brand-text);
+}
+
+.as-card__hint {
+  margin: 0.15rem 0 0.7rem;
+  font-size: 0.78rem;
   color: var(--brand-text-dim);
+}
+
+.as-card__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  margin-top: 0.4rem;
+}
+
+.as-link-btn {
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--brand-accent-text-safe, var(--brand-accent));
   font: inherit;
   font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
 
-  &--active {
-    background: var(--brand-accent);
-    color: var(--brand-accent-contrast, #fff);
+  &:hover {
+    text-decoration: underline;
   }
 
   &:focus-visible {
     outline: 2px solid var(--brand-accent);
     outline-offset: 2px;
+  }
+
+  @media (pointer: fine) {
+    min-height: 36px;
   }
 }
 
-.as-disclosure {
+// Las filas de socios dentro de una tarjeta van sin caja propia: la tarjeta ya es la caja.
+.as-card .as-person {
+  border: 0;
+  border-bottom: 1px solid var(--brand-ink-surface-2);
+  border-radius: 0;
+  background: transparent;
+
+  &:last-child {
+    border-bottom: 0;
+  }
+}
+
+// Las filas de socios lo trae el servicio sin espacios entre el conteo y el %: se separa aquí.
+.as-person__sub .as-rate {
+  margin-left: 0.25em;
+}
+
+.as-card .as-people {
+  gap: 0;
+}
+
+// Clases: barra horizontal de un solo tono, valor escrito al lado.
+.as-bars {
   display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.as-bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.3rem 0.75rem;
   align-items: center;
-  justify-content: space-between;
   width: 100%;
-  min-height: 48px;
-  margin-top: 1rem;
-  padding: 0 0.9rem;
-  border: 1px solid var(--brand-ink-surface-2);
-  border-radius: 12px;
+  min-height: 52px;
+  padding: 0.4rem 0.25rem;
+  border: 0;
+  border-radius: 10px;
   background: transparent;
   color: var(--brand-text);
   font: inherit;
-  font-size: 0.88rem;
+  text-align: left;
   cursor: pointer;
+  transition: background-color 120ms ease-out;
 
   &:hover {
-    border-color: var(--brand-accent);
+    background: var(--brand-ink-surface-2);
   }
 
   &:focus-visible {
     outline: 2px solid var(--brand-accent);
-    outline-offset: 2px;
+    outline-offset: 0;
+  }
+}
+
+.as-bar__title {
+  min-width: 0;
+  font-size: 0.88rem;
+  font-weight: 600;
+  overflow-wrap: break-word;
+}
+
+.as-bar__value {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  color: var(--brand-text-dim);
+}
+
+.as-bar__alert {
+  font-size: 1.1rem;
+  color: var(--as-bad);
+}
+
+.as-bar__track {
+  grid-column: 1 / -1;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--brand-ink-surface-2);
+  overflow: hidden;
+}
+
+.as-bar__fill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--brand-accent);
+  transform-origin: left;
+  transition: transform 240ms ease-out;
+}
+
+// Mapa día × franja: cada celda lleva el % escrito y una barrita de relleno (la intensidad nunca va solo en el color).
+.as-heat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  overflow-x: auto;
+}
+
+.as-heat__row {
+  display: grid;
+  grid-template-columns: 4.2rem repeat(var(--as-cols, 7), minmax(2.9rem, 1fr));
+  gap: 0.3rem;
+  align-items: stretch;
+}
+
+.as-heat__corner {
+  min-height: 1px;
+}
+
+.as-heat__day {
+  min-height: 36px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--brand-text-dim);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--brand-text);
+    background: var(--brand-ink-surface-2);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--brand-accent);
+    outline-offset: 1px;
+  }
+}
+
+.as-heat__band {
+  display: flex;
+  align-items: center;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--brand-text);
+}
+
+.as-heat__cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  min-height: 56px;
+  padding: 0.35rem 0.4rem;
+  border-radius: 10px;
+  background: var(--brand-ink-surface-2);
+
+  &:focus-visible {
+    outline: 2px solid var(--brand-accent);
+    outline-offset: 1px;
+  }
+
+  &--empty {
+    background: transparent;
+    border: 1px dashed var(--brand-ink-surface-2);
+  }
+}
+
+.as-heat__pct {
+  font-size: 0.9rem;
+}
+
+.as-heat__none {
+  color: var(--brand-text-dim);
+}
+
+.as-heat__bar {
+  width: 100%;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(127, 127, 127, 0.28);
+  overflow: hidden;
+}
+
+.as-heat__fill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--brand-accent);
+  transform-origin: left;
+}
+
+@media (max-width: 480px) {
+  // 5 columnas caben en 390px sin desplazar: franja más angosta y celdas más compactas.
+  .as-heat__row {
+    grid-template-columns: 3.4rem repeat(var(--as-cols, 7), minmax(0, 1fr));
+    gap: 0.25rem;
+  }
+
+  .as-heat__cell {
+    padding: 0.3rem 0.25rem;
+  }
+
+  .as-heat__pct {
+    font-size: 0.82rem;
+  }
+
+  .as-kpi {
+    padding: 0.65rem 0.6rem;
+  }
+
+  .as-kpi--hero .as-kpi__value {
+    font-size: 2.1rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .as-bar__fill {
+    transition: none;
+  }
+}
+
+// Botones de icono del detalle de un socio (marcar / deshacer / cancelar reserva): 44px en táctil, 36px con mouse.
+// El texto lo dice el tooltip (data-tip global) y el aria-label.
+.as-class-row__actions {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.as-btn {
+  display: grid;
+  place-items: center;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--brand-text-dim);
+  cursor: pointer;
+  transition:
+    background-color 120ms ease-out,
+    color 120ms ease-out,
+    transform 120ms ease-out;
+
+  ion-icon {
+    font-size: 1.3rem;
+  }
+
+  &:hover {
+    background: var(--brand-ink-surface-2);
+    color: var(--brand-text);
+  }
+
+  &:active {
+    transform: scale(0.94);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--brand-accent);
+    outline-offset: 1px;
+  }
+
+  &--mark {
+    color: var(--brand-accent-text-safe, var(--brand-accent));
+  }
+
+  &--danger {
+    color: var(--as-bad);
+  }
+
+  @media (pointer: fine) {
+    flex-basis: 36px;
+    width: 36px;
+    height: 36px;
   }
 }

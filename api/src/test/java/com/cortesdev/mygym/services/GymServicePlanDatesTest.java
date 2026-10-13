@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 import com.cortesdev.mygym.models.AppUser;
@@ -68,6 +69,8 @@ class GymServicePlanDatesTest {
         gym = Gym.builder().id(GYM_ID).name("XaloGym").build();
         member = AppUser.builder().id(MEMBER_ID).gymId(GYM_ID).role(Role.MEMBER).name("Camila").build();
         when(gymRepository.findById(GYM_ID)).thenReturn(Optional.of(gym));
+        // Los métodos que solo comprueban que el gym existe usan existsById (no cargan la fila completa).
+        lenient().when(gymRepository.existsById(GYM_ID)).thenReturn(true);
         when(appUserRepository.findByIdAndGymId(MEMBER_ID, GYM_ID)).thenReturn(Optional.of(member));
         when(appUserRepository.findByGymIdAndRole(GYM_ID, Role.GYM_ADMIN)).thenReturn(List.of());
         plan8 = planOf(8);
@@ -238,7 +241,7 @@ class GymServicePlanDatesTest {
     @Test
     void laVistaPreviaDeUnSocioDeOtroGymEsNotFound() {
         when(appUserRepository.findByIdAndGymId(MEMBER_ID, 77L)).thenReturn(Optional.empty());
-        when(gymRepository.findById(77L)).thenReturn(Optional.of(Gym.builder().id(77L).build()));
+        when(gymRepository.existsById(77L)).thenReturn(true);
         when(gymPlanRepository.findByIdAndGymId(PLAN_ID, 77L)).thenReturn(Optional.of(GymPlan.builder().id(PLAN_ID).gymId(77L).build()));
 
         assertThatThrownBy(() -> gymService.previewPlanPayment(77L, MEMBER_ID, PLAN_ID, null, null))

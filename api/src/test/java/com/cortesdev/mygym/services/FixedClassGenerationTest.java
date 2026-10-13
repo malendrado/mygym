@@ -154,8 +154,10 @@ class FixedClassGenerationTest {
         when(memberService.remainingClasses(member)).thenReturn(1);
         List<LocalDate> dates = occurrenceDates();
         when(gymClosureService.scheduleFor(eq(GYM_ID), any(), any())).thenReturn(new GymClosureService.ClosureSchedule(
-                java.util.Set.of(), java.util.Set.of(BLOCK_ID + "|" + dates.get(0))));
-        when(gymClosureService.closedReasonFor(GYM_ID, BLOCK_ID, dates.get(0))).thenReturn("Corte de luz");
+                java.util.Set.of(),
+                java.util.Set.of(BLOCK_ID + "|" + dates.get(0)),
+                java.util.Map.of(),
+                java.util.Map.of(BLOCK_ID + "|" + dates.get(0), "Corte de luz")));
 
         FixedClassGenerationResult result = service.generateForCurrentPeriod(member);
 

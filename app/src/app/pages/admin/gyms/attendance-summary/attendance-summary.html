@@ -56,15 +56,19 @@
   }
   @case ('member') {
     <section class="as-view" aria-live="polite">
-      <button type="button" class="as-back" (click)="back()">
-        <ion-icon name="chevron-back-outline" aria-hidden="true"></ion-icon>
-        {{ view().kind === 'member' && $any(view()).from ? 'Volver a la lista' : 'Volver al resumen' }}
-      </button>
+      @if (!lockedMember()) {
+        <button type="button" class="as-back" (click)="back()">
+          <ion-icon name="chevron-back-outline" aria-hidden="true"></ion-icon>
+          {{ view().kind === 'member' && $any(view()).from ? 'Volver a la lista' : 'Volver al resumen' }}
+        </button>
+      }
       @if (detailLoading()) {
         <div class="as-center"><ion-spinner name="crescent"></ion-spinner></div>
       }
       @if (detail(); as d) {
-        <h3 class="as-title">{{ d.member.name }}</h3>
+        @if (!lockedMember()) {
+          <h3 class="as-title">{{ d.member.name }}</h3>
+        }
         <p class="as-sub">
           <span class="as-num">{{ detailCounts().attended }} de {{ detailCounts().booked }}</span> clases terminadas
           @if (detailCounts().rate !== null) {
@@ -93,11 +97,31 @@
                   Sin terminar
                 }
               </span>
-              @if (row.editable) {
-                <button type="button" class="as-toggle" (click)="toggle(row)">
-                  {{ effectiveAttended(row) ? 'Marcar que no vino' : 'Marcar que vino' }}
-                </button>
-              }
+              <span class="as-class-row__actions">
+                @if (row.editable) {
+                  <button
+                    type="button"
+                    class="as-btn"
+                    [class.as-btn--mark]="!effectiveAttended(row)"
+                    [attr.aria-label]="effectiveAttended(row) ? 'Marcar que no vino' : 'Marcar que vino'"
+                    [attr.data-tip]="effectiveAttended(row) ? 'Marcar que no vino' : 'Marcar que vino'"
+                    (click)="toggle(row)"
+                  >
+                    <ion-icon [name]="effectiveAttended(row) ? 'arrow-undo-outline' : 'checkmark-circle-outline'" aria-hidden="true"></ion-icon>
+                  </button>
+                }
+                @if (!row.ended) {
+                  <button
+                    type="button"
+                    class="as-btn as-btn--danger"
+                    aria-label="Cancelar su reserva"
+                    data-tip="Cancelar su reserva"
+                    (click)="cancelRow(row)"
+                  >
+                    <ion-icon name="person-remove-outline" aria-hidden="true"></ion-icon>
+                  </button>
+                }
+              </span>
             </li>
           } @empty {
             <li class="as-empty">Este socio no tiene reservas en el período.</li>
@@ -119,137 +143,172 @@
       @if (s.totals.booked === 0) {
         <p class="as-empty">Todavía no hay clases terminadas con reservas en este período.</p>
       } @else {
-        <button type="button" class="as-headline" (click)="openList({ title: 'Socios que reservaron' })">
-          <span class="as-headline__text">
-            Vinieron <span class="as-num as-headline__value">{{ s.totals.attended }} de {{ s.totals.booked }}</span> reservas
-          </span>
-          <span class="as-rate as-headline__rate" [attr.data-tone]="rateTone() ?? 'none'">{{ rate() }}%</span>
-          @if (variation(); as v) {
-            <span class="as-headline__variation">{{ v }}</span>
-          }
-        </button>
-        @if (isHalfWay()) {
-          <p class="as-hint">Hasta hoy: solo cuentan las clases que ya terminaron.</p>
-        }
-
-        <div class="as-tabs" role="tablist" aria-label="Socios">
-          <button
-            type="button"
-            role="tab"
-            class="as-tab"
-            [class.as-tab--active]="tab() === 'missed'"
-            [attr.aria-selected]="tab() === 'missed'"
-            (click)="tab.set('missed')"
-          >
-            Faltan
-          </button>
-          <button
-            type="button"
-            role="tab"
-            class="as-tab"
-            [class.as-tab--active]="tab() === 'attended'"
-            [attr.aria-selected]="tab() === 'attended'"
-            (click)="tab.set('attended')"
-          >
-            Vienen
-          </button>
-        </div>
-        <p class="as-hint">Socios con 3 o más reservas en el período. Toca uno para ver su detalle.</p>
-        <ul class="as-people">
-          @for (m of tabItems(); track m.memberId) {
-            <li class="as-person">
-              <button type="button" class="as-person__main" (click)="openMember(m.memberId)">
-                @if (m.photoUrl) {
-                  <img [src]="m.photoUrl" alt="" class="as-avatar" loading="lazy" />
-                } @else {
-                  <span class="as-avatar as-avatar--placeholder" aria-hidden="true">{{ m.name.charAt(0) }}</span>
-                }
-                <span class="as-person__text">
-                  <span class="as-person__name">{{ m.name }}</span>
-                  <span class="as-person__sub">
-                    @if (tab() === 'missed') {
-                      <span class="as-num">{{ m.missed }} {{ m.missed === 1 ? 'falta' : 'faltas' }} de {{ m.booked }} reservas</span>
-                    } @else {
-                      <span class="as-num">{{ m.attended }} {{ m.attended === 1 ? 'asistencia' : 'asistencias' }} de {{ m.booked }} reservas</span>
-                    }
-                    <span class="as-rate" [attr.data-tone]="tone(memberRate(m))">({{ memberRate(m) }}%)</span>
-                    @if (tab() === 'missed' && m.lastMissedDate) {
-                      · última: {{ dateLabel(m.lastMissedDate) }}
-                    }
-                  </span>
-                </span>
-                <ion-icon name="chevron-forward-outline" aria-hidden="true"></ion-icon>
-              </button>
-              @if (tab() === 'missed' && whatsapp(m); as wa) {
-                <a
-                  class="as-icon-btn"
-                  [href]="wa"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  [attr.aria-label]="'Escribirle por WhatsApp a ' + m.name"
-                >
-                  <ion-icon name="logo-whatsapp" aria-hidden="true"></ion-icon>
-                </a>
+        <div class="as-panel">
+          <!-- ① ¿Cómo vamos? Tres cifras, la primera protagonista. -->
+          <section class="as-kpis" aria-label="Cómo va el período">
+            <button
+              type="button"
+              class="as-kpi as-kpi--hero"
+              data-tip="Ver los socios que reservaron"
+              (click)="openList({ title: 'Socios que reservaron' })"
+            >
+              <span class="as-kpi__label">Asistencia</span>
+              <span class="as-kpi__value as-rate" [attr.data-tone]="rateTone() ?? 'none'">{{ rate() }}%</span>
+              @if (variation(); as v) {
+                <span class="as-kpi__sub">{{ v }}</span>
               }
-            </li>
-          } @empty {
-            <li class="as-empty">{{ tab() === 'missed' ? 'Nadie faltó de forma repetida en este período.' : 'Todavía no hay socios con 3 o más reservas en este período.' }}</li>
+            </button>
+            <button type="button" class="as-kpi" data-tip="Ver quiénes vinieron" (click)="openList({ title: 'Socios que vinieron' })">
+              <span class="as-kpi__label">Vinieron</span>
+              <span class="as-kpi__value as-num">{{ s.totals.attended }}</span>
+              <span class="as-kpi__sub">de {{ s.totals.booked }} reservas</span>
+            </button>
+            <button
+              type="button"
+              class="as-kpi"
+              [disabled]="s.totals.missed === 0"
+              [attr.data-tip]="s.totals.missed === 0 ? null : 'Ver quiénes no vinieron'"
+              (click)="openList({ title: 'Socios que no vinieron', onlyMissed: true })"
+            >
+              <span class="as-kpi__label">Faltaron</span>
+              <span class="as-kpi__value as-num">{{ s.totals.missed }}</span>
+              <span class="as-kpi__sub">reservas sin asistencia</span>
+            </button>
+          </section>
+          @if (isHalfWay()) {
+            <p class="as-hint as-panel__note">Hasta hoy: solo cuentan las clases que ya terminaron.</p>
           }
-        </ul>
-        @if (tab() === 'missed' && s.totals.missed > 0) {
-          <button type="button" class="as-more" (click)="openList({ title: 'Socios que no vinieron', onlyMissed: true })">
-            Ver todos los que no vinieron
-          </button>
-        } @else if (tab() === 'attended') {
-          <button type="button" class="as-more" (click)="openList({ title: 'Socios que vinieron' })">Ver todos los que vinieron</button>
-        }
 
-        <button
-          type="button"
-          class="as-disclosure"
-          [attr.aria-expanded]="showBreakdown()"
-          (click)="showBreakdown.set(!showBreakdown())"
-        >
-          Ver por clase y por día
-          <ion-icon [name]="showBreakdown() ? 'chevron-up-outline' : 'chevron-down-outline'" aria-hidden="true"></ion-icon>
-        </button>
-        @if (showBreakdown()) {
-          <h3 class="as-heading">Por clase <span class="as-heading__hint">de peor a mejor asistencia</span></h3>
-          <ul class="as-people">
-            @for (c of s.byClass; track c.blockId) {
-              <li>
-                <button type="button" class="as-class" (click)="openClass(c)">
-                  <span class="as-class__title">{{ classTitle(c) }}</span>
-                  <span class="as-mini" [attr.data-tone]="tone(classRate(c))" aria-hidden="true">
-                    <span class="as-mini__fill" [style.transform]="'scaleX(' + (classRate(c) ?? 0) / 100 + ')'"></span>
-                  </span>
-                  <span class="as-num as-class__count">{{ c.attended }} / {{ c.booked }}</span>
-                  <span class="as-rate as-class__rate" [attr.data-tone]="tone(classRate(c))">{{ classRate(c) }}%</span>
-                  <ion-icon name="chevron-forward-outline" aria-hidden="true"></ion-icon>
+          <!-- ② ¿Qué hago? A quién escribirle. -->
+          <section class="as-card" aria-labelledby="as-who">
+            <h3 class="as-card__title" id="as-who">A quién escribirle</h3>
+            <p class="as-card__hint">Socios con varias faltas en el período (3 reservas o más).</p>
+            <ul class="as-people">
+              @for (m of topMissed(); track m.memberId) {
+                <li class="as-person">
+                  <button type="button" class="as-person__main" (click)="openMember(m.memberId)">
+                    @if (m.photoUrl) {
+                      <img [src]="m.photoUrl" alt="" class="as-avatar" loading="lazy" />
+                    } @else {
+                      <span class="as-avatar as-avatar--placeholder" aria-hidden="true">{{ m.name.charAt(0) }}</span>
+                    }
+                    <span class="as-person__text">
+                      <span class="as-person__name">{{ m.name }}</span>
+                      <span class="as-person__sub">
+                        <span class="as-num">{{ m.missed }} {{ m.missed === 1 ? 'falta' : 'faltas' }} de {{ m.booked }}</span>
+                        <span class="as-rate" [attr.data-tone]="tone(memberRate(m))">({{ memberRate(m) }}%)</span>
+                        @if (m.lastMissedDate) {
+                          · última: {{ dateLabel(m.lastMissedDate) }}
+                        }
+                      </span>
+                    </span>
+                    <ion-icon name="chevron-forward-outline" aria-hidden="true"></ion-icon>
+                  </button>
+                  @if (whatsapp(m); as wa) {
+                    <a
+                      class="as-icon-btn"
+                      [href]="wa"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      data-tip="Escribirle por WhatsApp"
+                      [attr.aria-label]="'Escribirle por WhatsApp a ' + m.name"
+                    >
+                      <ion-icon name="logo-whatsapp" aria-hidden="true"></ion-icon>
+                    </a>
+                  }
+                </li>
+              } @empty {
+                <li class="as-empty">Nadie faltó de forma repetida en este período.</li>
+              }
+            </ul>
+            <div class="as-card__links">
+              @if (s.totals.missed > 0) {
+                <button type="button" class="as-link-btn" (click)="openList({ title: 'Socios que no vinieron', onlyMissed: true })">
+                  Ver todos los que no vinieron
                 </button>
-              </li>
-            }
-          </ul>
+              }
+              <button type="button" class="as-link-btn" (click)="openList({ title: 'Socios que vinieron' })">Ver quiénes vinieron</button>
+            </div>
+          </section>
 
-          <h3 class="as-heading">Por día de la semana</h3>
-          <div class="as-days">
-            @for (d of weekdayBars(); track d.weekday) {
-              <button
-                type="button"
-                class="as-day"
-                [disabled]="d.booked === 0"
-                [attr.aria-label]="d.booked === 0 ? weekdayShort(d) + ': sin clases terminadas' : weekdayShort(d) + ': ' + d.rate + '% de asistencia. Ver socios'"
-                (click)="openWeekday(d)"
-              >
-                <span class="as-rate as-day__pct" [attr.data-tone]="tone(d.rate)">{{ d.rate === null ? '–' : d.rate + '%' }}</span>
-                <span class="as-day__track" [attr.data-tone]="tone(d.rate)" aria-hidden="true">
-                  <span class="as-day__fill" [style.transform]="'scaleY(' + (d.rate ?? 0) / 100 + ')'"></span>
-                </span>
-                <span class="as-day__label">{{ weekdayShort(d) }}</span>
+          <!-- ③ ¿Dónde está el problema? Clases de peor a mejor. -->
+          <section class="as-card" aria-labelledby="as-classes">
+            <h3 class="as-card__title" id="as-classes">Qué clase funciona peor</h3>
+            <p class="as-card__hint">De menor a mayor asistencia. Toca una para ver los socios.</p>
+            <ul class="as-bars">
+              @for (c of visibleClasses(); track c.blockId) {
+                <li>
+                  <button type="button" class="as-bar" (click)="openClass(c)">
+                    <span class="as-bar__title">{{ classTitle(c) }}</span>
+                    <span class="as-bar__value">
+                      @if (isLow(classRate(c))) {
+                        <ion-icon name="alert-circle-outline" class="as-bar__alert" aria-label="Asistencia baja" data-tip="Asistencia baja"></ion-icon>
+                      }
+                      <span class="as-num">{{ c.attended }}/{{ c.booked }}</span>
+                      <span class="as-rate" [attr.data-tone]="tone(classRate(c))">{{ classRate(c) }}%</span>
+                    </span>
+                    <span class="as-bar__track" aria-hidden="true">
+                      <span class="as-bar__fill" [style.transform]="'scaleX(' + (classRate(c) ?? 0) / 100 + ')'"></span>
+                    </span>
+                  </button>
+                </li>
+              }
+            </ul>
+            @if (sortedClasses().length > classesCap) {
+              <button type="button" class="as-link-btn" (click)="showAllClasses.set(!showAllClasses())">
+                {{ showAllClasses() ? 'Ver menos' : 'Ver todas (' + sortedClasses().length + ')' }}
               </button>
             }
-          </div>
-        }
+          </section>
+
+          <!-- ④ ¿Qué horario conviene? Día × franja. -->
+          @if (heat().rows.length > 0) {
+            <section class="as-card as-card--wide" aria-labelledby="as-heat">
+              <h3 class="as-card__title" id="as-heat">Qué día y horario rinde más</h3>
+              <p class="as-card__hint">Cada celda es el % de asistencia de esa franja. Toca un día para ver sus socios.</p>
+              <div class="as-heat" role="table" aria-label="Asistencia por día y franja horaria" [style.--as-cols]="heat().days.length">
+                <div class="as-heat__row" role="row">
+                  <span class="as-heat__corner" role="columnheader"></span>
+                  @for (d of heat().days; track d.weekday) {
+                    <button
+                      type="button"
+                      class="as-heat__day"
+                      role="columnheader"
+                      data-tip="Ver los socios de ese día"
+                      (click)="openWeekday(d)"
+                    >
+                      {{ d.short }}
+                    </button>
+                  }
+                </div>
+                @for (row of heat().rows; track row.band) {
+                  <div class="as-heat__row" role="row">
+                    <span class="as-heat__band" role="rowheader">{{ row.label }}</span>
+                    @for (c of row.cells; track c.weekday) {
+                      <span
+                        class="as-heat__cell"
+                        role="cell"
+                        [class.as-heat__cell--empty]="c.booked === 0"
+                        [attr.data-tip]="c.tip"
+                        [attr.aria-label]="c.tip"
+                        tabindex="0"
+                      >
+                        @if (c.booked > 0) {
+                          <span class="as-rate as-heat__pct" [attr.data-tone]="tone(c.rate)">{{ c.rate }}%</span>
+                          <span class="as-heat__bar" aria-hidden="true">
+                            <span class="as-heat__fill" [style.transform]="'scaleX(' + (c.rate ?? 0) / 100 + ')'"></span>
+                          </span>
+                        } @else {
+                          <span class="as-heat__none" aria-hidden="true">–</span>
+                        }
+                      </span>
+                    }
+                  </div>
+                }
+              </div>
+            </section>
+          }
+        </div>
       }
     }
   }

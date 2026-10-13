@@ -127,6 +127,10 @@ import { BloqueSeriesModal } from '../admin/gyms/bloque-series-modal/bloque-seri
 import { PlanFormModal } from '../admin/gyms/plan-form-modal/plan-form-modal';
 import { MarkPaidModal } from '../admin/gyms/mark-paid-modal/mark-paid-modal';
 import { ClosureModal } from '../admin/gyms/closure-modal/closure-modal';
+import { AttendanceTab } from '../admin/gyms/attendance-tab/attendance-tab';
+import { AttendanceSummaryView, CancelReservationRequest } from '../admin/gyms/attendance-summary/attendance-summary';
+import { MemberRef, MemberSearch } from '../admin/gyms/member-search/member-search';
+import { memberAgendaPeriod } from '../../core/utils/attendance';
 import { HistoryBoard } from '../admin/gyms/history-board/history-board';
 import { EditClosureModal } from '../admin/gyms/edit-closure-modal/edit-closure-modal';
 import { ImportMembersModal } from '../admin/gyms/import-members-modal/import-members-modal';
@@ -214,7 +218,11 @@ addIcons({
 });
 
 type Status = 'idle' | 'loading' | 'saving';
-type Section = 'general' | 'blocks' | 'plans' | 'members' | 'branding' | 'screens' | 'history' | 'closures';
+type Section = 'general' | 'classes' | 'plans' | 'members' | 'branding' | 'screens' | 'closures';
+// Sub-pestañas de Clases: Agenda (día a día, cupos y quién reservó), Asistencia (consolidado) y Horarios (bloques).
+type ClassesSub = 'agenda' | 'attendance' | 'schedule';
+// Los mini-tours son uno por vista: Clases tiene dos (Agenda → "history", Horarios → "blocks").
+type TourKey = Section | 'blocks' | 'history';
 
 // Segundo eje de filtro para la grilla de horarios (además del día) —
 // pedido del usuario tras encontrar la fusión de bloques consecutivos poco
@@ -272,23 +280,13 @@ function nowTimeString(): string {
   }).format(new Date());
 }
 
-function nextOccurrenceDate(dayOfWeek: DayOfWeek): string {
-  const todayIso = todayIsoDate();
-  const [y, m, d] = todayIso.split('-').map(Number);
-  const today = new Date(y, m - 1, d);
-  const diff = (DAY_OF_WEEK_INDEX[dayOfWeek] - today.getDay() + 7) % 7;
-  const target = new Date(y, m - 1, d + diff);
-  return `${target.getFullYear()}-${pad2(target.getMonth() + 1)}-${pad2(target.getDate())}`;
-}
-
 const SECTION_LABELS: Record<Section, string> = {
   general: 'General',
-  blocks: 'Horarios',
+  classes: 'Clases',
   plans: 'Planes',
   members: 'Socios',
   branding: 'Mi marca',
   screens: 'Pantallas',
-  history: 'Historial',
   closures: 'Cierres',
 };
 
@@ -387,6 +385,9 @@ const THEMED_ROOT_PROPERTIES = [
     MarkPaidModal,
     ClosureModal,
     HistoryBoard,
+    AttendanceTab,
+    AttendanceSummaryView,
+    MemberSearch,
     ClassBoardView,
     EditClosureModal,
     ImportMembersModal,
@@ -454,7 +455,7 @@ export class GymAdmin implements OnDestroy {
   });
   protected readonly setupChecklist = computed(() => [
     { key: 'plans', label: 'Crea al menos un plan de membresía', done: this.hasActivePlan(), section: 'plans' as Section },
-    { key: 'schedule', label: 'Configura tus horarios de clases', done: this.hasSchedule(), section: 'blocks' as Section },
+    { key: 'schedule', label: 'Configura tus horarios de clases', done: this.hasSchedule(), section: 'classes' as Section },
     { key: 'branding', label: 'Sube el logo de tu gimnasio', done: this.hasBranding(), section: 'branding' as Section },
     {
       key: 'bank',
@@ -500,49 +501,20 @@ export class GymAdmin implements OnDestroy {
           (b.instructorName ?? '').toLowerCase().includes(query)),
     );
   });
-  // Quién reservó en un bloque — pedido explícito del usuario. Cada bloque
-  // es una plantilla semanal sin fecha, así que hace falta una fecha real
-  // para consultar (próxima ocurrencia en Horarios, la elegida a mano en
-  // Historial) — la clave de cache incluye la fecha para que ver el mismo
-  // bloque en dos fechas distintas no pise una caché con la otra. Acordeón,
-  // un solo bloque expandido a la vez, se pide al backend recién al expandir.
-  protected readonly expandedAttendeesKey = signal<string | null>(null);
-  protected readonly attendeesByKey = signal<Record<string, Attendee[]>>({});
-  protected readonly loadingAttendeesKey = signal<string | null>(null);
+  // Clases tiene tres sub-pestañas. Al entrar cae en Agenda (o en Horarios si todavía no hay bloques).
+  protected readonly classesSub = signal<ClassesSub>('agenda');
+  // Semana que se estaba mirando en la Agenda: la sub-pestaña Asistencia abre en ella.
+  protected readonly attendanceAnchor = signal<string | null>(null);
 
   protected readonly attendanceGymId = signal<number | null>(null);
   protected readonly attendanceDemo = computed(() => this.isDemoAdmin());
-  // Sube cuando el padre cambió algo del Historial por su lado (cancelar una reserva): el tablero se recarga.
+  // Sube cuando el padre cambió algo de la Agenda por su lado (cancelar una reserva): el tablero se recarga.
   protected readonly historyRefresh = signal(0);
 
-  // Buscador de reservas futuras por nombre de socio — pedido explícito del usuario para no
-  // tener que recorrer bloque por bloque/semana por semana buscando a alguien puntual. No es
-  // un filtro client-side: los rosters no están cargados completos en memoria (Horarios solo
-  // trae la próxima ocurrencia de cada bloque, Historial solo la semana visible), así que un
-  // buscador real necesita pedirle al backend (ver ReservationService.searchUpcomingReservations).
-  // Mientras hay una búsqueda activa (≥2 caracteres), reemplaza la vista semanal normal de
-  // Historial por la lista de coincidencias.
-  protected readonly reservationSearchQuery = signal('');
-  protected readonly reservationSearchResults = signal<BlockOccurrenceAttendees[] | null>(null);
-  protected readonly reservationSearchLoading = signal(false);
-  // El servidor topa a 25 socios por búsqueda — true = hay más coincidencias de las mostradas.
-  protected readonly reservationSearchTruncated = signal(false);
-  private reservationSearchTimeout: ReturnType<typeof setTimeout> | null = null;
-
-  protected readonly reservationSearchBlocks = computed(() => {
-    const results = this.reservationSearchResults();
-    if (!results) {
-      return null;
-    }
-    const blocksById = new Map(this.blocks().map((b) => [b.id, b]));
-    return results
-      .map((occurrence) => {
-        const block = blocksById.get(occurrence.gymBlockId);
-        return block ? { block, date: occurrence.classDate, attendees: occurrence.attendees } : null;
-      })
-      .filter((entry): entry is { block: GymBlock; date: string; attendees: Attendee[] } => entry !== null)
-      .sort((a, b) => a.date.localeCompare(b.date) || a.block.startTime.localeCompare(b.block.startTime));
-  });
+  // Buscador de socios compartido de Clases (Agenda y Asistencia): el socio elegido se ve en las dos pestañas.
+  protected readonly selectedMember = signal<MemberRef | null>(null);
+  // Período fijo de "sus clases" en la Agenda: 2 semanas atrás y 6 adelante.
+  protected readonly agendaMemberPeriod = memberAgendaPeriod();
 
   protected readonly plans = signal<GymPlan[]>([]);
   // Lista paginada de socios — búsqueda, filtros y conteos de las calugas viven en el servidor
@@ -702,7 +674,6 @@ export class GymAdmin implements OnDestroy {
     this.loadBlocks();
     this.loadPlans();
     this.loadMembers();
-    this.loadPhotos();
     this.loadTvScreens();
     this.loadClosures();
     const boardTimer = setInterval(() => this.boardTick.set(Date.now()), 30_000);
@@ -710,6 +681,8 @@ export class GymAdmin implements OnDestroy {
     if (!this.isProfesor()) {
       this.loadProfesores();
       this.loadAdmins();
+      // En paralelo con el resto (antes esperaba a que terminara getMine): solo lo usa la pestaña de Pago Online.
+      this.loadFlowAccount();
     }
 
     // Ionic overlays (the ion-select popup, ion-alert, ion-toast) are
@@ -766,6 +739,13 @@ export class GymAdmin implements OnDestroy {
 
   protected setSection(section: Section): void {
     this.section.set(section);
+    if (section === 'classes') {
+      // Sin bloques la Agenda queda vacía: se abre directo en Horarios para crear el primero.
+      this.classesSub.set(this.blocks().length > 0 ? 'agenda' : 'schedule');
+    }
+    if (section === 'branding') {
+      this.ensurePhotosLoaded();
+    }
     if (section === 'members') {
       // Al entrar a Socios: si hay una clase en curso o que empieza en 15 min o menos, se abre en "En clase".
       const timing = classTiming(this.blocks(), BOARD_SOON_MINUTES);
@@ -786,7 +766,7 @@ export class GymAdmin implements OnDestroy {
   // lo que más diferencia a mygym de la competencia (ver memoria mygym_competencia_boxpro). El
   // código de cada tour (ej. 'A_PLANS') es el que se guarda en demo_tour_progress — ver
   // DemoTourService.ALLOWED_TOURS en el backend, debe coincidir exactamente.
-  private readonly sectionTours: Partial<Record<Section, SectionTour>> = {
+  private readonly sectionTours: Partial<Record<TourKey, SectionTour>> = {
     plans: {
       tour: 'A_PLANS',
       label: 'Planes',
@@ -849,11 +829,6 @@ export class GymAdmin implements OnDestroy {
           title: 'Edita o elimina sin perder lo configurado',
           body: 'Cambia horario, cupo o instructor de una clase ya creada, o elimínala si ya no corre.',
           targetSelector: '.block-card__actions',
-        },
-        {
-          title: 'Ve quién reservó cada clase',
-          body: 'Lista de asistentes por bloque, con opción de liberar el cupo de alguien puntual si hace falta.',
-          targetSelector: '.block-card__attendees-toggle',
         },
       ],
     },
@@ -999,16 +974,16 @@ export class GymAdmin implements OnDestroy {
     },
     history: {
       tour: 'A_HISTORY',
-      label: 'Historial',
+      label: 'Agenda',
       steps: [
         {
-          title: 'Historial de asistencia',
-          body: 'Revisa semana por semana quién vino a cada clase, no solo quién reservó.',
+          title: 'Agenda de clases',
+          body: 'Mira quién viene a cada clase, cualquier día: hoy, mañana o la próxima semana.',
           targetSelector: '[data-tour="history"]',
         },
         {
           title: '"¿A qué clases va Juan?"',
-          body: 'Busca por el nombre de un socio y ve todas sus reservas, sin recorrer semana por semana.',
+          body: 'Busca por nombre y ve las clases de ese socio en Agenda y su asistencia en Asistencia, sin recorrer semana por semana. Quita el filtro con la ✕ para volver a todo el gimnasio.',
           targetSelector: '[data-tour="history-search"]',
         },
         {
@@ -1017,20 +992,27 @@ export class GymAdmin implements OnDestroy {
           targetSelector: '[data-tour="history-week-nav"]',
         },
         {
-          title: 'Quién vino a cada clase',
-          body: 'Las clases del día están en lista. Toca una para ver quién reservó y quién llegó (QR o a mano), escribirle por WhatsApp a quien faltó, o marcar a mano a quien vino sin escanear el QR.',
+          title: 'Cupos y quién reservó',
+          body: 'Cada clase muestra sus cupos ocupados y si está llena, cerrada o con gente en espera. Debajo está la lista de quienes reservaron: en clases pasadas ves quién llegó (QR o a mano), le escribes por WhatsApp a quien faltó o marcas a mano a quien vino sin escanear el QR.',
           targetSelector: '[data-tour="history-classes"]',
         },
         {
           title: 'Cómo va la semana',
-          body: 'Aquí ves el porcentaje de asistencia de la semana. "Ver resumen" abre el detalle por semana o mes, con quiénes faltan y quiénes vienen más — y por clase y por día si lo necesitas.',
+          body: 'Aquí ves el porcentaje de asistencia de la semana. "Ver asistencia" abre el consolidado por semana o mes, con quiénes faltan y quiénes vienen más — y por clase y por día si lo necesitas.',
           targetSelector: '[data-tour="history-summary-line"]',
         },
       ],
     },
   };
 
-  protected readonly currentSectionTour = computed(() => this.sectionTours[this.section()] ?? null);
+  protected readonly currentSectionTour = computed(() => {
+    const section = this.section();
+    if (section === 'classes') {
+      const sub = this.classesSub();
+      return (sub === 'agenda' ? this.sectionTours.history : sub === 'schedule' ? this.sectionTours.blocks : null) ?? null;
+    }
+    return this.sectionTours[section] ?? null;
+  });
 
   protected startSectionTour(): void {
     const sectionTour = this.currentSectionTour();
@@ -1222,113 +1204,33 @@ export class GymAdmin implements OnDestroy {
     return 'Todavía no hay bloques configurados.';
   }
 
-  // OJO: nextOccurrenceDate() devuelve una fecha calendario pura ("YYYY-MM-DD",
-  // sin hora/huso) — pasarla por formatDate() (que hace `new Date(value)`) se
-  // interpreta como medianoche UTC y se corría un día para atrás al formatear
-  // en un huso horario negativo (ej. America/Santiago). Reordenar el string a
-  // mano evita construir un Date del todo.
-  protected nextOccurrenceLabel(block: GymBlock): string {
-    const [y, m, d] = nextOccurrenceDate(block.dayOfWeek).split('-');
-    return `${d}-${m}-${y}`;
+  protected setClassesSub(sub: ClassesSub): void {
+    this.classesSub.set(sub);
   }
 
-  private attendeesKey(blockId: number, date: string): string {
-    return `${blockId}_${date}`;
+  // "Ver asistencia" al pie de la Agenda: el consolidado abre en la semana que se estaba mirando.
+  protected openAttendanceFrom(anchor: string): void {
+    this.attendanceAnchor.set(anchor);
+    this.classesSub.set('attendance');
   }
 
-  protected isAttendeesExpanded(blockId: number, date: string): boolean {
-    return this.expandedAttendeesKey() === this.attendeesKey(blockId, date);
-  }
-
-  protected isAttendeesLoading(blockId: number, date: string): boolean {
-    return this.loadingAttendeesKey() === this.attendeesKey(blockId, date);
-  }
-
-  protected attendeesForDate(blockId: number, date: string): Attendee[] {
-    return this.attendeesByKey()[this.attendeesKey(blockId, date)] ?? [];
-  }
-
-  protected toggleAttendeesFor(blockId: number, date: string): void {
-    const key = this.attendeesKey(blockId, date);
-    if (this.expandedAttendeesKey() === key) {
-      this.expandedAttendeesKey.set(null);
+  // Cancelar una reserva futura desde el detalle del socio elegido (misma vía de urgencia que cancelReservation).
+  protected async cancelReservationRequest(request: CancelReservationRequest): Promise<void> {
+    const confirmed = await this.confirmAction(
+      'Cancelar reserva',
+      `¿Cancelar la reserva de ${request.memberName} en ${request.classLabel}? Se libera el cupo.`,
+      'Cancelar reserva',
+    );
+    if (!confirmed) {
       return;
     }
-    this.expandedAttendeesKey.set(key);
-    if (key in this.attendeesByKey()) {
-      return;
-    }
-    this.loadingAttendeesKey.set(key);
-    this.gymService.getMyGymBlockAttendees(blockId, date).subscribe({
-      next: (attendees) => {
-        this.attendeesByKey.update((map) => ({ ...map, [key]: attendees }));
-        this.loadingAttendeesKey.set(null);
+    this.gymService.cancelReservation(request.reservationId).subscribe({
+      next: () => {
+        this.historyRefresh.update((n) => n + 1);
+        this.showToast('Reserva cancelada.');
       },
-      error: () => this.loadingAttendeesKey.set(null),
+      error: () => this.handleWriteError(() => this.showToast('No pudimos cancelar la reserva. Intenta nuevamente.', 'danger')),
     });
-  }
-
-  // Wrappers para la plantilla (Angular no puede llamar funciones sueltas
-  // del módulo, solo métodos/propiedades del componente).
-  protected attendeesFor(block: GymBlock): Attendee[] {
-    return this.attendeesForDate(block.id, nextOccurrenceDate(block.dayOfWeek));
-  }
-
-  protected toggleAttendees(block: GymBlock): void {
-    this.toggleAttendeesFor(block.id, nextOccurrenceDate(block.dayOfWeek));
-  }
-
-  protected isBlockAttendeesExpanded(block: GymBlock): boolean {
-    return this.isAttendeesExpanded(block.id, nextOccurrenceDate(block.dayOfWeek));
-  }
-
-  protected isBlockAttendeesLoading(block: GymBlock): boolean {
-    return this.isAttendeesLoading(block.id, nextOccurrenceDate(block.dayOfWeek));
-  }
-
-  // Necesaria en la plantilla para pasarle la fecha exacta a cancelReservation() —
-  // toggleAttendees/attendeesFor la calculan internamente pero no la exponen.
-  protected blockOccurrenceDate(block: GymBlock): string {
-    return nextOccurrenceDate(block.dayOfWeek);
-  }
-
-  // A diferencia de Horarios (siempre "hoy o la próxima ocurrencia"), acá
-  // conviven 7 fechas distintas a la vez en pantalla — cada wrapper recibe
-  // la fecha del día puntual que el admin está mirando.
-  protected onReservationSearchInput(value: string): void {
-    this.reservationSearchQuery.set(value);
-    if (this.reservationSearchTimeout) {
-      clearTimeout(this.reservationSearchTimeout);
-    }
-    const trimmed = value.trim();
-    if (trimmed.length < 2) {
-      this.reservationSearchResults.set(null);
-      this.reservationSearchTruncated.set(false);
-      this.reservationSearchLoading.set(false);
-      return;
-    }
-    // Debounce manual — no hace falta rxjs-interop para un solo input, se sigue el estilo
-    // pragmático (signals + subscribe directo) ya usado en todo este archivo.
-    this.reservationSearchTimeout = setTimeout(() => this.runReservationSearch(trimmed), 300);
-  }
-
-  private runReservationSearch(query: string): void {
-    this.reservationSearchLoading.set(true);
-    this.gymService.searchMyReservations(query).subscribe({
-      next: (response) => {
-        this.reservationSearchResults.set(response.results);
-        this.reservationSearchTruncated.set(response.truncated);
-        this.reservationSearchLoading.set(false);
-      },
-      error: () => this.reservationSearchLoading.set(false),
-    });
-  }
-
-  // El botón "Cancelar" de admin solo tiene sentido para clases que todavía no pasaron —
-  // cancelar algo que ya ocurrió reescribiría historial (mismo criterio que ya valida el
-  // backend en ReservationService.cancelAsAdmin).
-  protected canCancelOccurrence(date: string): boolean {
-    return date >= todayIsoDate();
   }
 
   // Vía de urgencia pedida explícitamente por el usuario: cancela la reserva de CUALQUIER
@@ -1345,22 +1247,6 @@ export class GymAdmin implements OnDestroy {
     }
     this.gymService.cancelReservation(attendee.reservationId).subscribe({
       next: () => {
-        const key = this.attendeesKey(blockId, date);
-        this.attendeesByKey.update((map) => ({
-          ...map,
-          [key]: (map[key] ?? []).filter((a) => a.reservationId !== attendee.reservationId),
-        }));
-        this.reservationSearchResults.update((results) =>
-          results
-            ? results
-                .map((occurrence) =>
-                  occurrence.gymBlockId === blockId && occurrence.classDate === date
-                    ? { ...occurrence, attendees: occurrence.attendees.filter((a) => a.reservationId !== attendee.reservationId) }
-                    : occurrence,
-                )
-                .filter((occurrence) => occurrence.attendees.length > 0)
-            : results,
-        );
         this.historyRefresh.update((n) => n + 1);
         this.showToast('Reserva cancelada.');
       },
@@ -2377,7 +2263,6 @@ export class GymAdmin implements OnDestroy {
           confirmationEmail: gym.bankConfirmationEmail ?? '',
         });
         this.gymLoaded.set(true);
-        this.loadFlowAccount();
       },
       error: () => {
         this.showToast('No pudimos cargar los datos del gimnasio. Intenta nuevamente.', 'danger');
@@ -2410,10 +2295,23 @@ export class GymAdmin implements OnDestroy {
     });
   }
 
+  // Las fotos de la galería pesan 1–3 MB (base64) y solo se muestran en "Mi marca": se piden la primera vez que se abre.
+  private photosRequested = false;
+
+  private ensurePhotosLoaded(): void {
+    if (!this.photosRequested) {
+      this.photosRequested = true;
+      this.loadPhotos();
+    }
+  }
+
   private loadPhotos(): void {
     this.gymService.listMyPhotos().subscribe({
       next: (photos) => this.photos.set(photos),
-      error: () => this.showToast('No pudimos cargar las fotos. Intenta nuevamente.', 'danger'),
+      error: () => {
+        this.photosRequested = false; // se reintenta al volver a abrir la pestaña
+        this.showToast('No pudimos cargar las fotos. Intenta nuevamente.', 'danger');
+      },
     });
   }
 

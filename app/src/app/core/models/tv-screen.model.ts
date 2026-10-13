@@ -78,7 +78,6 @@ export interface TvSchedule {
   themeColor: string | null;
   themeMode: string | null;
   tagline: string | null;
-  photos: TvPhoto[];
   /** ISO instant — hora real del servidor, referencia para no depender 100% del reloj de la TV. */
   serverTime: string;
   current: TvBlockOccurrence[];

@@ -276,3 +276,49 @@ h3 {
   margin-right: 0.5rem;
 }
 
+// ---- Tooltips de botones (atributo data-tip) ----
+// Solo con mouse o teclado: en táctil no hay hover y un globo pegado al dedo estorba. Aparece tras una pausa corta (para
+// no saltar al pasar el mouse de largo) y se va al instante. El texto también debe ir en aria-label. Por defecto se ancla
+// a la derecha del elemento y sale hacia arriba; cada componente puede reanclarlo (left / centrado).
+[data-tip] {
+  position: relative;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  [data-tip]::after {
+    content: attr(data-tip);
+    position: absolute;
+    bottom: calc(100% + 6px);
+    right: 0;
+    z-index: 30;
+    padding: 0.3rem 0.55rem;
+    border-radius: 8px;
+    background: var(--brand-text);
+    color: var(--brand-ink, #0b1012);
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.2;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(3px) scale(0.97);
+    transform-origin: bottom right;
+    transition:
+      opacity 120ms ease-out,
+      transform 120ms ease-out;
+  }
+
+  [data-tip]:hover::after,
+  [data-tip]:focus-visible::after {
+    opacity: 1;
+    transform: none;
+    transition-delay: 220ms;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-tip]::after {
+    transition: none !important;
+    transform: none !important;
+  }
+}

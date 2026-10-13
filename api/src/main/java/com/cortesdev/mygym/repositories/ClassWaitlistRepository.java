@@ -2,6 +2,7 @@ package com.cortesdev.mygym.repositories;
 
 import com.cortesdev.mygym.models.ClassWaitlistEntry;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -18,4 +19,7 @@ public interface ClassWaitlistRepository extends JpaRepository<ClassWaitlistEntr
     // lo vigente de una sola vez y agrupa por ocurrencia en memoria, mismo criterio anti-N+1 que
     // ya usa ReservationService en el resto del archivo.
     List<ClassWaitlistEntry> findByClassDateGreaterThanEqual(LocalDate from);
+
+    // Agenda del admin: cuántos esperan en cada ocurrencia del rango, en una sola query.
+    List<ClassWaitlistEntry> findByGymBlockIdInAndClassDateBetween(Collection<Long> gymBlockIds, LocalDate from, LocalDate to);
 }

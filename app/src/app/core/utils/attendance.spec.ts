@@ -3,6 +3,8 @@ import {
   attendanceOf,
   attendanceEditable,
   attendanceWindowOpen,
+  capacityState,
+  memberAgendaPeriod,
   occurrenceStarted,
   byWorstRate,
   occurrenceEnded,
@@ -141,5 +143,32 @@ describe('occurrenceStarted y attendanceEditable', () => {
     expect(attendanceEditable('2026-10-05', '19:00', '20:00', NOW)).toBe(true); // hace 7 días, aún antes de las 20:00 de hoy
     expect(attendanceEditable('2026-10-04', '19:00', '20:00', NOW)).toBe(false); // hace 8 días
     expect(attendanceEditable('2026-10-13', '08:00', '09:00', NOW)).toBe(false); // mañana
+  });
+});
+
+describe('capacityState', () => {
+  it('calcula el % lleno y marca llena solo al llegar al cupo', () => {
+    expect(capacityState(0, 12)).toEqual({ fillPct: 0, full: false });
+    expect(capacityState(8, 12)).toEqual({ fillPct: 67, full: false });
+    expect(capacityState(12, 12)).toEqual({ fillPct: 100, full: true });
+  });
+
+  it('con sobrecupo la barra se topa en 100% y sigue llena', () => {
+    expect(capacityState(14, 12)).toEqual({ fillPct: 100, full: true });
+  });
+
+  it('con capacidad 0 no divide por cero ni queda llena', () => {
+    expect(capacityState(0, 0)).toEqual({ fillPct: 0, full: false });
+    expect(capacityState(3, 0)).toEqual({ fillPct: 0, full: false });
+  });
+});
+
+describe('memberAgendaPeriod', () => {
+  it('abarca 2 semanas atrás y 6 adelante, dentro del tope de 62 días del servidor', () => {
+    const p = memberAgendaPeriod('2026-10-13');
+    expect(p.from).toBe('2026-09-29');
+    expect(p.to).toBe('2026-11-23');
+    const days = (Date.parse(p.to) - Date.parse(p.from)) / 86_400_000 + 1;
+    expect(days).toBeLessThanOrEqual(62);
   });
 });

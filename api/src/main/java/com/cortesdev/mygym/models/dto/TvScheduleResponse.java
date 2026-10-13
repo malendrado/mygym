@@ -9,14 +9,13 @@ import java.util.List;
  *  configurado. nextDate es null si el gym no tiene ningún bloque activo. previous es la clase
  *  de HOY que terminó más recientemente (null si todavía no terminó ninguna). later son las
  *  clases de ese mismo día (nextDate) posteriores al horario de "next", para la agenda "más
- *  tarde". photos es la misma galería que ya ve el socio en /member (GymPhoto). */
+ *  tarde". La galería de fotos NO viaja acá (pesa 1–3 MB y esto se pide cada 25 s): ver GET /screens/{token}/photos. */
 public record TvScheduleResponse(
         String gymName,
         String logoSvg,
         String themeColor,
         String themeMode,
         String tagline,
-        List<GymPhotoResponse> photos,
         Instant serverTime,
         List<TvBlockOccurrenceResponse> current,
         List<TvBlockOccurrenceResponse> next,

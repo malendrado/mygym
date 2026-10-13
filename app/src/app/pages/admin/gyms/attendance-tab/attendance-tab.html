@@ -1,0 +1,42 @@
+<section class="at-tab" aria-live="polite">
+  <div class="at-seg" role="tablist" aria-label="Período del resumen">
+    <button
+      type="button"
+      role="tab"
+      class="at-seg__btn"
+      [class.at-seg__btn--active]="summaryMode() === 'week'"
+      [attr.aria-selected]="summaryMode() === 'week'"
+      (click)="setMode('week')"
+    >
+      Semana
+    </button>
+    <button
+      type="button"
+      role="tab"
+      class="at-seg__btn"
+      [class.at-seg__btn--active]="summaryMode() === 'month'"
+      [attr.aria-selected]="summaryMode() === 'month'"
+      (click)="setMode('month')"
+    >
+      Mes
+    </button>
+  </div>
+  <div class="at-nav">
+    <button type="button" class="at-nav__btn" (click)="shift(-1)" [attr.aria-label]="summaryMode() === 'week' ? 'Semana anterior' : 'Mes anterior'">
+      <ion-icon name="chevron-back-outline" aria-hidden="true"></ion-icon>
+    </button>
+    <span class="at-nav__label">{{ summaryPeriod().label }}</span>
+    <button type="button" class="at-nav__btn" (click)="shift(1)" [attr.aria-label]="summaryMode() === 'week' ? 'Semana siguiente' : 'Mes siguiente'">
+      <ion-icon name="chevron-forward-outline" aria-hidden="true"></ion-icon>
+    </button>
+  </div>
+  <app-attendance-summary
+    [period]="summaryPeriod()"
+    [gymId]="gymId"
+    [demo]="demo"
+    [refreshToken]="refreshToken"
+    [memberId]="memberId"
+    (attendanceChanged)="attendanceChanged.emit()"
+    (cancelRequested)="cancelRequested.emit($event)"
+  />
+</section>

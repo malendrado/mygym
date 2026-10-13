@@ -54,9 +54,9 @@
         <ion-icon name="settings-outline" aria-hidden="true"></ion-icon>
         <ion-label>General</ion-label>
       </ion-segment-button>
-      <ion-segment-button value="blocks">
-        <ion-icon name="time-outline" aria-hidden="true"></ion-icon>
-        <ion-label>Horarios</ion-label>
+      <ion-segment-button value="classes">
+        <ion-icon name="calendar-outline" aria-hidden="true"></ion-icon>
+        <ion-label>Clases</ion-label>
       </ion-segment-button>
       @if (!isProfesor()) {
         <ion-segment-button value="plans">
@@ -77,10 +77,6 @@
       <ion-segment-button value="screens">
         <ion-icon name="tv-outline" aria-hidden="true"></ion-icon>
         <ion-label>Pantallas</ion-label>
-      </ion-segment-button>
-      <ion-segment-button value="history">
-        <ion-icon name="calendar-outline" aria-hidden="true"></ion-icon>
-        <ion-label>Historial</ion-label>
       </ion-segment-button>
       @if (!isProfesor()) {
         <ion-segment-button value="closures">
@@ -512,7 +508,99 @@
       </ion-card-content>
     </ion-card>
     }
-  } @else if (section() === 'blocks') {
+  } @else if (section() === 'classes') {
+    @if (classesSub() !== 'schedule') {
+      <app-member-search
+        data-tour="history-search"
+        [gymId]="attendanceGymId()"
+        [selected]="selectedMember()"
+        (picked)="selectedMember.set($event)"
+        (cleared)="selectedMember.set(null)"
+      />
+    }
+    <div class="history-mode history-mode--3" role="tablist" aria-label="Clases" data-tour="classes-sub">
+      <button
+        type="button"
+        role="tab"
+        class="history-mode__btn"
+        [class.history-mode__btn--active]="classesSub() === 'agenda'"
+        [attr.aria-selected]="classesSub() === 'agenda'"
+        (click)="setClassesSub('agenda')"
+      >
+        Agenda
+      </button>
+      <button
+        type="button"
+        role="tab"
+        class="history-mode__btn"
+        [class.history-mode__btn--active]="classesSub() === 'attendance'"
+        [attr.aria-selected]="classesSub() === 'attendance'"
+        (click)="setClassesSub('attendance')"
+      >
+        Asistencia
+      </button>
+      <button
+        type="button"
+        role="tab"
+        class="history-mode__btn"
+        [class.history-mode__btn--active]="classesSub() === 'schedule'"
+        [attr.aria-selected]="classesSub() === 'schedule'"
+        (click)="setClassesSub('schedule')"
+      >
+        Horarios
+      </button>
+    </div>
+    @if (classesSub() === 'agenda') {
+      @if (selectedMember(); as member) {
+        <ion-card>
+          <ion-card-header data-tour="history">
+            <ion-card-title>
+              <ion-icon name="calendar-outline" aria-hidden="true"></ion-icon>
+              Clases de {{ member.name }}
+            </ion-card-title>
+          </ion-card-header>
+          <ion-card-content>
+            <app-attendance-summary
+              [memberId]="member.id"
+              [period]="agendaMemberPeriod"
+              [gymId]="attendanceGymId()"
+              [demo]="attendanceDemo()"
+              [refreshToken]="historyRefresh()"
+              (cancelRequested)="cancelReservationRequest($event)"
+            />
+          </ion-card-content>
+        </ion-card>
+      } @else {
+        <ion-card>
+          <ion-card-header data-tour="history">
+            <ion-card-title>
+              <ion-icon name="calendar-outline" aria-hidden="true"></ion-icon>
+              Agenda
+            </ion-card-title>
+          </ion-card-header>
+          <ion-card-content>
+            <app-history-board
+              [blocks]="blocks()"
+              [gymId]="attendanceGymId()"
+              [demo]="attendanceDemo()"
+              [refreshToken]="historyRefresh()"
+              (openAttendance)="openAttendanceFrom($event)"
+              (cancelRequested)="cancelReservation($event.attendee, $event.blockId, $event.date)"
+            />
+          </ion-card-content>
+        </ion-card>
+      }
+    }
+    @if (classesSub() === 'attendance') {
+      <app-attendance-tab
+        [gymId]="attendanceGymId()"
+        [demo]="attendanceDemo()"
+        [anchor]="attendanceAnchor()"
+        [memberId]="selectedMember()?.id ?? null"
+        (cancelRequested)="cancelReservationRequest($event)"
+      />
+    }
+    @if (classesSub() === 'schedule') {
     @if (!isProfesor()) {
       <app-booking-rules-card
         [rules]="bookingRules()"
@@ -602,10 +690,10 @@
                   {{ block.label }}
                 </h3>
                 <div class="block-card__actions">
-                  <ion-button fill="clear" [attr.aria-label]="'Editar ' + block.label" (click)="openEditBlock(block)">
+                  <ion-button fill="clear" [attr.aria-label]="'Editar ' + block.label" [attr.title]="'Editar ' + block.label" (click)="openEditBlock(block)">
                     <ion-icon name="create-outline" slot="icon-only" aria-hidden="true"></ion-icon>
                   </ion-button>
-                  <ion-button fill="clear" color="danger" [attr.aria-label]="'Eliminar ' + block.label" (click)="removeBlock(block)">
+                  <ion-button fill="clear" color="danger" [attr.aria-label]="'Eliminar ' + block.label" [attr.title]="'Eliminar ' + block.label" (click)="removeBlock(block)">
                     <ion-icon name="trash-outline" slot="icon-only" aria-hidden="true"></ion-icon>
                   </ion-button>
                 </div>
@@ -625,42 +713,6 @@
                   <ion-badge color="dark">Inactivo</ion-badge>
                 }
               </div>
-              <button type="button" class="block-card__attendees-toggle" (click)="toggleAttendees(block)">
-                {{ isBlockAttendeesExpanded(block) ? 'Ocultar' : 'Ver quién reservó' }} · {{ nextOccurrenceLabel(block) }}
-              </button>
-              @if (isBlockAttendeesExpanded(block)) {
-                <div class="attendees-list">
-                  @if (isBlockAttendeesLoading(block)) {
-                    <ion-spinner name="crescent"></ion-spinner>
-                  } @else {
-                    @for (attendee of attendeesFor(block); track attendee.id) {
-                      <span class="attendees-list__item" [title]="attendee.email">
-                        @if (attendee.photoUrl) {
-                          <img [src]="attendee.photoUrl" alt="" class="attendees-list__avatar" loading="lazy" />
-                        } @else {
-                          <span class="attendees-list__avatar attendees-list__avatar--placeholder">
-                            {{ attendee.name.charAt(0) }}
-                          </span>
-                        }
-                        {{ attendee.name }}
-                        @if (canCancelOccurrence(blockOccurrenceDate(block))) {
-                          <ion-button
-                            fill="clear"
-                            size="small"
-                            color="danger"
-                            [attr.aria-label]="'Cancelar reserva de ' + attendee.name"
-                            (click)="cancelReservation(attendee, block.id, blockOccurrenceDate(block))"
-                          >
-                            <ion-icon name="close-circle-outline" slot="icon-only" aria-hidden="true"></ion-icon>
-                          </ion-button>
-                        }
-                      </span>
-                    } @empty {
-                      <span class="item-hint">Nadie reservado todavía.</span>
-                    }
-                  }
-                </div>
-              }
             </div>
           } @empty {
             <p class="item-hint">{{ emptyBlocksMessage() }}</p>
@@ -705,6 +757,7 @@
         <app-bloque-series-modal (confirmed)="confirmSeries($event)" (dismiss)="closeSeriesModal()" />
       </ng-template>
     </ion-modal>
+    }
   } @else if (section() === 'plans') {
     <ion-card>
       <ion-card-header class="card-header-row">
@@ -1632,87 +1685,6 @@
         </form>
       </ion-card-content>
     </ion-card>
-  } @else if (section() === 'history') {
-    <ion-card>
-      <ion-card-header data-tour="history">
-        <ion-card-title>
-          <ion-icon name="calendar-outline" aria-hidden="true"></ion-icon>
-          Historial
-        </ion-card-title>
-      </ion-card-header>
-      <ion-card-content>
-        <ion-item data-tour="history-search" lines="none" class="history-search-item">
-          <ion-icon name="search-outline" slot="start" aria-hidden="true"></ion-icon>
-          <ion-input
-            placeholder="Buscar socio por nombre..."
-            [value]="reservationSearchQuery()"
-            (ionInput)="onReservationSearchInput($any($event.detail).value ?? '')"
-          ></ion-input>
-        </ion-item>
-        @if (reservationSearchBlocks() === null) {
-        <app-history-board
-          [blocks]="blocks()"
-          [gymId]="attendanceGymId()"
-          [demo]="attendanceDemo()"
-          [refreshToken]="historyRefresh()"
-          (cancelRequested)="cancelReservation($event.attendee, $event.blockId, $event.date)"
-        />
-        } @else {
-        @if (reservationSearchLoading()) {
-          <div class="ion-text-center">
-            <ion-spinner name="crescent"></ion-spinner>
-          </div>
-        }
-        @if (reservationSearchTruncated()) {
-          <p class="item-hint" role="status">
-            El texto coincide con muchos socios: se muestran las reservas de los primeros 25 (por nombre).
-            Escribe más letras para afinar la búsqueda.
-          </p>
-        }
-        <div class="block-grid">
-          @for (entry of reservationSearchBlocks(); track entry.block.id + '_' + entry.date) {
-            <div class="block-card">
-              <div class="block-card__header">
-                <h3>
-                  <ion-icon [name]="categoryIcon(entry.block.category)" aria-hidden="true"></ion-icon>
-                  {{ entry.block.label }}
-                </h3>
-              </div>
-              <p class="block-card__time">{{ isoDate(entry.date) }} · {{ shortTime(entry.block.startTime) }}-{{ shortTime(entry.block.endTime) }}</p>
-              <div class="attendees-list">
-                @for (attendee of entry.attendees; track attendee.id) {
-                  <span class="attendees-list__item" [title]="attendee.email">
-                    @if (attendee.photoUrl) {
-                      <img [src]="attendee.photoUrl" alt="" class="attendees-list__avatar" loading="lazy" />
-                    } @else {
-                      <span class="attendees-list__avatar attendees-list__avatar--placeholder">
-                        {{ attendee.name.charAt(0) }}
-                      </span>
-                    }
-                    {{ attendee.name }}
-                    <ion-button
-                      fill="clear"
-                      size="small"
-                      color="danger"
-                      [attr.aria-label]="'Cancelar reserva de ' + attendee.name"
-                      (click)="cancelReservation(attendee, entry.block.id, entry.date)"
-                    >
-                      <ion-icon name="close-circle-outline" slot="icon-only" aria-hidden="true"></ion-icon>
-                    </ion-button>
-                  </span>
-                }
-              </div>
-            </div>
-          } @empty {
-            @if (!reservationSearchLoading()) {
-              <p class="item-hint">No encontramos reservas futuras para "{{ reservationSearchQuery() }}".</p>
-            }
-          }
-        </div>
-        }
-      </ion-card-content>
-      </ion-card>
-
       } @else if (section() === 'closures') {
     <ion-card>
       <ion-card-header class="card-header-row">

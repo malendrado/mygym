@@ -10,6 +10,7 @@ import {
   TvPairingStatus,
   TvSchedule,
   TvScreen,
+  TvPhoto,
   TvScreenClaimRequest,
 } from '../models/tv-screen.model';
 
@@ -33,6 +34,11 @@ export class TvScreenService {
     return this.http
       .get<TvSchedule>(`${this.publicBase}/screens/${screenToken}/schedule`)
       .pipe(map((sched) => this.withAttendeesGroupedByPlan(sched)));
+  }
+
+  // La galería va aparte del schedule (que se pide cada 25 s): pesa 1–3 MB y casi no cambia.
+  photos(screenToken: string): Observable<TvPhoto[]> {
+    return this.http.get<TvPhoto[]>(`${this.publicBase}/screens/${screenToken}/photos`);
   }
 
   // Agrupa a los asistentes de cada roster por plan (mismo orden que la leyenda global —
