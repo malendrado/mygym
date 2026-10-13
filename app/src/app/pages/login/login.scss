@@ -185,14 +185,116 @@
   border: none;
   padding: 0.4rem 0;
   margin: 0;
-  font-size: 0.85rem;
+  font-size: 1rem;
   color: var(--brand-text-dim);
   text-decoration: underline;
   cursor: pointer;
   min-height: 44px;
 
-  &:hover {
+  &:focus-visible {
+    outline: 3px solid var(--brand-accent);
+    outline-offset: 2px;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      color: var(--brand-text);
+    }
+  }
+}
+
+// Patron de acceso (login y alta): el metodo alternativo es un boton de verdad, no un enlace chico.
+// Separador "o" + boton con borde del mismo ancho que el de Google; "Olvidaste...?" a la derecha del
+// campo de contrasena, donde la gente lo busca.
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.9rem 0 0.7rem;
+  color: var(--brand-text-dim);
+  font-size: 0.95rem;
+
+  &::before,
+  &::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: color-mix(in srgb, var(--brand-text) 18%, transparent);
+  }
+}
+
+.auth-alt-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 1rem;
+  border-radius: 999px;
+  border: 1.5px solid color-mix(in srgb, var(--brand-text) 32%, transparent);
+  background: transparent;
+  color: var(--brand-text);
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    transform 160ms ease-out,
+    background-color 160ms ease-out;
+
+  ion-icon {
+    font-size: 1.2rem;
+  }
+
+  &:active {
+    transform: scale(0.97);
+  }
+
+  &:focus-visible {
+    outline: 3px solid var(--brand-accent);
+    outline-offset: 2px;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      background: color-mix(in srgb, var(--brand-text) 8%, transparent);
+    }
+  }
+}
+
+.auth-forgot {
+  align-self: flex-end;
+  min-height: 44px;
+  padding: 0 0.25rem;
+  background: none;
+  border: 0;
+  color: var(--brand-text);
+  font: inherit;
+  font-size: 1rem;
+  text-decoration: underline;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 3px solid var(--brand-accent);
+    outline-offset: 2px;
+  }
+}
+
+.auth-signup-prompt {
+  margin: 0.75rem 0 0;
+  text-align: center;
+  font-size: 1rem;
+  color: var(--brand-text-dim);
+
+  a {
+    display: inline-block;
+    min-height: 44px;
+    line-height: 44px;
+    margin-left: 0.25rem;
     color: var(--brand-text);
+    font-weight: 700;
+    text-decoration: underline;
   }
 }
 

@@ -21,6 +21,8 @@ import {
   eyeOutline,
   informationCircleOutline,
   arrowForwardOutline,
+  logoGoogle,
+  mailOutline,
   logoInstagram,
   logoWhatsapp,
   sparklesOutline,
@@ -34,6 +36,8 @@ import { toLogoImgSrc } from '../../core/utils/logo-src';
 
 addIcons({
   'arrow-forward-outline': arrowForwardOutline,
+  'logo-google': logoGoogle,
+  'mail-outline': mailOutline,
   'logo-instagram': logoInstagram,
   'logo-whatsapp': logoWhatsapp,
   'information-circle-outline': informationCircleOutline,

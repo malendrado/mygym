@@ -178,8 +178,10 @@
                 <asl-google-signin-button type="standard" size="large" text="signin_with" shape="pill" theme="outline" logo_alignment="left" />
               </div>
             </div>
-            <button type="button" class="password-auth__switch" (click)="setJoinMode('password')">
-              o regístrate con tu email
+            <div class="auth-divider" role="separator"><span>o</span></div>
+            <button type="button" class="auth-alt-btn" (click)="setJoinMode('password')">
+              <ion-icon name="mail-outline" aria-hidden="true"></ion-icon>
+              Registrarme con email
             </button>
           } @else if (registerSent()) {
             <ion-text color="medium">
@@ -217,16 +219,18 @@
                 @if (registerSubmitting()) {
                   <ion-spinner name="crescent" slot="start"></ion-spinner>
                 }
-                Unirme o recuperar mi cuenta
+                Crear mi cuenta
               </ion-button>
             </form>
-            <p class="password-auth__hint">Si ya tienes cuenta, te enviamos el correo para recuperar tu contraseña.</p>
-            <div class="password-auth__links">
-              @if (gym()!.googleLoginEnabled) {
-                <button type="button" class="password-auth__switch" (click)="setJoinMode('google')">o únete con Google</button>
-              }
-              <a class="password-auth__switch" routerLink="/login">¿Ya tienes cuenta? Ingresa</a>
-            </div>
+            <p class="password-auth__hint">Si ya tienes cuenta, te enviaremos un correo para recuperar tu contraseña.</p>
+            @if (gym()!.googleLoginEnabled) {
+              <div class="auth-divider" role="separator"><span>o</span></div>
+              <button type="button" class="auth-alt-btn" (click)="setJoinMode('google')">
+                <ion-icon name="logo-google" aria-hidden="true"></ion-icon>
+                Unirme con Google
+              </button>
+            }
+            <p class="auth-signup-prompt">¿Ya tienes cuenta? <a routerLink="/login">Ingresa</a></p>
           }
         } @else if (status() === 'joining') {
           <div class="join-status">

@@ -3,11 +3,17 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { IonButton, IonContent, IonHeader, IonIcon, IonInput, IonItem, IonSpinner, IonTitle, IonToolbar } from '@ionic/angular';
 import { GoogleSigninButtonDirective, SocialAuthService } from '@abacritt/angularx-social-login';
 import { addIcons } from 'ionicons';
-import { alertCircleOutline, eyeOffOutline, eyeOutline } from 'ionicons/icons';
+import { alertCircleOutline, eyeOffOutline, eyeOutline, logoGoogle, mailOutline } from 'ionicons/icons';
 import { AuthService } from '../../core/services/auth.service';
 import { homeRouteForRole } from '../../core/models/auth.model';
 
-addIcons({ 'eye-outline': eyeOutline, 'eye-off-outline': eyeOffOutline, 'alert-circle-outline': alertCircleOutline });
+addIcons({
+  'eye-outline': eyeOutline,
+  'eye-off-outline': eyeOffOutline,
+  'alert-circle-outline': alertCircleOutline,
+  'logo-google': logoGoogle,
+  'mail-outline': mailOutline,
+});
 
 // Si el callback de Google Identity Services nunca llega (bloqueado por un
 // navegador embebido tipo WhatsApp/Instagram, o por restricciones de cookies

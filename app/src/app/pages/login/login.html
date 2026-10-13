@@ -47,8 +47,10 @@
           <asl-google-signin-button type="standard" size="large" text="signin_with" shape="pill" theme="outline" logo_alignment="left" />
         </div>
       </div>
-      <button type="button" class="password-auth__switch" (click)="setMode('password')">
-        o ingresa con tu email y contraseña
+      <div class="auth-divider" role="separator"><span>o</span></div>
+      <button type="button" class="auth-alt-btn" (click)="setMode('password')">
+        <ion-icon name="mail-outline" aria-hidden="true"></ion-icon>
+        Ingresar con email y contraseña
       </button>
     } @else if (mode() === 'password') {
       <p>Ingresa con el email y la contraseña de tu cuenta.</p>
@@ -83,6 +85,7 @@
             </ion-button>
           </ion-input>
         </ion-item>
+        <button type="button" class="auth-forgot" (click)="setMode('forgot')">¿Olvidaste tu contraseña?</button>
         <ion-button
           expand="block"
           type="submit"
@@ -93,8 +96,11 @@
           }
           Ingresar
         </ion-button>
-        <button type="button" class="password-auth__switch" (click)="setMode('forgot')">Crear o recuperar contraseña</button>
-        <button type="button" class="password-auth__switch" (click)="setMode('google')">o ingresa con Google</button>
+        <div class="auth-divider" role="separator"><span>o</span></div>
+        <button type="button" class="auth-alt-btn" (click)="setMode('google')">
+          <ion-icon name="logo-google" aria-hidden="true"></ion-icon>
+          Ingresar con Google
+        </button>
       </form>
     } @else {
       @if (forgotSent()) {
