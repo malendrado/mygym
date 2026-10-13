@@ -1,13 +1,14 @@
 <!-- Roster medido: TvFitDirective mide el espacio real y elige el tamaño de chip más grande en el
      que entran todos los asistentes; si ni el más chico alcanza, pagina (carrusel sincronizado con
      el reloj compartido) con un indicador de página en la última celda. Nunca corta ni esconde. -->
-<ng-template #roster let-attendees let-align="align">
+<ng-template #roster let-attendees let-align="align" let-minRem="minRem">
   <div
     class="tv-roster-fit"
     [tvFit]="attendees.length"
     [tvFitTiers]="rosterTiers"
     [tvFitAlign]="align ?? 'center'"
-    [tvFitPage]="pageTick()"
+    [tvFitPage]="rosterTick()"
+    [style.min-height.rem]="minRem ?? null"
     #fit="tvFit"
   >
     <!-- Clave por persona: al cambiar de página son otras personas → los chips se recrean y entran con fundido. -->
@@ -68,7 +69,23 @@
 <!-- Encabezado compacto de las tarjetas laterales: 2 líneas (hora + clase / instructor + cupo)
      en vez de 4 — la columna lateral es angosta y cada línea menos es alto para los asistentes.
      bookable = se puede reservar todavía (próxima) → ahí sí van "¡Últimos cupos!"/"Cupo lleno". -->
-<ng-template #miniHead let-occ let-bookable="bookable">
+<!-- Categoria/instructor + cupo de una clase lateral. Va en la fila de la etiqueta ("Clase anterior … 8/8") cuando la tarjeta
+     tiene una sola clase: esa linea extra de texto valia mas como una fila mas de asistentes. -->
+<ng-template #miniMeta let-occ let-bookable="bookable">
+  <span class="tv-mini-card__sub">
+    {{ occ.category }}{{ occ.category && occ.instructorName ? ' · ' : '' }}{{ occ.instructorName }}
+  </span>
+  <span class="tv-mini-card__capacity">
+    {{ capacityLabel(occ) }}
+    @if (isFull(occ)) {
+      <span class="tv-tag">Cupo lleno</span>
+    } @else if (bookable && isLowCapacity(occ)) {
+      <span class="tv-tag tv-tag--low">¡Últimos cupos!</span>
+    }
+  </span>
+</ng-template>
+
+<ng-template #miniHead let-occ let-bookable="bookable" let-inlineMeta="inlineMeta">
   <div class="tv-mini-card__head">
     <div class="tv-mini-card__line">
       <span class="tv-mini-card__time">{{ timeRangeLabel(occ) }}</span>
@@ -77,19 +94,11 @@
         <span class="tv-mini-card__day">{{ dayLabel(occ) }}</span>
       }
     </div>
-    <div class="tv-mini-card__line tv-mini-card__line--meta">
-      <span class="tv-mini-card__sub">
-        {{ occ.category }}{{ occ.category && occ.instructorName ? ' · ' : '' }}{{ occ.instructorName }}
-      </span>
-      <span class="tv-mini-card__capacity">
-        {{ capacityLabel(occ) }}
-        @if (isFull(occ)) {
-          <span class="tv-tag">Cupo lleno</span>
-        } @else if (bookable && isLowCapacity(occ)) {
-          <span class="tv-tag tv-tag--low">¡Últimos cupos!</span>
-        }
-      </span>
-    </div>
+    @if (!inlineMeta) {
+      <div class="tv-mini-card__line tv-mini-card__line--meta">
+        <ng-container [ngTemplateOutlet]="miniMeta" [ngTemplateOutletContext]="{ $implicit: occ, bookable: bookable }"></ng-container>
+      </div>
+    }
   </div>
 </ng-template>
 
@@ -308,33 +317,42 @@
                   <aside class="tv-mini-stack">
                     @if (previousBlock(); as occ) {
                       <article class="tv-mini-card" [style.flex-grow]="previousWeight(occ)">
-                        <p class="tv-mini-card__label">Clase anterior</p>
+                        <div class="tv-mini-card__labelrow">
+                          <p class="tv-mini-card__label">Clase anterior</p>
+                          <ng-container [ngTemplateOutlet]="miniMeta" [ngTemplateOutletContext]="{ $implicit: occ, bookable: false }"></ng-container>
+                        </div>
                         <ng-container
                           [ngTemplateOutlet]="miniHead"
-                          [ngTemplateOutletContext]="{ $implicit: occ, bookable: false }"
+                          [ngTemplateOutletContext]="{ $implicit: occ, bookable: false, inlineMeta: true }"
                         ></ng-container>
                         @if (occ.attendees.length > 0) {
-                          <ng-container [ngTemplateOutlet]="roster" [ngTemplateOutletContext]="{ $implicit: occ.attendees }"></ng-container>
+                          <ng-container [ngTemplateOutlet]="roster" [ngTemplateOutletContext]="{ $implicit: occ.attendees, minRem: sideRosterMinRem(occ.attendees.length) }"></ng-container>
                         }
                       </article>
                     }
 
                     @if (sidebarNextBlocks().length > 0) {
                       <article class="tv-mini-card" [style.flex-grow]="sidebarNextWeight()">
-                        <p class="tv-mini-card__label">
-                          {{ sidebarNextCount() > 1 ? 'Próximas clases' : 'Próxima clase' }}
-                          @if (sidebarNextCount() > 1) {
-                            <ng-container [ngTemplateOutlet]="pager" [ngTemplateOutletContext]="{ $implicit: sidebarNextCount(), index: sidebarNextIndex() }"></ng-container>
+                        @let single = sidebarNextCount() === 1 && sidebarNextBlocks().length === 1;
+                        <div class="tv-mini-card__labelrow">
+                          <p class="tv-mini-card__label">
+                            {{ sidebarNextCount() > 1 ? 'Próximas clases' : 'Próxima clase' }}
+                            @if (sidebarNextCount() > 1) {
+                              <ng-container [ngTemplateOutlet]="pager" [ngTemplateOutletContext]="{ $implicit: sidebarNextCount(), index: sidebarNextIndex() }"></ng-container>
+                            }
+                          </p>
+                          @if (single) {
+                            <ng-container [ngTemplateOutlet]="miniMeta" [ngTemplateOutletContext]="{ $implicit: sidebarNextBlocks()[0], bookable: true }"></ng-container>
                           }
-                        </p>
+                        </div>
                         @for (occ of sidebarNextBlocks(); track occ.blockId) {
                           <div class="tv-mini-entry" [style.flex-grow]="occurrenceWeight(occ)">
                             <ng-container
                               [ngTemplateOutlet]="miniHead"
-                              [ngTemplateOutletContext]="{ $implicit: occ, bookable: true }"
+                              [ngTemplateOutletContext]="{ $implicit: occ, bookable: true, inlineMeta: single }"
                             ></ng-container>
                             @if (occ.attendees.length > 0) {
-                              <ng-container [ngTemplateOutlet]="roster" [ngTemplateOutletContext]="{ $implicit: occ.attendees }"></ng-container>
+                              <ng-container [ngTemplateOutlet]="roster" [ngTemplateOutletContext]="{ $implicit: occ.attendees, minRem: sideRosterMinRem(occ.attendees.length) }"></ng-container>
                             } @else {
                               <p class="tv-roster-empty tv-roster-empty--small">Todavía nadie se anotó</p>
                             }

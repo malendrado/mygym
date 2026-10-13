@@ -3,5 +3,5 @@
     {{ expanded() ? full : short }}
   </button>
 } @else {
-  <span class="version" [class.version--tv]="variant === 'tv'">{{ full }}</span>
+  <span class="version" [class.version--tv]="variant === 'tv'">{{ full }}@if (variant === 'tv') { · {{ resolution() }} }</span>
 }

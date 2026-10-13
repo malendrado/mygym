@@ -60,6 +60,9 @@ const PLAN_PALETTE = ['#f97316', '#3b82f6', '#06b6d4', '#ec4899', '#eab308', '#a
 // ~10 s: en una TV nadie puede apretar "siguiente", tiene que alcanzar a buscarse en la lista.
 const HERO_PAGE_SIZE = 2;
 const CAROUSEL_PAGE_MS = 10_000;
+// Las paginas de asistentes (lista que no entra completa) rotan mas rapido que el resto del carrusel: leer una pagina de
+// nombres toma 2-3 s, y con 8 anotados en una tarjeta lateral a 10 s por pagina el ultimo tardaba mas de un minuto.
+const ROSTER_PAGE_MS = 5_000;
 
 // Tamaños de chip de asistente, de mayor a menor (rem). TvFitDirective mide el espacio real y
 // elige el más grande en el que entran todos; si ni el chico alcanza, "+N". Los 3 primeros
@@ -211,6 +214,7 @@ export class TvScreenPage implements OnDestroy {
   // ritmo la pantalla se vería nerviosa (skill ui-ux-pro-max / buenas prácticas de signage).
   // Derivado del reloj → no necesita timer propio.
   protected readonly pageTick = computed(() => Math.floor(this.now().getTime() / CAROUSEL_PAGE_MS));
+  protected readonly rosterTick = computed(() => Math.floor(this.now().getTime() / ROSTER_PAGE_MS));
 
   // Sin clase en curso: "próxima clase" pasa a ocupar el lugar protagónico — mismo trato
   // completo que "ahora", es la información más útil en ese momento porque todavía se puede
@@ -704,6 +708,12 @@ export class TvScreenPage implements OnDestroy {
 
   private agendaNeedRem(items: number): number {
     return items === 0 ? 0 : items * 2.3 + (items - 1) * 0.35;
+  }
+
+  // Piso de alto del roster de una tarjeta lateral: con 3 o mas anotados, dos filas de chips chicos (en 1280x720 entran las dos
+  // en "Clase anterior" y "Proxima clase"); con 1-2 anotados alcanza una fila.
+  protected sideRosterMinRem(attendees: number): number {
+    return attendees > 2 ? 2 * SIDEBAR_ROSTER_MIN_REM + 0.5 : SIDEBAR_ROSTER_MIN_REM;
   }
 
   protected occurrenceWeight(occurrence: TvBlockOccurrence): number {

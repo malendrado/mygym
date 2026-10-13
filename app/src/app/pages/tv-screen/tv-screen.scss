@@ -122,8 +122,10 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: clamp(1rem, 2.5vw, 2rem);
-  padding: clamp(1.5rem, 3vw, 3rem) clamp(2rem, 4vw, 4.5rem);
+  gap: clamp(0.6rem, 1.2vw, 1.2rem);
+  // Margenes exteriores mínimos (pedido del usuario, 2026-10-13: en la TV y el PC sobraba ~4 % de pantalla por lado). Abajo el margen es mas corto que arriba: la version/resolucion flota (position: fixed) y no reserva espacio, asi que ese
+  // hueco era puro desperdicio (foto de la TV real, 2026-10-13). Se deja un respiro minimo por el overscan de las TVs.
+  padding: clamp(0.8rem, 1.5vw, 1.5rem) clamp(1rem, 1.8vw, 2rem) clamp(0.7rem, 1.2vw, 1.2rem);
   // Feedback real del usuario: incluso después de un primer intento (radial sutil desde
   // arriba), seguía viéndose "muy oscuro" — ese wash era demasiado tímido. Acá van DOS capas:
   // una pareja de fondo a fondo (sube el piso general de brillo, no solo cerca del header) +
@@ -1019,6 +1021,28 @@
   letter-spacing: 0.1em;
   font-size: max(11px, 0.85rem);
   opacity: 0.65;
+}
+
+// Fila de la etiqueta: "CLASE ANTERIOR · Boxeo ........ 8/8 Cupo lleno". La etiqueta y el cupo no se achican; la categoria
+// cede con puntos suspensivos.
+.tv-mini-card__labelrow {
+  flex: 0 0 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+
+  .tv-mini-card__label {
+    white-space: nowrap;
+  }
+
+  .tv-mini-card__sub {
+    flex: 1 1 0;
+  }
+
+  .tv-mini-card__capacity {
+    margin-left: auto;
+  }
 }
 
 .tv-mini-card__label--first {
