@@ -111,13 +111,17 @@
   // recién aparece cuando carga su script (~1-2 s). Medido: primero un puntito brillante de 10x10 y
   // luego un salto a 225x50. Ahora el marco reserva su tamaño final desde el inicio y, mientras no
   // hay iframe, muestra solo un esqueleto neutro (sin borde de color ni brillo) que se funde al botón.
-  min-width: 225px;
   min-height: 50px;
   box-sizing: border-box;
   position: relative;
   transition: border-color 0.2s ease-out, box-shadow 0.2s ease-out;
 
+  // El ancho mínimo (225px = el botón con el texto largo) solo vale mientras se carga: ya con el botón
+  // puesto, el marco se ajusta a su ancho real. Google cambia el texto según el idioma/cuenta de cada
+  // persona ("Iniciar sesión con Google" / "Acceder con Google"...) y con un mínimo fijo el aro quedaba
+  // más ancho que el botón blanco en los celulares con el texto corto.
   &:not(:has(iframe)) {
+    min-width: 225px;
     border-color: transparent;
     box-shadow: none;
 
