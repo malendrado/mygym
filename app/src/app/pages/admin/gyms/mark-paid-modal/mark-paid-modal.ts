@@ -1,4 +1,5 @@
-import { Component, EventEmitter, Input, Output, computed, signal } from '@angular/core';
+import { Component, DestroyRef, EventEmitter, Input, Output, computed, effect, inject, signal, untracked } from '@angular/core';
+import { Observable } from 'rxjs';
 import {
   IonButton,
   IonButtons,
@@ -16,6 +17,10 @@ import {
 import { addIcons } from 'ionicons';
 import { cardOutline, checkmarkCircle } from 'ionicons/icons';
 import { CHILE_BANKS, GymPlan } from '../../../../core/models/gym.model';
+import { PaymentPreview } from '../../../../core/models/member.model';
+import { santiagoNow } from '../../../../core/utils/attendance';
+import { errorText } from '../../../../core/utils/error-text';
+import { minStartDate, periodEndOf, periodText, remainingText, startDateShortcuts } from '../../../../core/utils/payment-dates';
 
 addIcons({ 'card-outline': cardOutline, 'checkmark-circle': checkmarkCircle });
 
@@ -57,7 +62,11 @@ export class MarkPaidModal {
   }
 
   // planId + banco con el que el socio transfirió (queda guardado para informes, ver ManualPayment).
-  @Output() confirmed = new EventEmitter<{ planId: number; bank: string }>();
+  // startDate null = hoy (el servidor arranca el plan ahora, como siempre); usedClasses 0 = ninguna.
+  @Output() confirmed = new EventEmitter<{ planId: number; bank: string; startDate: string | null; usedClasses: number }>();
+
+  /** Pide al servidor la vista previa (período y clases que le quedarían) — la pasa el panel con su propio servicio. */
+  @Input() previewLoader: ((planId: number, startDate: string, usedClasses: number) => Observable<PaymentPreview>) | null = null;
   @Output() dismiss = new EventEmitter<void>();
 
   private readonly _plans = signal<GymPlan[]>([]);
@@ -65,6 +74,86 @@ export class MarkPaidModal {
 
   private readonly _selectedPlanId = signal<number | null>(null);
   protected readonly selectedPlanId = this._selectedPlanId.asReadonly();
+
+  private readonly destroyRef = inject(DestroyRef);
+
+  // ---- fecha de inicio y clases ya usadas ----
+  protected readonly today = santiagoNow().date;
+  protected readonly minDate = minStartDate(this.today);
+  protected readonly shortcuts = startDateShortcuts(this.today);
+  protected readonly startDate = signal(this.today);
+  protected readonly usedClasses = signal(0);
+  protected readonly preview = signal<PaymentPreview | null>(null);
+  protected readonly previewError = signal<string | null>(null);
+  protected readonly previewing = signal(false);
+
+  private readonly selectedPlan = computed(() => this._plans().find((p) => p.id === this._selectedPlanId()) ?? null);
+  // Los planes libres no tienen cupo: no hay "clases usadas".
+  protected readonly quota = computed(() => this.selectedPlan()?.monthlyClasses ?? null);
+  // El período se muestra siempre, calculado acá; lo que pone el servidor (clases que le quedan) es un extra: si la
+  // vista previa falla por algo ajeno al usuario, el resumen sigue mostrando las fechas y no se bloquea nada.
+  protected readonly periodLine = computed(() =>
+    periodText({ periodStart: this.startDate(), periodEnd: periodEndOf(this.startDate()) }),
+  );
+  protected readonly remainingLine = computed(() => (this.preview() ? remainingText(this.preview()!) : null));
+  protected readonly outOfClasses = computed(() => {
+    const p = this.preview();
+    return !!p && p.remaining !== null && p.remaining <= 0;
+  });
+
+  private previewTimer?: ReturnType<typeof setTimeout>;
+
+  constructor() {
+    // Cada cambio de plan, fecha o clases pide la vista previa (con debounce, y la respuesta vieja se descarta).
+    effect(() => {
+      const planId = this._selectedPlanId();
+      const start = this.startDate();
+      const used = this.usedClasses();
+      untracked(() => this.schedulePreview(planId, start, used));
+    });
+    this.destroyRef.onDestroy(() => clearTimeout(this.previewTimer));
+  }
+
+  private schedulePreview(planId: number | null, start: string, used: number): void {
+    clearTimeout(this.previewTimer);
+    if (planId === null || !this.previewLoader) {
+      this.preview.set(null);
+      return;
+    }
+    this.previewing.set(true);
+    this.previewTimer = setTimeout(() => {
+      this.previewLoader!(planId, start, this.quota() === null ? 0 : used).subscribe({
+        next: (preview) => {
+          // Si mientras tanto cambió algo, esta respuesta ya no corresponde.
+          if (planId === this._selectedPlanId() && start === this.startDate() && used === this.usedClasses()) {
+            this.preview.set(preview);
+            this.previewError.set(null);
+            this.previewing.set(false);
+          }
+        },
+        error: (err: { status?: number; message?: string }) => {
+          this.preview.set(null);
+          this.previewing.set(false);
+          // Solo un rechazo por las reglas (400/409/422: fecha futura, clases de más…) es un error del usuario y
+          // bloquea; cualquier otro fallo no es asunto suyo — el servidor igual valida al confirmar.
+          const actionable = err?.status === 400 || err?.status === 409 || err?.status === 422;
+          this.previewError.set(actionable ? errorText(err, 'La fecha o las clases no son válidas.') : null);
+        },
+      });
+    }, 300);
+  }
+
+  protected setStartDate(value: string): void {
+    // Un input de fecha vacío o fuera de rango no se manda: queda la última fecha válida.
+    if (value && value >= this.minDate && value <= this.today) {
+      this.startDate.set(value);
+    }
+  }
+
+  protected stepUsed(delta: number): void {
+    const max = this.quota() ?? 0;
+    this.usedClasses.update((n) => Math.min(Math.max(n + delta, 0), max));
+  }
 
   private readonly _saving = signal(false);
   protected readonly isSaving = this._saving.asReadonly();
@@ -80,8 +169,9 @@ export class MarkPaidModal {
   );
 
   // Sin banco no se puede confirmar (decisión del usuario: el dato es obligatorio para informes).
+  // Tampoco se confirma con una fecha o clases que el servidor rechazó (previewError trae su motivo).
   protected readonly canConfirm = computed(
-    () => this._selectedPlanId() !== null && this.resolvedBank() !== '' && !this._saving(),
+    () => this._selectedPlanId() !== null && this.resolvedBank() !== '' && !this._saving() && !this.previewError(),
   );
 
   // Mismo texto/formato exacto que join.ts (página pública de alta) — el usuario pidió que
@@ -97,6 +187,9 @@ export class MarkPaidModal {
 
   protected selectPlan(plan: GymPlan): void {
     this._selectedPlanId.set(plan.id);
+    // Al cambiar de plan, las clases ya usadas no pueden pasar del cupo nuevo (ni existir en un plan libre).
+    const max = plan.monthlyClasses ?? 0;
+    this.usedClasses.update((n) => Math.min(n, max));
   }
 
   protected confirm(): void {
@@ -105,7 +198,12 @@ export class MarkPaidModal {
     if (planId === null || bank === '') {
       return;
     }
-    this.confirmed.emit({ planId, bank });
+    this.confirmed.emit({
+      planId,
+      bank,
+      startDate: this.startDate() === this.today ? null : this.startDate(),
+      usedClasses: this.quota() === null ? 0 : this.usedClasses(),
+    });
   }
 
   protected cancel(): void {

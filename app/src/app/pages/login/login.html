@@ -93,14 +93,15 @@
           }
           Ingresar
         </ion-button>
-        <button type="button" class="password-auth__switch" (click)="setMode('forgot')">¿Olvidaste tu contraseña?</button>
+        <button type="button" class="password-auth__switch" (click)="setMode('forgot')">Crear o recuperar contraseña</button>
         <button type="button" class="password-auth__switch" (click)="setMode('google')">o ingresa con Google</button>
       </form>
     } @else {
       @if (forgotSent()) {
-        <p>Si el email que escribiste tiene una cuenta, te enviamos un correo para continuar — revisa tu bandeja de entrada.</p>
+        <p>Si el email que escribiste tiene una cuenta, te enviamos un correo para continuar — revisa tu bandeja de entrada (y el spam).</p>
+        <p class="password-auth__hint">¿No llega? Es posible que aún no tengas cuenta: pídele a tu gimnasio su link de registro.</p>
       } @else {
-        <p>Escribe tu email y te mandamos un link para crear una contraseña nueva.</p>
+        <p>Escribe tu email y te mandamos un link para crear o cambiar tu contraseña.</p>
         <form class="password-auth" (submit)="$event.preventDefault(); submitForgotPassword()">
           <ion-item lines="full">
             <ion-input
@@ -120,6 +121,7 @@
           </ion-button>
         </form>
       }
+      <p class="password-auth__hint">Si aún no tienes cuenta, pídele a tu gimnasio su link de registro.</p>
       <button type="button" class="password-auth__switch" (click)="setMode('password')">volver a ingresar</button>
     }
 
@@ -127,6 +129,9 @@
       <div class="login-error" role="alert">
         <ion-icon name="alert-circle-outline" aria-hidden="true"></ion-icon>
         <p>{{ errorMessage() }}</p>
+        @if (mode() === 'password') {
+          <p class="login-error__hint">¿Aún no tienes cuenta? Pídele a tu gimnasio su link de registro.</p>
+        }
       </div>
     }
   </div>

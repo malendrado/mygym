@@ -32,6 +32,8 @@ export interface Gym {
   waitlistHeadStartMinutes: number;
   /** Si los socios ven "Ver quién va" en /member (la TV del gimnasio nunca se ve afectada). */
   showAttendeesToMembers: boolean;
+  /** Socios con clases fijas: solo reservan y cancelan en la semana en curso (lunes a domingo). */
+  fixedMembersCurrentWeekOnly: boolean;
   /** 'DARK' (acento libre) o 'LIGHT' (limitado a las 4 paletas curadas — ver LIGHT_PALETTES). */
   themeMode: 'DARK' | 'LIGHT';
   bankName: string | null;
@@ -74,6 +76,8 @@ export interface PublicGym {
   cancellationWindowMinutes: number;
   /** Si es false, /member oculta el botón "Ver quién va" (y el backend rechaza la consulta). */
   showAttendeesToMembers: boolean;
+  /** Socios con clases fijas solo reservan/cancelan en la semana en curso: /member deshabilita las semanas siguientes. */
+  fixedMembersCurrentWeekOnly: boolean;
   themeMode: 'DARK' | 'LIGHT';
   /** true si el gym tiene su propia cuenta Flow configurada — si es false, /member oculta
    *  "Pagar con Flow" y solo ofrece transferencia bancaria. */
@@ -110,6 +114,7 @@ export interface BookingRulesRequest {
   cancellationWindowMinutes: number;
   waitlistHeadStartMinutes: number;
   showAttendeesToMembers: boolean;
+  fixedMembersCurrentWeekOnly: boolean;
 }
 
 /** PUT .../bank-transfer (gym-admin y super-admin comparten el mismo shape). */

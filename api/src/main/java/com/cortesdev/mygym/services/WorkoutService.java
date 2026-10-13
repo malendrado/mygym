@@ -1,5 +1,6 @@
 package com.cortesdev.mygym.services;
 
+import com.cortesdev.mygym.models.AppUser;
 import com.cortesdev.mygym.models.MemberWorkoutLog;
 import com.cortesdev.mygym.models.PlanDay;
 import com.cortesdev.mygym.models.Reservation;
@@ -130,8 +131,9 @@ public class WorkoutService {
             }
         }
         List<PlanDay> days = planDayRepository.findAllById(dayIds);
+        Map<Long, String> staffNames = staffNamesOf(logs);
         return logs.stream()
-                .map(l -> toLogResponse(l, days, classDateByReservation.get(l.getReservationId())))
+                .map(l -> toLogResponse(l, days, classDateByReservation.get(l.getReservationId()), staffNames))
                 .toList();
     }
 
@@ -151,15 +153,39 @@ public class WorkoutService {
         }
         List<PlanDay> days = planDayRepository.findByWorkoutPlanIdOrderByOrderIndexAsc(plan.getId());
         Reservation pending = findPendingReservation(memberId);
-        if (pending == null) {
-            return new PendingWorkoutResponse("NO_PENDING", null, null, toResponse(plan, days), null);
-        }
         PlanDay suggested = getNextPlanDay(days);
+        if (pending == null) {
+            // Sin clase por anotar igual se informa qué día le toca: la app del socio lo muestra en su reserva de
+            // hoy ("Hoy te toca: Día 3") antes de que entrene.
+            return new PendingWorkoutResponse("NO_PENDING", null, null, toResponse(plan, days), suggested.getId());
+        }
         return new PendingWorkoutResponse(
                 "READY", pending.getId(), pending.getClassDate(), toResponse(plan, days), suggested.getId());
     }
 
     public MemberWorkoutLogResponse createLog(Long memberId, Long reservationId, WorkoutLogSaveRequest request) {
+        return createLogInternal(memberId, reservationId, request, null);
+    }
+
+    /** El profesor/admin anota la rutina POR el alumno durante la clase (pedido del usuario 2026-10-12): misma
+     *  validación que el socio (reserva con asistencia, una sola por reserva, el día pertenece al plan) y queda
+     *  guardado quién lo anotó. Si el alumno no escaneó el QR, primero hay que marcarle la asistencia. */
+    public MemberWorkoutLogResponse createLogAsStaff(
+            Long gymId, Long memberId, Long reservationId, WorkoutLogSaveRequest request, Long staffUserId) {
+        requireMember(gymId, memberId);
+        return createLogInternal(memberId, reservationId, request, staffUserId);
+    }
+
+    /** Corrige un registro (del socio o de otro profesor) y deja a quien lo corrigió como autor. */
+    public MemberWorkoutLogResponse updateLogAsStaff(
+            Long gymId, Long memberId, Long logId, WorkoutLogSaveRequest request, Long staffUserId) {
+        requireMember(gymId, memberId);
+        MemberWorkoutLogResponse updated = updateLogInternal(memberId, logId, request, staffUserId);
+        return updated;
+    }
+
+    private MemberWorkoutLogResponse createLogInternal(
+            Long memberId, Long reservationId, WorkoutLogSaveRequest request, Long loggedByUserId) {
         Reservation reservation = reservationRepository
                 .findByIdAndMemberId(reservationId, memberId)
                 .orElseThrow(() -> new ReservationNotFoundException(reservationId));
@@ -182,6 +208,7 @@ public class WorkoutService {
                 .planDayId(confirmed != null ? confirmed.getId() : null)
                 .freeTextLabel(confirmed == null ? request.freeTextLabel() : null)
                 .exercisesLog(request.exercises())
+                .loggedByUserId(loggedByUserId)
                 .build());
         return toLogResponse(log, days, reservation.getClassDate());
     }
@@ -190,6 +217,11 @@ public class WorkoutService {
      *  tiempo. Valida el día elegido contra los días del plan AL QUE PERTENECE ESE LOG (el de
      *  suggestedPlanDayId), no contra el plan activo actual: puede ya no ser el mismo. */
     public MemberWorkoutLogResponse updateLog(Long memberId, Long logId, WorkoutLogSaveRequest request) {
+        return updateLogInternal(memberId, logId, request, null);
+    }
+
+    private MemberWorkoutLogResponse updateLogInternal(
+            Long memberId, Long logId, WorkoutLogSaveRequest request, Long staffUserId) {
         MemberWorkoutLog log =
                 memberWorkoutLogRepository.findById(logId).orElseThrow(() -> new WorkoutLogNotFoundException(logId));
         Reservation reservation = reservationRepository
@@ -205,6 +237,8 @@ public class WorkoutService {
         log.setPlanDayId(confirmed != null ? confirmed.getId() : null);
         log.setFreeTextLabel(confirmed == null ? request.freeTextLabel() : null);
         log.setExercisesLog(request.exercises());
+        // Quien corrige queda como autor: si lo toca el socio de nuevo, vuelve a ser suyo (null).
+        log.setLoggedByUserId(staffUserId);
         memberWorkoutLogRepository.save(log);
         return toLogResponse(log, days, reservation.getClassDate());
     }
@@ -246,10 +280,23 @@ public class WorkoutService {
      *  registrar tarde una clase vieja). */
     private PlanDay getNextPlanDay(List<PlanDay> days) {
         MemberWorkoutLog last = latestLog(memberWorkoutLogRepository.findBySuggestedPlanDayIdIn(planDayIds(days)));
+        return nextDayAfter(days, last);
+    }
+
+    /** La regla del ciclo, sin tocar la base: la comparte el tablero "En clase" (ClassBoardService) para
+     *  calcular el día de muchos alumnos con sus datos ya cargados en lote. `last` = su último registro
+     *  de ESTE plan (null si no tiene ninguno). */
+    static PlanDay nextDayAfter(List<PlanDay> days, MemberWorkoutLog last) {
         if (last == null || last.getPlanDayId() == null) {
             return days.get(0);
         }
-        int lastIndex = indexOf(days, last.getPlanDayId());
+        int lastIndex = -1;
+        for (int i = 0; i < days.size(); i++) {
+            if (days.get(i).getId().equals(last.getPlanDayId())) {
+                lastIndex = i;
+                break;
+            }
+        }
         int nextIndex = lastIndex < 0 ? 0 : (lastIndex + 1) % days.size();
         return days.get(nextIndex);
     }
@@ -306,7 +353,25 @@ public class WorkoutService {
         return toLogResponse(log, days, classDate);
     }
 
+    /** Nombres de quienes anotaron, para una lista de registros, en UNA consulta. */
+    Map<Long, String> staffNamesOf(java.util.Collection<MemberWorkoutLog> logs) {
+        Set<Long> ids = logs.stream()
+                .map(MemberWorkoutLog::getLoggedByUserId)
+                .filter(java.util.Objects::nonNull)
+                .collect(Collectors.toSet());
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        return appUserRepository.findAllById(ids).stream()
+                .collect(Collectors.toMap(AppUser::getId, AppUser::getName, (a, b) -> a));
+    }
+
     private MemberWorkoutLogResponse toLogResponse(MemberWorkoutLog log, List<PlanDay> days, LocalDate classDate) {
+        return toLogResponse(log, days, classDate, staffNamesOf(List.of(log)));
+    }
+
+    MemberWorkoutLogResponse toLogResponse(
+            MemberWorkoutLog log, List<PlanDay> days, LocalDate classDate, Map<Long, String> staffNames) {
         Map<Long, String> titleById = days.stream().collect(Collectors.toMap(PlanDay::getId, PlanDay::getTitle));
         return new MemberWorkoutLogResponse(
                 log.getId(),
@@ -318,6 +383,7 @@ public class WorkoutService {
                 log.getPlanDayId() != null ? titleById.get(log.getPlanDayId()) : null,
                 log.getFreeTextLabel(),
                 log.getExercisesLog(),
-                log.getCreatedAt());
+                log.getCreatedAt(),
+                log.getLoggedByUserId() == null ? null : staffNames.get(log.getLoggedByUserId()));
     }
 }

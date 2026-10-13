@@ -1,3 +1,4 @@
+import { formatIsoDate } from '../../../../core/utils/date-format';
 import { Component, EventEmitter, Input, Output, computed, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import {
@@ -82,6 +83,10 @@ export class EditClosureModal {
 
   private readonly _closure = signal<GymClosure | null>(null);
   protected readonly closureValue = this._closure.asReadonly();
+
+  protected isoDate(iso: string): string {
+    return formatIsoDate(iso);
+  }
 
   protected readonly scopeLabel = computed(() => {
     const c = this._closure();

@@ -6,7 +6,7 @@ import java.time.Period;
 import java.time.ZoneId;
 
 /**
- * Reglas de los datos de contacto del socio (RUT, dirección, fecha de nacimiento, celular) en un
+ * Reglas de los datos de contacto del socio (RUT, dirección, fecha de nacimiento, celular y contacto de emergencia) en un
  * solo lugar: las usan el propio socio, el admin y el Excel de importación. Réplica del frontend
  * (app/src/app/core/utils/member-profile.ts) — mismo criterio en ambas capas, pero el servidor
  * nunca confía en lo que validó el navegador.
@@ -18,6 +18,8 @@ public final class MemberProfileRules {
     static final int MAX_AGE_YEARS = 100;
     static final int MIN_ADDRESS_LENGTH = 5;
     static final int MAX_ADDRESS_LENGTH = 200;
+    static final int MIN_EMERGENCY_NAME_LENGTH = 2;
+    static final int MAX_EMERGENCY_NAME_LENGTH = 100;
 
     private MemberProfileRules() {}
 
@@ -51,6 +53,29 @@ public final class MemberProfileRules {
             throw new InvalidMemberProfileException("Ingresa un celular chileno válido, por ejemplo +56 9 1234 5678.");
         }
         return "+56" + digits;
+    }
+
+    /** Nombre del contacto de emergencia: 2 a 100 letras, espacios colapsados. */
+    public static String normalizeEmergencyName(String value) {
+        String name = value == null ? "" : value.trim().replaceAll("\s+", " ");
+        if (name.length() < MIN_EMERGENCY_NAME_LENGTH) {
+            throw new InvalidMemberProfileException("Escribe el nombre de tu contacto de emergencia.");
+        }
+        if (name.length() > MAX_EMERGENCY_NAME_LENGTH) {
+            throw new InvalidMemberProfileException(
+                    "El nombre del contacto de emergencia es demasiado largo (máximo " + MAX_EMERGENCY_NAME_LENGTH + " letras).");
+        }
+        return name;
+    }
+
+    /** Celular del contacto de emergencia: mismo formato que el del socio ("+56912345678"). */
+    public static String normalizeEmergencyPhone(String value) {
+        try {
+            return normalizePhone(value);
+        } catch (InvalidMemberProfileException e) {
+            throw new InvalidMemberProfileException(
+                    "Ingresa un celular chileno válido para tu contacto de emergencia, por ejemplo +56 9 1234 5678.");
+        }
     }
 
     public static LocalDate validateBirthDate(LocalDate value) {

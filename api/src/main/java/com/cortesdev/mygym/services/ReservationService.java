@@ -106,6 +106,7 @@ public class ReservationService {
     private final GymClosureService gymClosureService;
     private final GymPlanRepository gymPlanRepository;
     private final MemberLifecycleEmailService memberLifecycleEmailService;
+    private final FixedWeekRule fixedWeekRule;
 
     @Transactional(readOnly = true)
     public List<GymBlockOccurrenceResponse> listOccurrences(Long gymId, Long memberId, LocalDate from, LocalDate to) {
@@ -302,7 +303,8 @@ public class ReservationService {
     private record OccurrenceGroupKey(Long gymBlockId, LocalDate classDate) {}
 
     public ReservationResponse book(Long gymId, Long memberId, ReservationCreateRequest request) {
-        int bookingWindowMinutes = findGymOrThrow(gymId).getBookingWindowMinutes();
+        Gym gym = findGymOrThrow(gymId);
+        int bookingWindowMinutes = gym.getBookingWindowMinutes();
         GymBlock block = gymBlockRepository
                 .findByIdAndGymId(request.gymBlockId(), gymId)
                 .filter(GymBlock::isActive)
@@ -315,6 +317,7 @@ public class ReservationService {
             throw new BookingWindowClosedException("Las reservas para esta clase cerraron "
                     + formatMinutes(bookingWindowMinutes) + " antes del inicio");
         }
+        fixedWeekRule.assertAllowed(gym, memberId, request.classDate(), "reservar");
 
         String closedReason = gymClosureService.closedReasonFor(gymId, block.getId(), request.classDate());
         if (closedReason != null) {
@@ -400,11 +403,13 @@ public class ReservationService {
         GymBlock block = gymBlockRepository
                 .findById(reservation.getGymBlockId())
                 .orElseThrow(() -> new ReservationNotFoundException(reservationId));
-        int cancellationWindowMinutes = findGymOrThrow(block.getGymId()).getCancellationWindowMinutes();
+        Gym gym = findGymOrThrow(block.getGymId());
+        int cancellationWindowMinutes = gym.getCancellationWindowMinutes();
         if (!isWithinWindow(cancellationWindowMinutes, reservation.getClassDate(), block.getStartTime())) {
             throw new BookingWindowClosedException("Solo puedes cancelar hasta "
                     + formatMinutes(cancellationWindowMinutes) + " antes del inicio");
         }
+        fixedWeekRule.assertAllowed(gym, memberId, reservation.getClassDate(), "cancelar");
         reservation.setStatus(ReservationStatus.CANCELLED);
         reservationRepository.save(reservation);
         waitlistService.onSpotFreed(block.getId(), reservation.getClassDate());

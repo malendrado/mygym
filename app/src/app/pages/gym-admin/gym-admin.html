@@ -106,6 +106,17 @@
     <p><strong>Hola, {{ adminFirstName() }}.</strong> {{ tip }}</p>
   </div>
 
+  @if (classBanner(); as banner) {
+    <div class="class-banner" role="status">
+      <ion-icon name="barbell-outline" aria-hidden="true"></ion-icon>
+      <span>
+        Tu clase de <strong>{{ banner.time }} · {{ banner.label }}</strong> empieza en
+        <strong>{{ banner.minutes }} min</strong>.
+      </span>
+      <button type="button" class="class-banner__btn" (click)="openBoard()">Ver quién viene</button>
+    </div>
+  }
+
   @if (section() === 'general') {
     <div class="gym-detail-stats">
       <div class="gym-detail-stat">
@@ -599,7 +610,7 @@
                   </ion-button>
                 </div>
               </div>
-              <p class="block-card__time">{{ dayLabel(block.dayOfWeek) }} · {{ block.startTime }}-{{ block.endTime }}</p>
+              <p class="block-card__time">{{ dayLabel(block.dayOfWeek) }} · {{ shortTime(block.startTime) }}-{{ shortTime(block.endTime) }}</p>
               @if (block.instructorName) {
                 <p class="block-item__instructor">
                   @if (block.instructorPhoto) {
@@ -763,6 +774,38 @@
       </ng-template>
     </ion-modal>
   } @else if (section() === 'members') {
+    <div class="history-mode" role="tablist" aria-label="Socios" data-tour="members-board">
+      <button
+        type="button"
+        role="tab"
+        class="history-mode__btn"
+        [class.history-mode__btn--active]="memberSub() === 'members'"
+        [attr.aria-selected]="memberSub() === 'members'"
+        (click)="setMemberSub('members')"
+      >
+        Mis socios
+      </button>
+      <button
+        type="button"
+        role="tab"
+        class="history-mode__btn"
+        [class.history-mode__btn--active]="memberSub() === 'board'"
+        [attr.aria-selected]="memberSub() === 'board'"
+        (click)="setMemberSub('board')"
+      >
+        En clase
+      </button>
+    </div>
+    @if (memberSub() === 'board') {
+      <app-class-board
+        [gymId]="attendanceGymId()"
+        [demo]="attendanceDemo()"
+        [refreshToken]="boardRefresh()"
+        (editRoutine)="openWorkoutPlanForMember($event)"
+      />
+    }
+    @if (memberSub() === 'members') {
+
     <p class="member-stats-heading">
       <ion-icon name="people-outline" aria-hidden="true"></ion-icon>
       Estado de tus socios
@@ -1187,6 +1230,8 @@
       </ion-card-content>
     </ion-card>
 
+    }
+
     <ion-modal
       [isOpen]="markPaidMember() !== null"
       (didDismiss)="closeMarkPaidModal()"
@@ -1201,6 +1246,7 @@
         <app-mark-paid-modal
           [memberName]="markPaidMember()?.name ?? ''"
           [plans]="plans()"
+          [previewLoader]="paymentPreviewLoader"
           [saving]="markingPaidId() === markPaidMember()?.id"
           (confirmed)="confirmMarkPaid($event)"
           (dismiss)="closeMarkPaidModal()"
@@ -1244,7 +1290,7 @@
       <ng-template>
         <app-member-profile-modal
           [title]="'Datos de ' + (profileMember()?.name ?? '')"
-          intro="RUT, dirección, fecha de nacimiento y celular de contacto. Si el socio los completa él mismo al entrar, también quedan acá."
+          intro="RUT, dirección, fecha de nacimiento, celular y contacto de emergencia. Si el socio los completa él mismo al entrar, también quedan acá."
           submitLabel="Guardar datos"
           [initial]="profileMember()"
           [saving]="savingMemberProfile()"
@@ -1604,177 +1650,13 @@
           ></ion-input>
         </ion-item>
         @if (reservationSearchBlocks() === null) {
-        <div class="history-mode" role="tablist" aria-label="Período del resumen" data-tour="history-summary">
-          <button
-            type="button"
-            role="tab"
-            class="history-mode__btn"
-            [class.history-mode__btn--active]="historyMode() === 'week'"
-            [attr.aria-selected]="historyMode() === 'week'"
-            (click)="setHistoryMode('week')"
-          >
-            Semana
-          </button>
-          <button
-            type="button"
-            role="tab"
-            class="history-mode__btn"
-            [class.history-mode__btn--active]="historyMode() === 'month'"
-            [attr.aria-selected]="historyMode() === 'month'"
-            (click)="setHistoryMode('month')"
-          >
-            Mes
-          </button>
-        </div>
-        <ion-item lines="none" class="history-date-item">
-          <ion-label position="stacked">{{ historyMode() === 'week' ? 'Semana de' : 'Mes de' }}</ion-label>
-          <input
-            type="date"
-            class="history-date-input"
-            [value]="historyDate()"
-            (change)="setHistoryDate($any($event.target).value)"
-          />
-        </ion-item>
-        <div class="history-week-nav" data-tour="history-week-nav">
-          <button type="button" class="calendar-nav-btn" (click)="shiftHistoryWeek(-1)" [attr.aria-label]="historyMode() === 'week' ? 'Semana anterior' : 'Mes anterior'">
-            <ion-icon name="chevron-back-outline" aria-hidden="true"></ion-icon>
-          </button>
-          <span class="history-week-label">{{ historyPeriod().label }}</span>
-          <button type="button" class="calendar-nav-btn" (click)="shiftHistoryWeek(1)" [attr.aria-label]="historyMode() === 'week' ? 'Semana siguiente' : 'Mes siguiente'">
-            <ion-icon name="chevron-forward-outline" aria-hidden="true"></ion-icon>
-          </button>
-        </div>
-        <app-attendance-summary
-          class="history-summary"
-          [period]="historyPeriod()"
+        <app-history-board
+          [blocks]="blocks()"
           [gymId]="attendanceGymId()"
           [demo]="attendanceDemo()"
-          [refreshToken]="summaryRefresh()"
-          (attendanceChanged)="onSummaryAttendanceChanged()"
+          [refreshToken]="historyRefresh()"
+          (cancelRequested)="cancelReservation($event.attendee, $event.blockId, $event.date)"
         />
-        @if (historyMode() === 'week') {
-        @if (historyLoading()) {
-          <div class="ion-text-center">
-            <ion-spinner name="crescent"></ion-spinner>
-          </div>
-        }
-        <div class="history-week">
-          @for (day of historyWeekSummary(); track day.date) {
-            <div class="history-day" [class.history-day--empty]="!day.blocks.length">
-              <button
-                type="button"
-                class="history-day__header"
-                [disabled]="!day.blocks.length"
-                (click)="toggleHistoryDay(day.date)"
-              >
-                <span class="history-day__label">{{ day.dayLabel }}</span>
-                @if (day.blocks.length) {
-                  <span class="history-day__summary">
-                    {{ day.blocks.length }} {{ day.blocks.length === 1 ? 'clase' : 'clases' }} · {{ day.totalAttendees }}
-                    {{ day.totalAttendees === 1 ? 'persona' : 'personas' }}
-                  </span>
-                  <ion-icon
-                    [name]="isHistoryDayExpanded(day.date) ? 'chevron-up-outline' : 'chevron-down-outline'"
-                    aria-hidden="true"
-                  ></ion-icon>
-                } @else if (!historyLoading()) {
-                  <span class="history-day__summary history-day__summary--muted">Sin reservas</span>
-                    }
-                  </button>
-                  @if (day.attendance || day.canOpenAttendance) {
-                    <div class="history-day__attendance">
-                      @if (day.attendance; as att) {
-                        <span class="history-chip" [attr.data-tone]="att.tone">
-                          <span aria-hidden="true">✓</span>
-                          {{ att.counts.attended }} de {{ att.counts.booked }} vinieron
-                          @if (att.rate !== null) {
-                            · {{ att.rate }}%
-                          }
-                          @if (att.partial) {
-                            <span class="history-chip__note">(clases terminadas)</span>
-                          }
-                        </span>
-                      }
-                      @if (day.canOpenAttendance) {
-                        <button
-                          type="button"
-                          class="history-attendance-btn"
-                          [attr.data-tour]="day.date === historyFirstAttendanceDate() ? 'history-attendance' : null"
-                          (click)="openAttendance(day.date)"
-                        >
-                          Asistencia
-                        </button>
-                      }
-                    </div>
-                  }
-              @if (isHistoryDayExpanded(day.date) && day.blocks.length) {
-                <div class="block-grid">
-                  @for (block of day.blocks; track block.id) {
-                    <div class="block-card" [class.block-card--inactive]="!block.active">
-                      <div class="block-card__header">
-                        <h3>
-                          <ion-icon [name]="categoryIcon(block.category)" aria-hidden="true"></ion-icon>
-                          {{ block.label }}
-                        </h3>
-                      </div>
-                      <p class="block-card__time">{{ block.startTime }}-{{ block.endTime }}</p>
-                      <div class="block-card__meta">
-                        <ion-badge color="medium">Cupo {{ block.capacity }}</ion-badge>
-                        @if (!block.active) {
-                          <ion-badge color="dark">Inactivo</ion-badge>
-                        }
-                      </div>
-                      <button
-                        type="button"
-                        class="block-card__attendees-toggle"
-                        (click)="toggleHistoryAttendees(block, day.date)"
-                      >
-                        {{ isHistoryAttendeesExpanded(block, day.date) ? 'Ocultar' : 'Ver quién reservó' }}
-                      </button>
-                      @if (isHistoryAttendeesExpanded(block, day.date)) {
-                        <div class="attendees-list">
-                          @if (isHistoryAttendeesLoading(block, day.date)) {
-                            <ion-spinner name="crescent"></ion-spinner>
-                          } @else {
-                            @for (attendee of historyAttendeesFor(block, day.date); track attendee.id) {
-                              <span class="attendees-list__item" [title]="attendee.email">
-                                @if (attendee.photoUrl) {
-                                  <img [src]="attendee.photoUrl" alt="" class="attendees-list__avatar" loading="lazy" />
-                                } @else {
-                                  <span class="attendees-list__avatar attendees-list__avatar--placeholder">
-                                    {{ attendee.name.charAt(0) }}
-                                  </span>
-                                }
-                                {{ attendee.name }}
-                                @if (canCancelOccurrence(day.date)) {
-                                  <ion-button
-                                    fill="clear"
-                                    size="small"
-                                    color="danger"
-                                    [attr.aria-label]="'Cancelar reserva de ' + attendee.name"
-                                    (click)="cancelReservation(attendee, block.id, day.date)"
-                                  >
-                                    <ion-icon name="close-circle-outline" slot="icon-only" aria-hidden="true"></ion-icon>
-                                  </ion-button>
-                                }
-                              </span>
-                            } @empty {
-                              <span class="item-hint">Nadie reservado ese día.</span>
-                            }
-                          }
-                        </div>
-                      }
-                    </div>
-                  }
-                </div>
-              }
-            </div>
-          }
-        </div>
-        @if (!historyLoading() && !historyWeekHasBookings()) {
-          <p class="item-hint">Nadie reservó ninguna clase esta semana.</p>
-        }
-        }
         } @else {
         @if (reservationSearchLoading()) {
           <div class="ion-text-center">
@@ -1796,7 +1678,7 @@
                   {{ entry.block.label }}
                 </h3>
               </div>
-              <p class="block-card__time">{{ entry.date }} · {{ entry.block.startTime }}-{{ entry.block.endTime }}</p>
+              <p class="block-card__time">{{ isoDate(entry.date) }} · {{ shortTime(entry.block.startTime) }}-{{ shortTime(entry.block.endTime) }}</p>
               <div class="attendees-list">
                 @for (attendee of entry.attendees; track attendee.id) {
                   <span class="attendees-list__item" [title]="attendee.email">
@@ -1831,28 +1713,6 @@
       </ion-card-content>
       </ion-card>
 
-      <ion-modal
-            class="wide-modal"
-            [isOpen]="attendanceDate() !== null"
-            (didDismiss)="closeAttendance()"
-            [style.--ion-color-primary]="themeColor()"
-            [style.--ion-color-primary-contrast]="themeContrast()"
-            [style.--brand-accent]="themeColor()"
-            [style.--brand-accent-contrast]="themeContrast()"
-          >
-        <ng-template>
-          <app-attendance-modal
-            [date]="attendanceDate()!"
-            [dateLabel]="attendanceDayLabel()"
-            [blocks]="attendanceBlocks()"
-            [attendeesByBlock]="attendanceMap()"
-            [gymId]="attendanceGymId()"
-            [demo]="attendanceDemo()"
-            (changed)="onAttendanceChanged($event)"
-            (dismiss)="closeAttendance()"
-          />
-        </ng-template>
-      </ion-modal>
       } @else if (section() === 'closures') {
     <ion-card>
       <ion-card-header class="card-header-row">
@@ -1880,7 +1740,7 @@
             <ion-item>
               <ion-icon name="ban-outline" slot="start" aria-hidden="true"></ion-icon>
               <ion-label class="closure-item-label">
-                {{ closure.startDate === closure.endDate ? closure.startDate : closure.startDate + ' al ' + closure.endDate }}
+                {{ isoRange(closure.startDate, closure.endDate) }}
                 <ion-badge [color]="closureStatus(closure).color">{{ closureStatus(closure).label }}</ion-badge>
                 <p>{{ closure.reason }}</p>
                 <p class="closure-item-meta">

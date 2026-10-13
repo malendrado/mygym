@@ -81,6 +81,11 @@ public class AppUser {
     /** Celular en formato internacional ("+56912345678") — sirve directo para wa.me. */
     private String phone;
 
+    /** Contacto de emergencia (obligatorio, solo MEMBER): nombre y celular en formato internacional. */
+    private String emergencyContactName;
+
+    private String emergencyContactPhone;
+
     private Instant createdAt;
 
     private Instant updatedAt;
@@ -90,9 +95,10 @@ public class AppUser {
      *  foto de Google), así que updatedAt no sirve para saber "cuándo entró por última vez". */
     private Instant lastLoginAt;
 
-    /** Los cuatro datos de contacto cargados (los admins no los necesitan, ver ReservationService.book). */
+    /** Los datos de contacto y el contacto de emergencia cargados (los admins no los necesitan, ver ReservationService.book). */
     public boolean isProfileComplete() {
-        return notBlank(rut) && notBlank(address) && notBlank(phone) && birthDate != null;
+        return notBlank(rut) && notBlank(address) && notBlank(phone) && birthDate != null
+                && notBlank(emergencyContactName) && notBlank(emergencyContactPhone);
     }
 
     private static boolean notBlank(String value) {

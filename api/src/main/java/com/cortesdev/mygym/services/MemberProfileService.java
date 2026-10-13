@@ -10,8 +10,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Datos de contacto del socio (RUT, dirección, fecha de nacimiento, celular): los completa él
- *  mismo al entrar (pantalla obligatoria) o los carga/corrige el admin. Siempre los cuatro juntos. */
+/** Datos de contacto del socio (RUT, dirección, fecha de nacimiento, celular) y contacto de emergencia (nombre y celular): los
+ *  completa él mismo al entrar (pantalla obligatoria) o los carga/corrige el admin. Siempre los seis juntos. */
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -44,10 +44,14 @@ public class MemberProfileService {
         String address = MemberProfileRules.normalizeAddress(request.address());
         String phone = MemberProfileRules.normalizePhone(request.phone());
         var birthDate = MemberProfileRules.validateBirthDate(request.birthDate());
+        String emergencyName = MemberProfileRules.normalizeEmergencyName(request.emergencyContactName());
+        String emergencyPhone = MemberProfileRules.normalizeEmergencyPhone(request.emergencyContactPhone());
         member.setRut(rut);
         member.setAddress(address);
         member.setPhone(phone);
         member.setBirthDate(birthDate);
+        member.setEmergencyContactName(emergencyName);
+        member.setEmergencyContactPhone(emergencyPhone);
         appUserRepository.save(member);
         return memberService.getOwnMembership(member.getId());
     }

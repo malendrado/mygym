@@ -58,4 +58,21 @@ class MemberProfileRulesTest {
         assertThatThrownBy(() -> MemberProfileRules.normalizeAddress("x".repeat(201)))
                 .isInstanceOf(InvalidMemberProfileException.class);
     }
+
+    @Test
+    void emergencyContactNameIsTrimmedAndLengthChecked() {
+        assertThat(MemberProfileRules.normalizeEmergencyName("  Marta   Pérez ")).isEqualTo("Marta Pérez");
+        assertThatThrownBy(() -> MemberProfileRules.normalizeEmergencyName(" a ")).isInstanceOf(InvalidMemberProfileException.class);
+        assertThatThrownBy(() -> MemberProfileRules.normalizeEmergencyName(null)).isInstanceOf(InvalidMemberProfileException.class);
+        assertThatThrownBy(() -> MemberProfileRules.normalizeEmergencyName("x".repeat(101)))
+                .isInstanceOf(InvalidMemberProfileException.class);
+    }
+
+    @Test
+    void emergencyContactPhoneIsAChileanMobileWithItsOwnMessage() {
+        assertThat(MemberProfileRules.normalizeEmergencyPhone("9 8765 4321")).isEqualTo("+56987654321");
+        assertThatThrownBy(() -> MemberProfileRules.normalizeEmergencyPhone("22 123 4567"))
+                .isInstanceOf(InvalidMemberProfileException.class)
+                .hasMessageContaining("contacto de emergencia");
+    }
 }

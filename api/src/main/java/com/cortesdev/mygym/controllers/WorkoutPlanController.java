@@ -1,6 +1,7 @@
 package com.cortesdev.mygym.controllers;
 
 import com.cortesdev.mygym.models.dto.MemberWorkoutLogResponse;
+import com.cortesdev.mygym.models.dto.WorkoutLogSaveRequest;
 import com.cortesdev.mygym.models.dto.WorkoutPlanCreateRequest;
 import com.cortesdev.mygym.models.dto.WorkoutPlanResponse;
 import com.cortesdev.mygym.security.AuthenticatedUser;
@@ -12,6 +13,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -43,6 +45,27 @@ public class WorkoutPlanController {
     public java.util.List<MemberWorkoutLogResponse> getLogHistory(
             @AuthenticationPrincipal Jwt jwt, @PathVariable Long memberId) {
         return workoutService.getLogHistory(AuthenticatedUser.from(jwt).gymId(), memberId);
+    }
+
+    /** El profesor/admin anota la rutina POR el alumno (reserva con asistencia). Queda guardado quién lo anotó. */
+    @PostMapping("/logs/{reservationId}")
+    public MemberWorkoutLogResponse createLogForMember(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long memberId,
+            @PathVariable Long reservationId,
+            @Valid @RequestBody WorkoutLogSaveRequest request) {
+        AuthenticatedUser user = AuthenticatedUser.from(jwt);
+        return workoutService.createLogAsStaff(user.gymId(), memberId, reservationId, request, user.userId());
+    }
+
+    @PutMapping("/logs/{logId}")
+    public MemberWorkoutLogResponse updateLogForMember(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long memberId,
+            @PathVariable Long logId,
+            @Valid @RequestBody WorkoutLogSaveRequest request) {
+        AuthenticatedUser user = AuthenticatedUser.from(jwt);
+        return workoutService.updateLogAsStaff(user.gymId(), memberId, logId, request, user.userId());
     }
 
     @GetMapping("/latest-log")

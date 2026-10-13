@@ -7,6 +7,8 @@ import com.cortesdev.mygym.models.GymBlock;
 import com.cortesdev.mygym.models.GymPhoto;
 import com.cortesdev.mygym.models.GymPlan;
 import com.cortesdev.mygym.models.ManualPayment;
+import com.cortesdev.mygym.services.exception.InvalidPaymentException;
+import com.cortesdev.mygym.models.dto.PaymentPreviewResponse;
 import com.cortesdev.mygym.models.Role;
 import com.cortesdev.mygym.models.dto.AdminCreateRequest;
 import com.cortesdev.mygym.models.dto.AdminResponse;
@@ -60,6 +62,7 @@ import com.cortesdev.mygym.services.exception.MemberNotFoundException;
 import com.cortesdev.mygym.services.exception.ProfesorNotFoundException;
 import com.cortesdev.mygym.services.exception.TooManyGymPhotosException;
 import java.time.Instant;
+import java.time.ZonedDateTime;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
@@ -84,6 +87,8 @@ public class GymService {
     // Mismo huso que usa MemberService para calcular vigencia de plan — acá
     // define qué reservas cuentan como "a futuro" al expulsar a un socio.
     private static final ZoneId GYM_ZONE = ZoneId.of("America/Santiago");
+    // Mismo umbral que MemberService.membershipStatus para "por vencer".
+    private static final int EXPIRING_SOON_DAYS = 3;
 
     private final GymRepository gymRepository;
     private final GymBlockRepository gymBlockRepository;
@@ -210,6 +215,7 @@ public class GymService {
                 gym.getBookingWindowMinutes(),
                 gym.getCancellationWindowMinutes(),
                 gym.isShowAttendeesToMembers(),
+                gym.isFixedMembersCurrentWeekOnly(),
                 hasFlowCredentials(gym));
     }
 
@@ -254,6 +260,7 @@ public class GymService {
         gym.setCancellationWindowMinutes(request.cancellationWindowMinutes());
         gym.setWaitlistHeadStartMinutes(request.waitlistHeadStartMinutes());
         gym.setShowAttendeesToMembers(request.showAttendeesToMembers());
+        gym.setFixedMembersCurrentWeekOnly(request.fixedMembersCurrentWeekOnly());
         gymRepository.save(gym);
     }
 
@@ -646,8 +653,8 @@ public class GymService {
                 .gymId(gymId)
                 .label(request.label())
                 .dayOfWeek(request.dayOfWeek())
-                .startTime(request.startTime())
-                .endTime(request.endTime())
+                .startTime(request.startTime().truncatedTo(java.time.temporal.ChronoUnit.MINUTES))
+                .endTime(request.endTime().truncatedTo(java.time.temporal.ChronoUnit.MINUTES))
                 .capacity(request.capacity())
                 .category(request.category())
                 .instructorName(request.instructorName())
@@ -687,8 +694,9 @@ public class GymService {
         validateSchedule(request.startTime(), request.endTime());
         block.setLabel(request.label());
         block.setDayOfWeek(request.dayOfWeek());
-        block.setStartTime(request.startTime());
-        block.setEndTime(request.endTime());
+        // Las clases son por minuto: segundos y fracciones (que llegaron por la API) se descartan.
+        block.setStartTime(request.startTime().truncatedTo(java.time.temporal.ChronoUnit.MINUTES));
+        block.setEndTime(request.endTime().truncatedTo(java.time.temporal.ChronoUnit.MINUTES));
         block.setCapacity(request.capacity());
         block.setCategory(request.category());
         block.setInstructorName(request.instructorName());
@@ -773,17 +781,36 @@ public class GymService {
      * plan_id/paid_at reales cuando el pago SÍ pasó por Flow).
      */
     public void simulatePlanPayment(Long gymId, Long memberId, Long planId, String bank, Long registeredByUserId) {
+        simulatePlanPayment(gymId, memberId, planId, bank, registeredByUserId, null, null);
+    }
+
+    /**
+     * Igual que el anterior pero con la fecha de inicio real del plan y las clases que el socio ya usó fuera de la app
+     * (pidió el usuario 2026-10-12: pagó hace dos semanas y usó 4 clases por trato directo con el admin). Todo el
+     * período sale de paidAt, así que basta guardar ahí la fecha elegida; las clases ya usadas van en
+     * usedSessionsAtImport, que remainingClasses ya descuenta del cupo.
+     */
+    public void simulatePlanPayment(
+            Long gymId,
+            Long memberId,
+            Long planId,
+            String bank,
+            Long registeredByUserId,
+            LocalDate startDate,
+            Integer usedClasses) {
         Gym gym = findGymOrThrow(gymId);
         GymPlan plan = findPlanOrThrow(gymId, planId);
         AppUser member = appUserRepository
                 .findByIdAndGymId(memberId, gymId)
                 .orElseThrow(() -> new MemberNotFoundException(memberId));
-        member.setPlanId(planId);
         Instant now = Instant.now();
-        member.setPaidAt(now);
-        // Renovación real — cualquier "ya venía usando N clases" que traía de una importación
-        // por Excel quedó atrás con el período anterior, no se arrastra (ver AppUser.usedSessionsAtImport).
-        member.setUsedSessionsAtImport(null);
+        Instant periodStartInstant = resolvePeriodStart(startDate, now);
+        Integer usedOutside = resolveUsedClasses(plan, usedClasses);
+        member.setPlanId(planId);
+        member.setPaidAt(periodStartInstant);
+        // Renovación real: lo que traía de una importación por Excel quedó atrás con el período anterior. Lo único que
+        // se arrastra es lo que el admin declara AHORA para el período nuevo (ver AppUser.usedSessionsAtImport).
+        member.setUsedSessionsAtImport(usedOutside);
         appUserRepository.save(member);
         // Antes esto no dejaba ningún rastro del pago (solo planId/paidAt del socio) — con el
         // banco guardado acá se pueden armar informes después (ver ManualPayment, V36).
@@ -795,14 +822,86 @@ public class GymService {
                 .bank(bank)
                 .registeredByUserId(registeredByUserId)
                 .paidAt(now)
+                .periodStart(periodStartInstant.atZone(GYM_ZONE).toLocalDate())
+                .usedClassesOutside(usedOutside)
                 .build());
         List<String> adminEmails = appUserRepository.findByGymIdAndRole(gymId, Role.GYM_ADMIN).stream()
                 .map(AppUser::getEmail)
                 .toList();
-        memberLifecycleEmailService.sendPaymentConfirmedMember(gym, member, plan);
+        ZonedDateTime periodStart = periodStartInstant.atZone(GYM_ZONE);
+        Integer remaining = plan.getMonthlyClasses() == null
+                ? null
+                : plan.getMonthlyClasses()
+                        - (usedOutside == null ? 0 : usedOutside)
+                        - reservationRepository.countByMemberIdAndStatusAndClassDateBetween(
+                                memberId, ReservationStatus.BOOKED, periodStart.toLocalDate(), periodStart.plusMonths(1).toLocalDate().minusDays(1));
+        memberLifecycleEmailService.sendPaymentConfirmedMember(gym, member, plan, periodStart, periodStart.plusMonths(1), remaining);
         memberLifecycleEmailService.sendPaymentConfirmedAdmin(gym, member, plan, adminEmails);
         // Reserva sus clases fijas del período nuevo, después del commit (ver FixedClassService).
         eventPublisher.publishEvent(new MembershipPaidEvent(memberId));
+    }
+
+    /** Hasta cuánto atrás se puede fechar un plan: más de un mes y ya habría vencido. */
+    private Instant resolvePeriodStart(LocalDate startDate, Instant now) {
+        LocalDate today = LocalDate.now(GYM_ZONE);
+        if (startDate == null || startDate.equals(today)) {
+            return now;
+        }
+        if (startDate.isAfter(today)) {
+            throw new InvalidPaymentException("La fecha de inicio no puede ser futura.");
+        }
+        ZonedDateTime start = startDate.atStartOfDay(GYM_ZONE);
+        ZonedDateTime end = start.plusMonths(1);
+        if (!end.toInstant().isAfter(now)) {
+            throw new InvalidPaymentException("Con esa fecha el plan ya habría vencido el "
+                    + end.toLocalDate().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")) + ".");
+        }
+        return start.toInstant();
+    }
+
+    /** Clases ya usadas fuera de la app: solo cuentan en planes con cupo; null/0 = ninguna. */
+    private Integer resolveUsedClasses(GymPlan plan, Integer usedClasses) {
+        if (plan.getMonthlyClasses() == null || usedClasses == null || usedClasses <= 0) {
+            return null;
+        }
+        if (usedClasses > plan.getMonthlyClasses()) {
+            throw new InvalidPaymentException(
+                    "Las clases usadas no pueden superar las " + plan.getMonthlyClasses() + " del plan.");
+        }
+        return usedClasses;
+    }
+
+    /**
+     * Vista previa (solo lectura) de activar el plan con esa fecha y esas clases: el período que quedaría y cuántas
+     * clases le quedarían, contando las reservas que ya tiene en la app en ese período. Usa las mismas validaciones que
+     * simulatePlanPayment, así que un 400 acá es el mismo que daría al confirmar.
+     */
+    @Transactional(readOnly = true)
+    public PaymentPreviewResponse previewPlanPayment(
+            Long gymId, Long memberId, Long planId, LocalDate startDate, Integer usedClasses) {
+        findGymOrThrow(gymId);
+        GymPlan plan = findPlanOrThrow(gymId, planId);
+        appUserRepository
+                .findByIdAndGymId(memberId, gymId)
+                .orElseThrow(() -> new MemberNotFoundException(memberId));
+        Instant now = Instant.now();
+        ZonedDateTime start = resolvePeriodStart(startDate, now).atZone(GYM_ZONE);
+        Integer usedOutside = resolveUsedClasses(plan, usedClasses);
+        LocalDate periodEnd = start.plusMonths(1).toLocalDate().minusDays(1);
+        int booked = reservationRepository.countByMemberIdAndStatusAndClassDateBetween(
+                memberId, ReservationStatus.BOOKED, start.toLocalDate(), periodEnd);
+        Integer remaining = plan.getMonthlyClasses() == null
+                ? null
+                : plan.getMonthlyClasses() - (usedOutside == null ? 0 : usedOutside) - booked;
+        long daysLeft = java.time.Duration.between(ZonedDateTime.now(GYM_ZONE), start.plusMonths(1)).toDays();
+        return new PaymentPreviewResponse(
+                start.toLocalDate(),
+                periodEnd,
+                plan.getMonthlyClasses(),
+                usedOutside == null ? 0 : usedOutside,
+                booked,
+                remaining,
+                daysLeft <= EXPIRING_SOON_DAYS);
     }
 
     /**
@@ -895,6 +994,7 @@ public class GymService {
                 gym.getCancellationWindowMinutes(),
                 gym.getWaitlistHeadStartMinutes(),
                 gym.isShowAttendeesToMembers(),
+                gym.isFixedMembersCurrentWeekOnly(),
                 gym.getBankName(),
                 gym.getBankAccountType(),
                 gym.getBankAccountNumber(),

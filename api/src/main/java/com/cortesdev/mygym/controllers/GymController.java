@@ -42,8 +42,11 @@ import com.cortesdev.mygym.models.dto.AttendanceSummaryResponse;
 import com.cortesdev.mygym.models.dto.AttendanceUpdateRequest;
 import com.cortesdev.mygym.models.dto.MemberAttendanceDetail;
 import com.cortesdev.mygym.models.dto.MemberAttendanceRow;
+import com.cortesdev.mygym.models.dto.ClassBoardResponse;
 import com.cortesdev.mygym.models.dto.MemberWorkoutLogResponse;
+import com.cortesdev.mygym.models.dto.WorkoutLogSaveRequest;
 import com.cortesdev.mygym.models.dto.PageResponse;
+import com.cortesdev.mygym.models.dto.PaymentPreviewResponse;
 import com.cortesdev.mygym.models.dto.WorkoutPlanCreateRequest;
 import com.cortesdev.mygym.models.dto.WorkoutPlanResponse;
 import com.cortesdev.mygym.models.dto.OccurrenceAttendees;
@@ -71,6 +74,7 @@ import com.cortesdev.mygym.services.MemberProfileService;
 import com.cortesdev.mygym.services.MemberService;
 import com.cortesdev.mygym.services.AttendanceSummaryService;
 import com.cortesdev.mygym.services.ReservationService;
+import com.cortesdev.mygym.services.ClassBoardService;
 import com.cortesdev.mygym.services.WorkoutService;
 import com.cortesdev.mygym.services.TvScreenService;
 import jakarta.validation.Valid;
@@ -110,6 +114,7 @@ public class GymController {
     private final MemberProfileService memberProfileService;
     private final FixedClassImportService fixedClassImportService;
     private final WorkoutService workoutService;
+    private final ClassBoardService classBoardService;
 
     @PostMapping("/suggest-branding")
     public BrandingSuggestionResponse suggestBranding(@Valid @RequestBody BrandingSuggestionRequest request) {
@@ -228,6 +233,32 @@ public class GymController {
     public WorkoutPlanResponse replaceWorkoutPlan(
             @PathVariable Long id, @PathVariable Long memberId, @Valid @RequestBody WorkoutPlanCreateRequest request) {
         return workoutService.replacePlan(id, memberId, request);
+    }
+
+    @PostMapping("/{id}/members/{memberId}/workout/logs/{reservationId}")
+    public MemberWorkoutLogResponse createWorkoutLog(
+            @PathVariable Long id,
+            @PathVariable Long memberId,
+            @PathVariable Long reservationId,
+            @Valid @RequestBody WorkoutLogSaveRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
+        return workoutService.createLogAsStaff(id, memberId, reservationId, request, AuthenticatedUser.from(jwt).userId());
+    }
+
+    @PutMapping("/{id}/members/{memberId}/workout/logs/{logId}")
+    public MemberWorkoutLogResponse updateWorkoutLog(
+            @PathVariable Long id,
+            @PathVariable Long memberId,
+            @PathVariable Long logId,
+            @Valid @RequestBody WorkoutLogSaveRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
+        return workoutService.updateLogAsStaff(id, memberId, logId, request, AuthenticatedUser.from(jwt).userId());
+    }
+
+    // Contraparte SUPER_ADMIN de ClassBoardController.
+    @GetMapping("/{id}/class-board")
+    public ClassBoardResponse classBoard(@PathVariable Long id) {
+        return classBoardService.board(id);
     }
 
     @GetMapping("/{id}/members/{memberId}/workout/logs")
@@ -531,8 +562,25 @@ public class GymController {
             @PathVariable Long memberId,
             @Valid @RequestBody MarkPaidRequest request) {
         gymService.simulatePlanPayment(
-                id, memberId, request.planId(), request.bank().trim(), AuthenticatedUser.from(jwt).userId());
+                id,
+                memberId,
+                request.planId(),
+                request.bank().trim(),
+                AuthenticatedUser.from(jwt).userId(),
+                request.startDate(),
+                request.usedClasses());
         return ResponseEntity.noContent().build();
+    }
+
+    /** Contraparte SUPER_ADMIN de MemberController.paymentPreview — mismo backend, gymId por path. */
+    @GetMapping("/{id}/members/{memberId}/payment-preview")
+    public PaymentPreviewResponse paymentPreview(
+            @PathVariable Long id,
+            @PathVariable Long memberId,
+            @RequestParam Long planId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) Integer usedClasses) {
+        return gymService.previewPlanPayment(id, memberId, planId, startDate, usedClasses);
     }
 
     /** Contraparte SUPER_ADMIN de MemberController.revokePlan — mismo backend, gymId por path. */

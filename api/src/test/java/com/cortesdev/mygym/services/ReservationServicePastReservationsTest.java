@@ -36,6 +36,7 @@ class ReservationServicePastReservationsTest {
 
     @Mock private ReservationRepository reservationRepository;
     @Mock private GymBlockRepository gymBlockRepository;
+    @Mock private FixedWeekRule fixedWeekRule;
     @InjectMocks private ReservationService reservationService;
 
     private Reservation reservation(long id, LocalDate date) {

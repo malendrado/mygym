@@ -1,4 +1,4 @@
-import { Component, OnDestroy, computed, effect, inject, signal } from '@angular/core';
+import { Component, DestroyRef, OnDestroy, computed, effect, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import {
@@ -127,21 +127,7 @@ import { BloqueSeriesModal } from '../admin/gyms/bloque-series-modal/bloque-seri
 import { PlanFormModal } from '../admin/gyms/plan-form-modal/plan-form-modal';
 import { MarkPaidModal } from '../admin/gyms/mark-paid-modal/mark-paid-modal';
 import { ClosureModal } from '../admin/gyms/closure-modal/closure-modal';
-import { AttendanceModal } from '../admin/gyms/attendance-modal/attendance-modal';
-import { AttendanceSummaryView } from '../admin/gyms/attendance-summary/attendance-summary';
-import { AttendanceMark } from '../../core/models/attendance.model';
-import {
-  AttendanceCounts,
-  PeriodMode,
-  attendanceOf,
-  attendanceWindowOpen,
-  occurrenceEnded,
-  periodOf,
-  ratePct,
-  rateTone,
-  shiftAnchor,
-  sumCounts,
-} from '../../core/utils/attendance';
+import { HistoryBoard } from '../admin/gyms/history-board/history-board';
 import { EditClosureModal } from '../admin/gyms/edit-closure-modal/edit-closure-modal';
 import { ImportMembersModal } from '../admin/gyms/import-members-modal/import-members-modal';
 import { WorkoutPlanModal } from '../admin/gyms/workout-plan-modal/workout-plan-modal';
@@ -154,6 +140,10 @@ import { ImportFixedClassesModal } from '../admin/gyms/import-fixed-classes-moda
 import { FixedClass } from '../../core/models/fixed-class.model';
 import { FixedClassService } from '../../core/services/fixed-class.service';
 import { fixedClassSaveMessage } from '../../core/utils/fixed-class-import';
+import { formatIsoDate, formatIsoRange } from '../../core/utils/date-format';
+import { shortTime } from '../../core/utils/time-format';
+import { classTiming } from '../../core/utils/class-board';
+import { ClassBoardView } from '../admin/gyms/class-board/class-board';
 import { errorText } from '../../core/utils/error-text';
 import { registerClassCategoryIcons, resolveClassCategoryIcon } from '../../core/utils/class-category';
 import { formatRut, rutFormatValidator } from '../../core/utils/rut';
@@ -321,43 +311,8 @@ function dayOfWeekOfDate(dateIso: string): DayOfWeek {
   return DAY_OF_WEEK_BY_INDEX[new Date(y, m - 1, d).getDay()];
 }
 
-function addDaysIso(dateIso: string, days: number): string {
-  const [y, m, d] = dateIso.split('-').map(Number);
-  const date = new Date(y, m - 1, d + days);
-  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
-}
-
-function mondayOfWeek(dateIso: string): string {
-  const [y, m, d] = dateIso.split('-').map(Number);
-  const dow = new Date(y, m - 1, d).getDay();
-  return addDaysIso(dateIso, dow === 0 ? -6 : 1 - dow);
-}
-
-function historyDayLabel(dateIso: string): string {
-  const [y, m, d] = dateIso.split('-').map(Number);
-  const label = new Intl.DateTimeFormat('es-CL', { weekday: 'long', day: 'numeric', month: 'short' }).format(
-    new Date(y, m - 1, d),
-  );
-  return label.charAt(0).toUpperCase() + label.slice(1);
-}
-
-interface HistoryDayAttendance {
-  counts: AttendanceCounts;
-  rate: number | null;
-  tone: 'good' | 'warn' | 'bad' | 'none';
-  /** Hay clases del día que todavía no terminan: el chip solo cuenta las terminadas. */
-  partial: boolean;
-}
-
-interface HistoryDaySummary {
-  date: string;
-  dayLabel: string;
-  blocks: GymBlock[];
-  totalAttendees: number;
-  attendance: HistoryDayAttendance | null;
-  /** Hay alguna clase que ya empezó (o está por empezar): se puede abrir el modal de Asistencia. */
-  canOpenAttendance: boolean;
-}
+// Con cuántos minutos de anticipación una clase cuenta como "por empezar" (abre En clase y muestra el aviso).
+const BOARD_SOON_MINUTES = 15;
 
 // Rotan igual que las citas motivacionales de /member, pero con un tono de
 // negocio en vez de motivacional — un guiño sutil, no un hero completo.
@@ -431,8 +386,8 @@ const THEMED_ROOT_PROPERTIES = [
     PlanFormModal,
     MarkPaidModal,
     ClosureModal,
-    AttendanceModal,
-    AttendanceSummaryView,
+    HistoryBoard,
+    ClassBoardView,
     EditClosureModal,
     ImportMembersModal,
     PaginationBar,
@@ -555,103 +510,10 @@ export class GymAdmin implements OnDestroy {
   protected readonly attendeesByKey = signal<Record<string, Attendee[]>>({});
   protected readonly loadingAttendeesKey = signal<string | null>(null);
 
-  // Historial: mismo mecanismo que "Ver quién reservó" en Horarios, pero con
-  // una fecha elegida a mano en vez de la próxima ocurrencia automática —
-  // pedido explícito del usuario para poder mirar cualquier clase pasada.
-  protected readonly historyDate = signal(
-    new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Santiago' }).format(new Date()),
-  );
-  protected readonly historyLoading = signal(false);
-  protected readonly expandedHistoryDay = signal<string | null>(null);
-
-  // Semana en vez de un solo día — pedido explícito del usuario tras ver la
-  // versión de un día ("¿podría ser una semana?"). `historyDate` sigue
-  // siendo la fecha elegida a mano (ancla), la semana se deriva de ahí
-  // (lunes a domingo) para poder navegar con flechas sin perder el punto
-  // de partida elegido.
-  protected readonly historyWeekStart = computed(() => mondayOfWeek(this.historyDate()));
-  protected readonly historyWeekDates = computed(() => {
-    const start = this.historyWeekStart();
-    return Array.from({ length: 7 }, (_, i) => addDaysIso(start, i));
-  });
-  protected readonly historyWeekLabel = computed(() => {
-    const dates = this.historyWeekDates();
-    const fmt = (iso: string) => {
-      const [y, m, d] = iso.split('-').map(Number);
-      return new Intl.DateTimeFormat('es-CL', { day: 'numeric', month: 'short' }).format(new Date(y, m - 1, d));
-    };
-    return `${fmt(dates[0])} – ${fmt(dates[6])}`;
-  });
-
-  // Pedido explícito del usuario: en Historial solo importan las clases donde
-  // se anotó alguien — una clase sin reservas no aporta nada para revisar.
-  // Colapsado por día (resumen + conteo) para no repetir la sobrecarga de
-  // información ya resuelta en Horarios al mostrar 7 días de una.
-  protected readonly historyWeekSummary = computed<HistoryDaySummary[]>(() => {
-    const cache = this.attendeesByKey();
-    return this.historyWeekDates().map((date) => {
-      const dow = dayOfWeekOfDate(date);
-      const blocks = this.blocks()
-        .filter((b) => b.dayOfWeek === dow)
-        .filter((b) => (cache[this.attendeesKey(b.id, date)] ?? []).length > 0)
-        .sort((a, b) => a.startTime.localeCompare(b.startTime));
-      const totalAttendees = blocks.reduce(
-        (sum, b) => sum + (cache[this.attendeesKey(b.id, date)] ?? []).length,
-        0,
-      );
-      const today = new Date();
-      const endedCounts = blocks
-        .filter((b) => occurrenceEnded(date, b.endTime, today))
-        .map((b) => attendanceOf(cache[this.attendeesKey(b.id, date)] ?? [], true));
-      let attendance: HistoryDayAttendance | null = null;
-      if (endedCounts.length) {
-        const counts = sumCounts(endedCounts);
-        const rate = ratePct(counts.attended, counts.booked);
-        attendance = {
-          counts,
-          rate,
-          tone: rate === null ? 'none' : rateTone(rate),
-          partial: endedCounts.length < blocks.length,
-        };
-      }
-      const canOpenAttendance = blocks.some((b) => attendanceWindowOpen(date, b.startTime, today));
-      return { date, dayLabel: historyDayLabel(date), blocks, totalAttendees, attendance, canOpenAttendance };
-    });
-  });
-  // Resumen del período (Semana | Mes) y modal de Asistencia del día — ver docs/plans/2026-10-12-historial-asistencia.md.
-  protected readonly historyMode = signal<PeriodMode>('week');
-  protected readonly historyPeriod = computed(() => periodOf(this.historyDate(), this.historyMode()));
-  protected readonly attendanceDate = signal<string | null>(null);
-  // Sube cuando una asistencia cambia desde el modal del día: el resumen se recarga.
-  protected readonly summaryRefresh = signal(0);
-  protected readonly attendanceDayLabel = computed(() => {
-    const date = this.attendanceDate();
-    return date ? historyDayLabel(date) : '';
-  });
-  protected readonly attendanceBlocks = computed(() => {
-    const date = this.attendanceDate();
-    return date ? (this.historyWeekSummary().find((d) => d.date === date)?.blocks ?? []) : [];
-  });
-  protected readonly attendanceMap = computed<Record<number, Attendee[]>>(() => {
-    const date = this.attendanceDate();
-    const cache = this.attendeesByKey();
-    const map: Record<number, Attendee[]> = {};
-    if (date) {
-      for (const block of this.attendanceBlocks()) {
-        map[block.id] = cache[this.attendeesKey(block.id, date)] ?? [];
-      }
-    }
-    return map;
-  });
-  protected readonly historyFirstAttendanceDate = computed(
-    () => this.historyWeekSummary().find((d) => d.canOpenAttendance)?.date ?? null,
-  );
   protected readonly attendanceGymId = signal<number | null>(null);
   protected readonly attendanceDemo = computed(() => this.isDemoAdmin());
-
-  protected readonly historyWeekHasBookings = computed(() =>
-    this.historyWeekSummary().some((day) => day.blocks.length > 0),
-  );
+  // Sube cuando el padre cambió algo del Historial por su lado (cancelar una reserva): el tablero se recarga.
+  protected readonly historyRefresh = signal(0);
 
   // Buscador de reservas futuras por nombre de socio — pedido explícito del usuario para no
   // tener que recorrer bloque por bloque/semana por semana buscando a alguien puntual. No es
@@ -843,6 +705,8 @@ export class GymAdmin implements OnDestroy {
     this.loadPhotos();
     this.loadTvScreens();
     this.loadClosures();
+    const boardTimer = setInterval(() => this.boardTick.set(Date.now()), 30_000);
+    inject(DestroyRef).onDestroy(() => clearInterval(boardTimer));
     if (!this.isProfesor()) {
       this.loadProfesores();
       this.loadAdmins();
@@ -869,18 +733,6 @@ export class GymAdmin implements OnDestroy {
       // Modo claro necesita además los tokens base globales (--brand-ink, --ion-color-danger,
       // el step-ramp de Ionic) que --gym-panel-bg/card no cubren — ver gym-theme.ts.
       syncThemeOverrides(this.themeMode(), color);
-    });
-
-    // Los bloques llegan async (loadBlocks) — si el admin entra a Historial
-    // antes de que respondan, hay que reintentar la carga de asistentes en
-    // cuanto historyDayBlocks() deje de estar vacío, no solo al cambiar de
-    // fecha o sección.
-    effect(() => {
-      this.blocks();
-      this.historyDate();
-      if (this.section() === 'history') {
-        this.loadHistoryAttendees();
-      }
     });
 
     // "Todavía no se conectó" quedaba pegado en la UI aunque la TV ya estuviera sondeando de
@@ -914,8 +766,10 @@ export class GymAdmin implements OnDestroy {
 
   protected setSection(section: Section): void {
     this.section.set(section);
-    if (section === 'history') {
-      this.loadHistoryAttendees();
+    if (section === 'members') {
+      // Al entrar a Socios: si hay una clase en curso o que empieza en 15 min o menos, se abre en "En clase".
+      const timing = classTiming(this.blocks(), BOARD_SOON_MINUTES);
+      this.memberSub.set(timing.live.length > 0 || timing.soon ? 'board' : 'members');
     }
   }
 
@@ -1024,7 +878,7 @@ export class GymAdmin implements OnDestroy {
         },
         {
           title: 'Marca un pago en segundos',
-          body: 'Transferencia, efectivo o Flow — confirmas el pago de un socio sin pago con un clic, indicando con qué banco te transfirió (queda guardado para tus informes), y pasa a "Activo" al instante.',
+          body: 'Transferencia, efectivo o Flow — confirmas el pago de un socio sin pago con un clic, indicando con qué banco te transfirió (queda guardado para tus informes). Si ya había pagado antes o usó clases por fuera de la app, pones desde cuándo vale el plan y cuántas clases lleva usadas: el vencimiento y su cupo quedan como corresponde.',
           targetSelector: '[data-tour="members-mark-paid"]',
         },
         {
@@ -1051,6 +905,11 @@ export class GymAdmin implements OnDestroy {
           title: 'Datos de cada socio, y WhatsApp directo',
           body: 'RUT, dirección, fecha de nacimiento y celular, todos validados: el socio los completa al entrar y tú puedes cargarlos o corregirlos aquí. Con su celular, un botón verde te abre WhatsApp para escribirle al instante.',
           targetSelector: '[data-tour="members-profile"]',
+        },
+        {
+          title: 'Tu clase de ahora, con la memoria de cada alumno',
+          body: 'Toca "En clase" para ver las clases en curso y la siguiente: por cada alumno, qué le toca hoy y qué hizo la última vez, con su rutina a un toque. Si no escaneó el QR, márcalo y anota por él lo que hizo.',
+          targetSelector: '[data-tour="members-board"]',
         },
         {
           title: 'Gestiona bajas reales',
@@ -1154,18 +1013,18 @@ export class GymAdmin implements OnDestroy {
         },
         {
           title: 'Navega cualquier semana',
-          body: 'Avanza o retrocede semana a semana, o salta directo a una fecha — útil para resolver un reclamo o auditar un período puntual.',
+          body: 'Avanza o retrocede semana a semana, o toca las fechas para saltar a un día puntual. Elige el día en la tira: hoy aparece marcado.',
           targetSelector: '[data-tour="history-week-nav"]',
         },
         {
-          title: 'Reservaron vs. vinieron',
-          body: 'Cada día muestra cuántos de los que reservaron realmente vinieron. Toca "Asistencia" para ver clase por clase quién llegó y quién no, escribirle por WhatsApp a quien faltó, o marcar a mano a quien vino sin escanear el QR.',
-          targetSelector: '[data-tour="history-attendance"]',
+          title: 'Quién vino a cada clase',
+          body: 'Las clases del día están en lista. Toca una para ver quién reservó y quién llegó (QR o a mano), escribirle por WhatsApp a quien faltó, o marcar a mano a quien vino sin escanear el QR.',
+          targetSelector: '[data-tour="history-classes"]',
         },
         {
-          title: 'Qué clases y qué socios fallan más',
-          body: 'Cambia entre semana y mes para ver la asistencia por clase, por día de la semana y el ranking de quienes más faltan. Toca cualquier número para ver los socios que hay detrás.',
-          targetSelector: '[data-tour="history-summary"]',
+          title: 'Cómo va la semana',
+          body: 'Aquí ves el porcentaje de asistencia de la semana. "Ver resumen" abre el detalle por semana o mes, con quiénes faltan y quiénes vienen más — y por clase y por día si lo necesitas.',
+          targetSelector: '[data-tour="history-summary-line"]',
         },
       ],
     },
@@ -1202,9 +1061,55 @@ export class GymAdmin implements OnDestroy {
     await sheet.present();
   }
 
+  protected isoDate(iso: string): string {
+    return formatIsoDate(iso);
+  }
+
+  protected isoRange(start: string, end: string): string {
+    return formatIsoRange(start, end);
+  }
+
+  protected shortTime(time: string): string {
+    return shortTime(time);
+  }
+
+  // Socios tiene dos subsecciones: "Mis socios" (todo lo de siempre) y "En clase" (tablero de la clase de ahora).
+  protected readonly memberSub = signal<'members' | 'board'>('members');
+  // Sube cuando cambió una rutina, para que el tablero refresque "Sin rutina" al instante.
+  protected readonly boardRefresh = signal(0);
+
+  private readonly boardTick = signal(Date.now());
+
+  protected readonly classBanner = computed(() => {
+    this.boardTick();
+    // En la propia pestaña Socios → En clase el aviso sobra.
+    if (this.section() === 'members' && this.memberSub() === 'board') {
+      return null;
+    }
+    const soon = classTiming(this.blocks(), BOARD_SOON_MINUTES).soon;
+    return soon
+      ? { time: shortTime(soon.block.startTime), label: soon.block.label, minutes: soon.minutes }
+      : null;
+  });
+
+  protected openBoard(): void {
+    this.setSection('members');
+    this.memberSub.set('board');
+  }
+
+  protected setMemberSub(sub: 'members' | 'board'): void {
+    this.memberSub.set(sub);
+  }
+
+  // El editor de rutina vive en el panel; el tablero solo pide abrirlo para un alumno.
+  protected openWorkoutPlanForMember(event: { memberId: number; name: string }): void {
+    this.openWorkoutPlanModal({ id: event.memberId, name: event.name } as Member);
+  }
+
   protected viewMembersByStatus(status: MembershipStatus): void {
     this.memberList.setStatusFilter(status);
     this.section.set('members');
+    this.memberSub.set('members');
     this.scrollToMembersList();
   }
 
@@ -1215,6 +1120,7 @@ export class GymAdmin implements OnDestroy {
   protected viewMembersByInvite(status: Exclude<InviteStatus, null>): void {
     this.memberList.setInviteFilter(status);
     this.section.set('members');
+    this.memberSub.set('members');
     this.scrollToMembersList();
   }
 
@@ -1389,116 +1295,6 @@ export class GymAdmin implements OnDestroy {
   // A diferencia de Horarios (siempre "hoy o la próxima ocurrencia"), acá
   // conviven 7 fechas distintas a la vez en pantalla — cada wrapper recibe
   // la fecha del día puntual que el admin está mirando.
-  protected historyAttendeesFor(block: GymBlock, date: string): Attendee[] {
-    return this.attendeesForDate(block.id, date);
-  }
-
-  protected toggleHistoryAttendees(block: GymBlock, date: string): void {
-    this.toggleAttendeesFor(block.id, date);
-  }
-
-  protected isHistoryAttendeesExpanded(block: GymBlock, date: string): boolean {
-    return this.isAttendeesExpanded(block.id, date);
-  }
-
-  protected isHistoryAttendeesLoading(block: GymBlock, date: string): boolean {
-    return this.isAttendeesLoading(block.id, date);
-  }
-
-  protected toggleHistoryDay(date: string): void {
-    this.expandedHistoryDay.update((current) => (current === date ? null : date));
-  }
-
-  protected isHistoryDayExpanded(date: string): boolean {
-    return this.expandedHistoryDay() === date;
-  }
-
-  protected setHistoryDate(date: string): void {
-    this.historyDate.set(date);
-    this.expandedAttendeesKey.set(null);
-    this.expandedHistoryDay.set(null);
-    this.loadHistoryAttendees();
-  }
-
-  protected shiftHistoryWeek(direction: -1 | 1): void {
-    this.setHistoryDate(shiftAnchor(this.historyDate(), this.historyMode(), direction));
-  }
-
-  protected setHistoryMode(mode: PeriodMode): void {
-    this.historyMode.set(mode);
-    this.expandedHistoryDay.set(null);
-    this.expandedAttendeesKey.set(null);
-  }
-
-  protected openAttendance(date: string): void {
-    this.attendanceDate.set(date);
-  }
-
-  protected closeAttendance(): void {
-    this.attendanceDate.set(null);
-  }
-
-  // El modal marcó o desmarcó a alguien: se actualiza la caché de la semana (el chip del día se
-  // recalcula solo) y se pide recargar el resumen.
-  protected onAttendanceChanged(event: { blockId: number; mark: AttendanceMark }): void {
-    const date = this.attendanceDate();
-    if (!date) {
-      return;
-    }
-    const key = this.attendeesKey(event.blockId, date);
-    this.attendeesByKey.update((map) => ({
-      ...map,
-      [key]: (map[key] ?? []).map((a) =>
-        a.reservationId === event.mark.reservationId
-          ? { ...a, checkedInAt: event.mark.checkedInAt, checkinMethod: event.mark.checkinMethod }
-          : a,
-      ),
-    }));
-    this.summaryRefresh.update((n) => n + 1);
-  }
-
-  // Se corrigió una asistencia desde el detalle de un socio (dentro del resumen): la caché diaria
-  // de la semana quedó vieja, se vuelve a pedir.
-  protected onSummaryAttendanceChanged(): void {
-    this.historyLoadedRanges.clear();
-    this.loadHistoryAttendees();
-  }
-
-  // Antes esto era 1 request por cada bloque×día de la semana en paralelo (fan-out de
-  // N llamadas contra el pool de conexiones del backend — con pocos bloques ya alcanzaba
-  // para sentirse lento, ver SKILL.md). Una sola llamada trae toda la semana. Se cachea por
-  // rango de fechas (no por key individual, porque el batch solo devuelve ocurrencias CON
-  // asistentes — una semana ya pedida no vuelve a pedirse aunque el effect se re-dispare).
-  private readonly historyLoadedRanges = new Set<string>();
-
-  private loadHistoryAttendees(): void {
-    if (this.historyMode() === 'month') {
-      return;
-    }
-    const dates = this.historyWeekDates();
-    const from = dates[0];
-    const to = dates[dates.length - 1];
-    const rangeKey = `${from}_${to}`;
-    if (this.historyLoadedRanges.has(rangeKey)) {
-      return;
-    }
-    this.historyLoadedRanges.add(rangeKey);
-    this.historyLoading.set(true);
-    this.gymService.getMyHistoryAttendees(from, to).subscribe({
-      next: (occurrences) => {
-        this.attendeesByKey.update((map) => {
-          const next = { ...map };
-          for (const occurrence of occurrences) {
-            next[this.attendeesKey(occurrence.gymBlockId, occurrence.classDate)] = occurrence.attendees;
-          }
-          return next;
-        });
-        this.historyLoading.set(false);
-      },
-      error: () => this.historyLoading.set(false),
-    });
-  }
-
   protected onReservationSearchInput(value: string): void {
     this.reservationSearchQuery.set(value);
     if (this.reservationSearchTimeout) {
@@ -1565,6 +1361,7 @@ export class GymAdmin implements OnDestroy {
                 .filter((occurrence) => occurrence.attendees.length > 0)
             : results,
         );
+        this.historyRefresh.update((n) => n + 1);
         this.showToast('Reserva cancelada.');
       },
       error: () => this.handleWriteError(() => this.showToast('No pudimos cancelar la reserva. Intenta nuevamente.', 'danger')),
@@ -1579,7 +1376,7 @@ export class GymAdmin implements OnDestroy {
     if (!value) {
       return '—';
     }
-    return new Intl.DateTimeFormat('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(
+    return new Intl.DateTimeFormat('es-CL', { timeZone: 'America/Santiago', day: '2-digit', month: '2-digit', year: 'numeric' }).format(
       new Date(value),
     );
   }
@@ -2217,22 +2014,45 @@ export class GymAdmin implements OnDestroy {
     this.markPaidMember.set(null);
   }
 
-  protected confirmMarkPaid({ planId, bank }: { planId: number; bank: string }): void {
+  // Vista previa de "Marcar pago" (período y clases que le quedarían): el modal solo la pide por esta función.
+  protected readonly paymentPreviewLoader = (planId: number, start: string, used: number) =>
+    this.memberService.previewPayment(this.markPaidMember()!.id, planId, start, used);
+
+  protected confirmMarkPaid({
+    planId,
+    bank,
+    startDate,
+    usedClasses,
+  }: {
+    planId: number;
+    bank: string;
+    startDate: string | null;
+    usedClasses: number;
+  }): void {
     const member = this.markPaidMember();
     if (!member) {
       return;
     }
     this.markingPaidId.set(member.id);
-    this.memberService.markPaid(member.id, { planId, bank }).subscribe({
+    this.memberService
+      .markPaid(member.id, {
+        planId,
+        bank,
+        ...(startDate ? { startDate } : {}),
+        ...(usedClasses > 0 ? { usedClasses } : {}),
+      })
+      .subscribe({
       next: () => {
         this.markingPaidId.set(null);
         this.markPaidMember.set(null);
         this.showToast(`Pago registrado para ${member.name}.`);
         this.loadMembers();
       },
-      error: () => {
+      error: (err: Error) => {
         this.markingPaidId.set(null);
-        this.handleWriteError(() => this.showToast('No pudimos registrar el pago. Intenta nuevamente.', 'danger'));
+        this.handleWriteError(() =>
+          this.showToast(errorText(err, 'No pudimos registrar el pago. Intenta nuevamente.'), 'danger'),
+        );
       },
     });
   }
@@ -2458,6 +2278,7 @@ export class GymAdmin implements OnDestroy {
         this.savingWorkoutPlan.set(false);
         this.workoutPlanMember.set(null);
         this.showToast(`Rutina de ${member.name} actualizada.`);
+        this.boardRefresh.update((n) => n + 1);
       },
       error: () => {
         this.savingWorkoutPlan.set(false);
@@ -2543,6 +2364,7 @@ export class GymAdmin implements OnDestroy {
           cancellationWindowMinutes: gym.cancellationWindowMinutes,
           waitlistHeadStartMinutes: gym.waitlistHeadStartMinutes,
           showAttendeesToMembers: gym.showAttendeesToMembers,
+          fixedMembersCurrentWeekOnly: gym.fixedMembersCurrentWeekOnly,
         });
         const knownBank = gym.bankName && (this.chileBanks as readonly string[]).includes(gym.bankName);
         this.bankTransferForm.patchValue({

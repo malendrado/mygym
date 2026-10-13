@@ -1,6 +1,9 @@
 package com.cortesdev.mygym.controllers;
 
 import com.cortesdev.mygym.models.dto.MarkPaidRequest;
+import org.springframework.format.annotation.DateTimeFormat;
+import java.time.LocalDate;
+import com.cortesdev.mygym.models.dto.PaymentPreviewResponse;
 import com.cortesdev.mygym.models.dto.MemberCreateRequest;
 import com.cortesdev.mygym.models.dto.MemberImportRequest;
 import com.cortesdev.mygym.models.dto.MemberImportRowResult;
@@ -78,8 +81,20 @@ public class MemberController {
     public ResponseEntity<Void> markPaid(
             @AuthenticationPrincipal Jwt jwt, @PathVariable Long memberId, @Valid @RequestBody MarkPaidRequest request) {
         AuthenticatedUser user = AuthenticatedUser.from(jwt);
-        gymService.simulatePlanPayment(user.gymId(), memberId, request.planId(), request.bank().trim(), user.userId());
+        gymService.simulatePlanPayment(
+                user.gymId(), memberId, request.planId(), request.bank().trim(), user.userId(), request.startDate(), request.usedClasses());
         return ResponseEntity.noContent().build();
+    }
+
+    /** Vista previa de "Marcar pago" con fecha y clases ya usadas (solo lectura) — ver GymService.previewPlanPayment. */
+    @GetMapping("/{memberId}/payment-preview")
+    public PaymentPreviewResponse paymentPreview(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long memberId,
+            @RequestParam Long planId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) Integer usedClasses) {
+        return gymService.previewPlanPayment(AuthenticatedUser.from(jwt).gymId(), memberId, planId, startDate, usedClasses);
     }
 
     /** El admin le quita a un socio el plan/pago que tenga registrado — ver GymService.revokePlan. */

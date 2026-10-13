@@ -32,6 +32,7 @@ class ReservationServiceSearchTest {
 
     @Mock private AppUserRepository appUserRepository;
     @Mock private ReservationRepository reservationRepository;
+    @Mock private FixedWeekRule fixedWeekRule;
     @InjectMocks private ReservationService reservationService;
 
     private List<AppUser> members(int count) {

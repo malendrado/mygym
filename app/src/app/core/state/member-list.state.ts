@@ -74,17 +74,30 @@ export class MemberListState {
   }
 
   // Las calugas son un único grupo de filtro mutuamente excluyente (ver gym-admin.ts): elegir
-  // una reemplaza cualquier filtro del otro eje. El buscador de texto se combina con cualquiera.
+  // una reemplaza cualquier filtro del otro eje. Al ELEGIR una caluga se borra el texto del buscador
+  // (pedido del usuario 2026-10-12): si no, el resultado mezclaba un filtro nuevo con una búsqueda
+  // vieja que ya no se acordaba y la lista salía vacía sin explicación. Quitar la caluga no toca el texto.
   setStatusFilter(status: MembershipStatus | null): void {
     this.statusFilter.set(status);
     this.inviteFilter.set(null);
+    if (status) {
+      this.clearSearchText();
+    }
     this.goTo(0);
   }
 
   setInviteFilter(invite: Exclude<InviteStatus, null> | null): void {
     this.inviteFilter.set(invite);
     this.statusFilter.set(null);
+    if (invite) {
+      this.clearSearchText();
+    }
     this.goTo(0);
+  }
+
+  private clearSearchText(): void {
+    clearTimeout(this.searchTimer);
+    this.searchQuery.set('');
   }
 
   private load(): void {

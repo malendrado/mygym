@@ -36,17 +36,22 @@ export interface Member {
   birthDate: string | null;
   /** Formato internacional ("+56912345678") — de acá sale el link de WhatsApp (ver whatsappUrl). */
   phone: string | null;
+  /** Contacto de emergencia (obligatorio): nombre y celular internacional — null mientras no lo complete. */
+  emergencyContactName: string | null;
+  emergencyContactPhone: string | null;
   /** false = todavía no completa sus datos: no puede reservar (el servidor lo hace cumplir). */
   profileComplete: boolean;
 }
 
-/** Los cuatro datos de contacto juntos — PUT /api/me/profile y los de admin/super-admin. */
+/** Los datos de contacto y el contacto de emergencia juntos — PUT /api/me/profile y los de admin/super-admin. */
 export interface MemberProfile {
   rut: string;
   address: string;
   /** "YYYY-MM-DD" */
   birthDate: string;
   phone: string;
+  emergencyContactName: string;
+  emergencyContactPhone: string;
 }
 
 export type InviteStatus = 'PENDING' | 'REGISTERED' | null;
@@ -61,6 +66,22 @@ export interface MarkPaidRequest {
   /** Banco con el que el socio le transfirió al gym (lista CHILE_BANKS; "Otro" = texto libre) —
    *  queda guardado para informes posteriores (ManualPayment en el backend). */
   bank: string;
+  /** Desde cuándo vale el plan ("YYYY-MM-DD", nunca futura ni de hace más de un mes); omitido = ahora. */
+  startDate?: string;
+  /** Clases que el socio ya usó fuera de la app en ese período (solo planes con cupo). */
+  usedClasses?: number;
+}
+
+/** Vista previa de activar un plan con esa fecha y esas clases (ver GymService.previewPlanPayment). */
+export interface PaymentPreview {
+  periodStart: string;
+  periodEnd: string;
+  monthlyClasses: number | null;
+  usedOutside: number;
+  bookedInApp: number;
+  /** null = plan sin tope de clases. */
+  remaining: number | null;
+  expiringSoon: boolean;
 }
 
 /**

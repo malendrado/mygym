@@ -62,6 +62,20 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
      *  acotadas por socio. */
     List<Reservation> findByMemberIdAndCheckedInAtIsNotNullOrderByClassDateDesc(Long memberId);
 
+    /** Tablero "En clase": reservas con asistencia de varios socios desde una fecha — una sola consulta para toda
+     *  la clase, acotada por `from` (los últimos días), nunca todo el historial. */
+    List<Reservation> findByMemberIdInAndCheckedInAtIsNotNullAndClassDateGreaterThanEqual(
+            java.util.Collection<Long> memberIds, LocalDate from);
+
+    /** Tablero "En clase": cuáles de estos socios ya habían reservado alguna clase antes de `before`
+     *  (los que no aparecen acá van a su primera clase). */
+    @org.springframework.data.jpa.repository.Query(
+            "select distinct r.memberId from Reservation r where r.memberId in :memberIds"
+                    + " and r.status = com.cortesdev.mygym.models.ReservationStatus.BOOKED and r.classDate < :before")
+    List<Long> findMemberIdsWithBookingBefore(
+            @org.springframework.data.repository.query.Param("memberIds") java.util.Collection<Long> memberIds,
+            @org.springframework.data.repository.query.Param("before") LocalDate before);
+
     /** Para ClosureNotificationService — todas las reservas que un cierre puntual canceló. */
     List<Reservation> findByCancelledByClosureId(Long closureId);
 }

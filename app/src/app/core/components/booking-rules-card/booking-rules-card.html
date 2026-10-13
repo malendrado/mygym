@@ -68,6 +68,17 @@
         </p>
       </div>
 
+      <div class="rule-block" data-tour="booking-fixed-week">
+        <ion-toggle formControlName="fixedMembersCurrentWeekOnly" justify="space-between">
+          Socios con clases fijas: solo la semana en curso
+        </ion-toggle>
+        <p class="rule-block__help">
+          Si lo enciendes, los socios que tienen clases fijas solo podrán reservar y cancelar clases de la semana
+          actual (de lunes a domingo). Al cancelar recuperan el cupo para usarlo esa misma semana. No afecta a los
+          socios sin clases fijas ni a lo que hagas tú desde el panel.
+        </p>
+      </div>
+
       <ion-button type="submit" [disabled]="form.invalid || isSaving() || !loaded()" class="ion-margin-top">
         {{ isSaving() ? 'Guardando...' : 'Guardar reglas de reserva' }}
       </ion-button>

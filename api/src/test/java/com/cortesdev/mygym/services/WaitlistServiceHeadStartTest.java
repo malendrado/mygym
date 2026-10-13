@@ -44,6 +44,7 @@ class WaitlistServiceHeadStartTest {
     @Mock private AppUserRepository appUserRepository;
     @Mock private GymRepository gymRepository;
     @Mock private MemberLifecycleEmailService emailService;
+    @Mock private FixedWeekRule fixedWeekRule;
     @InjectMocks private WaitlistService waitlistService;
 
     private Gym gym(int headStartMinutes) {

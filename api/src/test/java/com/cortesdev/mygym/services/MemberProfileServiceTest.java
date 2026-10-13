@@ -35,7 +35,8 @@ class MemberProfileServiceTest {
     private final AppUser member = AppUser.builder().id(MEMBER_ID).gymId(GYM_ID).role(Role.MEMBER).build();
 
     private static MemberProfileRequest request(String rut, String phone) {
-        return new MemberProfileRequest(rut, "  Av. Siempre Viva 742, Ñuñoa ", LocalDate.of(1990, 5, 20), phone);
+        return new MemberProfileRequest(rut, "  Av. Siempre Viva 742, Ñuñoa ", LocalDate.of(1990, 5, 20), phone,
+                " Marta  Pérez ", "9 8765 4321");
     }
 
     @Test
@@ -47,6 +48,8 @@ class MemberProfileServiceTest {
         assertThat(member.getRut()).isEqualTo("12.345.678-5");
         assertThat(member.getPhone()).isEqualTo("+56912345678");
         assertThat(member.getAddress()).isEqualTo("Av. Siempre Viva 742, Ñuñoa");
+        assertThat(member.getEmergencyContactName()).isEqualTo("Marta Pérez");
+        assertThat(member.getEmergencyContactPhone()).isEqualTo("+56987654321");
         assertThat(member.isProfileComplete()).isTrue();
         verify(appUserRepository).save(member);
     }
@@ -82,12 +85,29 @@ class MemberProfileServiceTest {
     }
 
     @Test
-    void profileIsIncompleteUntilAllFourDataPointsExist() {
+    void profileIsIncompleteUntilAllSixDataPointsExist() {
         AppUser partial = AppUser.builder().rut("12.345.678-5").address("Av. X 123").phone("+56912345678").build();
         assertThat(partial.isProfileComplete()).isFalse();
         partial.setBirthDate(LocalDate.of(1990, 1, 1));
+        // un socio que ya tenía sus datos de antes igual queda pendiente hasta dar su contacto de emergencia
+        assertThat(partial.isProfileComplete()).isFalse();
+        partial.setEmergencyContactName("Marta Pérez");
+        assertThat(partial.isProfileComplete()).isFalse();
+        partial.setEmergencyContactPhone("+56987654321");
         assertThat(partial.isProfileComplete()).isTrue();
         partial.setPhone(" ");
         assertThat(partial.isProfileComplete()).isFalse();
+    }
+
+    @Test
+    void anInvalidEmergencyContactSavesNothingAtAll() {
+        when(appUserRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
+        MemberProfileRequest bad = new MemberProfileRequest(
+                "123456785", "Av. Siempre Viva 742, Ñuñoa", LocalDate.of(1990, 5, 20), "9 1234 5678", "Marta", "22 123 4567");
+
+        assertThatThrownBy(() -> service.updateOwn(MEMBER_ID, bad)).isInstanceOf(InvalidMemberProfileException.class);
+
+        assertThat(member.getRut()).isNull();
+        verify(appUserRepository, never()).save(any());
     }
 }

@@ -73,6 +73,37 @@
       <ion-note color="danger">{{ errorText('phone') }}</ion-note>
     }
 
+    <p class="mp-section">Contacto de emergencia</p>
+    <ion-item lines="none">
+      <ion-input
+        label="Nombre del contacto *"
+        labelPlacement="stacked"
+        formControlName="emergencyContactName"
+        placeholder="Nombre y apellido"
+        autocomplete="off"
+        [maxlength]="maxEmergencyName"
+      />
+    </ion-item>
+    @if (showError('emergencyContactName')) {
+      <ion-note color="danger">{{ errorText('emergencyContactName') }}</ion-note>
+    }
+
+    <ion-item lines="none">
+      <ion-input
+        label="Celular del contacto *"
+        labelPlacement="stacked"
+        type="tel"
+        formControlName="emergencyContactPhone"
+        placeholder="+56 9 1234 5678"
+        autocomplete="off"
+        inputmode="tel"
+        (ionBlur)="tidyPhone('emergencyContactPhone')"
+      />
+    </ion-item>
+    @if (showError('emergencyContactPhone')) {
+      <ion-note color="danger">{{ errorText('emergencyContactPhone') }}</ion-note>
+    }
+
     @if (serverErrorText()) {
       <ion-note color="danger" class="mp-server-error">{{ serverErrorText() }}</ion-note>
     }

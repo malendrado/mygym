@@ -15,7 +15,7 @@
   @if (closureValue(); as closure) {
     @if (step() === 'form') {
       <div class="edit-closure-fixed">
-        <p><strong>Desde:</strong> {{ closure.startDate }}</p>
+        <p><strong>Desde:</strong> {{ isoDate(closure.startDate) }}</p>
         <p><strong>Alcance:</strong> {{ scopeLabel() }}</p>
       </div>
       <p class="item-hint">La fecha de inicio y el alcance no se pueden cambiar — si necesitas otro alcance, levanta este cierre y crea uno nuevo.</p>

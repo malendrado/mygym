@@ -87,6 +87,10 @@ public class Gym {
      *  va"). La pantalla de TV del gimnasio NUNCA se ve afectada por este flag. */
     private boolean showAttendeesToMembers;
 
+    /** Si los socios con clases fijas precargadas solo pueden reservar y cancelar clases de la semana en curso
+     *  (lunes a domingo) — ver FixedWeekRule y V42. No afecta a quien no tiene fijas ni al admin. */
+    private boolean fixedMembersCurrentWeekOnly;
+
     // Datos bancarios para que un socio transfiera directo (alternativa a Flow) —
     // todo nullable, se considera "configurado" solo si los 4 campos clave están
     // completos (ver GymService.getBankTransferInfo).

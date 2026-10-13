@@ -42,6 +42,8 @@ public class MemberLifecycleEmailService {
     private static final String LOGIN_URL = "https://www.mygym.cl/login";
     private static final ZoneId GYM_ZONE = ZoneId.of("America/Santiago");
     private static final DateTimeFormatter IMPORT_DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+    // Hora de una clase en los emails: "18:30" (nunca segundos ni fracciones, aunque el dato los traiga).
+    private static final DateTimeFormatter HOUR_MINUTE_FORMAT = DateTimeFormatter.ofPattern("HH:mm");
     private static final DateTimeFormatter WAITLIST_DATE_FORMAT =
             DateTimeFormatter.ofPattern("EEEE d 'de' MMMM", new Locale("es", "CL"));
 
@@ -280,6 +282,36 @@ public class MemberLifecycleEmailService {
                         + escapeHtml(plan.getName()) + " en mygym.");
     }
 
+    /** Pago manual con fechas: dice desde cuándo vale el plan y hasta cuándo, y cuántas clases le quedan (null = sin tope). */
+    public void sendPaymentConfirmedMember(
+            Gym gym, AppUser member, GymPlan plan, ZonedDateTime periodStart, ZonedDateTime periodEnd, Integer remaining) {
+        String quota = plan.getMonthlyClasses() == null
+                ? "clases ilimitadas dentro de los cupos disponibles"
+                : plan.getMonthlyClasses() + " clases al mes";
+        String dates = " Está vigente del <strong style=\"color:#eaf6f7;\">" + IMPORT_DATE_FORMAT.format(periodStart)
+                + "</strong> al <strong style=\"color:#eaf6f7;\">" + IMPORT_DATE_FORMAT.format(periodEnd.minusDays(1))
+                + "</strong>.";
+        String left = remaining == null
+                ? ""
+                : " Te " + (remaining == 1 ? "queda" : "quedan") + " <strong style=\"color:#eaf6f7;\">" + Math.max(remaining, 0)
+                        + "</strong> " + (remaining == 1 ? "clase" : "clases") + " de este período.";
+        String headline = "¡Pago confirmado! Ya tienes " + plan.getName();
+        String body = "<p style=\"margin:0 0 12px;\">Tu plan <strong style=\"color:#eaf6f7;\">" + escapeHtml(plan.getName())
+                + "</strong> ya está activo, con " + quota + "." + dates + left + "</p>"
+                + "<p style=\"margin:0;\">Nos vemos en " + escapeHtml(gym.getName()) + ".</p>";
+        send(
+                gym,
+                member.getEmail(),
+                "Pago confirmado — " + plan.getName(),
+                "Pago confirmado",
+                headline,
+                body,
+                "Reservar mi clase",
+                LOGIN_URL,
+                "Recibiste este correo porque activaste el plan " + escapeHtml(plan.getName()) + " en "
+                        + escapeHtml(gym.getName()) + ".");
+    }
+
     public void sendPaymentConfirmedMember(Gym gym, AppUser member, GymPlan plan) {
         String quota = plan.getMonthlyClasses() == null
                 ? "clases ilimitadas dentro de los cupos disponibles"
@@ -445,7 +477,7 @@ public class MemberLifecycleEmailService {
     // sigue libre. Mismo patrón de send()/plantilla que el resto de la clase.
     public void sendWaitlistHeadStart(Gym gym, AppUser member, GymBlock block, LocalDate classDate, long headStartMinutes) {
         String name = firstName(member);
-        String when = WAITLIST_DATE_FORMAT.format(classDate) + " a las " + block.getStartTime();
+        String when = WAITLIST_DATE_FORMAT.format(classDate) + " a las " + HOUR_MINUTE_FORMAT.format(block.getStartTime());
         String headline = "¡" + name + ", se liberó un cupo en " + block.getLabel() + "!";
         String body = "<p style=\"margin:0 0 12px;\">Eras el primero en la lista de espera de <strong style=\"color:#eaf6f7;\">"
                 + escapeHtml(block.getLabel()) + "</strong> (" + when + ") en " + escapeHtml(gym.getName())
@@ -467,7 +499,7 @@ public class MemberLifecycleEmailService {
 
     public void sendWaitlistSpotOpen(Gym gym, AppUser member, GymBlock block, LocalDate classDate) {
         String name = firstName(member);
-        String when = WAITLIST_DATE_FORMAT.format(classDate) + " a las " + block.getStartTime();
+        String when = WAITLIST_DATE_FORMAT.format(classDate) + " a las " + HOUR_MINUTE_FORMAT.format(block.getStartTime());
         String headline = "¡" + name + ", todavía hay cupo en " + block.getLabel() + "!";
         String body = "<p style=\"margin:0 0 12px;\">Se liberó un cupo en <strong style=\"color:#eaf6f7;\">"
                 + escapeHtml(block.getLabel()) + "</strong> (" + when + ") en " + escapeHtml(gym.getName())
@@ -527,7 +559,9 @@ public class MemberLifecycleEmailService {
     // ClosureNotificationService).
     public void sendClosureNoticeAdmin(
             Gym gym, String reason, LocalDate startDate, LocalDate endDate, List<String> adminEmails) {
-        String when = startDate.equals(endDate) ? startDate.toString() : startDate + " al " + endDate;
+        String when = startDate.equals(endDate)
+                ? IMPORT_DATE_FORMAT.format(startDate)
+                : IMPORT_DATE_FORMAT.format(startDate) + " al " + IMPORT_DATE_FORMAT.format(endDate);
         String headline = gym.getName() + " fue cerrado temporalmente";
         String body = "<p style=\"margin:0 0 12px;\">Se cerró " + escapeHtml(gym.getName()) + " (" + when + ") por: "
                 + escapeHtml(reason) + ".</p>"

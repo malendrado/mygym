@@ -69,6 +69,9 @@ import { MemberProfileModal } from '../../core/components/member-profile-modal/m
 import { MemberProfile } from '../../core/models/member.model';
 import { MemberProfileService } from '../../core/services/member-profile.service';
 import { errorText } from '../../core/utils/error-text';
+import { santiagoNow } from '../../core/utils/attendance';
+import { formatIsoDate } from '../../core/utils/date-format';
+import { isOutsideCurrentWeek, nextWeekMonday } from '../../core/utils/fixed-week';
 import { VersionTag } from '../../core/components/version-tag/version-tag';
 
 registerClassCategoryIcons();
@@ -453,6 +456,19 @@ export class MemberPage {
   // del backend sin explicación. `quotaExhausted()` no cubre este caso: sin
   // plan, `quotaTotal()` es null, así que da `false` (no "agotado").
   protected readonly canBook = computed(() => this.membership().status === 'active');
+
+  // Socios con clases fijas: si el gym encendió "solo la semana en curso", reservar y cancelar se limita a lunes-domingo
+  // de esta semana (el servidor lo hace cumplir igual: FixedWeekRule). Acá solo se evita el error deshabilitando botones.
+  private readonly hasFixedClasses = signal(false);
+  protected readonly fixedWeekOnly = computed(() => !!this.gym()?.fixedMembersCurrentWeekOnly && this.hasFixedClasses());
+
+  protected fixedWeekLocked(classDate: string): boolean {
+    return this.fixedWeekOnly() && isOutsideCurrentWeek(classDate, santiagoNow().date);
+  }
+
+  protected fixedWeekOpensOn(): string {
+    return formatIsoDate(nextWeekMonday(santiagoNow().date));
+  }
   // "Sin cupo" antes se mostraba también cuando la clase seguía con lugar libre pero ya
   // estaba fuera del límite de reserva del gym (bookingWindowMinutes) — el
   // socio leía "no queda lugar" cuando el problema real era otro (la clase está por
@@ -846,6 +862,7 @@ export class MemberPage {
     this.loadPhotos();
     this.loadOccurrences();
     this.loadMyReservations();
+    this.loadTodayRoutine();
     this.loadPastReservations(true);
     this.startBookingDemo();
 
@@ -1096,6 +1113,27 @@ export class MemberPage {
   // Los últimos 30 registros del propio socio — antes no había dónde volver a ver lo anotado: el
   // registro recién guardado se mostraba un instante y desaparecía al recargar.
   protected readonly workoutHistory = signal<MemberWorkoutLog[]>([]);
+
+  // Qué día de su rutina le toca hoy ("Día 3 · Piernas"), para mostrarlo en su reserva de hoy y que llegue a la clase
+  // sabiendo qué va a hacer. null si no tiene rutina (o es la demo).
+  protected readonly todayRoutine = signal<string | null>(null);
+
+  private loadTodayRoutine(): void {
+    if (this.isDemoPreview) {
+      return;
+    }
+    this.workoutService.getPending().subscribe({
+      next: (pending) => {
+        const day = pending.plan?.days.find((d) => d.id === pending.suggestedPlanDayId);
+        this.todayRoutine.set(day ? day.title : null);
+      },
+      error: () => this.todayRoutine.set(null),
+    });
+  }
+
+  protected isTodayDate(classDate: string): boolean {
+    return classDate === this.todayIso;
+  }
 
   private loadWorkoutHistory(): void {
     if (this.isDemoPreview) {
@@ -1441,8 +1479,9 @@ export class MemberPage {
     this.reservationService.checkIn(code).subscribe({
       next: (res) => {
         this.checkinBusy.set(false);
-        this.showToast(`¡Asistencia marcada${res.classLabels.length ? ' en ' + res.classLabels.join(' y ') : ''}!`);
+        this.showCheckinToast(`¡Asistencia marcada${res.classLabels.length ? ' en ' + res.classLabels.join(' y ') : ''}!`);
         this.loadMyReservations();
+        this.loadTodayRoutine();
         this.loadOccurrences();
       },
       error: (err: Error) => {
@@ -1450,6 +1489,22 @@ export class MemberPage {
         this.showToast(err.message || 'No pudimos confirmar tu asistencia. Intenta nuevamente.', 'danger');
       },
     });
+  }
+
+  // Tras escanear el QR: si tiene rutina, el mismo aviso lleva directo a anotar lo que hizo (antes tenía que ir a
+  // buscar la pestaña "Rutina").
+  private async showCheckinToast(message: string): Promise<void> {
+    const hasRoutine = this.todayRoutine() !== null;
+    const toast = await this.toastController.create({
+      message,
+      duration: hasRoutine ? 9000 : 4000,
+      position: 'bottom',
+      color: 'success',
+      buttons: hasRoutine
+        ? [{ text: 'Anotar lo que hice', handler: () => this.setSection('rutina') }, { text: 'Cerrar', role: 'cancel' }]
+        : [],
+    });
+    await toast.present();
   }
 
   private async showToast(message: string, color: 'success' | 'danger' = 'success'): Promise<void> {
@@ -1487,6 +1542,7 @@ export class MemberPage {
   // Compartido por loadMembership() (demo preview, y el re-poll tras volver de Flow.cl) y
   // loadDashboard() (carga inicial real) — mismo procesamiento, solo cambia de dónde sale el dato.
   private applyMembership(member: Member): void {
+    this.hasFixedClasses.set(!!member.fixedClassesSummary);
     if (this.isDemoPreview) {
       this.demoMemberName.set(member.name);
     } else {
@@ -1498,6 +1554,8 @@ export class MemberPage {
         address: member.address ?? '',
         birthDate: member.birthDate ?? '',
         phone: member.phone ?? '',
+        emergencyContactName: member.emergencyContactName ?? '',
+        emergencyContactPhone: member.emergencyContactPhone ?? '',
       });
     }
     if (!member.planId || !member.paidAt) {

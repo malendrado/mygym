@@ -53,6 +53,7 @@ export class DeletionAudits {
 
   protected formatDate(value: string): string {
     return new Intl.DateTimeFormat('es-CL', {
+      timeZone: 'America/Santiago',
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',

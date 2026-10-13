@@ -191,6 +191,38 @@ class AttendanceSummaryTest {
     }
 
     @Test
+    void losQueMasVienenExigenTresReservasYOrdenanPorAsistenciasYLuegoPorTasa() {
+        // Socio 1: 4 reservas, 4 asistencias. Socio 2: 5 reservas, 4 asistencias (misma cantidad, peor tasa).
+        // Socio 3: 2 reservas, 2 asistencias -> no entra (mínimo 3). Socio 4: 3 reservas, ninguna -> no entra.
+        for (int i = 1; i <= 4; i++) {
+            res(GAP, 1, i, true);
+            res(GAP, 2, i, true);
+        }
+        res(GAP, 2, 5, false);
+        res(GAP, 3, 1, true);
+        res(GAP, 3, 2, true);
+        for (int i = 1; i <= 3; i++) {
+            res(GAP, 4, i, false);
+        }
+
+        AttendanceSummaryResponse s = service.summary(GYM_ID, today.minusDays(10), to);
+
+        assertThat(s.topAttendees()).extracting("memberId").containsExactly(1L, 2L);
+        assertThat(s.topAttendees().get(0).attended()).isEqualTo(4);
+    }
+
+    @Test
+    void losQueMasVienenSeLimitanALosDiez() {
+        for (long m = 1; m <= 12; m++) {
+            for (int i = 1; i <= 3; i++) {
+                res(GAP, m, i, true);
+            }
+        }
+
+        assertThat(service.summary(GYM_ID, from, to).topAttendees()).hasSize(10);
+    }
+
+    @Test
     void rankingSeLimitaALosDiezPrimeros() {
         for (long m = 1; m <= 12; m++) {
             for (int i = 1; i <= 3; i++) {

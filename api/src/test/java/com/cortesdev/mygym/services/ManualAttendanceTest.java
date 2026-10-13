@@ -43,6 +43,7 @@ class ManualAttendanceTest {
 
     @Mock private GymBlockRepository gymBlockRepository;
     @Mock private ReservationRepository reservationRepository;
+    @Mock private FixedWeekRule fixedWeekRule;
     @InjectMocks private ReservationService reservationService;
 
     private Reservation reservation(LocalDate classDate, Instant checkedInAt) {

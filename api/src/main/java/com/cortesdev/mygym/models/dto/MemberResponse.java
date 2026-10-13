@@ -38,12 +38,15 @@ public record MemberResponse(
         LocalDate birthDate,
         /** Formato internacional ("+56912345678") — el panel arma el link de WhatsApp con esto. */
         String phone,
+        /** Contacto de emergencia (nombre y celular internacional) — null mientras no lo complete. */
+        String emergencyContactName,
+        String emergencyContactPhone,
         boolean profileComplete) {
 
     /** Sin los datos sensibles (RUT, dirección, nacimiento); hoy no se usa: el PROFESOR también los ve y edita. */
     public MemberResponse withoutSensitiveData() {
         return new MemberResponse(id, name, email, role, gymId, active, createdAt, planId, paidAt, membershipStatus,
                 planName, planEndDate, monthlyClasses, sessionsRemaining, photoUrl, inviteStatus, fixedClassesSummary,
-                null, null, null, phone, profileComplete);
+                null, null, null, phone, null, null, profileComplete);
     }
 }

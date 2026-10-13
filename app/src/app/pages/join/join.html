@@ -159,7 +159,10 @@
             </button>
           } @else if (registerSent()) {
             <ion-text color="medium">
-              <p>Si los datos son válidos, te enviamos un correo para continuar — revisa tu bandeja de entrada.</p>
+              <p>
+                Si los datos son válidos, te enviamos un correo para crear o recuperar tu contraseña — revisa tu
+                bandeja de entrada (y el spam).
+              </p>
             </ion-text>
           } @else {
             <form class="password-auth" (submit)="$event.preventDefault(); submitSelfRegister()">
@@ -190,12 +193,16 @@
                 @if (registerSubmitting()) {
                   <ion-spinner name="crescent" slot="start"></ion-spinner>
                 }
-                Unirme con mi email
+                Unirme o recuperar mi cuenta
               </ion-button>
             </form>
-            @if (gym()!.googleLoginEnabled) {
-              <button type="button" class="password-auth__switch" (click)="setJoinMode('google')">o únete con Google</button>
-            }
+            <p class="password-auth__hint">Si ya tienes cuenta, te enviamos el correo para recuperar tu contraseña.</p>
+            <div class="password-auth__links">
+              @if (gym()!.googleLoginEnabled) {
+                <button type="button" class="password-auth__switch" (click)="setJoinMode('google')">o únete con Google</button>
+              }
+              <a class="password-auth__switch" routerLink="/login">¿Ya tienes cuenta? Ingresa</a>
+            </div>
           }
         } @else if (status() === 'joining') {
           <div class="join-status">

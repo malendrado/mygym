@@ -100,6 +100,12 @@
 
     @if (section() === 'reservar') {
     <p class="section-hook">Elige un día y reserva tu clase en segundos.</p>
+    @if (fixedWeekOnly()) {
+      <p class="item-hint fixed-week-notice">
+        Tienes clases fijas: puedes reservar y cancelar solo las de esta semana. Las siguientes se abren el lunes
+        {{ fixedWeekOpensOn() }}.
+      </p>
+    }
 
     <section class="membership">
       @if (!membershipLoaded() && !checkoutPending()) {
@@ -409,7 +415,11 @@
                       <ion-badge color="medium" class="class-tile__fixed-badge">Clase fija</ion-badge>
                     }
                     @if (!occurrence.past) {
-                      @if (canCancel(occurrence.classDate, occurrence.startTime)) {
+                      @if (fixedWeekLocked(occurrence.classDate)) {
+                        <span class="class-tile__note class-tile__note--hint">
+                          Podrás cambiarla desde el lunes {{ fixedWeekOpensOn() }}
+                        </span>
+                      } @else if (canCancel(occurrence.classDate, occurrence.startTime)) {
                         <ion-button
                           expand="block"
                           fill="outline"
@@ -434,6 +444,10 @@
                     <button type="button" class="class-tile__link" (click)="scrollToPlans()">Elegir plan</button>
                   } @else if (quotaExhausted()) {
                     <span class="class-tile__note">Sin cupo del mes</span>
+                  } @else if (fixedWeekLocked(occurrence.classDate)) {
+                    <span class="class-tile__note class-tile__note--hint">
+                      Disponible desde el lunes {{ fixedWeekOpensOn() }}
+                    </span>
                   } @else if (isCapacityFull(occurrence) && !occurrence.past) {
                     @if (occurrence.waitlisted) {
                       <ion-badge color="medium">En lista de espera</ion-badge>
@@ -604,6 +618,14 @@
             <p class="class-tile__datetime">
               {{ formatShortDate(reservation.classDate) }} · {{ shortTime(reservation.startTime) }}-{{ shortTime(reservation.endTime) }}
             </p>
+            @if (todayRoutine(); as routine) {
+              @if (isTodayDate(reservation.classDate)) {
+                <p class="class-tile__routine">
+                  <ion-icon name="barbell-outline" aria-hidden="true"></ion-icon>
+                  Hoy te toca: <strong>{{ routine }}</strong>
+                </p>
+              }
+            }
             @if (isReservationLive(reservation)) {
               <div
                 class="class-tile__progress"
@@ -640,7 +662,11 @@
               } @else {
                 <ion-badge color="success">Reservado</ion-badge>
               }
-              @if (canCancel(reservation.classDate, reservation.startTime)) {
+              @if (fixedWeekLocked(reservation.classDate)) {
+                <span class="class-tile__note class-tile__note--hint">
+                  Podrás cambiarla desde el lunes {{ fixedWeekOpensOn() }}
+                </span>
+              } @else if (canCancel(reservation.classDate, reservation.startTime)) {
                 <ion-button
                   expand="block"
                   fill="outline"
@@ -906,7 +932,7 @@
     <ng-template>
       <app-member-profile-modal
         title="Completa tus datos"
-        intro="Para reservar clases necesitamos tu RUT, dirección, fecha de nacimiento y un celular de contacto. Es solo una vez."
+        intro="Para reservar clases necesitamos tu RUT, dirección, fecha de nacimiento, un celular de contacto y un contacto de emergencia. Es solo una vez."
         [required]="true"
         [initial]="memberProfile()"
         [saving]="savingProfile()"

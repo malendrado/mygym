@@ -47,6 +47,12 @@ public class ManualPayment {
 
     private Instant paidAt;
 
+    /** Primer día del período que activó este pago (puede ser anterior a paidAt si el admin lo registró con retraso). */
+    private java.time.LocalDate periodStart;
+
+    /** Clases que el socio ya había usado fuera de la app en ese período (null = ninguna). */
+    private Integer usedClassesOutside;
+
     private Instant createdAt;
 
     @PrePersist

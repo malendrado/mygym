@@ -21,6 +21,7 @@ public record GymResponse(
         int cancellationWindowMinutes,
         int waitlistHeadStartMinutes,
         boolean showAttendeesToMembers,
+        boolean fixedMembersCurrentWeekOnly,
         String bankName,
         String bankAccountType,
         String bankAccountNumber,

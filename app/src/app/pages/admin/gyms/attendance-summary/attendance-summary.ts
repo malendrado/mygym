@@ -1,7 +1,15 @@
 import { Component, EventEmitter, Input, Output, computed, effect, inject, signal, untracked } from '@angular/core';
 import { IonIcon, IonSpinner, ToastController } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { checkmarkCircleOutline, chevronBackOutline, chevronForwardOutline, closeCircleOutline, logoWhatsapp } from 'ionicons/icons';
+import {
+  checkmarkCircleOutline,
+  chevronBackOutline,
+  chevronDownOutline,
+  chevronForwardOutline,
+  chevronUpOutline,
+  closeCircleOutline,
+  logoWhatsapp,
+} from 'ionicons/icons';
 import {
   AttendanceClassStat,
   AttendanceMembersFilter,
@@ -20,7 +28,9 @@ import { whatsappUrl } from '../../../../core/utils/member-profile';
 addIcons({
   'checkmark-circle-outline': checkmarkCircleOutline,
   'chevron-back-outline': chevronBackOutline,
+  'chevron-down-outline': chevronDownOutline,
   'chevron-forward-outline': chevronForwardOutline,
+  'chevron-up-outline': chevronUpOutline,
   'close-circle-outline': closeCircleOutline,
   'logo-whatsapp': logoWhatsapp,
 });
@@ -84,6 +94,13 @@ export class AttendanceSummaryView {
   protected readonly loading = signal(false);
   protected readonly loadFailed = signal(false);
   protected readonly view = signal<View>({ kind: 'summary' });
+  // Una sola lista de socios con dos pestañas (Faltan / Vienen); por clase y por día quedan plegados.
+  protected readonly tab = signal<'missed' | 'attended'>('missed');
+  protected readonly showBreakdown = signal(false);
+  protected readonly tabItems = computed(() => {
+    const s = this.summary();
+    return (this.tab() === 'missed' ? s?.topAbsentees : s?.topAttendees) ?? [];
+  });
 
   // Lista de socios (paginada)
   protected readonly listItems = signal<MemberAttendanceRow[]>([]);

@@ -48,6 +48,7 @@ class ReservationServiceWindowsTest {
     @Mock private WaitlistService waitlistService;
     @Mock private com.cortesdev.mygym.repositories.AppUserRepository appUserRepository;
     @Mock private MemberService memberService;
+    @Mock private FixedWeekRule fixedWeekRule;
     @InjectMocks private ReservationService reservationService;
 
     /** Bloque que empieza dentro de `minutesFromNow` minutos (redondeado hacia arriba al minuto). */
@@ -115,6 +116,37 @@ class ReservationServiceWindowsTest {
         verify(waitlistService).onSpotFreed(anyLong(), any(LocalDate.class));
     }
 
+    // --- socios con clases fijas: solo la semana en curso (FixedWeekRule) ---
+
+    @Test
+    void cancelAsksTheFixedWeekRuleAndStopsIfItRefuses() {
+        Gym gym = gym(30, 30);
+        stubCancel(blockStartingIn(60 * 24 * 10), gym, 60 * 24 * 10);
+        org.mockito.Mockito.doThrow(new BookingWindowClosedException("solo esta semana"))
+                .when(fixedWeekRule).assertAllowed(any(Gym.class), org.mockito.ArgumentMatchers.eq(MEMBER_ID), any(LocalDate.class), org.mockito.ArgumentMatchers.eq("cancelar"));
+
+        assertThatThrownBy(() -> reservationService.cancel(MEMBER_ID, RESERVATION_ID))
+                .isInstanceOf(BookingWindowClosedException.class)
+                .hasMessage("solo esta semana");
+        verify(reservationRepository, never()).save(any());
+        verify(waitlistService, never()).onSpotFreed(anyLong(), any(LocalDate.class));
+    }
+
+    @Test
+    void bookAsksTheFixedWeekRuleAndStopsIfItRefuses() {
+        GymBlock block = blockStartingIn(60 * 24 * 10);
+        when(gymRepository.findById(GYM_ID)).thenReturn(Optional.of(gym(30, 30)));
+        when(gymBlockRepository.findByIdAndGymId(BLOCK_ID, GYM_ID)).thenReturn(Optional.of(block));
+        org.mockito.Mockito.doThrow(new BookingWindowClosedException("solo esta semana"))
+                .when(fixedWeekRule).assertAllowed(any(Gym.class), org.mockito.ArgumentMatchers.eq(MEMBER_ID), any(LocalDate.class), org.mockito.ArgumentMatchers.eq("reservar"));
+
+        assertThatThrownBy(() -> reservationService.book(
+                        GYM_ID, MEMBER_ID, new ReservationCreateRequest(BLOCK_ID, classDateOf(60 * 24 * 10))))
+                .isInstanceOf(BookingWindowClosedException.class)
+                .hasMessage("solo esta semana");
+        verify(reservationRepository, never()).save(any());
+    }
+
     // --- reservar usa SU ventana, no la de cancelar ---
 
     @Test
@@ -170,7 +202,8 @@ class ReservationServiceWindowsTest {
     void bookWorksOnceTheContactDataIsComplete() {
         com.cortesdev.mygym.models.AppUser member = com.cortesdev.mygym.models.AppUser.builder()
                 .id(MEMBER_ID).gymId(GYM_ID).rut("12.345.678-5").address("Av. Siempre Viva 742, Ñuñoa")
-                .phone("+56912345678").birthDate(LocalDate.of(1990, 5, 20)).build();
+                .phone("+56912345678").birthDate(LocalDate.of(1990, 5, 20))
+                .emergencyContactName("Marta Pérez").emergencyContactPhone("+56987654321").build();
         stubBookUpToTheProfileGate(member);
         when(reservationRepository.save(any(Reservation.class))).thenAnswer(inv -> inv.getArgument(0));
 

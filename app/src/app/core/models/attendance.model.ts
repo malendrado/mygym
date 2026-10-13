@@ -40,6 +40,8 @@ export interface AttendanceSummary {
   byClass: AttendanceClassStat[];
   byWeekday: AttendanceWeekdayStat[];
   topAbsentees: MemberAttendanceRow[];
+  /** Los que más asistieron (mínimo 3 reservas), más asistencias primero. */
+  topAttendees: MemberAttendanceRow[];
 }
 
 export interface AttendanceMembersPage {

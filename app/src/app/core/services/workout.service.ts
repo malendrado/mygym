@@ -39,6 +39,26 @@ export class WorkoutService {
     return this.http.get<MemberWorkoutLog[]>(`${this.memberBase(memberId, gymId)}/logs`);
   }
 
+  /** El profesor/admin anota la rutina POR el alumno (reserva con asistencia). */
+  createLogForMember(
+    memberId: number,
+    reservationId: number,
+    payload: SaveWorkoutLogRequest,
+    gymId: number | null = null,
+  ): Observable<MemberWorkoutLog> {
+    return this.http.post<MemberWorkoutLog>(`${this.memberBase(memberId, gymId)}/logs/${reservationId}`, payload);
+  }
+
+  /** Corrige un registro ya anotado (por el socio o por otro profesor). */
+  updateLogForMember(
+    memberId: number,
+    logId: number,
+    payload: SaveWorkoutLogRequest,
+    gymId: number | null = null,
+  ): Observable<MemberWorkoutLog> {
+    return this.http.put<MemberWorkoutLog>(`${this.memberBase(memberId, gymId)}/logs/${logId}`, payload);
+  }
+
   getLatestLog(memberId: number): Observable<MemberWorkoutLog | null> {
     return this.http.get<MemberWorkoutLog | null>(`${this.adminBase}/${memberId}/workout/latest-log`);
   }

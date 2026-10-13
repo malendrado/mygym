@@ -398,4 +398,76 @@ class WorkoutServiceTest {
 
         assertThat(workoutService.getMyLogHistory(MEMBER_ID)).isEmpty();
     }
+
+    // ---- el profesor/admin anota por el alumno ----
+
+    @Test
+    void profesorAnotaPorElAlumnoYQuedaRegistradoQuienLoHizo() {
+        AppUser socio = AppUser.builder().id(MEMBER_ID).gymId(GYM_ID).role(Role.MEMBER).name("Camila").build();
+        AppUser profe = AppUser.builder().id(90L).gymId(GYM_ID).role(Role.PROFESOR).name("Profe Juan").build();
+        when(appUserRepository.findByIdAndGymId(MEMBER_ID, GYM_ID)).thenReturn(Optional.of(socio));
+        when(appUserRepository.findAllById(any())).thenReturn(List.of(profe));
+        wireStatefulLogRepository();
+        when(workoutPlanRepository.findByMemberIdAndActiveTrue(MEMBER_ID)).thenReturn(Optional.of(plan));
+        when(planDayRepository.findByWorkoutPlanIdOrderByOrderIndexAsc(PLAN_ID)).thenReturn(List.of(day1, day2, day3));
+        when(memberWorkoutLogRepository.findByReservationId(any())).thenReturn(Optional.empty());
+        Reservation res = reservation(601L, LocalDate.of(2026, 10, 7));
+        when(reservationRepository.findByIdAndMemberId(601L, MEMBER_ID)).thenReturn(Optional.of(res));
+
+        MemberWorkoutLogResponse log = workoutService.createLogAsStaff(
+                GYM_ID, MEMBER_ID, 601L, new WorkoutLogSaveRequest(day1.getId(), null, List.of()), 90L);
+
+        assertThat(log.loggedByName()).isEqualTo("Profe Juan");
+        assertThat(log.planDayId()).isEqualTo(day1.getId());
+    }
+
+    @Test
+    void anotarPorUnSocioDeOtroGymEsNotFound() {
+        when(appUserRepository.findByIdAndGymId(MEMBER_ID, 999L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> workoutService.createLogAsStaff(
+                        999L, MEMBER_ID, 601L, new WorkoutLogSaveRequest(day1.getId(), null, List.of()), 90L))
+                .isInstanceOf(com.cortesdev.mygym.services.exception.MemberNotFoundException.class);
+    }
+
+    @Test
+    void elProfesorNoPuedeAnotarSiElAlumnoNoTieneAsistencia() {
+        AppUser socio = AppUser.builder().id(MEMBER_ID).gymId(GYM_ID).role(Role.MEMBER).name("Camila").build();
+        when(appUserRepository.findByIdAndGymId(MEMBER_ID, GYM_ID)).thenReturn(Optional.of(socio));
+        Reservation sinCheckIn = Reservation.builder()
+                .id(602L)
+                .memberId(MEMBER_ID)
+                .classDate(LocalDate.now())
+                .status(ReservationStatus.BOOKED)
+                .build();
+        when(reservationRepository.findByIdAndMemberId(602L, MEMBER_ID)).thenReturn(Optional.of(sinCheckIn));
+
+        assertThatThrownBy(() -> workoutService.createLogAsStaff(
+                        GYM_ID, MEMBER_ID, 602L, new WorkoutLogSaveRequest(day1.getId(), null, List.of()), 90L))
+                .isInstanceOf(InvalidWorkoutLogException.class)
+                .hasMessageContaining("asistencia");
+    }
+
+    @Test
+    void siElProfesorCorrigeUnRegistroDelSocioQuedaComoAutor() {
+        AppUser socio = AppUser.builder().id(MEMBER_ID).gymId(GYM_ID).role(Role.MEMBER).name("Camila").build();
+        AppUser profe = AppUser.builder().id(90L).gymId(GYM_ID).role(Role.PROFESOR).name("Profe Juan").build();
+        when(appUserRepository.findByIdAndGymId(MEMBER_ID, GYM_ID)).thenReturn(Optional.of(socio));
+        when(appUserRepository.findAllById(any())).thenReturn(List.of(profe));
+        MemberWorkoutLog delSocio = MemberWorkoutLog.builder()
+                .id(7L).reservationId(701L).suggestedPlanDayId(day1.getId()).planDayId(day1.getId())
+                .exercisesLog(List.of()).createdAt(Instant.now()).build();
+        Reservation res = reservation(701L, LocalDate.of(2026, 10, 3));
+        when(memberWorkoutLogRepository.findById(7L)).thenReturn(Optional.of(delSocio));
+        when(reservationRepository.findByIdAndMemberId(701L, MEMBER_ID)).thenReturn(Optional.of(res));
+        when(planDayRepository.findById(day1.getId())).thenReturn(Optional.of(day1));
+        when(planDayRepository.findByWorkoutPlanIdOrderByOrderIndexAsc(PLAN_ID)).thenReturn(List.of(day1, day2, day3));
+        when(memberWorkoutLogRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        MemberWorkoutLogResponse updated = workoutService.updateLogAsStaff(
+                GYM_ID, MEMBER_ID, 7L, new WorkoutLogSaveRequest(day2.getId(), null, List.of()), 90L);
+
+        assertThat(updated.loggedByName()).isEqualTo("Profe Juan");
+        assertThat(updated.planDayId()).isEqualTo(day2.getId());
+    }
 }

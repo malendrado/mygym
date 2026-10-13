@@ -89,6 +89,7 @@ export class AdminsList {
       return 'Nunca entró';
     }
     return new Intl.DateTimeFormat('es-CL', {
+      timeZone: 'America/Santiago',
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',

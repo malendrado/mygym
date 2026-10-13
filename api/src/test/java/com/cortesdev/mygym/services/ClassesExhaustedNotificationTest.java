@@ -42,7 +42,7 @@ class ClassesExhaustedNotificationTest {
 
     private ReservationService reservationService() {
         return new ReservationService(
-                null, null, gymRepository, null, memberService, null, null, null, gymPlanRepository, emailService);
+                null, null, gymRepository, null, memberService, null, null, null, gymPlanRepository, emailService, null);
     }
 
     @Test

@@ -14,7 +14,9 @@ public record AttendanceSummaryResponse(
         Totals previousTotals,
         List<ClassStat> byClass,
         List<WeekdayStat> byWeekday,
-        List<MemberAttendanceRow> topAbsentees) {
+        List<MemberAttendanceRow> topAbsentees,
+        /** Los que más asistieron (mínimo 3 reservas), más asistencias primero. */
+        List<MemberAttendanceRow> topAttendees) {
 
     public record Totals(int booked, int attended, int missed) {}
 

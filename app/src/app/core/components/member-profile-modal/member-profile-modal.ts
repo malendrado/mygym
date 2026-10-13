@@ -9,6 +9,8 @@ import {
   addressValidator,
   birthDateError,
   birthDateValidator,
+  emergencyNameValidator,
+  MAX_EMERGENCY_NAME_LENGTH,
   formatMobile,
   mobileValidator,
   MAX_ADDRESS_LENGTH,
@@ -16,12 +18,14 @@ import {
 
 addIcons({ 'id-card-outline': idCardOutline });
 
+type FieldName = 'rut' | 'address' | 'birthDate' | 'phone' | 'emergencyContactName' | 'emergencyContactPhone';
+
 function todayIsoDate(): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Santiago' }).format(new Date());
 }
 
 /**
- * Datos de contacto del socio: RUT, dirección, fecha de nacimiento y celular. Lo usan:
+ * Datos del socio: RUT, dirección, fecha de nacimiento, celular y contacto de emergencia. Lo usan:
  *  - el propio socio, como pantalla OBLIGATORIA al entrar a /member si le faltan datos
  *    (`required`: sin botón de cerrar, no se puede saltar);
  *  - el admin del gym y el super-admin, para cargar o corregir los datos de un socio.
@@ -42,13 +46,22 @@ export class MemberProfileModal {
   @Input() required = false;
 
   @Input() set initial(
-    value: { rut?: string | null; address?: string | null; birthDate?: string | null; phone?: string | null } | null,
+    value: {
+      rut?: string | null;
+      address?: string | null;
+      birthDate?: string | null;
+      phone?: string | null;
+      emergencyContactName?: string | null;
+      emergencyContactPhone?: string | null;
+    } | null,
   ) {
     this.form.reset({
       rut: value?.rut ?? '',
       address: value?.address ?? '',
       birthDate: value?.birthDate ?? '',
       phone: value?.phone ? formatMobile(value.phone) : '',
+      emergencyContactName: value?.emergencyContactName ?? '',
+      emergencyContactPhone: value?.emergencyContactPhone ? formatMobile(value.emergencyContactPhone) : '',
     });
   }
 
@@ -66,6 +79,7 @@ export class MemberProfileModal {
 
   protected readonly maxBirthDate = todayIsoDate();
   protected readonly maxAddress = MAX_ADDRESS_LENGTH;
+  protected readonly maxEmergencyName = MAX_EMERGENCY_NAME_LENGTH;
   private readonly _saving = signal(false);
   private readonly _serverError = signal<string | null>(null);
   protected readonly isSaving = this._saving.asReadonly();
@@ -76,14 +90,22 @@ export class MemberProfileModal {
     address: new FormControl('', { nonNullable: true, validators: [Validators.required, addressValidator()] }),
     birthDate: new FormControl('', { nonNullable: true, validators: [Validators.required, birthDateValidator()] }),
     phone: new FormControl('', { nonNullable: true, validators: [Validators.required, mobileValidator()] }),
+    emergencyContactName: new FormControl('', {
+      nonNullable: true,
+      validators: [Validators.required, emergencyNameValidator()],
+    }),
+    emergencyContactPhone: new FormControl('', {
+      nonNullable: true,
+      validators: [Validators.required, mobileValidator()],
+    }),
   });
 
-  protected showError(name: 'rut' | 'address' | 'birthDate' | 'phone'): boolean {
+  protected showError(name: FieldName): boolean {
     const c = this.form.controls[name];
     return c.invalid && (c.dirty || c.touched);
   }
 
-  protected errorText(name: 'rut' | 'address' | 'birthDate' | 'phone'): string {
+  protected errorText(name: FieldName): string {
     const c = this.form.controls[name];
     switch (name) {
       case 'rut':
@@ -92,6 +114,14 @@ export class MemberProfileModal {
         return c.hasError('required') ? 'Ingresa tu dirección.' : String(c.getError('address'));
       case 'birthDate':
         return c.hasError('required') ? 'Ingresa tu fecha de nacimiento.' : String(c.getError('birthDate'));
+      case 'emergencyContactName':
+        return c.hasError('required')
+          ? 'Ingresa el nombre de tu contacto de emergencia.'
+          : String(c.getError('emergencyName'));
+      case 'emergencyContactPhone':
+        return c.hasError('required')
+          ? 'Ingresa el celular de tu contacto de emergencia.'
+          : 'Ingresa un celular chileno válido, por ejemplo +56 9 1234 5678.';
       default:
         return c.hasError('required') ? 'Ingresa tu celular.' : 'Ingresa un celular chileno válido, por ejemplo +56 9 1234 5678.';
     }
@@ -105,8 +135,8 @@ export class MemberProfileModal {
     }
   }
 
-  protected tidyPhone(): void {
-    const c = this.form.controls.phone;
+  protected tidyPhone(name: 'phone' | 'emergencyContactPhone' = 'phone'): void {
+    const c = this.form.controls[name];
     if (!c.hasError('mobile')) {
       c.setValue(formatMobile(c.value));
     }
@@ -121,6 +151,7 @@ export class MemberProfileModal {
     this.form.markAllAsTouched();
     this.tidyRut();
     this.tidyPhone();
+    this.tidyPhone('emergencyContactPhone');
     if (this.form.invalid || this._saving()) {
       return;
     }
@@ -130,6 +161,8 @@ export class MemberProfileModal {
       address: raw.address.trim().replace(/\s+/g, ' '),
       birthDate: raw.birthDate,
       phone: raw.phone.trim(),
+      emergencyContactName: raw.emergencyContactName.trim().replace(/\s+/g, ' '),
+      emergencyContactPhone: raw.emergencyContactPhone.trim(),
     });
   }
 

@@ -44,6 +44,9 @@ public class MemberWorkoutLog {
     @JdbcTypeCode(SqlTypes.JSON)
     private List<ExerciseLogEntry> exercisesLog;
 
+    /** Null = lo anotó el socio; no-null = un profesor/admin lo anotó por él (ver WorkoutService.createLogAsStaff). */
+    private Long loggedByUserId;
+
     private Instant createdAt;
 
     @PrePersist

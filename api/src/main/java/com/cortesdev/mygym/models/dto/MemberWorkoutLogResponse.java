@@ -18,4 +18,6 @@ public record MemberWorkoutLogResponse(
         String planDayTitle,
         String freeTextLabel,
         List<ExerciseLogEntry> exercises,
-        Instant createdAt) {}
+        Instant createdAt,
+        /** Nombre de quien lo anotó cuando no fue el socio (profesor/admin); null si lo anotó el propio socio. */
+        String loggedByName) {}

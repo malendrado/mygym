@@ -5,6 +5,7 @@ import { environment } from '../../../environments/environment';
 import {
   CreateMemberRequest,
   MarkPaidRequest,
+  PaymentPreview,
   Member,
   MemberImportRow,
   MemberImportRowResult,
@@ -75,6 +76,26 @@ export class MemberService {
   /** El gym-admin marca a un socio suyo como pagado. */
   markPaid(memberId: number, payload: MarkPaidRequest): Observable<void> {
     return this.http.post<void>(`${this.base}/${memberId}/mark-paid`, payload);
+  }
+
+  /** Vista previa de "Marcar pago" con fecha de inicio y clases ya usadas (solo lectura). */
+  previewPayment(memberId: number, planId: number, startDate: string, usedClasses: number): Observable<PaymentPreview> {
+    return this.http.get<PaymentPreview>(`${this.base}/${memberId}/payment-preview`, {
+      params: { planId, startDate, usedClasses },
+    });
+  }
+
+  /** Contraparte SUPER_ADMIN de previewPayment — mismo backend, gymId por path. */
+  previewPaymentForGym(
+    gymId: number,
+    memberId: number,
+    planId: number,
+    startDate: string,
+    usedClasses: number,
+  ): Observable<PaymentPreview> {
+    return this.http.get<PaymentPreview>(`${this.gymsBase}/${gymId}/members/${memberId}/payment-preview`, {
+      params: { planId, startDate, usedClasses },
+    });
   }
 
   /** Contraparte SUPER_ADMIN de markPaid — mismo backend, gymId por path. */

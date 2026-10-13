@@ -217,3 +217,13 @@
   overflow: hidden;
   border-radius: 999px;
 }
+
+
+// Línea de ayuda bajo los formularios de email: dice qué hacer si no tienes cuenta o no te llega el correo.
+.password-auth__hint,
+.login-error__hint {
+  margin: 0.5rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--brand-text-dim, inherit);
+}

@@ -1,0 +1,227 @@
+@if (view() === 'summary') {
+  <section class="hb-summary" aria-live="polite">
+    <button type="button" class="hb-back" (click)="closeSummary()">
+      <ion-icon name="chevron-back-outline" aria-hidden="true"></ion-icon>
+      Volver al historial
+    </button>
+    <div class="hb-seg" role="tablist" aria-label="Período del resumen">
+      <button
+        type="button"
+        role="tab"
+        class="hb-seg__btn"
+        [class.hb-seg__btn--active]="summaryMode() === 'week'"
+        [attr.aria-selected]="summaryMode() === 'week'"
+        (click)="setSummaryMode('week')"
+      >
+        Semana
+      </button>
+      <button
+        type="button"
+        role="tab"
+        class="hb-seg__btn"
+        [class.hb-seg__btn--active]="summaryMode() === 'month'"
+        [attr.aria-selected]="summaryMode() === 'month'"
+        (click)="setSummaryMode('month')"
+      >
+        Mes
+      </button>
+    </div>
+    <div class="hb-nav">
+      <button type="button" class="hb-nav__btn" (click)="shiftSummary(-1)" [attr.aria-label]="summaryMode() === 'week' ? 'Semana anterior' : 'Mes anterior'">
+        <ion-icon name="chevron-back-outline" aria-hidden="true"></ion-icon>
+      </button>
+      <span class="hb-nav__label">{{ summaryPeriod().label }}</span>
+      <button type="button" class="hb-nav__btn" (click)="shiftSummary(1)" [attr.aria-label]="summaryMode() === 'week' ? 'Semana siguiente' : 'Mes siguiente'">
+        <ion-icon name="chevron-forward-outline" aria-hidden="true"></ion-icon>
+      </button>
+    </div>
+    <app-attendance-summary
+      [period]="summaryPeriod()"
+      [gymId]="gymId"
+      [demo]="demo"
+      (attendanceChanged)="onSummaryChanged()"
+    />
+  </section>
+} @else {
+  <div class="hb-nav" data-tour="history-week-nav">
+    <button type="button" class="hb-nav__btn" (click)="shiftWeek(-1)" aria-label="Semana anterior">
+      <ion-icon name="chevron-back-outline" aria-hidden="true"></ion-icon>
+    </button>
+    <button type="button" class="hb-nav__label hb-nav__label--button" (click)="openPicker(datePicker)" aria-label="Elegir otra fecha">
+      <ion-icon name="calendar-outline" aria-hidden="true"></ion-icon>
+      {{ weekLabel() }}
+    </button>
+    <input
+      #datePicker
+      type="date"
+      class="hb-nav__picker"
+      tabindex="-1"
+      aria-hidden="true"
+      [value]="selectedDate()"
+      (change)="pickDate(datePicker)"
+    />
+    <button type="button" class="hb-nav__btn" (click)="shiftWeek(1)" aria-label="Semana siguiente">
+      <ion-icon name="chevron-forward-outline" aria-hidden="true"></ion-icon>
+    </button>
+  </div>
+
+  <div class="hb-days" role="tablist" aria-label="Días de la semana">
+    @for (day of days(); track day.date) {
+      <button
+        type="button"
+        role="tab"
+        class="hb-day"
+        [class.hb-day--selected]="day.date === selectedDate()"
+        [class.hb-day--today]="day.isToday"
+        [class.hb-day--empty]="!day.hasClasses"
+        [attr.aria-selected]="day.date === selectedDate()"
+        (click)="selectDay(day.date)"
+      >
+        <span class="hb-day__weekday">{{ day.weekday }}</span>
+        <span class="hb-day__number">{{ day.dayNumber }}</span>
+        <span class="hb-day__dot" aria-hidden="true"></span>
+      </button>
+    }
+  </div>
+
+  <div class="hb-heading">
+    <h3 class="hb-heading__title">{{ dayHeading() }}</h3>
+    @if (showTodayButton()) {
+      <button type="button" class="hb-link" (click)="goToday()">Ir a hoy</button>
+    }
+  </div>
+
+  @if (loading()) {
+    <div class="hb-center"><ion-spinner name="crescent"></ion-spinner></div>
+  }
+
+  <ul class="hb-classes" data-tour="history-classes">
+    @for (row of classRows(); track row.block.id) {
+      <li class="hb-class" [class.hb-class--open]="expandedBlockId() === row.block.id">
+        <button
+          type="button"
+          class="hb-class__head"
+          [disabled]="row.attendees.length === 0"
+          [attr.aria-expanded]="expandedBlockId() === row.block.id"
+          (click)="toggleClass(row.block.id)"
+        >
+          <span class="hb-class__main">
+            <span class="hb-class__title">{{ blockTitle(row) }}</span>
+            @if (row.block.instructorName) {
+              <span class="hb-class__sub">{{ row.block.instructorName }}</span>
+            }
+          </span>
+          @if (row.attendees.length === 0) {
+            <span class="hb-class__status">Sin reservas</span>
+          } @else if (row.ended) {
+            <span class="hb-class__count">
+              <span class="hb-num">{{ row.counts.attended }} de {{ row.counts.booked }}</span>
+              {{ row.counts.attended === 1 ? 'vino' : 'vinieron' }}
+              @if (row.rate !== null) {
+                <span class="hb-rate" [attr.data-tone]="tone(row.rate)">· {{ row.rate }}%</span>
+              }
+            </span>
+          } @else if (row.started) {
+            <span class="hb-class__count">
+              En curso · <span class="hb-num">{{ row.counts.attended }} de {{ row.counts.booked }}</span> marcaron
+            </span>
+          } @else {
+            <span class="hb-class__count">
+              <span class="hb-num">{{ row.counts.booked }}</span> {{ row.counts.booked === 1 ? 'reserva' : 'reservas' }}
+            </span>
+          }
+          @if (row.attendees.length > 0) {
+            <ion-icon
+              [name]="expandedBlockId() === row.block.id ? 'chevron-up-outline' : 'chevron-down-outline'"
+              aria-hidden="true"
+            ></ion-icon>
+          }
+        </button>
+
+        @if (expandedBlockId() === row.block.id) {
+          @if (row.tooOld) {
+            <p class="hb-hint">Solo lectura: pasaron más de 7 días desde la clase, ya no se puede corregir.</p>
+          } @else if (!row.editable && !row.started) {
+            <p class="hb-hint">Podrás marcar asistencia desde 10 minutos antes de que empiece la clase.</p>
+          }
+          <ul class="hb-people">
+            @for (item of row.attendees; track item.attendee.reservationId) {
+              <li class="hb-person">
+                @if (item.attendee.photoUrl) {
+                  <img [src]="item.attendee.photoUrl" alt="" class="hb-avatar" loading="lazy" />
+                } @else {
+                  <span class="hb-avatar hb-avatar--placeholder" aria-hidden="true">{{ item.attendee.name.charAt(0) }}</span>
+                }
+                <span class="hb-person__main">
+                  <span class="hb-person__name">{{ item.attendee.name }}</span>
+                  <span
+                    class="hb-person__state"
+                    [class.hb-person__state--ok]="item.attended"
+                    [class.hb-person__state--no]="!item.attended && row.ended"
+                  >
+                    @if (item.attended) {
+                      <ion-icon name="checkmark-circle-outline" aria-hidden="true"></ion-icon>
+                      Vino · {{ item.stamp }}
+                    } @else if (row.ended) {
+                      <ion-icon name="close-circle-outline" aria-hidden="true"></ion-icon>
+                      No vino
+                    } @else {
+                      Sin marcar
+                    }
+                  </span>
+                </span>
+                @if (!item.attended && item.whatsapp) {
+                  <a
+                    class="hb-icon-btn hb-icon-btn--whatsapp"
+                    [href]="item.whatsapp"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    [attr.aria-label]="'Escribirle por WhatsApp a ' + item.attendee.name"
+                  >
+                    <ion-icon name="logo-whatsapp" aria-hidden="true"></ion-icon>
+                  </a>
+                }
+                @if (row.editable) {
+                  <button type="button" class="hb-toggle" (click)="toggle(row, item)">
+                    {{ item.attended ? 'Marcar que no vino' : 'Marcar que vino' }}
+                  </button>
+                }
+                @if (canCancel() && !row.ended) {
+                  <ion-button
+                    fill="clear"
+                    size="small"
+                    color="danger"
+                    [attr.aria-label]="'Cancelar reserva de ' + item.attendee.name"
+                    (click)="requestCancel(row, item)"
+                  >
+                    <ion-icon name="close-circle-outline" slot="icon-only" aria-hidden="true"></ion-icon>
+                  </ion-button>
+                }
+              </li>
+            }
+          </ul>
+        }
+      </li>
+    } @empty {
+      @if (!loading()) {
+        <li class="hb-empty">No hay clases este día.</li>
+      }
+    }
+  </ul>
+
+  <button type="button" class="hb-summary-link" data-tour="history-summary-line" (click)="openSummary()">
+    <span class="hb-summary-link__text">
+      @if (weekTotals().rate !== null) {
+        <strong>Esta semana:</strong>
+        <span class="hb-num">{{ weekTotals().counts.attended }} de {{ weekTotals().counts.booked }}</span> vinieron ·
+        <span class="hb-rate" [attr.data-tone]="weekTone()">{{ weekTotals().rate }}%</span>
+      } @else {
+        <strong>Resumen</strong> de asistencia
+      }
+    </span>
+    <span class="hb-summary-link__cta">
+      Ver resumen
+      <ion-icon name="chevron-forward-outline" aria-hidden="true"></ion-icon>
+    </span>
+  </button>
+}

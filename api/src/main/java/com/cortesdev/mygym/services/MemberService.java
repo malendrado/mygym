@@ -434,6 +434,8 @@ public class MemberService {
                     user.getAddress(),
                     user.getBirthDate(),
                     user.getPhone(),
+                    user.getEmergencyContactName(),
+                    user.getEmergencyContactPhone(),
                     user.isProfileComplete()));
         }
         return responses;

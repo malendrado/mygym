@@ -1,0 +1,549 @@
+// Historial: tira de días + clases del día con su lista de socios. Tokens --brand-* del panel; el color de la tasa
+// nunca va solo (siempre acompaña a un número o un texto). Animaciones solo con transform/opacity.
+
+:host {
+  display: block;
+  --hb-good: var(--ion-color-success, #2dd36f);
+  --hb-warn: var(--ion-color-warning, #ffc409);
+  --hb-bad: var(--ion-color-danger, #eb445a);
+}
+
+[data-tone='good'] {
+  --hb-tone: var(--hb-good);
+}
+[data-tone='warn'] {
+  --hb-tone: var(--hb-warn);
+}
+[data-tone='bad'] {
+  --hb-tone: var(--hb-bad);
+}
+[data-tone='none'] {
+  --hb-tone: var(--brand-ink-surface-2);
+}
+
+.hb-num,
+.hb-rate,
+.hb-day__number,
+.hb-class__count {
+  font-variant-numeric: tabular-nums;
+}
+
+.hb-rate {
+  font-weight: 700;
+  color: var(--hb-tone, inherit);
+}
+
+.hb-center {
+  display: flex;
+  justify-content: center;
+  padding: 0.75rem;
+}
+
+// ---- navegación de semana ----
+
+.hb-nav {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin: 0.5rem 0;
+}
+
+.hb-nav__btn {
+  display: grid;
+  place-items: center;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--brand-ink-surface-2);
+  border-radius: 50%;
+  background: var(--brand-ink-surface);
+  color: var(--brand-text);
+  cursor: pointer;
+
+  &:hover {
+    border-color: var(--brand-accent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--brand-accent);
+    outline-offset: 2px;
+  }
+}
+
+.hb-nav__label {
+  flex: 1;
+  text-align: center;
+  font-weight: 600;
+  color: var(--brand-text);
+
+  &--button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    min-height: 44px;
+    border: 0;
+    border-radius: 12px;
+    background: transparent;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+
+    &:hover {
+      background: var(--brand-ink-surface);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--brand-accent);
+      outline-offset: 2px;
+    }
+  }
+}
+
+// El input de fecha existe solo para abrir el calendario nativo (showPicker): no se ve ni toma foco.
+.hb-nav__picker {
+  position: absolute;
+  inset: auto 0 0 50%;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+// ---- tira de días ----
+
+.hb-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.25rem;
+  margin-bottom: 0.9rem;
+}
+
+.hb-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  min-height: 56px;
+  padding: 0.35rem 0;
+  border: 1px solid var(--brand-ink-surface-2);
+  border-radius: 12px;
+  background: var(--brand-ink-surface);
+  color: var(--brand-text);
+  font: inherit;
+  cursor: pointer;
+  transition: transform 160ms ease-out;
+
+  &:active {
+    transform: scale(0.97);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--brand-accent);
+    outline-offset: 2px;
+  }
+
+  &--today {
+    border-color: var(--brand-accent);
+  }
+
+  &--selected {
+    background: var(--brand-accent);
+    border-color: var(--brand-accent);
+    color: var(--brand-accent-contrast, #fff);
+    font-weight: 700;
+  }
+}
+
+.hb-day__weekday {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.8;
+}
+
+.hb-day__number {
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+// Puntito: ese día hay clases. Sin clases, no se ve (y el día queda atenuado).
+.hb-day__dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.hb-day--empty {
+  color: var(--brand-text-dim);
+
+  .hb-day__dot {
+    visibility: hidden;
+  }
+
+  &.hb-day--selected {
+    color: var(--brand-accent-contrast, #fff);
+  }
+}
+
+// ---- día elegido ----
+
+.hb-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.hb-heading__title {
+  margin: 0;
+  font-family: var(--brand-font-display);
+  font-size: 1.05rem;
+  color: var(--brand-text);
+}
+
+.hb-link {
+  min-height: 44px;
+  padding: 0 0.4rem;
+  border: 0;
+  background: none;
+  color: var(--brand-accent);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--brand-accent);
+    outline-offset: 2px;
+  }
+}
+
+.hb-classes,
+.hb-people {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.hb-class {
+  border: 1px solid var(--brand-ink-surface-2);
+  border-radius: 12px;
+  background: var(--brand-ink-surface);
+  overflow: hidden;
+
+  &--open {
+    border-color: var(--brand-accent);
+  }
+}
+
+.hb-class__head {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  width: 100%;
+  min-height: 56px;
+  padding: 0.6rem 0.8rem;
+  border: 0;
+  background: transparent;
+  color: var(--brand-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:disabled {
+    cursor: default;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--brand-accent);
+    outline-offset: -2px;
+  }
+
+  ion-icon {
+    flex-shrink: 0;
+    color: var(--brand-text-dim);
+  }
+}
+
+.hb-class__main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.hb-class__title {
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+
+.hb-class__sub {
+  font-size: 0.78rem;
+  color: var(--brand-text-dim);
+}
+
+.hb-class__count {
+  flex-shrink: 0;
+  font-size: 0.82rem;
+  color: var(--brand-text-dim);
+  text-align: right;
+
+  .hb-num {
+    font-weight: 700;
+    color: var(--brand-text);
+  }
+}
+
+.hb-class__status {
+  flex-shrink: 0;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: var(--brand-ink-surface-2);
+  color: var(--brand-text-dim);
+  font-size: 0.72rem;
+}
+
+.hb-hint {
+  margin: 0;
+  padding: 0 0.8rem 0.5rem;
+  font-size: 0.8rem;
+  color: var(--brand-text-dim);
+}
+
+.hb-people {
+  padding: 0 0.6rem 0.7rem;
+}
+
+.hb-person {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 56px;
+  padding: 0.4rem 0.5rem;
+  border-radius: 10px;
+  background: var(--brand-ink-bg, transparent);
+}
+
+.hb-avatar {
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+
+  &--placeholder {
+    display: grid;
+    place-items: center;
+    background: var(--brand-ink-surface-2);
+    color: var(--brand-text);
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+}
+
+.hb-person__main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.hb-person__name {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--brand-text);
+  overflow-wrap: anywhere;
+}
+
+.hb-person__state {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.78rem;
+  color: var(--brand-text-dim);
+  font-variant-numeric: tabular-nums;
+
+  &--ok {
+    color: var(--hb-good);
+  }
+  &--no {
+    color: var(--hb-bad);
+  }
+}
+
+.hb-icon-btn {
+  display: grid;
+  place-items: center;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  text-decoration: none;
+
+  &--whatsapp {
+    color: #25d366;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--brand-accent);
+    outline-offset: 2px;
+  }
+
+  ion-icon {
+    font-size: 1.4rem;
+  }
+}
+
+.hb-toggle {
+  flex-shrink: 0;
+  min-height: 44px;
+  padding: 0 0.7rem;
+  border: 1px solid var(--brand-ink-surface-2);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--brand-text);
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+
+  &:hover {
+    border-color: var(--brand-accent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--brand-accent);
+    outline-offset: 2px;
+  }
+}
+
+.hb-empty {
+  padding: 1rem 0.5rem;
+  text-align: center;
+  font-size: 0.88rem;
+  color: var(--brand-text-dim);
+}
+
+// ---- línea de resumen ----
+
+.hb-summary-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 56px;
+  margin-top: 1rem;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--brand-ink-surface-2);
+  border-radius: 12px;
+  background: var(--brand-ink-surface);
+  color: var(--brand-text);
+  font: inherit;
+  font-size: 0.88rem;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 160ms ease-out;
+
+  &:hover {
+    border-color: var(--brand-accent);
+  }
+
+  &:active {
+    transform: scale(0.99);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--brand-accent);
+    outline-offset: 2px;
+  }
+}
+
+.hb-summary-link__cta {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 0.15rem;
+  color: var(--brand-accent);
+  font-weight: 600;
+}
+
+// ---- vista de resumen ----
+
+.hb-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  min-height: 44px;
+  padding: 0 0.4rem 0 0;
+  border: 0;
+  background: none;
+  color: var(--brand-accent);
+  font: inherit;
+  font-size: 0.88rem;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--brand-accent);
+    outline-offset: 2px;
+  }
+}
+
+.hb-seg {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  margin: 0.25rem 0 0.5rem;
+  border-radius: 12px;
+  background: var(--brand-ink-surface);
+  border: 1px solid var(--brand-ink-surface-2);
+}
+
+.hb-seg__btn {
+  min-height: 44px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--brand-text-dim);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  &--active {
+    background: var(--brand-accent);
+    color: var(--brand-accent-contrast, #fff);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--brand-accent);
+    outline-offset: 2px;
+  }
+}
+
+@media (max-width: 480px) {
+  .hb-person {
+    flex-wrap: wrap;
+  }
+
+  .hb-toggle {
+    margin-left: auto;
+  }
+
+  .hb-class__head {
+    flex-wrap: wrap;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
+}

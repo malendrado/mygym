@@ -49,6 +49,7 @@ export class BookingRulesCard {
       validators: [Validators.required, Validators.min(0), Validators.max(this.maxMinutes)],
     }),
     showAttendeesToMembers: new FormControl(true, { nonNullable: true }),
+    fixedMembersCurrentWeekOnly: new FormControl(false, { nonNullable: true }),
   });
 
   private readonly _saving = signal(false);

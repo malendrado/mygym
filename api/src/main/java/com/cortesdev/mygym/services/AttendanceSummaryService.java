@@ -54,6 +54,7 @@ public class AttendanceSummaryService {
     // Un socio con 1 o 2 reservas no entra al ranking: una sola falta no lo hace "el que más falta".
     static final int MIN_BOOKINGS_FOR_RANKING = 3;
     static final int TOP_ABSENTEES = 10;
+    static final int TOP_ATTENDEES = 10;
     static final int DEFAULT_PAGE_SIZE = 25;
     static final int MAX_PAGE_SIZE = 50;
 
@@ -125,8 +126,19 @@ public class AttendanceSummaryService {
                 .limit(TOP_ABSENTEES)
                 .toList();
 
+        // Los que más vienen: mismo mínimo de reservas (con 1 o 2, una sola asistencia no hace a nadie "el más constante").
+        // Más asistencias primero; empate, mejor tasa primero.
+        List<Aggregate> best = aggregateByMember(current).stream()
+                .filter(a -> a.booked >= MIN_BOOKINGS_FOR_RANKING && a.attended > 0)
+                .sorted(Comparator.comparingInt((Aggregate a) -> a.attended)
+                        .reversed()
+                        .thenComparing(Comparator.comparingDouble((Aggregate a) -> (double) a.attended / a.booked).reversed())
+                        .thenComparing(a -> a.memberId))
+                .limit(TOP_ATTENDEES)
+                .toList();
+
         return new AttendanceSummaryResponse(
-                totals(current), totals(previous), byClass, byWeekday, toRows(ranking));
+                totals(current), totals(previous), byClass, byWeekday, toRows(ranking), toRows(best));
     }
 
     /**

@@ -1,5 +1,5 @@
 import { Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import {
   IonButton,
   IonContent,
@@ -77,6 +77,7 @@ export const PREFERRED_PLAN_KEY = 'mygym.preferredPlan';
     IonInput,
     IonButton,
     GoogleSigninButtonDirective,
+    RouterLink,
   ],
   templateUrl: './join.html',
   styleUrl: './join.scss',

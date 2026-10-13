@@ -1351,3 +1351,23 @@ ion-segment-button.segment-button-checked {
     border-top: 0;
   }
 }
+
+
+// "Hoy te toca: Día 3 · Piernas" en la reserva de hoy.
+.class-tile__routine {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0.3rem 0 0;
+  font-size: 0.85rem;
+  color: var(--brand-text);
+
+  ion-icon {
+    flex-shrink: 0;
+    color: var(--brand-accent);
+  }
+}
+
+.fixed-week-notice {
+  margin: 0 0 0.75rem;
+}

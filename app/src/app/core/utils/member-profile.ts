@@ -9,6 +9,8 @@ export const MIN_AGE_YEARS = 12;
 export const MAX_AGE_YEARS = 100;
 export const MIN_ADDRESS_LENGTH = 5;
 export const MAX_ADDRESS_LENGTH = 200;
+export const MIN_EMERGENCY_NAME_LENGTH = 2;
+export const MAX_EMERGENCY_NAME_LENGTH = 100;
 
 /** Celular chileno (sirve para WhatsApp) → "+56912345678", o null si no es válido. Acepta
  *  "9 1234 5678", "+56 9 1234 5678", "56912345678", con espacios, guiones o paréntesis. */
@@ -68,6 +70,16 @@ export function addressError(value: unknown): string | null {
   return address.length > MAX_ADDRESS_LENGTH ? `La dirección es demasiado larga (máximo ${MAX_ADDRESS_LENGTH} letras).` : null;
 }
 
+export function emergencyNameError(value: unknown): string | null {
+  const name = String(value ?? '').trim().replace(/\s+/g, ' ');
+  if (name.length < MIN_EMERGENCY_NAME_LENGTH) {
+    return 'Escribe el nombre de tu contacto de emergencia.';
+  }
+  return name.length > MAX_EMERGENCY_NAME_LENGTH
+    ? `El nombre es demasiado largo (máximo ${MAX_EMERGENCY_NAME_LENGTH} letras).`
+    : null;
+}
+
 // Validators reactivos: solo juzgan si el campo tiene algo escrito (la obligatoriedad va aparte, con
 // Validators.required, igual que rutFormatValidator).
 export function mobileValidator(): ValidatorFn {
@@ -82,6 +94,16 @@ export function birthDateValidator(): ValidatorFn {
     }
     const error = birthDateError(control.value);
     return error ? { birthDate: error } : null;
+  };
+}
+
+export function emergencyNameValidator(): ValidatorFn {
+  return (control: AbstractControl): ValidationErrors | null => {
+    if (!control.value || !String(control.value).trim()) {
+      return null;
+    }
+    const error = emergencyNameError(control.value);
+    return error ? { emergencyName: error } : null;
   };
 }
 

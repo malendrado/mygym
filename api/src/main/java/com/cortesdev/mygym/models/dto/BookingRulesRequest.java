@@ -10,4 +10,6 @@ public record BookingRulesRequest(
         @NotNull @Min(0) @Max(10_080) Integer bookingWindowMinutes,
         @NotNull @Min(0) @Max(10_080) Integer cancellationWindowMinutes,
         @NotNull @Min(0) @Max(10_080) Integer waitlistHeadStartMinutes,
-        @NotNull Boolean showAttendeesToMembers) {}
+        @NotNull Boolean showAttendeesToMembers,
+        /** Socios con clases fijas: solo reservan y cancelan en la semana en curso (V42). */
+        @NotNull Boolean fixedMembersCurrentWeekOnly) {}

@@ -75,7 +75,7 @@ class GymServiceManualPaymentTest {
         Gym gym = Gym.builder().id(GYM_ID).build();
         when(gymRepository.findById(GYM_ID)).thenReturn(Optional.of(gym));
 
-        gymService.updateBookingRules(GYM_ID, new BookingRulesRequest(30, 120, 0, false));
+        gymService.updateBookingRules(GYM_ID, new BookingRulesRequest(30, 120, 0, false, false));
 
         assertThat(gym.getBookingWindowMinutes()).isEqualTo(30);
         assertThat(gym.getCancellationWindowMinutes()).isEqualTo(120);

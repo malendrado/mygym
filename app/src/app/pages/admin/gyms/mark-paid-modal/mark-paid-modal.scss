@@ -82,3 +82,105 @@
 .mark-paid-bank {
   margin-bottom: 0.5rem;
 }
+
+
+// Fecha de inicio, clases ya usadas y resumen en vivo.
+.mark-paid-shortcuts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.4rem;
+}
+
+.mark-paid-chip {
+  min-height: 44px;
+  padding: 0 0.9rem;
+  border: 1px solid var(--brand-ink-surface-2);
+  border-radius: 999px;
+  background: var(--brand-ink-surface);
+  color: var(--brand-text);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+
+  &--on {
+    border-color: var(--ion-color-primary, var(--brand-accent));
+    font-weight: 700;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--brand-accent);
+    outline-offset: 2px;
+  }
+}
+
+.mark-paid-stepper {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.mark-paid-step {
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--brand-ink-surface-2);
+  border-radius: 12px;
+  background: var(--brand-ink-surface);
+  color: var(--brand-text);
+  font: inherit;
+  font-size: 1.3rem;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--brand-accent);
+    outline-offset: 2px;
+  }
+}
+
+.mark-paid-stepper__value {
+  min-width: 5rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.mark-paid-summary {
+  margin: 0.9rem 0;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--brand-ink-surface-2);
+  border-radius: 12px;
+  background: var(--brand-ink-surface);
+
+  p {
+    margin: 0;
+  }
+
+  p + p {
+    margin-top: 0.3rem;
+  }
+}
+
+.mark-paid-summary__period {
+  font-weight: 700;
+}
+
+.mark-paid-summary__line {
+  font-size: 0.88rem;
+  color: var(--brand-text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.mark-paid-summary__warn {
+  font-size: 0.85rem;
+  color: var(--ion-color-warning, #ffc409);
+}
+
+.mark-paid-summary__error {
+  font-size: 0.88rem;
+  color: var(--ion-color-danger, #eb445a);
+}

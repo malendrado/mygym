@@ -1,4 +1,4 @@
-import { addressError, birthDateError, formatMobile, normalizeMobile, parseBirthDateCell, whatsappUrl } from './member-profile';
+import { addressError, birthDateError, emergencyNameError, formatMobile, normalizeMobile, parseBirthDateCell, whatsappUrl } from './member-profile';
 
 describe('member-profile', () => {
   it('normaliza el celular chileno a formato internacional', () => {
@@ -46,5 +46,12 @@ describe('member-profile', () => {
     expect(parseBirthDateCell('31-02-1990')).toBeNull();
     expect(parseBirthDateCell('ayer')).toBeNull();
     expect(parseBirthDateCell(null)).toBeNull();
+  });
+
+  it('el nombre del contacto de emergencia pide al menos 2 letras y tiene tope', () => {
+    expect(emergencyNameError('Marta Pérez')).toBeNull();
+    expect(emergencyNameError('  M ')).not.toBeNull();
+    expect(emergencyNameError('')).not.toBeNull();
+    expect(emergencyNameError('x'.repeat(101))).not.toBeNull();
   });
 });

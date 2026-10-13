@@ -645,3 +645,21 @@ $ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   overflow: hidden;
   border-radius: 999px;
 }
+
+
+// Línea de ayuda bajo los formularios de email: dice qué hacer si no tienes cuenta o no te llega el correo.
+.password-auth__hint,
+.login-error__hint {
+  margin: 0.5rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--brand-text-dim, inherit);
+}
+
+.password-auth__links {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+  margin-top: 0.5rem;
+}

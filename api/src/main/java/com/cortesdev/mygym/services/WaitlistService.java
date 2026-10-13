@@ -52,8 +52,13 @@ public class WaitlistService {
     private final AppUserRepository appUserRepository;
     private final GymRepository gymRepository;
     private final MemberLifecycleEmailService emailService;
+    private final FixedWeekRule fixedWeekRule;
 
     public void join(Long gymId, Long memberId, Long gymBlockId, LocalDate classDate) {
+        // Un socio con clases fijas (y la regla de semana en curso encendida) no puede esperar una clase que después
+        // no podría reservar.
+        gymRepository.findById(gymId)
+                .ifPresent(gym -> fixedWeekRule.assertAllowed(gym, memberId, classDate, "anotarte en la espera de"));
         GymBlock block = gymBlockRepository
                 .findByIdAndGymId(gymBlockId, gymId)
                 .filter(GymBlock::isActive)

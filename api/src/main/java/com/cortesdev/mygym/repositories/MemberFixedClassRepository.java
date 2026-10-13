@@ -8,6 +8,8 @@ public interface MemberFixedClassRepository extends JpaRepository<MemberFixedCla
 
     List<MemberFixedClass> findByMemberId(Long memberId);
 
+    boolean existsByMemberId(Long memberId);
+
     /** Batch para la lista de Socios (una sola query por página, nunca una por socio). */
     List<MemberFixedClass> findByMemberIdIn(List<Long> memberIds);
 

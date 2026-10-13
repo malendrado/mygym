@@ -18,6 +18,9 @@ public record PublicGymResponse(
         /** Si los socios pueden ver el roster de "Ver quién va" en /member — la pantalla de TV
          *  del gimnasio nunca se ve afectada por esto (ver ReservationController/V36). */
         boolean showAttendeesToMembers,
+        /** Socios con clases fijas solo reservan/cancelan en la semana en curso (V42): la app lo usa para
+         *  deshabilitar los botones de semanas siguientes. El servidor lo hace cumplir igual. */
+        boolean fixedMembersCurrentWeekOnly,
         /** true si el gym tiene su propia cuenta Flow configurada — si es false, el
          *  frontend oculta "Pagar con Flow" y solo ofrece transferencia bancaria. */
         boolean flowConfigured) {}

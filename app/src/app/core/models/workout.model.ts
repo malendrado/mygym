@@ -36,6 +36,8 @@ export interface MemberWorkoutLog {
   freeTextLabel: string | null;
   exercises: ExerciseLogEntry[] | null;
   createdAt: string;
+  /** Nombre del profesor/admin que lo anotó por el socio; null si lo anotó el propio socio. */
+  loggedByName: string | null;
 }
 
 /** Exactamente uno de planDayId/freeTextLabel debe venir. */
@@ -46,7 +48,7 @@ export interface SaveWorkoutLogRequest {
 }
 
 /** NO_PLAN = el socio aún no tiene rutina asignada por su profesor.
- *  NO_PENDING = tiene plan, pero no hay ninguna clase asistida sin registrar.
+ *  NO_PENDING = tiene plan, pero no hay ninguna clase asistida sin registrar (suggestedPlanDayId igual dice qué le toca).
  *  READY = hay una reserva con check-in esperando que la anote. */
 export type PendingWorkoutStatus = 'NO_PLAN' | 'NO_PENDING' | 'READY';
 

@@ -41,3 +41,12 @@ ion-note {
 .mp-server-error {
   margin-top: 0.75rem;
 }
+
+.mp-section {
+  margin: 1.25rem 0.25rem 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--brand-text-dim);
+}

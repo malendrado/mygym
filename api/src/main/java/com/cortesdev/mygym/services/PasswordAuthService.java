@@ -84,8 +84,17 @@ public class PasswordAuthService {
             return;
         }
         String normalized = AppUser.normalizeEmail(email);
-        if (appUserRepository.existsByEmail(normalized)) {
-            log.info("Auto-registro con contraseña ignorado: ya existe una cuenta para ese email");
+        AppUser existing = appUserRepository.findByEmail(normalized).orElse(null);
+        if (existing != null) {
+            // Quien ya tiene cuenta en ESTE gimnasio y vuelve a usar "Unirme con mi email" casi seguro olvidó su
+            // clave (o nunca la creó): se le manda el correo de crear/recuperar contraseña — el mismo mensaje
+            // genérico de siempre, sin revelar que la cuenta existe. Si la cuenta es de otro gimnasio (o está
+            // inactiva) no se manda nada: no se mezclan cuentas ni se dan pistas.
+            if (existing.isActive() && gym.getId().equals(existing.getGymId())) {
+                sendPasswordResetEmail(existing);
+            } else {
+                log.info("Auto-registro con contraseña ignorado: el email ya tiene cuenta en otro gimnasio o inactiva");
+            }
             return;
         }
         String rawToken = createToken(builder -> builder
@@ -103,6 +112,10 @@ public class PasswordAuthService {
             log.info("Reset de contraseña ignorado: cuenta inexistente o inactiva");
             return;
         }
+        sendPasswordResetEmail(user);
+    }
+
+    private void sendPasswordResetEmail(AppUser user) {
         String rawToken = createToken(
                 builder -> builder.purpose(AuthTokenPurpose.PASSWORD_RESET).appUserId(user.getId()),
                 PASSWORD_RESET_TTL);
