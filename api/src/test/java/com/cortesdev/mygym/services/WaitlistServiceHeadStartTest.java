@@ -20,6 +20,7 @@ import com.cortesdev.mygym.repositories.ReservationRepository;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import org.mockito.ArgumentCaptor;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
@@ -45,6 +46,7 @@ class WaitlistServiceHeadStartTest {
     @Mock private GymRepository gymRepository;
     @Mock private MemberLifecycleEmailService emailService;
     @Mock private FixedWeekRule fixedWeekRule;
+    @Mock private PushNotificationService pushService;
     @InjectMocks private WaitlistService waitlistService;
 
     private Gym gym(int headStartMinutes) {
@@ -52,7 +54,8 @@ class WaitlistServiceHeadStartTest {
     }
 
     private GymBlock block() {
-        return GymBlock.builder().id(BLOCK_ID).gymId(GYM_ID).label("Yoga").capacity(5).build();
+        return GymBlock.builder().id(BLOCK_ID).gymId(GYM_ID).label("Yoga").capacity(5)
+                .startTime(java.time.LocalTime.of(19, 0)).build();
     }
 
     private ClassWaitlistEntry entry(long memberId, Instant notifiedAt) {
@@ -94,6 +97,11 @@ class WaitlistServiceHeadStartTest {
         waitlistService.escalateExpiredHeadStarts();
 
         verify(emailService).sendWaitlistSpotOpen(any(), any(), any(), eq(DATE));
+        // El mismo aviso llega por push al socio que sigue en la lista, con el texto de "todavía hay cupo".
+        ArgumentCaptor<PushMessage> pushed = ArgumentCaptor.forClass(PushMessage.class);
+        verify(pushService).notifyUsers(eq(List.of(2L)), pushed.capture());
+        org.junit.jupiter.api.Assertions.assertEquals("Todavía hay cupo en Yoga", pushed.getValue().title());
+        org.junit.jupiter.api.Assertions.assertEquals("/member", pushed.getValue().url());
     }
 
     @Test
@@ -131,5 +139,10 @@ class WaitlistServiceHeadStartTest {
         waitlistService.onSpotFreed(BLOCK_ID, DATE);
 
         verify(emailService).sendWaitlistHeadStart(any(), any(), any(), eq(DATE), eq(45L));
+        ArgumentCaptor<PushMessage> pushed = ArgumentCaptor.forClass(PushMessage.class);
+        verify(pushService).notifyUsers(eq(List.of(1L)), pushed.capture());
+        org.junit.jupiter.api.Assertions.assertEquals("¡Se liberó un cupo!", pushed.getValue().title());
+        org.junit.jupiter.api.Assertions.assertTrue(pushed.getValue().body().contains("Tienes 45 min de ventaja"));
+        org.junit.jupiter.api.Assertions.assertEquals(PushMessage.Urgency.HIGH, pushed.getValue().urgency());
     }
 }

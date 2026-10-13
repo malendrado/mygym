@@ -1,0 +1,43 @@
+@if (visible()) {
+  <div class="push-prompt" role="region" aria-label="Avisos en este teléfono">
+    <ion-icon class="push-prompt__icon" name="notifications-outline" aria-hidden="true"></ion-icon>
+
+    @switch (push.state()) {
+      @case ('needs-install') {
+        <p class="push-prompt__text">
+          Para recibir avisos en iPhone, primero instala la app con el botón «Instala tu app» de arriba.
+        </p>
+      }
+      @case ('denied') {
+        <p class="push-prompt__text">
+          Los avisos están bloqueados para mygym en este teléfono. Actívalos en Ajustes → Notificaciones.
+        </p>
+      }
+      @default {
+        <p class="push-prompt__text">
+          <strong>Activa los avisos en este teléfono.</strong>
+          {{ message }}
+        </p>
+        <ion-button
+          size="small"
+          class="push-prompt__action"
+          [disabled]="busy()"
+          (click)="activate()"
+          aria-label="Activar los avisos en este teléfono"
+        >
+          {{ busy() ? 'Activando…' : 'Activar avisos' }}
+        </ion-button>
+      }
+    }
+
+    <button
+      type="button"
+      class="push-prompt__close"
+      data-tip="Ahora no"
+      aria-label="Ahora no: no volver a mostrar por 14 días"
+      (click)="push.dismiss()"
+    >
+      <ion-icon name="close-outline" aria-hidden="true"></ion-icon>
+    </button>
+  </div>
+}

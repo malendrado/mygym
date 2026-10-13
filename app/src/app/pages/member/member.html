@@ -25,6 +25,7 @@
       </ion-title>
       <ion-buttons slot="end">
         @if (!isDemoPreview) {
+          <app-push-bell />
           <app-install-banner />
         }
         <ion-button (click)="logout()">
@@ -52,6 +53,9 @@
           {{ gym()?.name ?? 'El gimnasio' }} está cerrado {{ closureDatesLabel() }} por: {{ notice.reason }}.
         </span>
       </div>
+    }
+    @if (!isDemoPreview) {
+      <app-push-prompt audience="member" />
     }
     @if (photoStrip().length) {
       <div class="gym-photo-strip" aria-hidden="true">

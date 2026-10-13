@@ -45,6 +45,12 @@ app:
   resend:
     api-key: ${RESEND_API_KEY:}
     from: ${RESEND_FROM:mygym <onboarding@resend.dev>}
+  push:
+    # Claves VAPID del push web (ver PushSender). Sin ellas el push queda desactivado y GET /api/push/public-key da 204.
+    vapid:
+      public-key: ${PUSH_VAPID_PUBLIC_KEY:}
+      private-key: ${PUSH_VAPID_PRIVATE_KEY:}
+      subject: ${PUSH_VAPID_SUBJECT:mailto:contacto@mygym.cl}
   flow:
     # api-key/secret-key YA NO son globales — cada gym tiene la suya propia (Gym.flowApiKey/
     # flowSecretKey, cifradas, cargadas por el super-admin en "Cuenta Pago Online"). Acá solo

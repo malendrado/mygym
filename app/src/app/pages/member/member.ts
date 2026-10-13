@@ -23,6 +23,8 @@ import {
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { InstallBanner } from './install-banner/install-banner';
+import { PushBell } from '../../core/components/push-bell/push-bell';
+import { PushPrompt } from '../../core/components/push-prompt/push-prompt';
 import { WelcomeMission } from './welcome-mission/welcome-mission';
 import { QrScanner } from '../../core/components/qr-scanner/qr-scanner';
 import { extractCheckinCode } from '../../core/utils/qr-code';
@@ -323,6 +325,8 @@ const OCCURRENCES_LOADING_MESSAGES = [
     IonInput,
     IonItem,
     InstallBanner,
+    PushBell,
+    PushPrompt,
     QrScanner,
     NgTemplateOutlet,
     TourOverlay,

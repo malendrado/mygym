@@ -83,6 +83,10 @@ public class SecurityConfig {
                         .hasAnyRole("GYM_ADMIN", "DEMO_ADMIN")
                         .requestMatchers("/api/gym-admin/**")
                         .hasRole("GYM_ADMIN")
+                        // Avisos push: socios, admin del gimnasio y profesores (nunca SUPER_ADMIN ni DEMO_ADMIN). Va antes del
+                        // anyRequest().
+                        .requestMatchers("/api/push/**")
+                        .hasAnyRole("MEMBER", "GYM_ADMIN", "PROFESOR")
                         .requestMatchers("/api/me/**")
                         .hasRole("MEMBER")
                         .anyRequest()

@@ -25,7 +25,18 @@ export class LegalFaq {
         },
         {
           question: '¿Necesito instalar algo?',
-          answer: 'No. Tanto tu panel de administración como la app de tus socios funcionan desde el navegador, sin instalar nada.',
+          answer:
+            'No es obligatorio. Tanto tu panel de administración como la app de tus socios funcionan desde el navegador. Instalar la app en el celular es opcional y sirve, entre otras cosas, para recibir avisos en el teléfono.',
+        },
+        {
+          question: '¿Cómo reciben avisos en el celular mis socios?',
+          answer:
+            'Con la app instalada en el celular, cada socio puede activar los avisos con un toque y los recibe aunque no tenga la app abierta: cuando se libera un cupo en una clase que estaba esperando, una hora antes de su clase, si el gimnasio cierra y cuando su plan está por vencer. Los correos siguen funcionando igual. En iPhone, primero hay que agregar la app a la pantalla de inicio.',
+        },
+        {
+          question: '¿Me avisan cuando un socio cancela una clase?',
+          answer:
+            'Sí. Si activas los avisos en tu celular, tú y los profesores de tu gimnasio reciben un aviso al instante cuando un socio cancela su reserva, con cuántos cupos quedan y cuántas personas esperan. Si cancelan varias personas de la misma clase, se agrupan en un solo aviso.',
         },
         {
           question: '¿Puedo personalizar mi marca?',
@@ -104,6 +115,11 @@ export class LegalFaq {
           question: '¿mygym guarda una copia de mis socios después de que me voy?',
           answer:
             'No. Solo queda un registro interno con conteos (cuántos socios, pagos, reservas, etc.) como prueba de que el borrado ocurrió — sin ningún dato personal de tus socios.',
+        },
+        {
+          question: '¿Qué guarda mygym cuando activo los avisos en mi teléfono?',
+          answer:
+            'Solo la dirección técnica que el navegador asigna a ese dispositivo para poder enviarle avisos; no incluye tu nombre, tu correo ni tu ubicación. Se borra cuando cierras sesión, cuando desactivas los avisos o cuando eliminas tu cuenta.',
         },
         {
           question: '¿Y si el envío de ese correo falla?',

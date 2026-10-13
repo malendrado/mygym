@@ -49,6 +49,7 @@ class ReservationServiceWindowsTest {
     @Mock private com.cortesdev.mygym.repositories.AppUserRepository appUserRepository;
     @Mock private MemberService memberService;
     @Mock private FixedWeekRule fixedWeekRule;
+    @Mock private StaffCancellationPush staffCancellationPush;
     @InjectMocks private ReservationService reservationService;
 
     /** Bloque que empieza dentro de `minutesFromNow` minutos (redondeado hacia arriba al minuto). */
@@ -110,10 +111,37 @@ class ReservationServiceWindowsTest {
         // reservar se cierra 1 día antes (no aplica a cancelar); cancelar 30 min antes; clase en 60 min
         stubCancel(blockStartingIn(60), gym(1440, 30), 60);
 
+        com.cortesdev.mygym.models.AppUser member = com.cortesdev.mygym.models.AppUser.builder().id(MEMBER_ID).name("Ana Soto").build();
+        when(appUserRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
+
         reservationService.cancel(MEMBER_ID, RESERVATION_ID);
 
         verify(reservationRepository).save(any(Reservation.class));
         verify(waitlistService).onSpotFreed(anyLong(), any(LocalDate.class));
+        // El socio canceló por su cuenta → se le avisa por push al admin y a los profesores.
+        verify(staffCancellationPush).memberCancelled(any(GymBlock.class), any(LocalDate.class), org.mockito.ArgumentMatchers.eq(member));
+    }
+
+    @Test
+    void aFailingStaffPushNeverBreaksTheCancellation() {
+        stubCancel(blockStartingIn(60), gym(1440, 30), 60);
+        when(appUserRepository.findById(MEMBER_ID))
+                .thenReturn(Optional.of(com.cortesdev.mygym.models.AppUser.builder().id(MEMBER_ID).build()));
+        org.mockito.Mockito.doThrow(new IllegalStateException("push caído"))
+                .when(staffCancellationPush).memberCancelled(any(), any(), any());
+
+        reservationService.cancel(MEMBER_ID, RESERVATION_ID);
+
+        verify(reservationRepository).save(any(Reservation.class)); // la reserva quedó cancelada igual
+    }
+
+    @Test
+    void cancellingOutsideTheWindowDoesNotNotifyTheStaff() {
+        stubCancel(blockStartingIn(60), gym(30, 120), 60);
+
+        assertThatThrownBy(() -> reservationService.cancel(MEMBER_ID, RESERVATION_ID)).isInstanceOf(BookingWindowClosedException.class);
+
+        verify(staffCancellationPush, never()).memberCancelled(any(), any(), any());
     }
 
     // --- socios con clases fijas: solo la semana en curso (FixedWeekRule) ---

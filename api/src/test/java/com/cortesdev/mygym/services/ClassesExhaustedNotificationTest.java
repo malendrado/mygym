@@ -32,6 +32,7 @@ class ClassesExhaustedNotificationTest {
     @Mock private GymRepository gymRepository;
     @Mock private GymPlanRepository gymPlanRepository;
     @Mock private MemberLifecycleEmailService emailService;
+    @Mock private PushNotificationService pushService;
 
     private final Gym gym = Gym.builder().id(GYM_ID).name("XaloGym").build();
     private final GymPlan plan = GymPlan.builder().id(5L).gymId(GYM_ID).name("Plan Básico").monthlyClasses(8).build();
@@ -42,7 +43,7 @@ class ClassesExhaustedNotificationTest {
 
     private ReservationService reservationService() {
         return new ReservationService(
-                null, null, gymRepository, null, memberService, null, null, null, gymPlanRepository, emailService, null);
+                null, null, gymRepository, null, memberService, null, null, pushService, null, null, gymPlanRepository, emailService, null);
     }
 
     @Test
@@ -56,6 +57,8 @@ class ClassesExhaustedNotificationTest {
         reservationService().notifyIfClassesExhausted(GYM_ID, m);
 
         verify(emailService).sendClassesExhaustedMember(eq(gym), eq(m), eq(plan), any(String.class));
+        // Y el mismo aviso por push, solo al socio.
+        verify(pushService).notifyUsers(eq(java.util.List.of(4L)), any(PushMessage.class));
     }
 
     @Test
@@ -68,5 +71,6 @@ class ClassesExhaustedNotificationTest {
         }
 
         verify(emailService, never()).sendClassesExhaustedMember(any(), any(), any(), any());
+        verify(pushService, never()).notifyUsers(any(), any());
     }
 }

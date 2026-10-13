@@ -38,6 +38,7 @@ class MembershipNotificationsTest {
     @Mock private GymRepository gymRepository;
     @Mock private GymPlanRepository gymPlanRepository;
     @Mock private MemberLifecycleEmailService emailService;
+    @Mock private PushNotificationService pushService;
     @InjectMocks private MembershipReminderJob reminderJob;
 
     private final Gym gym = Gym.builder().id(GYM_ID).name("XaloGym").build();
@@ -70,6 +71,7 @@ class MembershipNotificationsTest {
         reminderJob.sendReminders();
 
         verify(emailService).sendMembershipExpiringSoonMember(gym, m, plan, 3L);
+        verify(pushService).notifyUsers(java.util.List.of(m.getId()), PushMessages.membershipExpiringSoon(gym, 3L));
     }
 
     @Test
@@ -93,6 +95,7 @@ class MembershipNotificationsTest {
 
         verify(emailService, never()).sendMembershipExpiringSoonMember(any(), any(), any(), anyLong());
         verify(emailService, never()).sendMembershipExpiredMember(any(), any(), any());
+        verify(pushService, never()).notifyUsers(any(), any());
     }
 
     @Test
@@ -104,6 +107,7 @@ class MembershipNotificationsTest {
         reminderJob.sendReminders();
 
         verify(emailService).sendMembershipExpiredMember(gym, m, plan);
+        verify(pushService).notifyUsers(java.util.List.of(m.getId()), PushMessages.membershipExpired(gym));
         verify(emailService, never()).sendMembershipExpiringSoonMember(any(), any(), any(), anyLong());
     }
 }

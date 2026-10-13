@@ -63,6 +63,9 @@ public class Reservation {
 
     private Instant updatedAt;
 
+    /** Recordatorio push de la clase ya enviado, o evaluado y descartado (ver ClassReminderJob). Null = pendiente. */
+    private Instant reminderPushedAt;
+
     @PrePersist
     void onCreate() {
         Instant now = Instant.now();

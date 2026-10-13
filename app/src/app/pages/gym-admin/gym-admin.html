@@ -21,6 +21,7 @@
     <ion-buttons slot="end">
       <!-- Mismo ícono "Instala tu app" que ve el socio en /member (ver InstallBanner). -->
       @if (!isDemoAdmin()) {
+        <app-push-bell />
         <app-install-banner />
       }
       <ion-button (click)="logout()">
@@ -48,6 +49,9 @@
     </div>
   }
   <div class="admin-identity-bar">{{ adminFirstName() }} · {{ sectionLabel() }}</div>
+  @if (!isDemoAdmin()) {
+    <app-push-prompt audience="staff" />
+  }
   <ion-toolbar>
     <ion-segment scrollable [value]="section()" (ionChange)="setSection($any($event.detail.value))">
       <ion-segment-button value="general">

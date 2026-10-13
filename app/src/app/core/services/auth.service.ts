@@ -3,6 +3,7 @@ import { Injectable, inject, signal } from '@angular/core';
 import { SocialAuthService } from '@abacritt/angularx-social-login';
 import { Observable, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import { PushService } from './push.service';
 import { AuthUser, LoginResponse, TokenInfo } from '../models/auth.model';
 
 const STORAGE_KEY = 'mygym.auth';
@@ -51,6 +52,7 @@ function isExpired(token: string): boolean {
 export class AuthService {
   private readonly http = inject(HttpClient);
   private readonly socialAuthService = inject(SocialAuthService);
+  private readonly push = inject(PushService);
   private readonly base = `${environment.apiUrl}/api/auth`;
   private readonly publicGymsBase = `${environment.apiUrl}/api/public/gyms`;
   private readonly publicAuthBase = `${environment.apiUrl}/api/public/auth`;
@@ -118,6 +120,9 @@ export class AuthService {
    * Awaiting here means every caller must `await`/`.then()` before navigating.
    */
   async logout(): Promise<void> {
+    // Antes de borrar el token (el servidor necesita la sesión para borrar la suscripción de este teléfono): un teléfono
+    // compartido no debe seguir recibiendo los avisos de quien acaba de salir. Con tope de tiempo: nunca traba el cierre.
+    await this.push.releaseDevice();
     this._currentUser.set(null);
     this._token = null;
     sessionStorage.removeItem(STORAGE_KEY);

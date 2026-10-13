@@ -108,6 +108,8 @@ public class ReservationService {
     private final MemberService memberService;
     private final TvCheckinCodeRepository checkinCodeRepository;
     private final WaitlistService waitlistService;
+    private final PushNotificationService pushService;
+    private final StaffCancellationPush staffCancellationPush;
     private final GymClosureService gymClosureService;
     private final GymPlanRepository gymPlanRepository;
     private final MemberLifecycleEmailService memberLifecycleEmailService;
@@ -450,6 +452,7 @@ public class ReservationService {
             }
             String validUntil = EXHAUSTED_DATE_FORMAT.format(memberService.periodEnd(member).toLocalDate());
             memberLifecycleEmailService.sendClassesExhaustedMember(gym, member, plan, validUntil);
+            pushService.notifyUsers(List.of(member.getId()), PushMessages.classesExhausted(validUntil));
         } catch (RuntimeException e) {
             log.warn("No se pudo avisar clases agotadas al socio {}: {}", member.getId(), e.getMessage());
         }
@@ -472,6 +475,15 @@ public class ReservationService {
         reservation.setStatus(ReservationStatus.CANCELLED);
         reservationRepository.save(reservation);
         waitlistService.onSpotFreed(block.getId(), reservation.getClassDate());
+        // Aviso push al admin y profesores del gimnasio: solo cuando el SOCIO cancela (no cancelAsAdmin ni un cierre).
+        // Best-effort: nunca debe tumbar la cancelacion.
+        try {
+            appUserRepository
+                    .findById(memberId)
+                    .ifPresent(member -> staffCancellationPush.memberCancelled(block, reservation.getClassDate(), member));
+        } catch (RuntimeException e) {
+            log.warn("No se pudo avisar la cancelacion al equipo del gimnasio {}: {}", block.getGymId(), e.getMessage());
+        }
     }
 
     // Vía de urgencia pedida explícitamente por el usuario: el socio llama al admin porque no

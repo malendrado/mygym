@@ -54,6 +54,7 @@ public class WaitlistService {
     private final GymRepository gymRepository;
     private final MemberLifecycleEmailService emailService;
     private final FixedWeekRule fixedWeekRule;
+    private final PushNotificationService pushService;
 
     /** Cuántos socios esperan en cada ocurrencia del rango, en una sola query. Clave "bloqueId|fecha"
      *  (mismo formato que ClosureSchedule); las ocurrencias sin espera no aparecen. */
@@ -236,8 +237,12 @@ public class WaitlistService {
         if (headStart) {
             emailService.sendWaitlistHeadStart(
                     gym, member, block, entry.getClassDate(), gym.getWaitlistHeadStartMinutes());
+            pushService.notifyUsers(
+                    List.of(member.getId()),
+                    PushMessages.waitlistHeadStart(block, entry.getClassDate(), gym.getWaitlistHeadStartMinutes()));
         } else {
             emailService.sendWaitlistSpotOpen(gym, member, block, entry.getClassDate());
+            pushService.notifyUsers(List.of(member.getId()), PushMessages.waitlistSpotOpen(block, entry.getClassDate()));
         }
     }
 

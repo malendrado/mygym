@@ -16,6 +16,13 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
 
     int countByGymBlockIdAndClassDateAndStatus(Long gymBlockId, LocalDate classDate, ReservationStatus status);
 
+    /** Aviso al equipo: cuantos socios cancelaron esta clase por su cuenta (no por un cierre) desde "since". */
+    int countByGymBlockIdAndClassDateAndStatusAndCancelledByClosureIdIsNullAndUpdatedAtAfter(
+            Long gymBlockId, LocalDate classDate, ReservationStatus status, java.time.Instant since);
+
+    /** Cron de recordatorios (ClassReminderJob): reservas vigentes de un dia que todavia no se evaluaron. */
+    List<Reservation> findByClassDateAndStatusAndReminderPushedAtIsNull(LocalDate classDate, ReservationStatus status);
+
     Optional<Reservation> findByGymBlockIdAndClassDateAndMemberIdAndStatus(
             Long gymBlockId, LocalDate classDate, Long memberId, ReservationStatus status);
 

@@ -50,6 +50,7 @@ public class ClosureNotificationService {
     private final GymBlockRepository gymBlockRepository;
     private final GymPlanRepository gymPlanRepository;
     private final MemberLifecycleEmailService emailService;
+    private final PushNotificationService pushService;
 
     @Async("closureNotificationExecutor")
     @Transactional
@@ -168,6 +169,8 @@ public class ClosureNotificationService {
             boolean quotaRefunded = plan != null && plan.getMonthlyClasses() != null;
             try {
                 emailService.sendClosureCancellationMember(gym, member, closure.getReason(), labels, quotaRefunded);
+                pushService.notifyUsers(
+                        List.of(member.getId()), PushMessages.closureCancellation(gym, closure.getReason(), labels, closure.getId()));
                 sent++;
             } catch (Exception e) {
                 log.error("Falló el email de cierre ({}) para el socio {}: {}", logContext, member.getId(), e.getMessage());

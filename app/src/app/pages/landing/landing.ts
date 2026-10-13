@@ -32,6 +32,7 @@ import {
   logoWhatsapp,
   mailOutline,
   notificationsOutline,
+  alarmOutline,
   peopleOutline,
   pulseOutline,
   shieldCheckmarkOutline,
@@ -46,6 +47,7 @@ addIcons({
   'flash-outline': flashOutline,
   'pulse-outline': pulseOutline,
   'notifications-outline': notificationsOutline,
+  'alarm-outline': alarmOutline,
   'logo-whatsapp': logoWhatsapp,
   'mail-outline': mailOutline,
   'log-in-outline': logInOutline,
@@ -227,7 +229,7 @@ export class Landing implements OnInit, AfterViewInit, OnDestroy {
     {
       icon: 'notifications-outline',
       title: 'Te avisamos antes, no después',
-      body: 'Un aviso si se libera un cupo en la clase que estabas esperando, o si tu plan está por vencer.',
+      body: 'Un aviso en tu celular si se libera un cupo en la clase que estabas esperando, una hora antes de tu clase o si tu plan está por vencer.',
     },
     {
       icon: 'repeat-outline',

@@ -47,6 +47,7 @@ public class MembershipReminderJob {
     private final GymRepository gymRepository;
     private final GymPlanRepository gymPlanRepository;
     private final MemberLifecycleEmailService memberLifecycleEmailService;
+    private final PushNotificationService pushService;
 
     // Todos los días a las 09:00, hora de Chile — ni tan temprano que nadie lo vea, ni tan
     // tarde que un socio con la clase de la mañana ya se haya quedado sin poder reservar.
@@ -110,6 +111,7 @@ public class MembershipReminderJob {
 
         if (daysUntilExpiry > 0 && daysUntilExpiry <= REMINDER_DAYS_BEFORE) {
             memberLifecycleEmailService.sendMembershipExpiringSoonMember(gym, member, plan, daysUntilExpiry);
+            pushService.notifyUsers(List.of(member.getId()), PushMessages.membershipExpiringSoon(gym, daysUntilExpiry));
             return true;
         }
         if (daysUntilExpiry == 0) {
@@ -119,6 +121,7 @@ public class MembershipReminderJob {
                             .map(AppUser::getEmail)
                             .toList());
             memberLifecycleEmailService.sendMembershipExpiredMember(gym, member, plan);
+            pushService.notifyUsers(List.of(member.getId()), PushMessages.membershipExpired(gym));
             memberLifecycleEmailService.sendMembershipExpiredAdmin(gym, member, plan, adminEmails);
             return true;
         }

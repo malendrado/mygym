@@ -81,6 +81,8 @@ import {
   tvOutline,
 } from 'ionicons/icons';
 import { InstallBanner } from '../member/install-banner/install-banner';
+import { PushBell } from '../../core/components/push-bell/push-bell';
+import { PushPrompt } from '../../core/components/push-prompt/push-prompt';
 import { BookingRulesCard } from '../../core/components/booking-rules-card/booking-rules-card';
 import { firstValueFrom } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
@@ -398,6 +400,8 @@ const THEMED_ROOT_PROPERTIES = [
     MemberProfileModal,
     BookingRulesCard,
     InstallBanner,
+    PushBell,
+    PushPrompt,
     IonSpinner,
     TourOverlay,
   ],
