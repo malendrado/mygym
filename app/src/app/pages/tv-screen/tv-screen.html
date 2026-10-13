@@ -24,7 +24,8 @@
           } @else {
             <span class="tv-chip__initial">{{ a.firstName.charAt(0) }}</span>
           }
-          @if (a.planId != null && a.planName && fit.layout().tier.name !== 's') {
+          <!-- En 's' y 'm' el plan ya va escrito junto al nombre (o no hay lugar): la etiqueta sobre el avatar le tapaba la inicial. -->
+          @if (a.planId != null && a.planName && fit.layout().tier.name !== 's' && fit.layout().tier.name !== 'm') {
             <span class="tv-chip__plan-tag">{{ planShort(a.planName) }}</span>
           }
           @if (a.checkedIn) {

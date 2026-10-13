@@ -87,6 +87,10 @@ const AGENDA_MAX_FACES = 7;
 // quienes ya reservaron — enriquece con datos que ya tenemos en vez de dejar alto vacío.
 const AGENDA_TIERS: FitTier[] = [
   { name: 'row-xl', w: 0, h: 5.4, gap: 0.6 },
+  // Tres alturas de la misma fila de una linea: sin los intermedios, 4 clases en una columna de 17 rem pasaban de 'xl' (no
+  // entran) a 3.4 rem y dejaban un hueco vacio al pie de la tarjeta (visto en la TV real, 960x540, 2026-10-13).
+  { name: 'row-l', w: 0, h: 4.6, gap: 0.5 },
+  { name: 'row-l', w: 0, h: 4, gap: 0.5 },
   { name: 'row-l', w: 0, h: 3.4, gap: 0.5 },
   { name: 'row', w: 0, h: 2.3, gap: 0.35 },
 ];
