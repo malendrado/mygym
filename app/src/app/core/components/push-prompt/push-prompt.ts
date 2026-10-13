@@ -2,9 +2,25 @@ import { Component, Input, OnInit, computed, inject, signal } from '@angular/cor
 import { IonButton, IonIcon, ToastController } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { closeOutline, notificationsOutline } from 'ionicons/icons';
-import { PushService } from '../../services/push.service';
+import { PushFailure, PushService } from '../../services/push.service';
 
 addIcons({ 'close-outline': closeOutline, 'notifications-outline': notificationsOutline });
+
+/** Qué le decimos a la persona según por qué falló; "unknown" lleva un código corto para poder diagnosticar. */
+function failureMessage(reason: PushFailure, detail: string): string {
+  switch (reason) {
+    case 'no-push-service':
+      return 'Este teléfono no puede recibir avisos: necesita los servicios de Google (los Huawei nuevos no los traen). Los correos te siguen llegando igual.';
+    case 'not-ready':
+      return 'La app todavía se está preparando. Espera unos segundos e inténtalo de nuevo.';
+    case 'server':
+      return `No pudimos registrar este teléfono en el servidor. Inténtalo de nuevo (código: ${detail}).`;
+    case 'unsupported':
+      return 'Este teléfono o navegador no admite avisos desde esta app.';
+    default:
+      return `No pudimos activar los avisos (código: ${detail}).`;
+  }
+}
 
 type Audience = 'member' | 'staff';
 
@@ -47,12 +63,12 @@ export class PushPrompt implements OnInit {
     this.busy.set(true);
     try {
       const result = await this.push.enable();
-      if (result === 'ok') {
+      if (result.status === 'ok') {
         await this.toast('Listo, en unos segundos te llega un aviso de prueba.', 'success');
-      } else if (result === 'denied') {
+      } else if (result.status === 'denied') {
         await this.toast('No diste el permiso. Puedes activarlo en los ajustes de notificaciones del teléfono.', 'warning');
       } else {
-        await this.toast('No pudimos activar los avisos. Inténtalo de nuevo en un rato.', 'danger');
+        await this.toast(failureMessage(result.reason, result.detail), 'danger');
       }
     } finally {
       this.busy.set(false);
@@ -60,7 +76,7 @@ export class PushPrompt implements OnInit {
   }
 
   private async toast(message: string, color: string): Promise<void> {
-    const toast = await this.toastController.create({ message, duration: 4000, position: 'bottom', color });
+    const toast = await this.toastController.create({ message, duration: color === 'danger' ? 5000 : 4000, position: 'bottom', color });
     await toast.present();
   }
 }

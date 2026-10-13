@@ -101,7 +101,7 @@ describe('PushService', () => {
     const reg = await vi.waitFor(() => http.expectOne(`${BASE}/subscriptions`));
     expect(reg.request.body).toEqual({ endpoint: 'https://fcm.googleapis.com/x', keys: { p256dh: 'P', auth: 'A' } });
     reg.flush(null, { status: 201, statusText: 'Created' });
-    expect(await promise).toBe('ok');
+    expect(await promise).toEqual({ status: 'ok' });
     expect(service.state()).toBe('enabled');
     http.expectOne(`${BASE}/test`).flush(null, { status: 202, statusText: 'Accepted' });
   });
@@ -114,8 +114,29 @@ describe('PushService', () => {
     });
     const promise = service.enable();
     await flushKey({ publicKey: 'KEY' });
-    expect(await promise).toBe('denied');
+    expect(await promise).toEqual({ status: 'denied' });
     expect(service.state()).toBe('denied');
+  });
+
+  it('enable() explains a browser without a push service (AbortError) instead of a generic failure', async () => {
+    const service = create();
+    swPush.requestSubscription.mockImplementation(async () => {
+      const error = new Error('Registration failed - push service error');
+      error.name = 'AbortError';
+      throw error;
+    });
+    const promise = service.enable();
+    await flushKey({ publicKey: 'KEY' });
+    expect(await promise).toEqual({ status: 'error', reason: 'no-push-service', detail: 'AbortError' });
+  });
+
+  it('enable() reports a server rejection with its HTTP status', async () => {
+    const service = create();
+    const promise = service.enable();
+    await flushKey({ publicKey: 'KEY' });
+    const reg = await vi.waitFor(() => http.expectOne(`${BASE}/subscriptions`));
+    reg.flush({ detail: 'invalida' }, { status: 400, statusText: 'Bad Request' });
+    expect(await promise).toEqual({ status: 'error', reason: 'server', detail: 'HTTP 400' });
   });
 
   it('disable() removes the device on the server and in the browser', async () => {

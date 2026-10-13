@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { SwPush } from '@angular/service-worker';
 import { firstValueFrom } from 'rxjs';
@@ -14,7 +14,16 @@ import { PwaInstallService } from './pwa-install.service';
  * - `enabled`: este dispositivo recibe avisos.
  */
 export type PushState = 'loading' | 'unsupported' | 'needs-install' | 'default' | 'denied' | 'enabled';
-export type PushEnableResult = 'ok' | 'denied' | 'error';
+/**
+ * Por qué falló activar los avisos:
+ * - `no-push-service`: el navegador no tiene servicio de notificaciones (ej. teléfono sin servicios de Google).
+ * - `not-ready`: la app todavía no terminó de prepararse (service worker sin activar).
+ * - `server`: nuestro servidor rechazó o no pudo guardar la suscripción.
+ * - `unsupported`: el servidor no tiene push configurado o este navegador no puede.
+ * - `unknown`: cualquier otra cosa; `detail` lleva el nombre del error para diagnosticar.
+ */
+export type PushFailure = 'no-push-service' | 'not-ready' | 'server' | 'unsupported' | 'unknown';
+export type PushEnableResult = { status: 'ok' } | { status: 'denied' } | { status: 'error'; reason: PushFailure; detail: string };
 
 const DISMISSED_UNTIL_KEY = 'mygym.pushPromptDismissedUntil';
 const DISMISS_DAYS = 14;
@@ -65,24 +74,27 @@ export class PushService {
 
   /** Activa los avisos en este dispositivo. Llamar solo desde un toque del usuario. */
   async enable(): Promise<PushEnableResult> {
+    let step: 'subscribe' | 'register' = 'subscribe';
     try {
       const key = await this.loadServerKey();
       if (!key) {
         this._state.set('unsupported');
-        return 'error';
+        return { status: 'error', reason: 'unsupported', detail: 'sin-clave' };
       }
       const subscription = await this.swPush.requestSubscription({ serverPublicKey: key });
+      step = 'register';
       await this.register(subscription.toJSON() as SubscriptionBody);
       this._state.set('enabled');
       // Aviso de prueba: confirma de punta a punta que el teléfono recibe. Su fallo no cancela la activación.
       this.http.post<void>(`${this.base}/test`, {}).subscribe({ error: () => undefined });
-      return 'ok';
-    } catch {
+      return { status: 'ok' };
+    } catch (error) {
       if (typeof Notification !== 'undefined' && Notification.permission === 'denied') {
         this._state.set('denied');
-        return 'denied';
+        return { status: 'denied' };
       }
-      return 'error';
+      console.warn('[push] no se pudo activar', step, error);
+      return classifyFailure(step, error);
     }
   }
 
@@ -192,6 +204,28 @@ export class PushService {
     );
     await this.swPush.unsubscribe().catch(() => undefined);
   }
+}
+
+/** Traduce el error del navegador o del servidor a una causa que la app sabe explicar. */
+function classifyFailure(step: 'subscribe' | 'register', error: unknown): PushEnableResult {
+  const name = error instanceof Error ? error.name : typeof error;
+  const message = error instanceof Error ? error.message : String(error);
+  if (error instanceof HttpErrorResponse) {
+    return { status: 'error', reason: 'server', detail: `HTTP ${error.status}` };
+  }
+  if (step === 'register') {
+    return { status: 'error', reason: 'server', detail: name };
+  }
+  if (name === 'AbortError' || /push service|registration failed/i.test(message)) {
+    return { status: 'error', reason: 'no-push-service', detail: name };
+  }
+  if (/no active service worker|service worker/i.test(message) || name === 'InvalidStateError') {
+    return { status: 'error', reason: 'not-ready', detail: name };
+  }
+  if (name === 'NotSupportedError') {
+    return { status: 'error', reason: 'unsupported', detail: name };
+  }
+  return { status: 'error', reason: 'unknown', detail: name };
 }
 
 function readDismissedUntil(): number {
