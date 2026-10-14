@@ -54,6 +54,7 @@ public class PasswordAuthService {
     private final AppUserRepository appUserRepository;
     private final AuthTokenRepository authTokenRepository;
     private final GymRepository gymRepository;
+    private final GymCapacityService gymCapacityService;
     private final JwtService jwtService;
     private final MemberLifecycleEmailService memberLifecycleEmailService;
     private final SecureRandom secureRandom = new SecureRandom();
@@ -97,6 +98,8 @@ public class PasswordAuthService {
             }
             return;
         }
+        // Sin cupo se avisa YA (y no despues de mandar un correo de activacion que no se podria usar).
+        gymCapacityService.assertSelfRegistrationAllowed(gym);
         String rawToken = createToken(builder -> builder
                 .purpose(AuthTokenPurpose.SELF_REGISTER)
                 .pendingName(name)
@@ -145,6 +148,11 @@ public class PasswordAuthService {
                 throw new InvalidOrExpiredTokenException();
             }
             Gym gym = gymRepository.findById(token.getPendingGymId()).orElseThrow(InvalidOrExpiredTokenException::new);
+            if (!gym.isActive()) {
+                throw new InvalidOrExpiredTokenException();
+            }
+            // Entre el pedido de alta y la activacion pueden pasar hasta 48 h: el cupo se vuelve a revisar.
+            gymCapacityService.assertSelfRegistrationAllowed(gym);
             user = appUserRepository.save(AppUser.builder()
                     .email(token.getPendingEmail())
                     .name(token.getPendingName())

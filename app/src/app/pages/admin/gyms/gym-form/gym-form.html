@@ -169,7 +169,7 @@
       <div class="gym-detail-stat">
         <ion-icon name="person-outline" aria-hidden="true"></ion-icon>
         <p class="gym-detail-stat__value">{{ gym()?.maxUsers ?? '—' }}</p>
-        <p class="gym-detail-stat__label">Cupo máximo</p>
+        <p class="gym-detail-stat__label">Cupo máximo de socios</p>
       </div>
       <div class="gym-detail-stat">
         <ion-icon name="logo-google" aria-hidden="true"></ion-icon>
@@ -177,6 +177,8 @@
         <p class="gym-detail-stat__label">Login con Google</p>
       </div>
     </div>
+
+    <app-gym-limits [limits]="limits()" audience="super" />
 
     @if (status() === 'error') {
       <ion-text color="danger"><p>Ocurrió un error. Intenta nuevamente.</p></ion-text>

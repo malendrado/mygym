@@ -12,6 +12,9 @@ public interface AppUserRepository extends JpaRepository<AppUser, Long> {
 
     boolean existsByEmail(String email);
 
+    /** Cuantas cuentas de un rol tiene un gimnasio (socios, profesores, admins): base de los limites de GymCapacityService. */
+    long countByGymIdAndRole(Long gymId, Role role);
+
     List<AppUser> findByGymIdAndRole(Long gymId, Role role);
 
     /** Cualquier rol (admin, socio, demo) — usado por GymDisconnectionService para auditar y

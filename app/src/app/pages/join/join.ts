@@ -305,9 +305,15 @@ export class Join {
         this.registerSubmitting.set(false);
         this.registerSent.set(true);
       },
-      error: () => {
+      error: (err: Error & { status?: number }) => {
         this.registerSubmitting.set(false);
-        this.registerSent.set(true);
+        if (err.status === 409) {
+          // Sin cupos en el gimnasio: el mensaje del servidor lo explica con amabilidad. Los demás errores siguen
+          // mostrando el aviso genérico de siempre (no se revela si un correo ya tiene cuenta).
+          this.errorMessage.set(err.message);
+        } else {
+          this.registerSent.set(true);
+        }
       },
     });
   }

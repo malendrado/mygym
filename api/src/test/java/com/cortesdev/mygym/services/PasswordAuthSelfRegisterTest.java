@@ -30,6 +30,7 @@ class PasswordAuthSelfRegisterTest {
     @Mock private AppUserRepository appUserRepository;
     @Mock private AuthTokenRepository authTokenRepository;
     @Mock private GymRepository gymRepository;
+    @Mock private GymCapacityService gymCapacityService;
     @Mock private JwtService jwtService;
     @Mock private MemberLifecycleEmailService emailService;
 
@@ -38,7 +39,8 @@ class PasswordAuthSelfRegisterTest {
 
     @BeforeEach
     void setUp() {
-        service = new PasswordAuthService(appUserRepository, authTokenRepository, gymRepository, jwtService, emailService);
+        service = new PasswordAuthService(
+                appUserRepository, authTokenRepository, gymRepository, gymCapacityService, jwtService, emailService);
         when(gymRepository.findBySlug("xalogym")).thenReturn(Optional.of(gym));
         when(gymRepository.findById(60L)).thenReturn(Optional.of(gym));
     }
@@ -85,5 +87,20 @@ class PasswordAuthSelfRegisterTest {
 
         verify(emailService).sendSelfRegisterActivation(eq(gym), eq("Nuevo"), eq("nuevo@x.cl"), any());
         verify(emailService, never()).sendPasswordReset(any(), any(), any());
+    }
+
+    @Test
+    void sinCupoNoSeEnviaElCorreoDeActivacionYSeLeExplicaALaPersona() {
+        when(appUserRepository.findByEmail("nueva@x.cl")).thenReturn(Optional.empty());
+        org.mockito.Mockito.doThrow(new com.cortesdev.mygym.services.exception.GymLimitReachedException(
+                        com.cortesdev.mygym.services.exception.GymLimitReachedException.Kind.MEMBERS, "sin cupos"))
+                .when(gymCapacityService).assertSelfRegistrationAllowed(gym);
+
+        org.junit.jupiter.api.Assertions.assertThrows(
+                com.cortesdev.mygym.services.exception.GymLimitReachedException.class,
+                () -> service.requestSelfRegistration("Nueva", "nueva@x.cl", "xalogym"));
+
+        verify(emailService, never()).sendSelfRegisterActivation(any(), any(), any(), any());
+        verify(authTokenRepository, never()).save(any());
     }
 }

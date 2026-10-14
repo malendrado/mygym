@@ -9,6 +9,7 @@ import {
   Admin,
   AnalyticsSummary,
   BankTransferInfo,
+  GymLimits,
   BankTransferUpdateRequest,
   BookingRulesRequest,
   BlockCreateResult,
@@ -533,5 +534,15 @@ export class GymService {
 
   updateMyClosure(closureId: number, payload: GymClosureUpdateRequest): Observable<GymClosure> {
     return this.http.put<GymClosure>(`${this.myGymBase}/closures/${closureId}`, payload);
+  }
+
+  /** Cupos usados y libres de socios, profesores y administradores del propio gimnasio. */
+  getMyLimits(): Observable<GymLimits> {
+    return this.http.get<GymLimits>(`${this.myGymBase}/limits`);
+  }
+
+  /** Lo mismo para el super-admin, de cualquier gimnasio. */
+  getLimits(gymId: number): Observable<GymLimits> {
+    return this.http.get<GymLimits>(`${this.base}/${gymId}/limits`);
   }
 }

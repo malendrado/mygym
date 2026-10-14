@@ -3,10 +3,12 @@ import { inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { EMPTY, catchError, throwError } from 'rxjs';
 import { AuthService } from '../services/auth.service';
+import { GymPauseService } from '../services/gym-pause.service';
 
 export const errorInterceptor: HttpInterceptorFn = (req, next) => {
   const router = inject(Router);
   const authService = inject(AuthService);
+  const gymPause = inject(GymPauseService);
   return next(req).pipe(
     catchError((err: HttpErrorResponse) => {
       // 410: el acceso a la demo (Role.DEMO_ADMIN) venció — ver DemoAccessService/
@@ -19,6 +21,12 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
         void authService.logout().finally(() => {
           router.navigate(['/'], { queryParams: { contacto: 'demo-vencida' } });
         });
+        return EMPTY;
+      }
+      // 403 GYM_PAUSED: el gimnasio de este usuario está en pausa. No es un error de la pantalla: se muestra el aviso amable
+      // (app-gym-pause) y se traga el error, para que ninguna pantalla muestre además su propio "no pudimos cargar…".
+      if (err.status === 403 && err.error?.code === 'GYM_PAUSED') {
+        gymPause.markPaused();
         return EMPTY;
       }
       // 403 del login mismo: la cuenta de Google es real, pero no hay ningún AppUser con ese

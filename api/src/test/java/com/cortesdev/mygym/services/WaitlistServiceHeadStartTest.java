@@ -50,7 +50,7 @@ class WaitlistServiceHeadStartTest {
     @InjectMocks private WaitlistService waitlistService;
 
     private Gym gym(int headStartMinutes) {
-        return Gym.builder().id(GYM_ID).waitlistHeadStartMinutes(headStartMinutes).build();
+        return Gym.builder().id(GYM_ID).active(true).waitlistHeadStartMinutes(headStartMinutes).build();
     }
 
     private GymBlock block() {
@@ -144,5 +144,20 @@ class WaitlistServiceHeadStartTest {
         org.junit.jupiter.api.Assertions.assertEquals("¡Se liberó un cupo!", pushed.getValue().title());
         org.junit.jupiter.api.Assertions.assertTrue(pushed.getValue().body().contains("Tienes 45 min de ventaja"));
         org.junit.jupiter.api.Assertions.assertEquals(PushMessage.Urgency.HIGH, pushed.getValue().urgency());
+    }
+
+    @Test
+    void aPausedGymNeverNotifiesTheWaitlist() {
+        Gym paused = Gym.builder().id(GYM_ID).active(false).waitlistHeadStartMinutes(30).build();
+        when(gymBlockRepository.findById(BLOCK_ID)).thenReturn(Optional.of(block()));
+        when(reservationRepository.countByGymBlockIdAndClassDateAndStatus(BLOCK_ID, DATE, ReservationStatus.BOOKED)).thenReturn(4);
+        when(waitlistRepository.findByGymBlockIdAndClassDateOrderByCreatedAtAsc(BLOCK_ID, DATE)).thenReturn(List.of(entry(1, null)));
+        when(gymRepository.findById(GYM_ID)).thenReturn(Optional.of(paused));
+
+        waitlistService.onSpotFreed(BLOCK_ID, DATE);
+
+        verify(emailService, never()).sendWaitlistHeadStart(any(), any(), any(), any(), anyLong());
+        verify(emailService, never()).sendWaitlistSpotOpen(any(), any(), any(), any());
+        verify(pushService, never()).notifyUsers(any(), any());
     }
 }

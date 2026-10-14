@@ -21,6 +21,7 @@ import com.cortesdev.mygym.services.exception.GymClosedException;
 import com.cortesdev.mygym.services.exception.GymClosureNotFoundException;
 import com.cortesdev.mygym.services.exception.GymNotFoundException;
 import com.cortesdev.mygym.services.exception.InvalidClosureRequestException;
+import com.cortesdev.mygym.services.exception.GymLimitReachedException;
 import com.cortesdev.mygym.services.exception.InvalidAttendanceException;
 import com.cortesdev.mygym.services.exception.InvalidPushSubscriptionException;
 import com.cortesdev.mygym.services.exception.InvalidPaymentException;
@@ -231,6 +232,15 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
         problem.setTitle("Profesor no encontrado");
         problem.setProperty("timestamp", Instant.now());
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problem);
+    }
+
+    @ExceptionHandler(GymLimitReachedException.class)
+    public ResponseEntity<ProblemDetail> handleGymLimitReached(GymLimitReachedException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+        problem.setTitle("Límite del gimnasio alcanzado");
+        problem.setProperty("code", "LIMIT_" + ex.kind().name());
+        problem.setProperty("timestamp", Instant.now());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(problem);
     }
 
     @ExceptionHandler(DuplicateMemberEmailException.class)

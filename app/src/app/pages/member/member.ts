@@ -23,6 +23,7 @@ import {
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { InstallBanner } from './install-banner/install-banner';
+import { GymPause } from '../../core/components/gym-pause/gym-pause';
 import { PushBell } from '../../core/components/push-bell/push-bell';
 import { PushPrompt } from '../../core/components/push-prompt/push-prompt';
 import { WelcomeMission } from './welcome-mission/welcome-mission';
@@ -325,6 +326,7 @@ const OCCURRENCES_LOADING_MESSAGES = [
     IonInput,
     IonItem,
     InstallBanner,
+    GymPause,
     PushBell,
     PushPrompt,
     QrScanner,

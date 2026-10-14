@@ -260,6 +260,27 @@ public class MemberLifecycleEmailService {
         }
     }
 
+    // Alguien intento registrarse y no cupo (ver GymCapacityService.assertSelfRegistrationAllowed). Maximo un correo al dia.
+    public void sendMemberLimitReachedAdmin(Gym gym, List<String> adminEmails, int maxUsers) {
+        String headline = gym.getName() + " llegó a su cupo de socios";
+        String body = "<p style=\"margin:0 0 12px;\">Tu gimnasio tiene hoy sus <strong style=\"color:#eaf6f7;\">" + maxUsers
+                + " cupos de socios</strong> ocupados. Alguien intentó registrarse y no pudimos crear su cuenta; le avisamos que "
+                + "se comunique con ustedes.</p>"
+                + "<p style=\"margin:0;\">Si quieres ampliar tu cupo, escríbenos a contacto@mygym.cl y lo vemos juntos.</p>";
+        for (String adminEmail : adminEmails) {
+            send(
+                    gym,
+                    adminEmail,
+                    "Tu gimnasio llegó a su cupo de socios",
+                    "Cupo de socios",
+                    headline,
+                    body,
+                    "Ver mi panel",
+                    LOGIN_URL,
+                    "Recibiste este correo porque administras " + escapeHtml(gym.getName()) + " en mygym.");
+        }
+    }
+
     // Contraparte de sendPaymentConfirmedMember para socios cargados por Excel (ver
     // MemberImportRowService) — a diferencia del pago real vía Flow/simulatePlanPayment, acá el
     // socio NUNCA se logueó todavía (mismo estado que sendMemberInviteWithPlans), así que hace

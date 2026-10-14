@@ -71,6 +71,8 @@ import com.cortesdev.mygym.services.FixedClassImportService;
 import com.cortesdev.mygym.services.FixedClassService;
 import com.cortesdev.mygym.services.GymClosureService;
 import com.cortesdev.mygym.services.GymDisconnectionService;
+import com.cortesdev.mygym.models.dto.GymLimitsResponse;
+import com.cortesdev.mygym.services.GymCapacityService;
 import com.cortesdev.mygym.services.GymService;
 import com.cortesdev.mygym.services.MemberProfileService;
 import com.cortesdev.mygym.services.MemberService;
@@ -105,6 +107,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class GymController {
 
     private final GymService gymService;
+    private final GymCapacityService gymCapacityService;
     private final MemberService memberService;
     private final BrandingSuggestionService brandingSuggestionService;
     private final ReservationService reservationService;
@@ -142,6 +145,12 @@ public class GymController {
     @GetMapping("/stats")
     public GymStatsResponse gymStats() {
         return gymService.gymStats();
+    }
+
+    /** Cupos usados y libres del gimnasio (socios, profesores, administradores) para el panel del super-admin. */
+    @GetMapping("/{id}/limits")
+    public GymLimitsResponse getLimits(@PathVariable Long id) {
+        return gymCapacityService.limits(id);
     }
 
     @GetMapping("/{id}")

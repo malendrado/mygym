@@ -162,6 +162,13 @@ public class TvScreenService {
         tvScreenRepository.save(screen);
 
         Gym gym = gymRepository.findById(screen.getGymId()).orElseThrow(() -> new GymNotFoundException(screen.getGymId()));
+        if (!gym.isActive()) {
+            // Gimnasio en pausa: la pantalla sigue vinculada (no se re-empareja) pero solo recibe el marco y el aviso; ni
+            // clases ni nombres de socios.
+            return new TvScheduleResponse(
+                    gym.getName(), gym.getLogoSvg(), gym.getThemeColor(), gym.getThemeMode(), gym.getTagline(),
+                    Instant.now(), List.of(), List.of(), null, null, List.of(), true);
+        }
         ZonedDateTime nowZoned = ZonedDateTime.now(GYM_ZONE);
 
         List<GymBlock> activeBlocks =
@@ -224,7 +231,8 @@ public class TvScreenService {
                 previousBlock == null ? null : toOccurrence(previousBlock, today, plansById, attendeesByOccurrence),
                 next == null
                         ? List.of()
-                        : next.later().stream().map(b -> toOccurrence(b, next.date(), plansById, attendeesByOccurrence)).toList());
+                        : next.later().stream().map(b -> toOccurrence(b, next.date(), plansById, attendeesByOccurrence)).toList(),
+                false);
     }
 
     /**
@@ -237,6 +245,9 @@ public class TvScreenService {
                 .findByToken(token)
                 .filter(this::isActive)
                 .orElseThrow(() -> new TvScreenNotFoundException(token));
+        if (!gymRepository.existsByIdAndActiveTrue(screen.getGymId())) {
+            return List.of(); // gimnasio en pausa
+        }
         return gymPhotoRepository.findByGymIdOrderBySortOrderAsc(screen.getGymId()).stream()
                 .map(p -> new GymPhotoResponse(p.getId(), p.getData(), p.getCaption()))
                 .toList();

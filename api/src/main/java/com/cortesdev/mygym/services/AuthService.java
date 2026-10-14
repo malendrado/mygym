@@ -26,6 +26,7 @@ public class AuthService {
 
     private final AppUserRepository appUserRepository;
     private final GymRepository gymRepository;
+    private final GymCapacityService gymCapacityService;
     private final GoogleTokenVerifier googleTokenVerifier;
     private final JwtService jwtService;
     private final MemberLifecycleEmailService memberLifecycleEmailService;
@@ -90,6 +91,10 @@ public class AuthService {
 
         var existingUser = appUserRepository.findByEmail(AppUser.normalizeEmail(identity.email()));
         boolean isNewMember = existingUser.isEmpty();
+        if (isNewMember) {
+            // Sin cupo: no se crea la cuenta, se le explica a la persona y se avisa al admin (maximo un correo al dia).
+            gymCapacityService.assertSelfRegistrationAllowed(gym);
+        }
         AppUser user = existingUser.orElseGet(() -> appUserRepository.save(
                 AppUser.builder()
                         .email(identity.email())

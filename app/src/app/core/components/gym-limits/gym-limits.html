@@ -1,0 +1,35 @@
+@if (rows().length > 0) {
+  @if (compact) {
+    @if (members(); as m) {
+      <p class="gl-compact" [class.gl-compact--near]="m.state === 'near'" [class.gl-compact--full]="m.state === 'full'">
+        <span class="gl-compact__dot" aria-hidden="true"></span>
+        <span><strong>{{ m.usage.used }} de {{ m.usage.max }} socios</strong> · {{ m.hint }}</span>
+      </p>
+    }
+  } @else {
+    <section class="gl" aria-label="Cupos de tu gimnasio">
+      <h3 class="gl__title">Cupos de tu gimnasio</h3>
+      <div class="gl__rows">
+        @for (row of rows(); track row.key) {
+          <div class="gl__row" [class.gl__row--near]="row.state === 'near'" [class.gl__row--full]="row.state === 'full'">
+            <div class="gl__head">
+              <span class="gl__name">{{ row.name }}</span>
+              <span class="gl__count">{{ row.usage.used }} de {{ row.usage.max }}</span>
+            </div>
+            <div
+              class="gl__bar"
+              role="progressbar"
+              [attr.aria-label]="row.name"
+              [attr.aria-valuenow]="row.usage.used"
+              aria-valuemin="0"
+              [attr.aria-valuemax]="row.usage.max"
+            >
+              <span class="gl__fill" [style.width.%]="row.percent"></span>
+            </div>
+            <p class="gl__hint">{{ row.hint }}</p>
+          </div>
+        }
+      </div>
+    </section>
+  }
+}

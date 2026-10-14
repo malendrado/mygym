@@ -1,3 +1,4 @@
+<app-gym-pause audience="staff" />
 @if (!gymLoaded()) {
   <ion-header>
     <ion-toolbar>
@@ -127,7 +128,7 @@
       <div class="gym-detail-stat">
         <ion-icon name="person-outline" aria-hidden="true"></ion-icon>
         <p class="gym-detail-stat__value">{{ gym()?.maxUsers ?? '—' }}</p>
-        <p class="gym-detail-stat__label">Cupo máximo</p>
+        <p class="gym-detail-stat__label">Cupo máximo de socios</p>
       </div>
       <div class="gym-detail-stat">
         <ion-icon name="logo-google" aria-hidden="true"></ion-icon>
@@ -135,6 +136,8 @@
         <p class="gym-detail-stat__label">Login con Google</p>
       </div>
     </div>
+
+    <app-gym-limits [limits]="limits()" audience="admin" />
 
     @if (isDemoAdmin()) {
       <ion-card class="demo-cta-card">
@@ -938,6 +941,7 @@
         </ion-card-title>
       </ion-card-header>
       <ion-card-content>
+        <app-gym-limits [limits]="limits()" audience="admin" [compact]="true" />
         <form [formGroup]="memberForm" (ngSubmit)="submitMember()">
           <ion-item>
             <ion-input label="Nombre *" formControlName="name" placeholder="Ej: Javiera Pulgar" />
@@ -945,7 +949,7 @@
           <ion-item lines="none">
             <ion-input label="Email *" type="email" autocomplete="email" formControlName="email" placeholder="Ej: javiera@mail.com" />
           </ion-item>
-          <ion-button type="submit" fill="outline" [disabled]="memberForm.invalid || status() === 'saving'" class="ion-margin-top">
+          <ion-button type="submit" fill="outline" [disabled]="memberForm.invalid || status() === 'saving' || limits()?.members?.free === 0" class="ion-margin-top">
             Agregar socio
           </ion-button>
         </form>
@@ -1417,6 +1421,7 @@
         <app-import-members-modal
           [plans]="plans()"
           [existingEmails]="memberEmails()"
+          [freeSlots]="limits()?.members?.free ?? null"
           (imported)="onMembersImported()"
           (dismiss)="closeImportModal()"
         />

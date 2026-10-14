@@ -9,7 +9,8 @@ import java.util.List;
  *  configurado. nextDate es null si el gym no tiene ningún bloque activo. previous es la clase
  *  de HOY que terminó más recientemente (null si todavía no terminó ninguna). later son las
  *  clases de ese mismo día (nextDate) posteriores al horario de "next", para la agenda "más
- *  tarde". La galería de fotos NO viaja acá (pesa 1–3 MB y esto se pide cada 25 s): ver GET /screens/{token}/photos. */
+ *  tarde". paused = el gimnasio está en pausa (Gym.active = false): la TV muestra un aviso en vez de la agenda y no
+ *  viaja ningún dato de clases ni de socios. La galería de fotos NO viaja acá (pesa 1–3 MB y esto se pide cada 25 s): ver GET /screens/{token}/photos. */
 public record TvScheduleResponse(
         String gymName,
         String logoSvg,
@@ -21,4 +22,5 @@ public record TvScheduleResponse(
         List<TvBlockOccurrenceResponse> next,
         LocalDate nextDate,
         TvBlockOccurrenceResponse previous,
-        List<TvBlockOccurrenceResponse> later) {}
+        List<TvBlockOccurrenceResponse> later,
+        boolean paused) {}

@@ -1,0 +1,37 @@
+@if (pause.paused()) {
+  <div class="gym-pause" role="alertdialog" aria-modal="true" aria-labelledby="gym-pause-title" aria-describedby="gym-pause-text">
+    <div class="gym-pause__card">
+      <ion-icon class="gym-pause__icon" name="pause-circle-outline" aria-hidden="true"></ion-icon>
+
+      @if (audience === 'staff') {
+        <h2 id="gym-pause-title" class="gym-pause__title">La cuenta de {{ status()?.gymName }} en mygym está en pausa</h2>
+        <p id="gym-pause-text" class="gym-pause__text">
+          Tus datos y los de tus socios están resguardados. Conversemos para reactivarla:
+        </p>
+      } @else {
+        <h2 id="gym-pause-title" class="gym-pause__title">{{ status()?.gymName }} está haciendo una pausa en mygym</h2>
+        <p id="gym-pause-text" class="gym-pause__text">
+          Tus datos y tu membresía están resguardados.
+          @if (contacts().length > 0) {
+            Si necesitas algo, escríbele directamente a tu gimnasio:
+          } @else {
+            Si necesitas algo, consúltalo directamente en tu gimnasio.
+          }
+        </p>
+      }
+
+      @if (contacts().length > 0) {
+        <div class="gym-pause__contacts">
+          @for (contact of contacts(); track contact.href) {
+            <a class="gym-pause__contact" [href]="contact.href" target="_blank" rel="noopener noreferrer">
+              <ion-icon [name]="contact.icon" aria-hidden="true"></ion-icon>
+              <span>{{ contact.label }}</span>
+            </a>
+          }
+        </div>
+      }
+
+      <ion-button fill="clear" size="small" class="gym-pause__logout" (click)="logout()">Salir</ion-button>
+    </div>
+  </div>
+}

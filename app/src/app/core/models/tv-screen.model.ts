@@ -89,4 +89,6 @@ export interface TvSchedule {
   /** Resto de las clases del mismo día que nextDate, después del horario de "next" — agenda
    *  "más tarde". */
   later: TvBlockOccurrence[];
+  /** El gimnasio está en pausa: la pantalla muestra "Volvemos pronto" en vez de la agenda. */
+  paused?: boolean;
 }

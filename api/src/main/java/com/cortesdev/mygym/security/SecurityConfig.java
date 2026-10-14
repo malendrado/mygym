@@ -22,16 +22,19 @@ public class SecurityConfig {
     private final List<String> allowedOrigins;
     private final DemoAccessExpiryFilter demoAccessExpiryFilter;
     private final AuthRateLimitFilter authRateLimitFilter;
+    private final GymPauseFilter gymPauseFilter;
 
     public SecurityConfig(
             JwtService jwtService,
             @Value("${app.cors.allowed-origins}") List<String> allowedOrigins,
             DemoAccessExpiryFilter demoAccessExpiryFilter,
-            AuthRateLimitFilter authRateLimitFilter) {
+            AuthRateLimitFilter authRateLimitFilter,
+            GymPauseFilter gymPauseFilter) {
         this.jwtService = jwtService;
         this.allowedOrigins = allowedOrigins;
         this.demoAccessExpiryFilter = demoAccessExpiryFilter;
         this.authRateLimitFilter = authRateLimitFilter;
+        this.gymPauseFilter = gymPauseFilter;
     }
 
     @Bean
@@ -83,6 +86,10 @@ public class SecurityConfig {
                         .hasAnyRole("GYM_ADMIN", "DEMO_ADMIN")
                         .requestMatchers("/api/gym-admin/**")
                         .hasRole("GYM_ADMIN")
+                        // Estado del gimnasio propio (pausa): la unica ruta que el filtro de pausa deja pasar; la usa la app
+                        // para mostrar el aviso con los datos de contacto. Va antes del anyRequest().
+                        .requestMatchers("/api/gym-status")
+                        .hasAnyRole("MEMBER", "GYM_ADMIN", "PROFESOR", "DEMO_ADMIN")
                         // Avisos push: socios, admin del gimnasio y profesores (nunca SUPER_ADMIN ni DEMO_ADMIN). Va antes del
                         // anyRequest().
                         .requestMatchers("/api/push/**")
@@ -98,6 +105,8 @@ public class SecurityConfig {
                 // — el JWT en sí sigue siendo válido por 30 días, este filtro es el único lugar
                 // que de verdad hace cumplir el límite de 7 días en una sesión ya logueada).
                 .addFilterBefore(demoAccessExpiryFilter, AuthorizationFilter.class)
+                // Gimnasio en pausa: sin esto un token de 30 dias seguiria operando aunque el gimnasio se haya pausado.
+                .addFilterBefore(gymPauseFilter, AuthorizationFilter.class)
                 .addFilterBefore(authRateLimitFilter, AuthorizationFilter.class);
         return http.build();
     }

@@ -198,6 +198,20 @@
               </div>
             </header>
 
+            @if (sched.paused) {
+              <!-- Gimnasio en pausa: sin agenda ni nombres, solo un mensaje sereno sobre formas difusas que recuerdan la pantalla. -->
+              <main class="tv-main tv-paused" role="status">
+                <div class="tv-paused__ghost" aria-hidden="true">
+                  <span class="tv-paused__block tv-paused__block--main"></span>
+                  <span class="tv-paused__block tv-paused__block--side"></span>
+                  <span class="tv-paused__block tv-paused__block--side"></span>
+                </div>
+                <div class="tv-paused__card">
+                  <p class="tv-paused__title">Volvemos pronto</p>
+                  <p class="tv-paused__text">Estamos haciendo una pausa. Gracias por esperar.</p>
+                </div>
+              </main>
+            } @else {
             <main class="tv-main">
               <div class="tv-schedule-grid" [class.tv-schedule-grid--no-sidebar]="!showSidebar()">
                 <section class="tv-now-panel">
@@ -426,6 +440,7 @@
                 }
               </div>
             </main>
+            }
 
             <app-version-tag variant="tv" />
           </div>

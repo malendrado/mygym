@@ -214,9 +214,20 @@ class FixedClassGenerationTest {
     void renewalHookReservesTheClassesOfTheNewPeriod() {
         when(memberService.remainingClasses(member)).thenReturn(null);
         when(appUserRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
+        when(gymRepository.existsByIdAndActiveTrue(GYM_ID)).thenReturn(true);
 
         service.onMembershipPaid(new MembershipPaidEvent(MEMBER_ID));
 
         verify(reservationService, times(occurrenceDates().size())).createBooked(anyLong(), anyLong(), any(), anyLong());
+    }
+
+    @Test
+    void renewalHookDoesNothingWhileTheGymIsPaused() {
+        when(appUserRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
+        when(gymRepository.existsByIdAndActiveTrue(GYM_ID)).thenReturn(false);
+
+        service.onMembershipPaid(new MembershipPaidEvent(MEMBER_ID));
+
+        verify(reservationService, never()).createBooked(anyLong(), anyLong(), any(), any());
     }
 }

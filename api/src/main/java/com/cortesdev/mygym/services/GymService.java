@@ -100,6 +100,8 @@ public class GymService {
     private final AdminInviteEmailService adminInviteEmailService;
     private final MemberLifecycleEmailService memberLifecycleEmailService;
     private final DemoTourService demoTourService;
+    private final GymCapacityService gymCapacityService;
+    private final com.cortesdev.mygym.security.GymPauseGuard gymPauseGuard;
     private final org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     public GymResponse createGym(GymCreateRequest request) {
@@ -225,7 +227,10 @@ public class GymService {
         gym.setMaxUsers(request.maxUsers());
         gym.setGoogleLoginEnabled(request.googleLoginEnabled());
         gym.setLogoSvg(request.logoSvg());
-        return toResponse(gymRepository.save(gym));
+        GymResponse saved = toResponse(gymRepository.save(gym));
+        // Pausar y reactivar se nota de inmediato (el control de pausa guarda el estado 30 s en memoria).
+        gymPauseGuard.invalidate(id);
+        return saved;
     }
 
     // "LIGHT" está limitado a las 4 paletas curadas de GymPalette.LIGHT_ALL — a
@@ -490,6 +495,7 @@ public class GymService {
 
     public AdminResponse addAdmin(Long gymId, AdminCreateRequest request) {
         Gym gym = findGymOrThrow(gymId);
+        gymCapacityService.assertAdminCapacity(gymId);
         if (appUserRepository.existsByEmail(AppUser.normalizeEmail(request.email()))) {
             throw new DuplicateOwnerEmailException(request.email());
         }
@@ -537,6 +543,7 @@ public class GymService {
         // Ahora también lo llama el super-admin con un gymId de la URL: sin esto, un id inexistente
         // llegaba hasta la FK y salía como 500 en vez de un 404 claro.
         assertGymExists(gymId);
+        gymCapacityService.assertProfesorCapacity(gymId);
         if (appUserRepository.existsByEmail(AppUser.normalizeEmail(request.email()))) {
             throw new DuplicateOwnerEmailException(request.email());
         }

@@ -5,6 +5,7 @@ import { SwPush } from '@angular/service-worker';
 import { BehaviorSubject } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { environment } from '../../../environments/environment';
+import { PwaInstallService } from './pwa-install.service';
 import { PushService } from './push.service';
 
 const BASE = `${environment.apiUrl}/api/push`;
@@ -30,10 +31,15 @@ describe('PushService', () => {
   let http: HttpTestingController;
   let swPush: FakeSwPush;
 
-  function create(): PushService {
+  function create(standalone = true): PushService {
     swPush = new FakeSwPush();
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting(), { provide: SwPush, useValue: swPush }],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: SwPush, useValue: swPush },
+        { provide: PwaInstallService, useValue: { isStandalone: standalone, isInstalled: () => standalone, isTouchDevice: false } },
+      ],
     });
     http = TestBed.inject(HttpTestingController);
     return TestBed.inject(PushService);
@@ -65,13 +71,22 @@ describe('PushService', () => {
     expect(service.canOffer()).toBe(false);
   });
 
-  it('is "default" and offered on a non-touch device when it can subscribe', async () => {
+  it('is "default" and offered inside the installed app when it can subscribe', async () => {
     const service = create();
     const done = service.refresh();
     await flushKey({ publicKey: 'KEY' });
     await done;
     expect(service.state()).toBe('default');
     expect(service.canOffer()).toBe(true);
+  });
+
+  it('is NEVER offered in a normal browser tab (neither the banner nor the bell are shown there)', async () => {
+    const service = create(false);
+    const done = service.refresh();
+    await flushKey({ publicKey: 'KEY' });
+    await done;
+    expect(service.state()).toBe('default'); // puede suscribirse...
+    expect(service.canOffer()).toBe(false); // ...pero no se le ofrece
   });
 
   it('is "denied" without asking the server when the user blocked notifications', async () => {

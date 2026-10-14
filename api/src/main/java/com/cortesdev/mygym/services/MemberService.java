@@ -65,11 +65,15 @@ public class MemberService {
     private final PasswordAuthService passwordAuthService;
     private final MemberFixedClassRepository memberFixedClassRepository;
     private final GymBlockRepository gymBlockRepository;
+    private final GymCapacityService gymCapacityService;
 
     public MemberResponse createMember(Long gymId, MemberCreateRequest request) {
         if (appUserRepository.existsByEmail(AppUser.normalizeEmail(request.email()))) {
             throw new DuplicateMemberEmailException(request.email());
         }
+        // Cupo de socios del gimnasio (Gym.maxUsers): sin esto el limite se guardaba pero nadie lo aplicaba.
+        gymCapacityService.assertMemberCapacity(
+                gymRepository.findById(gymId).orElseThrow(() -> new GymNotFoundException(gymId)), 1);
         AppUser member = appUserRepository.save(AppUser.builder()
                 .name(request.name())
                 .email(request.email())
@@ -113,13 +117,26 @@ public class MemberService {
         // inexistente (ver MemberImportRowService.importRow), nunca se acepta a medias.
         Map<Long, GymPlan> plansById = activeGymPlans.stream().collect(Collectors.toMap(GymPlan::getId, p -> p));
 
+        // Solo caben tantas filas como cupos libres: las demas se informan fila por fila ("sin cupo") en vez de abortar
+        // el bloque. El cupo se descuenta fila a fila, porque una fila repetida o invalida no ocupa lugar.
+        int freeSlots = gymCapacityService.freeMemberSlots(gym);
         List<MemberImportRowResult> results = new ArrayList<>();
         for (MemberImportRow row : rows) {
+            if (freeSlots <= 0) {
+                results.add(new MemberImportRowResult(
+                        row.email(), false, "Sin cupo: tu gimnasio llegó al límite de " + gym.getMaxUsers() + " socios."));
+                continue;
+            }
             try {
                 // REQUIRES_NEW en MemberImportRowService — cada fila corre en su propia
                 // transacción, así un error real de Postgres a mitad de un bloque nunca deja
                 // "abortada" la transacción para las filas siguientes del mismo bloque.
-                results.add(memberImportRowService.importRow(gymId, gym, row, activePlansForInvite, plansById));
+                MemberImportRowResult result =
+                        memberImportRowService.importRow(gymId, gym, row, activePlansForInvite, plansById);
+                results.add(result);
+                if (result.success()) {
+                    freeSlots--;
+                }
             } catch (Exception e) {
                 log.error("Fila de importación falló para {}: {}", row.email(), e.getMessage(), e);
                 results.add(new MemberImportRowResult(row.email(), false, "Error inesperado al importar esta fila."));

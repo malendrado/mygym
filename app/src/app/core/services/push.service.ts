@@ -47,23 +47,27 @@ export class PushService {
   private readonly base = `${environment.apiUrl}/api/push`;
 
   private readonly _state = signal<PushState>('loading');
+  private readonly _busy = signal(false);
   private readonly dismissedUntil = signal(readDismissedUntil());
   private serverKey: string | null = null;
   private refreshing: Promise<void> | null = null;
 
   readonly state = this._state.asReadonly();
+  /** Hay una activación o desactivación en curso (para no disparar dos a la vez). */
+  readonly busy = this._busy.asReadonly();
   /** El usuario cerró el aviso ("Ahora no") hace menos de 14 días. */
   readonly dismissed = computed(() => this.dismissedUntil() > Date.now());
-  /** Hay que ofrecer activar: se puede y todavía no está activado. En un celular, solo con la app instalada. */
+  /**
+   * Hay que ofrecer activar los avisos. SOLO dentro de la app instalada y abierta como app (display-mode: standalone):
+   * nunca en una pestaña del navegador, ni en el celular ni en el computador. Única excepción: iPhone en Safari, donde se
+   * muestra una guía para instalarla primero (sin eso iOS no permite avisos).
+   */
   readonly canOffer = computed(() => {
     const state = this._state();
     if (state === 'needs-install') {
       return true;
     }
-    if (state === 'default') {
-      return this.pwa.isInstalled() || !this.pwa.isTouchDevice;
-    }
-    return state === 'denied' && this.pwa.isInstalled();
+    return this.pwa.isStandalone && (state === 'default' || state === 'denied');
   });
 
   /** Calcula el estado de este dispositivo. Seguro de llamar varias veces (comparte la consulta en curso). */
@@ -74,6 +78,15 @@ export class PushService {
 
   /** Activa los avisos en este dispositivo. Llamar solo desde un toque del usuario. */
   async enable(): Promise<PushEnableResult> {
+    this._busy.set(true);
+    try {
+      return await this.doEnable();
+    } finally {
+      this._busy.set(false);
+    }
+  }
+
+  private async doEnable(): Promise<PushEnableResult> {
     let step: 'subscribe' | 'register' = 'subscribe';
     try {
       const key = await this.loadServerKey();
@@ -100,8 +113,13 @@ export class PushService {
 
   /** Desactiva los avisos en este dispositivo (borra la suscripción aquí y en el servidor). */
   async disable(): Promise<void> {
-    await this.dropSubscription();
-    this._state.set('default');
+    this._busy.set(true);
+    try {
+      await this.dropSubscription();
+      this._state.set('default');
+    } finally {
+      this._busy.set(false);
+    }
   }
 
   /** Al cerrar sesión: este teléfono deja de recibir los avisos de quien salió. No debe trabar el cierre. */
@@ -203,6 +221,22 @@ export class PushService {
       () => undefined,
     );
     await this.swPush.unsubscribe().catch(() => undefined);
+  }
+}
+
+/** Qué le decimos a la persona según por qué falló; "unknown" y "server" llevan un código corto para poder diagnosticar. */
+export function pushFailureMessage(reason: PushFailure, detail: string): string {
+  switch (reason) {
+    case 'no-push-service':
+      return 'Este teléfono no puede recibir avisos: necesita los servicios de Google (los Huawei nuevos no los traen). Los correos te siguen llegando igual.';
+    case 'not-ready':
+      return 'La app todavía se está preparando. Espera unos segundos e inténtalo de nuevo.';
+    case 'server':
+      return `No pudimos registrar este teléfono en el servidor. Inténtalo de nuevo (código: ${detail}).`;
+    case 'unsupported':
+      return 'Este teléfono o navegador no admite avisos desde esta app.';
+    default:
+      return `No pudimos activar los avisos (código: ${detail}).`;
   }
 }
 

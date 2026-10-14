@@ -158,6 +158,9 @@ export class ImportMembersModal {
     this._existingEmails.set(new Set(value.map((e) => e.trim().toLowerCase())));
   }
 
+  /** Cuántos socios más caben en el gimnasio (null = no se sabe). La vista previa avisa si la planilla pasa de ese número. */
+  @Input() freeSlots: number | null = null;
+
   @Output() dismiss = new EventEmitter<void>();
   // Se emite si al menos un socio se importó bien, para que gym-admin.ts recargue la lista —
   // no espera a que el admin cierre el modal, el resumen final queda visible igual.
@@ -192,6 +195,11 @@ export class ImportMembersModal {
   protected readonly includedCount = computed(
     () => this.rows().filter((r) => r.status !== 'error' && r.included).length,
   );
+  // Cuántas filas se subirán de verdad: el cupo libre del gimnasio manda sobre lo que trae la planilla.
+  protected readonly willImportCount = computed(() =>
+    this.freeSlots === null ? this.includedCount() : Math.min(this.includedCount(), Math.max(this.freeSlots, 0)),
+  );
+  protected readonly overLimit = computed(() => this.freeSlots !== null && this.includedCount() > Math.max(this.freeSlots, 0));
   protected readonly progressPercent = computed(() => {
     const p = this.progress();
     return p.total === 0 ? 0 : p.done / p.total;
@@ -505,7 +513,9 @@ export class ImportMembersModal {
   }
 
   protected async confirmImport(): Promise<void> {
-    const toImport = this.rows().filter((r) => r.status !== 'error' && r.included);
+    // Solo las primeras filas que caben en el cupo: el servidor también lo exige, pero así no se mandan de más.
+    const eligible = this.rows().filter((r) => r.status !== 'error' && r.included);
+    const toImport = this.freeSlots === null ? eligible : eligible.slice(0, Math.max(this.freeSlots, 0));
     if (toImport.length === 0) {
       return;
     }

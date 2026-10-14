@@ -531,3 +531,16 @@ export interface ReservationSearchResponse {
   results: BlockOccurrenceAttendees[];
   truncated: boolean;
 }
+
+/** Cuántos cupos usa un gimnasio y cuántos le quedan. Espejo de GymLimitsResponse. */
+export interface LimitUsage {
+  used: number;
+  max: number;
+  free: number;
+}
+
+export interface GymLimits {
+  members: LimitUsage;
+  profesores: LimitUsage;
+  admins: LimitUsage;
+}

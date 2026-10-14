@@ -34,6 +34,8 @@ import com.cortesdev.mygym.models.dto.PlanResponse;
 import com.cortesdev.mygym.models.dto.PlanUpdateRequest;
 import com.cortesdev.mygym.models.dto.ThemeUpdateRequest;
 import com.cortesdev.mygym.security.AuthenticatedUser;
+import com.cortesdev.mygym.models.dto.GymLimitsResponse;
+import com.cortesdev.mygym.services.GymCapacityService;
 import com.cortesdev.mygym.services.GymClosureService;
 import com.cortesdev.mygym.services.GymService;
 import com.cortesdev.mygym.services.ReservationService;
@@ -70,6 +72,13 @@ public class GymAdminController {
     private final GymService gymService;
     private final ReservationService reservationService;
     private final GymClosureService gymClosureService;
+    private final GymCapacityService gymCapacityService;
+
+    /** Cuantos cupos de socios, profesores y administradores usa y le quedan al gimnasio (para los indicadores del panel). */
+    @GetMapping("/limits")
+    public GymLimitsResponse myLimits(@AuthenticationPrincipal Jwt jwt) {
+        return gymCapacityService.limits(AuthenticatedUser.from(jwt).gymId());
+    }
 
     @GetMapping
     public GymResponse getMyGym(@AuthenticationPrincipal Jwt jwt) {

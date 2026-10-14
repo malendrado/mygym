@@ -96,8 +96,8 @@ public class MembershipReminderJob {
         ZonedDateTime periodEnd = memberService.periodEnd(member);
         GymPlan plan = plansById.get(member.getPlanId());
         Gym gym = gymsById.get(member.getGymId());
-        if (plan == null || gym == null) {
-            return false;
+        if (plan == null || gym == null || !gym.isActive()) {
+            return false; // gimnasio en pausa: no se manda ningun aviso automatico
         }
 
         // Comparación por fecha calendario, NO por Duration entre instantes — con Duration, un

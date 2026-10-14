@@ -82,6 +82,7 @@ import { firstValueFrom } from 'rxjs';
 import { GymService } from '../../../../core/services/gym.service';
 import { MemberService } from '../../../../core/services/member.service';
 import { MemberListState } from '../../../../core/state/member-list.state';
+import { GymLimitsPanel } from '../../../../core/components/gym-limits/gym-limits';
 import { PaginationBar } from '../../../../core/components/pagination-bar/pagination-bar';
 import { PagedListState } from '../../../../core/state/paged-list.state';
 import {
@@ -104,6 +105,7 @@ import {
   GymClosureCreateRequest,
   GymClosurePreview,
   GymClosureUpdateRequest,
+  GymLimits,
   GymPhoto,
   GymPlan,
   UpdateGymBlockRequest,
@@ -321,6 +323,7 @@ const THEMED_ROOT_PROPERTIES = [
 @Component({
   selector: 'app-gym-form',
   imports: [
+    GymLimitsPanel,
     VersionTag,
     PaginationBar,
     ReactiveFormsModule,
@@ -622,6 +625,8 @@ export class GymForm implements OnDestroy {
   });
 
   protected readonly gym = signal<Gym | null>(null);
+  /** Cupos usados y libres de este gimnasio (socios, profesores, administradores). */
+  protected readonly limits = signal<GymLimits | null>(null);
   protected readonly gymName = computed(() => this.gym()?.name ?? '');
   protected readonly gymSlug = computed(() => this.gym()?.slug ?? '');
   // "Acceso a la demo" es solo para el/los gym de demo comercial (nombre con "Demo" explícito,
@@ -878,7 +883,12 @@ export class GymForm implements OnDestroy {
     });
   }
 
+  private loadLimits(id: number): void {
+    this.gymService.getLimits(id).subscribe({ next: (limits) => this.limits.set(limits), error: () => undefined });
+  }
+
   private loadAdmins(id: number): void {
+    this.loadLimits(id);
     this.gymService.listAdmins(id).subscribe({
       next: (admins) => this.admins.set(admins),
       error: () => this.status.set('error'),
@@ -1460,9 +1470,18 @@ export class GymForm implements OnDestroy {
         this.memberForm.reset({ name: '', email: '' });
         this.status.set('idle');
         this.memberList.reload();
+        this.loadLimits(id);
         this.showToast(`Socio agregado: ${member.name}. Le enviamos un correo para activar su cuenta y elegir un plan.`);
       },
-      error: () => this.status.set('error'),
+      error: (err: Error & { status?: number }) => {
+        // 409 = límite de socios alcanzado: el mensaje del servidor ya explica qué hacer; se muestra tal cual.
+        if (err.status === 409) {
+          this.status.set('idle');
+          this.showToast(err.message, 'danger');
+        } else {
+          this.status.set('error');
+        }
+      },
     });
   }
 
@@ -1731,6 +1750,7 @@ export class GymForm implements OnDestroy {
   protected readonly removingProfesorId = signal<number | null>(null);
 
   private loadProfesores(gymId: number): void {
+    this.loadLimits(gymId);
     this.profesorService.listForGym(gymId).subscribe({ next: (list) => this.profesores.set(list) });
   }
 

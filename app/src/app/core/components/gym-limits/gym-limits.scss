@@ -1,0 +1,120 @@
+:host {
+  display: block;
+}
+
+// Una sola tonalidad (la de la marca) para el avance; el estado "casi lleno" / "completo" cambia el color Y el texto.
+.gl {
+  margin-bottom: 1rem;
+  padding: 1rem 1.1rem;
+  border-radius: 1rem;
+  background: var(--gym-panel-card, rgba(255, 255, 255, 0.04));
+  border: 1px solid color-mix(in srgb, var(--brand-accent, #c6ff3d) 18%, transparent);
+
+  &__title {
+    margin: 0 0 0.75rem;
+    font-size: 0.9rem;
+    font-weight: 700;
+  }
+
+  &__rows {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+    gap: 1rem 1.5rem;
+  }
+
+  &__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.5rem;
+    margin-bottom: 0.35rem;
+    font-size: 0.85rem;
+  }
+
+  &__name {
+    font-weight: 600;
+  }
+
+  &__count {
+    font-family: var(--brand-font-mono, ui-monospace, monospace);
+    opacity: 0.9;
+  }
+
+  &__bar {
+    height: 8px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: color-mix(in srgb, currentColor 14%, transparent);
+  }
+
+  &__fill {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--brand-accent, #c6ff3d);
+    transition: width 320ms cubic-bezier(0.23, 1, 0.32, 1);
+  }
+
+  &__hint {
+    margin: 0.35rem 0 0;
+    font-size: 0.78rem;
+    opacity: 0.8;
+  }
+
+  &__row--near &__fill {
+    background: #f5b942;
+  }
+
+  &__row--near &__hint {
+    color: #f5b942;
+    opacity: 1;
+  }
+
+  &__row--full &__fill {
+    background: #ff6b81;
+  }
+
+  &__row--full &__hint {
+    color: #ff6b81;
+    opacity: 1;
+    font-weight: 600;
+  }
+}
+
+.gl-compact {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: 0.82rem;
+
+  &__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex: 0 0 auto;
+    background: var(--brand-accent, #c6ff3d);
+  }
+
+  &--near {
+    color: #f5b942;
+  }
+
+  &--near &__dot {
+    background: #f5b942;
+  }
+
+  &--full {
+    color: #ff6b81;
+  }
+
+  &--full &__dot {
+    background: #ff6b81;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gl__fill {
+    transition: none;
+  }
+}

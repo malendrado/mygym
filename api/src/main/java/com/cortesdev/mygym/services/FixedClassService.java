@@ -132,7 +132,11 @@ public class FixedClassService {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void onMembershipPaid(MembershipPaidEvent event) {
         try {
-            appUserRepository.findById(event.memberId()).ifPresent(this::generateForCurrentPeriod);
+            appUserRepository
+                    .findById(event.memberId())
+                    // Gimnasio en pausa: las clases fijas no se renuevan solas (se reservan cuando lo reactiven y haya un pago).
+                    .filter(m -> m.getGymId() != null && gymRepository.existsByIdAndActiveTrue(m.getGymId()))
+                    .ifPresent(this::generateForCurrentPeriod);
         } catch (RuntimeException e) {
             log.warn("No se pudieron reservar las clases fijas del socio {}: {}", event.memberId(), e.getMessage());
         }

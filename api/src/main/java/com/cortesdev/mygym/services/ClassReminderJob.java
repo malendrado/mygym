@@ -82,8 +82,8 @@ public class ClassReminderJob {
         for (Reservation reservation : pending) {
             GymBlock block = blocks.get(reservation.getGymBlockId());
             Gym gym = block == null ? null : gyms.get(block.getGymId());
-            if (block == null || gym == null) {
-                continue;
+            if (block == null || gym == null || !gym.isActive()) {
+                continue; // gimnasio en pausa: sin recordatorios
             }
             ZonedDateTime start = today.atTime(block.getStartTime()).atZone(GYM_ZONE);
             long minutesToStart = Duration.between(now, start).toMinutes();

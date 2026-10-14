@@ -81,13 +81,15 @@ import {
   tvOutline,
 } from 'ionicons/icons';
 import { InstallBanner } from '../member/install-banner/install-banner';
+import { GymLimitsPanel } from '../../core/components/gym-limits/gym-limits';
+import { GymPause } from '../../core/components/gym-pause/gym-pause';
 import { PushBell } from '../../core/components/push-bell/push-bell';
 import { PushPrompt } from '../../core/components/push-prompt/push-prompt';
 import { BookingRulesCard } from '../../core/components/booking-rules-card/booking-rules-card';
 import { firstValueFrom } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
 import { GymService } from '../../core/services/gym.service';
-import { Gym } from '../../core/models/gym.model';
+import { Gym, GymLimits } from '../../core/models/gym.model';
 import { MemberService } from '../../core/services/member.service';
 import { MemberListState } from '../../core/state/member-list.state';
 import { PagedListState } from '../../core/state/paged-list.state';
@@ -400,6 +402,8 @@ const THEMED_ROOT_PROPERTIES = [
     MemberProfileModal,
     BookingRulesCard,
     InstallBanner,
+    GymLimitsPanel,
+    GymPause,
     PushBell,
     PushPrompt,
     IonSpinner,
@@ -668,6 +672,9 @@ export class GymAdmin implements OnDestroy {
     contactName: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(120)] }),
     contactPhone: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(30)] }),
   });
+
+  /** Cupos usados y libres (socios, profesores, administradores): se recarga cada vez que cambia alguno. */
+  protected readonly limits = signal<GymLimits | null>(null);
 
   protected readonly photos = signal<GymPhoto[]>([]);
   protected readonly photoUploading = signal(false);
@@ -2006,6 +2013,7 @@ export class GymAdmin implements OnDestroy {
   protected readonly removingProfesorId = signal<number | null>(null);
 
   private loadProfesores(): void {
+    this.loadLimits();
     this.profesorService.list().subscribe({ next: (list) => this.profesores.set(list) });
   }
 
@@ -2333,7 +2341,12 @@ export class GymAdmin implements OnDestroy {
     });
   }
 
+  private loadLimits(): void {
+    this.gymService.getMyLimits().subscribe({ next: (limits) => this.limits.set(limits), error: () => undefined });
+  }
+
   private loadMembers(): void {
+    this.loadLimits();
     this.memberList.reload();
   }
 

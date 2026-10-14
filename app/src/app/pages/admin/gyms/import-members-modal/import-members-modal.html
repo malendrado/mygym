@@ -74,6 +74,16 @@
         <span class="import-summary__total">{{ rows().length }} filas totales</span>
       </div>
 
+      @if (overLimit()) {
+        <!-- Se avisa ANTES de confirmar: solo caben los cupos libres del gimnasio, el resto queda sin cargar. -->
+        <p class="import-limit" role="status">
+          <strong>Tu gimnasio tiene {{ freeSlots }} {{ freeSlots === 1 ? 'cupo libre' : 'cupos libres' }}.</strong>
+          Se {{ willImportCount() === 1 ? 'subirá' : 'subirán' }} solo las primeras {{ willImportCount() }}
+          {{ willImportCount() === 1 ? 'fila válida' : 'filas válidas' }} de las {{ includedCount() }} de tu planilla; las demás
+          quedarán sin cargar. Para sumar más socios, escríbenos a contacto&#64;mygym.cl y ampliamos tu cupo.
+        </p>
+      }
+
       <ul class="import-rows">
         @for (row of rows(); track row.rowNumber) {
           <li
@@ -170,8 +180,8 @@
         <ion-button (click)="close()">Cancelar</ion-button>
       </ion-buttons>
       <ion-buttons slot="end">
-        <ion-button strong [disabled]="includedCount() === 0" (click)="confirmImport()">
-          Importar {{ includedCount() }} socios
+        <ion-button strong [disabled]="willImportCount() === 0" (click)="confirmImport()">
+          Importar {{ willImportCount() }} socios
         </ion-button>
       </ion-buttons>
     } @else if (stage() === 'done') {

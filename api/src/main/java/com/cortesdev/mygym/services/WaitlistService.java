@@ -142,8 +142,8 @@ public class WaitlistService {
             return;
         }
         Gym gym = gymRepository.findById(block.getGymId()).orElse(null);
-        if (gym == null) {
-            return;
+        if (gym == null || !gym.isActive()) {
+            return; // gimnasio en pausa: no se avisa de cupos liberados
         }
 
         // Ventaja 0 = el admin quiere avisar a TODA la lista al mismo tiempo (sin cabeza de lista).
@@ -200,7 +200,7 @@ public class WaitlistService {
                 continue;
             }
             Gym gym = gymsById.get(block.getGymId());
-            if (gym == null) {
+            if (gym == null || !gym.isActive()) {
                 continue;
             }
             // La ventaja es POR GYM (antes una constante global de 10 min): cada ocurrencia se

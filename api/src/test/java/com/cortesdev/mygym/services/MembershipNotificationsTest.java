@@ -41,7 +41,7 @@ class MembershipNotificationsTest {
     @Mock private PushNotificationService pushService;
     @InjectMocks private MembershipReminderJob reminderJob;
 
-    private final Gym gym = Gym.builder().id(GYM_ID).name("XaloGym").build();
+    private final Gym gym = Gym.builder().id(GYM_ID).name("XaloGym").active(true).build();
     private final GymPlan plan = GymPlan.builder().id(5L).gymId(GYM_ID).name("Plan Básico").monthlyClasses(8).build();
 
     private AppUser member(long id) {
@@ -109,5 +109,20 @@ class MembershipNotificationsTest {
         verify(emailService).sendMembershipExpiredMember(gym, m, plan);
         verify(pushService).notifyUsers(java.util.List.of(m.getId()), PushMessages.membershipExpired(gym));
         verify(emailService, never()).sendMembershipExpiringSoonMember(any(), any(), any(), anyLong());
+    }
+
+    @Test
+    void aPausedGymSendsNoMembershipNoticeAtAll() {
+        Gym paused = Gym.builder().id(GYM_ID).name("XaloGym").active(false).build();
+        AppUser m = member(4L);
+        when(appUserRepository.findByRoleAndPaidAtIsNotNull(Role.MEMBER)).thenReturn(List.of(m));
+        when(gymPlanRepository.findAllById(any())).thenReturn(List.of(plan));
+        when(gymRepository.findAllById(any())).thenReturn(List.of(paused));
+        when(memberService.periodEnd(m)).thenReturn(ZonedDateTime.now(ZONE).plusDays(2));
+
+        reminderJob.sendReminders();
+
+        verify(emailService, never()).sendMembershipExpiringSoonMember(any(), any(), any(), anyLong());
+        verify(pushService, never()).notifyUsers(any(), any());
     }
 }

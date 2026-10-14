@@ -250,3 +250,14 @@
     font-size: 0.85rem;
   }
 }
+
+// Aviso de cupo en la vista previa: informa con calma (ámbar suave), no es un error.
+.import-limit {
+  margin: 0.5rem 0 0.75rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: 0.75rem;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  background: color-mix(in srgb, #f5b942 14%, transparent);
+  border: 1px solid color-mix(in srgb, #f5b942 45%, transparent);
+}

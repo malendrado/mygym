@@ -52,6 +52,7 @@ class ClassReminderJobTest {
     @InjectMocks private ClassReminderJob job;
 
     private ZonedDateTime now;
+    private boolean gymActive = true;
 
     @BeforeEach
     void freezeTheDay() {
@@ -80,7 +81,7 @@ class ClassReminderJobTest {
         when(reservationRepository.findByClassDateAndStatusAndReminderPushedAtIsNull(any(LocalDate.class), any()))
                 .thenReturn(List.of(reservation));
         when(gymBlockRepository.findAllById(any())).thenReturn(List.of(block));
-        when(gymRepository.findAllById(any())).thenReturn(List.of(Gym.builder().id(GYM_ID).name("XaloGym").build()));
+        when(gymRepository.findAllById(any())).thenReturn(List.of(Gym.builder().id(GYM_ID).name("XaloGym").active(gymActive).build()));
         return reservation;
     }
 
@@ -195,5 +196,17 @@ class ClassReminderJobTest {
             Reservation r = Reservation.builder().createdAt(start.minusMinutes(c[0]).toInstant()).build();
             assertEquals(c[1], ClassReminderJob.reminderMinutesFor(r, start), "reservada " + c[0] + " min antes");
         }
+    }
+
+    @Test
+    void aPausedGymGetsNoReminders() {
+        gymActive = false;
+        Reservation r = reservation(55, 60 * 24);
+        memberHasAPhone(true);
+
+        job.sendReminders();
+
+        verify(pushService, never()).notifyUsers(any(), any());
+        assertNull(r.getReminderPushedAt());
     }
 }

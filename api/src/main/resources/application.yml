@@ -45,6 +45,10 @@ app:
   resend:
     api-key: ${RESEND_API_KEY:}
     from: ${RESEND_FROM:mygym <onboarding@resend.dev>}
+  contact:
+    # Contacto de mygym que ven los administradores cuando su gimnasio esta en pausa (ver GymStatusController).
+    whatsapp: ${MYGYM_CONTACT_WHATSAPP:56964641042}
+    email: ${MYGYM_CONTACT_EMAIL:contacto@mygym.cl}
   push:
     # Claves VAPID del push web (ver PushSender). Sin ellas el push queda desactivado y GET /api/push/public-key da 204.
     vapid:
