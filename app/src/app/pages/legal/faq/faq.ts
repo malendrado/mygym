@@ -81,7 +81,7 @@ export class LegalFaq {
         {
           question: '¿mygym cobra alguna comisión sobre lo que pagan mis socios?',
           answer:
-            'No. mygym no cobra comisión por socio ni por transacción — pagas un valor fijo mensual según el plan que corresponda a la cantidad de socios activos de tu gimnasio: Empieza (hasta 100 socios, $29.990/mes + IVA), Crece (hasta 400 socios, $59.990/mes + IVA) o Escala (más de 400 socios, precio a medida). Puedes subir o bajar de plan cuando lo necesites.',
+            'No. mygym no cobra comisión por socio ni por transacción — pagas un valor fijo mensual según el plan que corresponda a la cantidad de socios activos de tu gimnasio: Empieza (hasta 100 socios, $29.990/mes + IVA), Crece (hasta 200 socios, $59.990/mes + IVA) o Escala (más de 200 socios, precio a medida). Puedes subir o bajar de plan cuando lo necesites.',
         },
       ],
     },

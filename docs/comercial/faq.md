@@ -37,8 +37,8 @@ Los reembolsos a tus socios los gestionas tú directamente como dueño del gimna
 No. mygym no cobra comisión por socio ni por transacción — pagas un valor fijo mensual según el plan que corresponda a la cantidad de socios activos de tu gimnasio:
 
 - **Empieza** — hasta 100 socios activos: $29.990/mes + IVA.
-- **Crece** — hasta 400 socios activos: $59.990/mes + IVA.
-- **Escala** — más de 400 socios activos: precio a medida.
+- **Crece** — hasta 200 socios activos: $59.990/mes + IVA.
+- **Escala** — más de 200 socios activos: precio a medida.
 
 Puedes subir o bajar de plan cuando lo necesites.
 

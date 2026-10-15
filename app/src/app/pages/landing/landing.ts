@@ -324,7 +324,7 @@ export class Landing implements OnInit, AfterViewInit, OnDestroy {
     },
     {
       name: 'Crece',
-      clients: 'Hasta 400 socios activos',
+      clients: 'Hasta 200 socios activos',
       price: '$59.990',
       showIva: true,
       highlight: true,
@@ -337,7 +337,7 @@ export class Landing implements OnInit, AfterViewInit, OnDestroy {
     },
     {
       name: 'Escala',
-      clients: 'Más de 400 socios activos',
+      clients: 'Más de 200 socios activos',
       price: 'A medida',
       showIva: false,
       highlight: false,
