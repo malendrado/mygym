@@ -1317,6 +1317,91 @@
         />
       </ng-template>
     </ion-modal>
+
+    <ion-modal
+      class="wide-modal"
+      [isOpen]="workoutPlanMember() !== null"
+      (didDismiss)="closeWorkoutPlanModal()"
+      [style.--ion-color-primary]="themeColor()"
+      [style.--ion-color-primary-contrast]="themeContrast()"
+      [style.--brand-accent]="themeColor()"
+      [style.--brand-accent-contrast]="themeContrast()"
+    >
+      <ng-template>
+        <app-workout-plan-modal
+          [memberName]="workoutPlanMember()?.name ?? ''"
+          [plan]="workoutPlan()"
+          [history]="workoutHistory()"
+          [saving]="savingWorkoutPlan()"
+          (saved)="confirmWorkoutPlan($event)"
+          (dismiss)="closeWorkoutPlanModal()"
+        />
+      </ng-template>
+    </ion-modal>
+
+    <ion-modal
+      class="wide-modal"
+      [isOpen]="profileMember() !== null"
+      (didDismiss)="closeMemberProfile()"
+      [style.--ion-color-primary]="themeColor()"
+      [style.--ion-color-primary-contrast]="themeContrast()"
+      [style.--brand-accent]="themeColor()"
+      [style.--brand-accent-contrast]="themeContrast()"
+    >
+      <ng-template>
+        <app-member-profile-modal
+          [title]="'Datos de ' + (profileMember()?.name ?? '')"
+          intro="RUT, dirección, fecha de nacimiento, celular y contacto de emergencia. Si el socio los completa él mismo al entrar, también quedan acá."
+          submitLabel="Guardar datos"
+          [initial]="profileMember()"
+          [saving]="savingMemberProfile()"
+          [serverError]="memberProfileError()"
+          (saved)="confirmMemberProfile($event)"
+          (dismiss)="closeMemberProfile()"
+        />
+      </ng-template>
+    </ion-modal>
+
+    <ion-modal
+      class="wide-modal"
+      [isOpen]="fixedClassesMember() !== null"
+      (didDismiss)="closeFixedClassesModal()"
+      [style.--ion-color-primary]="themeColor()"
+      [style.--ion-color-primary-contrast]="themeContrast()"
+      [style.--brand-accent]="themeColor()"
+      [style.--brand-accent-contrast]="themeContrast()"
+    >
+      <ng-template>
+        <app-fixed-classes-modal
+          [memberName]="fixedClassesMember()?.name ?? ''"
+          [blocks]="blocks()"
+          [current]="fixedClassesCurrent()"
+          [hint]="fixedClassesHint(fixedClassesMember())"
+          [saving]="savingFixedClasses()"
+          (saved)="confirmFixedClasses($event)"
+          (dismiss)="closeFixedClassesModal()"
+        />
+      </ng-template>
+    </ion-modal>
+
+    <ion-modal
+      class="wide-modal"
+      [isOpen]="isImportFixedClassesOpen()"
+      (didDismiss)="closeImportFixedClasses()"
+      [style.--ion-color-primary]="themeColor()"
+      [style.--ion-color-primary-contrast]="themeContrast()"
+      [style.--brand-accent]="themeColor()"
+      [style.--brand-accent-contrast]="themeContrast()"
+    >
+      <ng-template>
+        <app-import-fixed-classes-modal
+          [gymId]="gymId()"
+          [blocks]="blocks()"
+          (imported)="onFixedClassesImported()"
+          (dismiss)="closeImportFixedClasses()"
+        />
+      </ng-template>
+    </ion-modal>
     } @else if (section() === 'branding') {
     <ion-card>
       <ion-card-header class="card-header-row">
@@ -1815,91 +1900,6 @@
         }
       </ion-card-content>
     </ion-card>
-
-    <ion-modal
-      class="wide-modal"
-      [isOpen]="workoutPlanMember() !== null"
-      (didDismiss)="closeWorkoutPlanModal()"
-      [style.--ion-color-primary]="themeColor()"
-      [style.--ion-color-primary-contrast]="themeContrast()"
-      [style.--brand-accent]="themeColor()"
-      [style.--brand-accent-contrast]="themeContrast()"
-    >
-      <ng-template>
-        <app-workout-plan-modal
-          [memberName]="workoutPlanMember()?.name ?? ''"
-          [plan]="workoutPlan()"
-          [history]="workoutHistory()"
-          [saving]="savingWorkoutPlan()"
-          (saved)="confirmWorkoutPlan($event)"
-          (dismiss)="closeWorkoutPlanModal()"
-        />
-      </ng-template>
-    </ion-modal>
-
-    <ion-modal
-      class="wide-modal"
-      [isOpen]="profileMember() !== null"
-      (didDismiss)="closeMemberProfile()"
-      [style.--ion-color-primary]="themeColor()"
-      [style.--ion-color-primary-contrast]="themeContrast()"
-      [style.--brand-accent]="themeColor()"
-      [style.--brand-accent-contrast]="themeContrast()"
-    >
-      <ng-template>
-        <app-member-profile-modal
-          [title]="'Datos de ' + (profileMember()?.name ?? '')"
-          intro="RUT, dirección, fecha de nacimiento, celular y contacto de emergencia. Si el socio los completa él mismo al entrar, también quedan acá."
-          submitLabel="Guardar datos"
-          [initial]="profileMember()"
-          [saving]="savingMemberProfile()"
-          [serverError]="memberProfileError()"
-          (saved)="confirmMemberProfile($event)"
-          (dismiss)="closeMemberProfile()"
-        />
-      </ng-template>
-    </ion-modal>
-
-    <ion-modal
-      class="wide-modal"
-      [isOpen]="fixedClassesMember() !== null"
-      (didDismiss)="closeFixedClassesModal()"
-      [style.--ion-color-primary]="themeColor()"
-      [style.--ion-color-primary-contrast]="themeContrast()"
-      [style.--brand-accent]="themeColor()"
-      [style.--brand-accent-contrast]="themeContrast()"
-    >
-      <ng-template>
-        <app-fixed-classes-modal
-          [memberName]="fixedClassesMember()?.name ?? ''"
-          [blocks]="blocks()"
-          [current]="fixedClassesCurrent()"
-          [hint]="fixedClassesHint(fixedClassesMember())"
-          [saving]="savingFixedClasses()"
-          (saved)="confirmFixedClasses($event)"
-          (dismiss)="closeFixedClassesModal()"
-        />
-      </ng-template>
-    </ion-modal>
-
-    <ion-modal
-      class="wide-modal"
-      [isOpen]="isImportFixedClassesOpen()"
-      (didDismiss)="closeImportFixedClasses()"
-      [style.--ion-color-primary]="themeColor()"
-      [style.--ion-color-primary-contrast]="themeContrast()"
-      [style.--brand-accent]="themeColor()"
-      [style.--brand-accent-contrast]="themeContrast()"
-    >
-      <ng-template>
-        <app-import-fixed-classes-modal
-          [gymId]="gymId()"
-          [blocks]="blocks()"
-          (imported)="onFixedClassesImported()"
-          (dismiss)="closeImportFixedClasses()"
-        />
-      </ng-template>
-    </ion-modal>
 
     <ion-modal
       class="wide-modal"
