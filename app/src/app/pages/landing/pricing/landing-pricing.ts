@@ -61,7 +61,7 @@ export class LandingPricing {
       price: 'A medida',
       showIva: false,
       highlight: false,
-      items: ['Todas las funciones incluidas', 'Límites de equipo a tu medida', 'Soporte prioritario', 'Funciones a la medida'],
+      items: ['Todas las funciones incluidas', 'Soporte prioritario', 'Funciones a la medida si las necesitas'],
     },
   ];
 
