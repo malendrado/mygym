@@ -184,7 +184,9 @@ public class GymClosureService {
     public GymClosureNoticeResponse activeOrUpcomingNotice(Long gymId) {
         LocalDate today = LocalDate.now(GYM_ZONE);
         return gymClosureRepository.findByGymIdAndEndDateGreaterThanEqual(gymId, today).stream()
-                .filter(c -> !c.effectiveEndDate().isBefore(today))
+                // Un cierre levantado ANTES de empezar queda con un rango vacio (effectiveEndDate = dia anterior al inicio):
+                // no hay nada que avisar. Sin este filtro el banner seguia mostrando "del 16 al 15" el resto del dia.
+                .filter(c -> !c.effectiveEndDate().isBefore(today) && !c.effectiveEndDate().isBefore(c.getStartDate()))
                 .min(Comparator.comparing(GymClosure::getStartDate))
                 .map(c -> new GymClosureNoticeResponse(c.getStartDate(), c.effectiveEndDate(), c.getReason(), c.isWholeDays()))
                 .orElse(null);

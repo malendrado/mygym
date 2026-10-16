@@ -1,10 +1,13 @@
 package com.cortesdev.mygym.services;
 
+import com.cortesdev.mygym.models.AppUser;
 import com.cortesdev.mygym.models.Gym;
 import com.cortesdev.mygym.models.GymBlock;
 import com.cortesdev.mygym.models.GymClosure;
 import com.cortesdev.mygym.models.Reservation;
 import com.cortesdev.mygym.models.ReservationStatus;
+import com.cortesdev.mygym.models.Role;
+import com.cortesdev.mygym.repositories.AppUserRepository;
 import com.cortesdev.mygym.repositories.ReservationRepository;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -32,15 +35,22 @@ public class MemberChangeNotifier {
 
     private final PushNotificationService pushService;
     private final ReservationRepository reservationRepository;
+    private final AppUserRepository appUserRepository;
 
     /** Se levantó un cierre antes de tiempo: avisa a los socios a los que ese cierre les canceló clases. */
     public void closureLifted(Gym gym, GymClosure closure) {
         if (!closure.getEndDate().isBefore(LocalDate.now(GYM_ZONE))) {
             safely(gym, "cierre levantado", () -> {
-                List<Long> memberIds = reservationRepository.findByCancelledByClosureId(closure.getId()).stream()
-                        .map(Reservation::getMemberId)
-                        .distinct()
-                        .toList();
+                // Cierre de ultima hora: a todos los socios (se les aviso a todos al crearlo). Si no, solo a los afectados.
+                List<Long> memberIds = closure.wasCreatedWithShortNotice()
+                        ? appUserRepository.findByGymIdAndRole(gym.getId(), Role.MEMBER).stream()
+                                .filter(AppUser::isActive)
+                                .map(AppUser::getId)
+                                .toList()
+                        : reservationRepository.findByCancelledByClosureId(closure.getId()).stream()
+                                .map(Reservation::getMemberId)
+                                .distinct()
+                                .toList();
                 pushService.notifyUsers(memberIds, PushMessages.closureLifted(gym, closure.getId()));
             });
         }

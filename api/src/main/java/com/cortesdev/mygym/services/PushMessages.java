@@ -2,6 +2,7 @@ package com.cortesdev.mygym.services;
 
 import com.cortesdev.mygym.models.Gym;
 import com.cortesdev.mygym.models.GymBlock;
+import com.cortesdev.mygym.models.GymClosure;
 import com.cortesdev.mygym.services.PushMessage.Urgency;
 import java.time.DayOfWeek;
 import java.time.Duration;
@@ -105,6 +106,24 @@ public final class PushMessages {
                 MEMBER_URL,
                 MAX_TTL_SECONDS,
                 Urgency.NORMAL);
+    }
+
+    /** Cierre de ultima hora (hoy o manana): se avisa a todos los socios, no solo a los que perdieron una clase. */
+    public static PushMessage closureAnnouncement(Gym gym, GymClosure closure, LocalDate today) {
+        boolean startsToday = !closure.getStartDate().isAfter(today);
+        String when;
+        if (closure.getStartDate().equals(closure.getEndDate())) {
+            when = startsToday ? "hoy" : "mañana";
+        } else {
+            when = (startsToday ? "desde hoy" : "desde mañana") + " hasta el " + DAY.format(closure.getEndDate());
+        }
+        return new PushMessage(
+                gym.getName() + (startsToday ? " está cerrado " : " cerrará ") + when,
+                capitalize(closure.getReason()),
+                "closure-" + closure.getId(),
+                MEMBER_URL,
+                MAX_TTL_SECONDS,
+                startsToday ? Urgency.HIGH : Urgency.NORMAL);
     }
 
     /** Se levantó un cierre antes de tiempo: las reservas que canceló siguen canceladas, pero ya se puede volver a reservar. */

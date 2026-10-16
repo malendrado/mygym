@@ -73,6 +73,18 @@ public class GymClosure {
         return dayBeforeLift.isBefore(endDate) ? dayBeforeLift : endDate;
     }
 
+    /**
+     * Cierre "de ultima hora": de todo el dia y que, al crearlo, empezaba hoy o manana. A estos se les avisa a TODOS los
+     * socios (no solo a quienes les cancela clases), y lo mismo al levantarlos. Un cierre programado con 2 o mas dias de
+     * anticipacion, o uno de clases puntuales, avisa solo a los socios afectados.
+     */
+    public boolean wasCreatedWithShortNotice() {
+        if (!wholeDays || createdAt == null || startDate == null) {
+            return false;
+        }
+        return !startDate.isAfter(createdAt.atZone(GYM_ZONE).toLocalDate().plusDays(1));
+    }
+
     public boolean isActiveOn(LocalDate date) {
         return !date.isBefore(startDate) && !date.isAfter(effectiveEndDate());
     }

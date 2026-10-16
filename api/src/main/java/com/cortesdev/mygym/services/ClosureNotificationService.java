@@ -13,6 +13,8 @@ import com.cortesdev.mygym.repositories.GymClosureRepository;
 import com.cortesdev.mygym.repositories.GymPlanRepository;
 import com.cortesdev.mygym.repositories.GymRepository;
 import com.cortesdev.mygym.repositories.ReservationRepository;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
@@ -40,6 +42,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ClosureNotificationService {
 
     private static final Logger log = LoggerFactory.getLogger(ClosureNotificationService.class);
+    private static final ZoneId GYM_ZONE = ZoneId.of("America/Santiago");
     private static final DateTimeFormatter CLASS_DATE_FORMAT =
             DateTimeFormatter.ofPattern("EEEE d 'de' MMMM", new Locale("es", "CL"));
 
@@ -76,6 +79,7 @@ public class ClosureNotificationService {
         EmailResult result = sendCancellationEmails(gym, closure, byMember, blocksById, "creación");
         int sent = result.sent();
         int failed = result.failed();
+        broadcastIfShortNotice(gym, closure, byMember.keySet());
 
         if (createdByRole == Role.SUPER_ADMIN) {
             List<String> adminEmails = appUserRepository.findByGymIdAndRole(gym.getId(), Role.GYM_ADMIN).stream()
@@ -130,6 +134,27 @@ public class ClosureNotificationService {
         closure.setEmailsSent(closure.getEmailsSent() + result.sent());
         closure.setEmailsFailed(closure.getEmailsFailed() + result.failed());
         gymClosureRepository.save(closure);
+    }
+
+    /**
+     * Cierre de ultima hora (de todo el dia, empieza hoy o manana): ademas de quienes perdieron una clase (que ya recibieron
+     * su aviso con el detalle), se avisa por push al resto de los socios activos. Un cierre programado con mas anticipacion
+     * avisa solo a los afectados. Un gimnasio en pausa no manda nada; un fallo aca nunca afecta al cierre.
+     */
+    private void broadcastIfShortNotice(Gym gym, GymClosure closure, Set<Long> alreadyNotified) {
+        if (!gym.isActive() || !closure.wasCreatedWithShortNotice()) {
+            return;
+        }
+        try {
+            List<Long> others = appUserRepository.findByGymIdAndRole(gym.getId(), Role.MEMBER).stream()
+                    .filter(AppUser::isActive)
+                    .map(AppUser::getId)
+                    .filter(id -> !alreadyNotified.contains(id))
+                    .toList();
+            pushService.notifyUsers(others, PushMessages.closureAnnouncement(gym, closure, LocalDate.now(GYM_ZONE)));
+        } catch (RuntimeException e) {
+            log.warn("No se pudo avisar a todos los socios del cierre {}: {}", closure.getId(), e.getMessage());
+        }
     }
 
     private record EmailResult(int sent, int failed) {}
