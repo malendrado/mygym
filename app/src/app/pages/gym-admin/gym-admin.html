@@ -137,7 +137,9 @@
       </div>
     </div>
 
-    <app-gym-limits [limits]="limits()" audience="admin" />
+    <div data-tour="gym-limits">
+      <app-gym-limits [limits]="limits()" audience="admin" />
+    </div>
 
     @if (isDemoAdmin()) {
       <ion-card class="demo-cta-card">
@@ -219,7 +221,7 @@
       </div>
     </div>
 
-    <div class="share-link-card">
+    <div class="share-link-card" data-tour="join-link">
       <p class="share-link-card__title">
         <ion-icon name="link-outline" aria-hidden="true"></ion-icon>
         Comparte tu link de alta

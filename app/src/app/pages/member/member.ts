@@ -996,7 +996,7 @@ export class MemberPage {
       steps: [
         {
           title: 'Sus próximas clases, siempre a la vista',
-          body: 'Si una está en curso, ve una barra de progreso en vivo y el aviso de marcar asistencia por QR — nunca más te escribe para saber si ya reservó.',
+          body: 'Si una está en curso, ve una barra de progreso en vivo y el aviso de marcar asistencia por QR. Las clases fijas que le dejaste aparecen reservadas solas cada semana, y le llega un aviso al celular antes de que empiecen — nunca más te escribe para saber si ya reservó.',
           targetSelector: '[data-tour="reservas-upcoming"]',
         },
         {
@@ -1008,6 +1008,16 @@ export class MemberPage {
           title: 'Su historial completo',
           body: 'Todas las clases a las que ya fue, ordenadas — útil para que vea su propio progreso.',
           targetSelector: '[data-tour="reservas-past"]',
+        },
+        {
+          title: 'Instala la app en el celular',
+          body: 'Si tu socio abre la app desde el navegador, arriba a la derecha tiene el botón para instalarla: en Android se instala con un toque y en iPhone le muestra los 2 pasos. Queda con su ícono, a pantalla completa. (En esta demo no aparece.)',
+          targetSelector: 'ion-header ion-buttons[slot="end"]',
+        },
+        {
+          title: 'Avisos en el celular',
+          body: 'Con la app ya instalada, en ese mismo lugar aparece una campana: la activa una vez y le avisamos cuando se libera un cupo, antes de su clase, si cambias un horario o si hay un cierre. Solo se ofrece dentro de la app instalada, no desde el navegador. (En esta demo no aparece.)',
+          targetSelector: 'ion-header ion-buttons[slot="end"]',
         },
       ],
     },
@@ -1039,7 +1049,7 @@ export class MemberPage {
         },
         {
           title: 'Si está llena, se anota',
-          body: 'Cuando una clase no tiene cupo, se anota en la lista de espera, le avisamos apenas se libera uno, y puede salir de la lista cuando quiera.',
+          body: 'Cuando una clase no tiene cupo, se anota en la lista de espera, le avisamos por email y al celular apenas se libera uno (con unos minutos de ventaja si es el primero), y puede salir de la lista cuando quiera.',
           targetSelector: '[data-tour="waitlist-join"]',
           // Este paso necesita específicamente una clase LLENA, no solo reservable.
           beforeShow: () => this.goToNearestFullDate(),

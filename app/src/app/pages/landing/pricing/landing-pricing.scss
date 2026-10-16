@@ -180,6 +180,65 @@
   }
 }
 
+.pricing__all {
+  margin-top: 3rem;
+
+  h3 {
+    @extend %section-heading;
+    margin: 0 0 1.5rem;
+  }
+}
+
+.pricing__groups {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+
+  @media (min-width: 700px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.pricing__group {
+  background: var(--brand-ink-surface);
+  @extend %radius-card;
+  padding: 1.5rem;
+
+  h4 {
+    margin: 0 0 1rem;
+    font-family: var(--brand-font-heading);
+    font-size: 1.05rem;
+    color: var(--brand-accent);
+  }
+
+  ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.6rem;
+  }
+
+  li {
+    position: relative;
+    padding-left: 1.1rem;
+    font-size: 0.9rem;
+    line-height: 1.45;
+    color: var(--brand-text-dim);
+
+    &::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0.5em;
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: var(--brand-accent);
+    }
+  }
+}
+
 @include reveal-section('.pricing');
 @include reveal-card('.states__card');
 @include no-reveal('.pricing', '.states__card');

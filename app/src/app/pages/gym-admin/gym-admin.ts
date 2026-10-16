@@ -834,6 +834,11 @@ export class GymAdmin implements OnDestroy {
           targetSelector: '[data-tour="booking-waitlist"]',
         },
         {
+          title: 'Clases fijas: ¿solo esta semana?',
+          body: 'Si lo enciendes, los socios con clases fijas solo reservan y cancelan clases de la semana en curso (lunes a domingo), y al cancelar recuperan el cupo para usarlo esa misma semana. No afecta a los demás socios.',
+          targetSelector: '[data-tour="booking-fixed-week"]',
+        },
+        {
           title: 'Privacidad de los asistentes',
           body: 'Decide si tus socios pueden ver quién va a cada clase. Si lo apagas, la lista desaparece de su app; la pantalla de TV del gimnasio no cambia.',
           targetSelector: '[data-tour="booking-attendees"]',
@@ -944,9 +949,29 @@ export class GymAdmin implements OnDestroy {
           targetSelector: '[data-tour="bank-transfer"]',
         },
         {
+          title: 'Tu link de alta: tus socios se inscriben solos',
+          body: 'Compártelo por WhatsApp o Instagram: el socio entra con Google o con email y contraseña, completa sus datos una sola vez y ya queda en tu lista, listo para elegir plan y reservar.',
+          targetSelector: '[data-tour="join-link"]',
+        },
+        {
+          title: 'Cuántos cupos te quedan',
+          body: 'Ves cuántos socios, profesores y administradores llevas y cuántos te quedan según tu plan, para que nunca te sorprenda el límite.',
+          targetSelector: '[data-tour="gym-limits"]',
+        },
+        {
           title: 'Invita a otro administrador',
           body: 'Si tienes un socio de negocio o un encargado, dale acceso completo a este mismo panel — entra con su propio Google.',
           targetSelector: '[data-tour="admin-add"]',
+        },
+        {
+          title: 'Instala la app en tu celular',
+          body: 'Si abres el panel desde el navegador, arriba a la derecha aparece el botón para instalarla: en Android se instala con un toque y en iPhone te muestra los 2 pasos. Queda con su ícono, a pantalla completa. (En esta demo no aparece.)',
+          targetSelector: 'ion-header ion-buttons[slot="end"]',
+        },
+        {
+          title: 'Avisos en tu celular',
+          body: 'Ya con la app instalada y abierta, en ese mismo lugar aparece una campana: la activas una vez y te avisamos al celular cuando un socio cancela o se libera un cupo. Solo se ofrece dentro de la app instalada, no desde el navegador. (En esta demo no aparece.)',
+          targetSelector: 'ion-header ion-buttons[slot="end"]',
         },
       ],
     },
@@ -961,7 +986,7 @@ export class GymAdmin implements OnDestroy {
         },
         {
           title: 'Tu marca, no la nuestra',
-          body: 'Tu color, tu logo — tus socios ven tu app, no una plantilla genérica.',
+          body: 'Elige entre decenas de paletas, en modo oscuro o claro — tus socios ven tu app con tus colores, no una plantilla genérica.',
           targetSelector: '[data-tour="branding-color"]',
         },
         {

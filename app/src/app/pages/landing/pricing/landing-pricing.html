@@ -16,7 +16,7 @@
 </section>
 
 <section class="pricing" id="precios" appReveal>
-  <h2>Un plan según cuántos socios tienes; las funciones a la medida están en el plan Escala</h2>
+  <h2>Todas las funciones en todos los planes: pagas solo según cuántos socios tienes</h2>
   <div class="pricing__grid">
     @for (tier of pricingTiers; track tier.name) {
       <article class="pricing__card" [class.pricing__card--highlight]="tier.highlight">
@@ -33,5 +33,20 @@
         </ul>
       </article>
     }
+  </div>
+  <div class="pricing__all">
+    <h3>Todo esto incluido, desde el primer día</h3>
+    <div class="pricing__groups">
+      @for (group of featureGroups; track group.title) {
+        <section class="pricing__group">
+          <h4>{{ group.title }}</h4>
+          <ul>
+            @for (item of group.items; track item) {
+              <li>{{ item }}</li>
+            }
+          </ul>
+        </section>
+      }
+    </div>
   </div>
 </section>
