@@ -863,7 +863,7 @@ export class GymAdmin implements OnDestroy {
         },
         {
           title: 'Edita o elimina sin perder lo configurado',
-          body: 'Cambia horario, cupo o instructor de una clase ya creada, o elimínala si ya no corre.',
+          body: 'Cambia horario, cupo o instructor de una clase ya creada, o elimínala si ya no corre. Si tiene reservas, esos socios reciben un aviso.',
           targetSelector: '.block-card__actions',
         },
       ],
@@ -899,7 +899,7 @@ export class GymAdmin implements OnDestroy {
         },
         {
           title: 'Quita un plan si hace falta',
-          body: 'Por impago, conflicto o cualquier motivo — el socio vuelve a "Sin pago" sin perder su cuenta.',
+          body: 'Por impago, conflicto o cualquier motivo — el socio vuelve a "Sin pago" sin perder su cuenta; sus reservas futuras se cancelan y se le avisa.',
           targetSelector: '[data-tour="members-revoke-plan"]',
         },
         {
@@ -914,7 +914,7 @@ export class GymAdmin implements OnDestroy {
         },
         {
           title: 'Datos de cada socio, y WhatsApp directo',
-          body: 'RUT, dirección, fecha de nacimiento y celular, todos validados: el socio los completa al entrar y tú puedes cargarlos o corregirlos aquí. Con su celular, un botón verde te abre WhatsApp para escribirle al instante.',
+          body: 'RUT, dirección, fecha de nacimiento, celular y contacto de emergencia, todos validados: el socio los completa al entrar y tú puedes cargarlos o corregirlos aquí. Con su celular, un botón verde te abre WhatsApp para escribirle al instante.',
           targetSelector: '[data-tour="members-profile"]',
         },
         {
@@ -998,7 +998,7 @@ export class GymAdmin implements OnDestroy {
       steps: [
         {
           title: 'Cierre de emergencia',
-          body: 'Por fuerza mayor: cierra días completos o solo las clases que elijas (agrupadas por día y hora) y avisa a todos tus socios, con un clic.',
+          body: 'Por fuerza mayor: cierra días completos o solo las clases que elijas (agrupadas por día y hora) y avisa a los socios afectados (y a todos si es para hoy o mañana), con un clic.',
           targetSelector: '[data-tour="closures-open"]',
         },
         {

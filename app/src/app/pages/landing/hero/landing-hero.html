@@ -1,0 +1,42 @@
+<header class="hero">
+  <div class="hero__copy">
+    <h1 class="hero__headline">Gestiona tu gimnasio sin la planilla de Excel</h1>
+    <p class="hero__subtext">
+      Reservas, membresías y pagos en un solo lugar: arma tu horario, cobra en línea o por transferencia y deja de
+      perseguir a tus socios por WhatsApp.
+    </p>
+    <div class="hero__ctas">
+      <button #heroCta class="button button--primary hero__cta" type="button" (click)="contact.open()">
+        Pedir demo
+      </button>
+      <a class="button button--ghost hero__brochure" href="/brochure">
+        Ver el brochure
+        <ion-icon name="arrow-forward-outline" aria-hidden="true"></ion-icon>
+      </a>
+    </div>
+  </div>
+  <div class="hero__asset">
+    <img
+      src="https://images.unsplash.com/photo-1637666062717-1c6bcfa4a4df?q=80&w=900&h=1100&fit=crop&auto=format"
+      alt="Sala de musculación de un gimnasio tradicional"
+      width="900"
+      height="1100"
+      fetchpriority="high"
+    />
+    <article class="hero__widget">
+      <header class="hero__widget-header">
+        <span class="hero__widget-time">{{ classTime }}</span>
+        <span class="hero__widget-capacity">{{ classCapacity.taken }}/{{ classCapacity.total }} cupos</span>
+      </header>
+      <ul class="hero__widget-avatars">
+        @for (attendee of attendees; track attendee.name) {
+          <li>{{ attendee.initials }}</li>
+        }
+      </ul>
+      <p class="hero__widget-label">
+        <span class="hero__widget-live"></span>
+        Reservas en vivo
+      </p>
+    </article>
+  </div>
+</header>

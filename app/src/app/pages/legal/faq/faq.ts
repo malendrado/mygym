@@ -31,7 +31,7 @@ export class LegalFaq {
         {
           question: '¿Cómo reciben avisos en el celular mis socios?',
           answer:
-            'Con la app instalada en el celular, cada socio puede activar los avisos con un toque y los recibe aunque no tenga la app abierta: cuando se libera un cupo en una clase que estaba esperando, una hora antes de su clase, si el gimnasio cierra y cuando su plan está por vencer. Los correos siguen funcionando igual. En iPhone, primero hay que agregar la app a la pantalla de inicio.',
+            'Con la app instalada en el celular, cada socio puede activar los avisos con un toque y los recibe aunque no tenga la app abierta: cuando se libera un cupo en una clase que estaba esperando, antes de su clase (1 hora, o 30 minutos si reservó con poco tiempo), si el gimnasio cierra y cuando el cierre termina, si el gimnasio le cancela una reserva, cambia el horario de su clase o la elimina, y cuando su plan está por vencer o se lo quitan. Si el cierre es de todo el día y es para hoy o mañana, se avisa a todos los socios; si está programado con más anticipación, solo a quienes tenían clases reservadas. Los correos siguen funcionando igual. En iPhone, primero hay que agregar la app a la pantalla de inicio.',
         },
         {
           question: '¿Me avisan cuando un socio cancela una clase?',
@@ -46,12 +46,27 @@ export class LegalFaq {
         {
           question: '¿En qué se diferencia mygym de otro software de gestión de gimnasios?',
           answer:
-            'mygym está pensado para la realidad de un gimnasio en Chile: pagas en pesos chilenos, tus socios pagan con Webpay o transferencia, y el soporte es en español. Además tiene funciones pensadas para el día a día de un box: pantalla de TV en la recepción con check-in por código QR (sin comprar ningún equipo), cierre de emergencia con un clic por fuerza mayor, y una lista de espera que avisa por email apenas se libera un cupo.',
+            'mygym está pensado para la realidad de un gimnasio en Chile: pagas en pesos chilenos, tus socios pagan con Webpay o transferencia, y el soporte es en español. Además tiene funciones pensadas para el día a día de un box: pantalla de TV en la recepción con check-in por código QR (sin comprar ningún equipo), cierre de emergencia con un clic por fuerza mayor, y una lista de espera que avisa por email y al celular apenas se libera un cupo.',
         },
         {
           question: '¿Puedo probar mygym antes de contratarlo?',
           answer:
             'Sí. Te damos acceso por 7 días a una demo: un gimnasio de ejemplo, con datos ficticios, para que recorras el panel de administración y la vista de tus socios tal como funcionan de verdad. Es de solo lectura: puedes explorar todo, pero nada de lo que hagas se guarda.',
+        },
+        {
+          question: '¿Puedo definir hasta cuándo se puede reservar y cancelar?',
+          answer:
+            'Sí. Cada gimnasio define, en minutos antes de la clase, hasta cuándo se puede reservar y hasta cuándo se puede cancelar sin que la clase cuente como usada. También eliges cuánta ventaja tiene el primero de la lista de espera cuando se libera un cupo, y si tus socios pueden ver quién va a cada clase.',
+        },
+        {
+          question: '¿Hay un límite de socios, profesores o administradores?',
+          answer:
+            'Sí. Según tu plan: Empieza hasta 100 socios y Crece hasta 200 (cuentan todos los socios registrados, incluidos los invitados que aún no entran). Además, cada gimnasio puede tener hasta 10 profesores y 5 administradores. En tu panel ves cuántos cupos te quedan; al llegar al límite no se pueden agregar más hasta que cambies de plan.',
+        },
+        {
+          question: '¿Qué pasa si mi gimnasio queda en pausa?',
+          answer:
+            'Tus socios y tu equipo pueden entrar, pero ven un aviso tranquilo con los datos de contacto, no se puede reservar ni editar nada, la pantalla de TV muestra "Volvemos pronto" y se detienen los avisos automáticos. Tus datos se conservan y todo vuelve a la normalidad apenas el gimnasio se reactiva.',
         },
         {
           question: '¿Tengo que cargar a mano todos mis socios?',
@@ -66,12 +81,12 @@ export class LegalFaq {
         {
           question: '¿Cómo pagan mis socios?',
           answer:
-            'Tus socios pagan sus planes en línea a través de Flow.cl, la pasarela de pago que procesa las transacciones de forma segura. El pago es manual, mes a mes — no guardamos tarjetas ni hacemos cobros automáticos recurrentes.',
+            'Tus socios pagan sus planes en línea a través de Flow.cl (tarjeta, Webpay y otros medios), la pasarela de pago que procesa las transacciones de forma segura, o transfiriendo directo a la cuenta bancaria de tu gimnasio, que tú confirmas con un clic. El pago es manual, mes a mes — no guardamos tarjetas ni hacemos cobros automáticos recurrentes. La comisión de la pasarela se suma al precio del plan y el socio la ve desglosada antes de pagar.',
         },
         {
           question: '¿Cuándo recibo el dinero de los pagos de mis socios?',
           answer:
-            'Cuando Flow.cl consolida (liquida) los pagos recibidos, mygym te transfiere el mismo día el monto correspondiente a tu gimnasio, a la cuenta bancaria que nos indiques.',
+            'Directo en tu propia cuenta: cada gimnasio tiene su cuenta de Flow (la creamos contigo), y los pagos de tus socios llegan ahí, sin pasar por mygym. Flow te liquida a la cuenta bancaria que registraste, según sus propios plazos. Las transferencias bancarias de tus socios llegan directo a tu cuenta. mygym no recibe ni retiene ese dinero.',
         },
         {
           question: '¿Qué pasa si un socio quiere que le devuelvan su pago?',
@@ -81,7 +96,7 @@ export class LegalFaq {
         {
           question: '¿mygym cobra alguna comisión sobre lo que pagan mis socios?',
           answer:
-            'No. mygym no cobra comisión por socio ni por transacción — pagas un valor fijo mensual según el plan que corresponda a la cantidad de socios activos de tu gimnasio: Empieza (hasta 100 socios, $29.990/mes + IVA), Crece (hasta 200 socios, $59.990/mes + IVA) o Escala (más de 200 socios, precio a medida). Puedes subir o bajar de plan cuando lo necesites.',
+            'No. mygym no cobra comisión por socio ni por transacción — pagas un valor fijo mensual según el plan que corresponda a la cantidad de socios de tu gimnasio: Empieza (hasta 100 socios, $29.990/mes + IVA), Crece (hasta 200 socios, $59.990/mes + IVA) o Escala (más de 200 socios, precio a medida). Puedes subir o bajar de plan cuando lo necesites.',
         },
       ],
     },
@@ -109,7 +124,7 @@ export class LegalFaq {
         {
           question: 'Si dejo mygym, ¿qué pasa con toda la información de mis socios?',
           answer:
-            'Antes de cerrar tu gimnasio definitivamente, te enviamos por correo el detalle completo de tus socios (nombre, email, plan, historial de pagos y de reservas) en archivos descargables, para que conserves tu propia cartera de clientes. Es tu única copia — mygym no se queda con ninguna. Recién después de que ese correo se envía correctamente se eliminan todos los datos de tu gimnasio de nuestros sistemas de forma permanente e irreversible.',
+            'Antes de cerrar tu gimnasio definitivamente, te enviamos por correo dos archivos descargables: uno con tus socios (nombre, email, plan, RUT, dirección, fecha de nacimiento, teléfono y cantidad de reservas de cada uno) y otro con el historial de pagos, para que conserves tu propia cartera de clientes. Es tu única copia — mygym no se queda con ninguna. Recién después de que ese correo se envía correctamente se eliminan todos los datos de tu gimnasio de nuestros sistemas de forma permanente e irreversible.',
         },
         {
           question: '¿mygym guarda una copia de mis socios después de que me voy?',

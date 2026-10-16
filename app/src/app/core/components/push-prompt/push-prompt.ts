@@ -37,7 +37,7 @@ export class PushPrompt implements OnInit {
   protected get message(): string {
     return this.audience === 'staff'
       ? 'Entérate al instante cuando un socio cancele una clase.'
-      : 'Te avisamos si se libera un cupo, 1 hora antes de tu clase y si el gimnasio cierra.';
+      : 'Te avisamos si se libera un cupo, antes de tu clase, si el gimnasio cierra o si cambian algo de tus reservas.';
   }
 
   protected async activate(): Promise<void> {

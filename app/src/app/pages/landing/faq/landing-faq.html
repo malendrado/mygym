@@ -1,0 +1,34 @@
+<section class="steps">
+  <h2>Empezar toma minutos, no semanas</h2>
+  <div class="steps__row">
+    @for (step of steps; track step.title; let i = $index) {
+      <article class="steps__card" [style.transition-delay.ms]="i * 70" appReveal>
+        <ion-icon [name]="step.icon" aria-hidden="true"></ion-icon>
+        <h3>{{ step.title }}</h3>
+        <p>{{ step.body }}</p>
+      </article>
+    }
+  </div>
+</section>
+
+<section class="faq">
+  <h2>Preguntas frecuentes</h2>
+  <div class="faq__list">
+    @for (item of faqItems; track item.question; let i = $index) {
+      <article
+        class="faq__item"
+        [class.faq__item--open]="openFaqIndexes().has(i)"
+        [style.transition-delay.ms]="i * 70"
+        appReveal
+      >
+        <button class="faq__question" type="button" (click)="toggleFaq(i)" [attr.aria-expanded]="openFaqIndexes().has(i)">
+          {{ item.question }}
+          <ion-icon name="chevron-down-outline" aria-hidden="true"></ion-icon>
+        </button>
+        @if (openFaqIndexes().has(i)) {
+          <p class="faq__answer">{{ item.answer }}</p>
+        }
+      </article>
+    }
+  </div>
+</section>

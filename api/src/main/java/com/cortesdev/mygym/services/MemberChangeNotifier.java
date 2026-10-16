@@ -51,7 +51,7 @@ public class MemberChangeNotifier {
                                 .map(Reservation::getMemberId)
                                 .distinct()
                                 .toList();
-                pushService.notifyUsers(memberIds, PushMessages.closureLifted(gym, closure.getId()));
+                pushService.notifyUsers(memberIds, PushMessages.closureLifted(gym, closure));
             });
         }
     }

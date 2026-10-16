@@ -1,0 +1,27 @@
+<section class="booking" appReveal>
+  <div class="booking__copy">
+    <h2>Así reservan tus socios</h2>
+    <p>
+      Cada horario muestra los cupos que quedan y quién ya confirmó. Menos mensajes preguntando
+      "¿queda lugar?".
+    </p>
+  </div>
+  <article class="booking__card">
+    <header class="booking__card-header">
+      <span class="booking__time">{{ classTime }}</span>
+      <span class="booking__capacity">{{ classCapacity.taken }}/{{ classCapacity.total }} cupos</span>
+    </header>
+    <ul class="booking__attendees">
+      @for (attendee of attendees; track attendee.name) {
+        <li>
+          <span class="booking__avatar">{{ attendee.initials }}</span>
+          {{ attendee.name }}
+        </li>
+      }
+    </ul>
+    <button class="button button--primary booking__button" type="button" (click)="contact.open()">
+      Reservar
+    </button>
+    <p class="booking__note">Tu gimnasio define con cuánta anticipación se puede reservar y hasta cuándo cancelar.</p>
+  </article>
+</section>

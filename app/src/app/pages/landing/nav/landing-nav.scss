@@ -1,0 +1,209 @@
+@use '../shared/landing-shared' as *;
+
+@include landing-host;
+@include landing-base;
+
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  height: 68px;
+  padding: 0 clamp(1.25rem, 4vw, 3rem);
+  background: color-mix(in srgb, var(--brand-ink) 92%, transparent);
+  backdrop-filter: blur(8px);
+
+  &__brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 700;
+    font-size: 1.15rem;
+    letter-spacing: -0.01em;
+    color: inherit;
+  }
+
+  &__brand-icon {
+    width: 28px;
+    height: 28px;
+    color: var(--brand-accent);
+    flex-shrink: 0;
+  }
+
+  &__links {
+    display: none;
+    gap: 2rem;
+
+    a {
+      color: var(--brand-text-dim);
+      text-decoration: none;
+      font-size: 0.95rem;
+
+      @media (hover: hover) and (pointer: fine) {
+        &:hover {
+          color: var(--brand-text);
+        }
+      }
+    }
+
+    @media (min-width: 768px) {
+      display: flex;
+    }
+  }
+
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  &__help {
+    display: none;
+    align-items: center;
+    gap: 1rem;
+    padding-right: 0.75rem;
+    margin-right: 0.25rem;
+    border-right: 1px solid var(--brand-ink-surface-2);
+
+    a {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      color: var(--brand-text-dim);
+      text-decoration: none;
+      font-size: 0.85rem;
+      white-space: nowrap;
+
+      ion-icon { font-size: 1rem; }
+
+      @media (hover: hover) and (pointer: fine) {
+        &:hover { color: var(--brand-accent); }
+      }
+    }
+
+    @media (min-width: 900px) {
+      display: flex;
+    }
+  }
+
+  // Toggle + menú flotante que reemplaza a &__help por debajo de los 900px — ahí &__help
+  // queda en display:none (arriba) porque no entra en el ancho del header.
+  &__help-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+
+    @media (min-width: 900px) {
+      display: none;
+    }
+  }
+
+  &__help-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    min-height: 36px;
+    border: none;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--brand-text-dim);
+    cursor: pointer;
+
+    ion-icon { font-size: 1.25rem; }
+
+    &[aria-expanded='true'] {
+      color: var(--brand-accent);
+      background: var(--brand-ink-surface-2);
+    }
+
+    @media (hover: hover) and (pointer: fine) {
+      &:hover {
+        color: var(--brand-accent);
+        background: var(--brand-ink-surface-2);
+      }
+    }
+  }
+
+  &__help-menu {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-width: 160px;
+    padding: 0.85rem 1rem;
+    background: var(--brand-ink-surface-2);
+    border: 1px solid color-mix(in srgb, var(--brand-text) 12%, transparent);
+    border-radius: 12px;
+    box-shadow: 0 16px 32px rgba(0, 0, 0, 0.35);
+    z-index: 30;
+
+    a {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      min-height: 32px;
+      color: var(--brand-text-dim);
+      text-decoration: none;
+      font-size: 0.9rem;
+      white-space: nowrap;
+
+      ion-icon { font-size: 1.05rem; }
+
+      &:active { color: var(--brand-accent); }
+
+      @media (hover: hover) and (pointer: fine) {
+        &:hover { color: var(--brand-accent); }
+      }
+    }
+  }
+
+  &__login {
+    color: var(--brand-text-dim);
+    text-decoration: none;
+    font-size: 0.9rem;
+
+    ion-icon { font-size: 1rem; vertical-align: -2px; }
+
+    @media (hover: hover) and (pointer: fine) {
+      &:hover { color: var(--brand-text); }
+    }
+  }
+
+  &__cta {
+    padding: 0.55rem 1.25rem;
+    border: none;
+    border-radius: 999px;
+    background: var(--brand-accent);
+    color: var(--brand-accent-contrast);
+    font-family: inherit;
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+
+    @media (hover: hover) and (pointer: fine) {
+      &:hover {
+        transform: translateY(-2px);
+      }
+    }
+
+    &:active {
+      transform: scale(0.98);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav__cta:hover {
+    transform: none;
+  }
+}

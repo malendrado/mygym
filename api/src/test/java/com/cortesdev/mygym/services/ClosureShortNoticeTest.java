@@ -182,7 +182,8 @@ class ClosureShortNoticeTest {
 
         ArgumentCaptor<PushMessage> message = ArgumentCaptor.forClass(PushMessage.class);
         verify(pushService).notifyUsers(eq(List.of(30L, 31L)), message.capture());
-        assertThat(message.getValue().title()).isEqualTo("XaloGym vuelve a abrir");
+        assertThat(message.getValue().title()).isEqualTo("El cierre de XaloGym terminó");
+        assertThat(message.getValue().body()).isEqualTo("El cierre por corte de luz ya terminó. Ahora operamos con normalidad.");
         verify(reservationRepository, never()).findByCancelledByClosureId(any());
     }
 

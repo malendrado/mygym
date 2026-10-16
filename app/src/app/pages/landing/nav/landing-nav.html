@@ -1,0 +1,58 @@
+<nav class="nav">
+  <span class="nav__brand">
+    <svg class="nav__brand-icon" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <g id="icon">
+        <path fill="currentColor" fill-rule="evenodd" d="
+          M128,40 H384 A88,88 0 0 1 472,128 V384 A88,88 0 0 1 384,472 H128 A88,88 0 0 1 40,384 V128 A88,88 0 0 1 128,40 Z
+          M128,72 H384 A56,56 0 0 1 440,128 V384 A56,56 0 0 1 384,440 H128 A56,56 0 0 1 72,384 V128 A56,56 0 0 1 128,72 Z
+        "/>
+        <g id="mark" transform="translate(256,256) scale(0.72) translate(-256,-256)">
+          <path d="M120,360 L120,90 L256,260 L392,90 L392,360" fill="none" stroke="currentColor" stroke-width="84" stroke-linecap="round" stroke-linejoin="round"/>
+          <path fill="currentColor" fill-rule="evenodd" d="
+            M224,360 L172,450.07 L68,450.07 L16,360 L68,269.93 L172,269.93 Z
+            M148,360 A28,28 0 1 0 92,360 A28,28 0 1 0 148,360 Z
+          "/>
+          <path fill="currentColor" fill-rule="evenodd" d="
+            M496,360 L444,450.07 L340,450.07 L288,360 L340,269.93 L444,269.93 Z
+            M420,360 A28,28 0 1 0 364,360 A28,28 0 1 0 420,360 Z
+          "/>
+        </g>
+      </g>
+    </svg>
+    mygym
+  </span>
+  <div class="nav__links">
+    <a href="#producto">Producto</a>
+    <a href="#socios">Tus socios</a>
+    <a href="#precios">Precios</a>
+  </div>
+  <div class="nav__actions">
+    <div class="nav__help">
+      <a routerLink="/faq"><ion-icon name="help-circle-outline" aria-hidden="true"></ion-icon> FAQ</a>
+      <a routerLink="/privacidad"><ion-icon name="shield-checkmark-outline" aria-hidden="true"></ion-icon> Privacidad</a>
+    </div>
+    <div class="nav__help-wrap">
+      <button
+        type="button"
+        class="nav__help-toggle"
+        [attr.aria-expanded]="helpMenuOpen()"
+        aria-label="Más enlaces: FAQ y Privacidad"
+        (click)="toggleHelpMenu()"
+      >
+        <ion-icon name="ellipsis-horizontal-outline" aria-hidden="true"></ion-icon>
+      </button>
+      @if (helpMenuOpen()) {
+        <div class="nav__help-menu">
+          <a routerLink="/faq" (click)="closeHelpMenu()">
+            <ion-icon name="help-circle-outline" aria-hidden="true"></ion-icon> FAQ
+          </a>
+          <a routerLink="/privacidad" (click)="closeHelpMenu()">
+            <ion-icon name="shield-checkmark-outline" aria-hidden="true"></ion-icon> Privacidad
+          </a>
+        </div>
+      }
+    </div>
+    <a class="nav__login" routerLink="/login"><ion-icon name="log-in-outline" aria-hidden="true"></ion-icon> Entrar</a>
+    <button class="nav__cta" type="button" (click)="contact.open()">Pedir demo</button>
+  </div>
+</nav>

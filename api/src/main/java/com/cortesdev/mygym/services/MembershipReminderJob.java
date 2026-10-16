@@ -120,9 +120,10 @@ public class MembershipReminderJob {
                     gymId -> appUserRepository.findByGymIdAndRole(gymId, Role.GYM_ADMIN).stream()
                             .map(AppUser::getEmail)
                             .toList());
-            memberLifecycleEmailService.sendMembershipExpiredMember(gym, member, plan);
-            pushService.notifyUsers(List.of(member.getId()), PushMessages.membershipExpired(gym));
-            memberLifecycleEmailService.sendMembershipExpiredAdmin(gym, member, plan, adminEmails);
+            boolean alreadyExpired = !now.isBefore(periodEnd);
+            memberLifecycleEmailService.sendMembershipExpiredMember(gym, member, plan, alreadyExpired);
+            pushService.notifyUsers(List.of(member.getId()), PushMessages.membershipExpired(gym, alreadyExpired));
+            memberLifecycleEmailService.sendMembershipExpiredAdmin(gym, member, plan, adminEmails, alreadyExpired);
             return true;
         }
         return false;

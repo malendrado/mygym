@@ -124,7 +124,7 @@ class StaffCancellationPushTest {
 
         assertTrue(message.title().startsWith("3 cancelaciones · Funcional"), message.title());
         assertTrue(message.body().startsWith("Ana Soto y 2 más cancelaron"), message.body());
-        assertTrue(message.body().contains("Quedan 0 cupos"), message.body());
+        assertTrue(message.body().contains("La clase ya se volvió a llenar"), message.body());
     }
 
     @Test

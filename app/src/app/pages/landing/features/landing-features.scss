@@ -1,0 +1,103 @@
+@use '../shared/landing-shared' as *;
+
+@include landing-host;
+@include landing-base;
+
+.features {
+  @extend %section-container;
+
+  h2 {
+    @extend %section-heading;
+    max-width: 24ch;
+    margin: 0 0 2rem;
+  }
+}
+
+.bento {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+
+  @media (min-width: 768px) {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  &__cell {
+    @extend %radius-card;
+    padding: 1.75rem;
+    transform: translateY(16px) scale(0.94);
+    transition:
+      transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1),
+      box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+
+    &.is-visible {
+      transform: translateY(0) scale(1);
+    }
+
+    @media (hover: hover) and (pointer: fine) {
+      &:hover {
+        transform: translateY(-4px) scale(1);
+        box-shadow: 0 16px 32px rgba(0, 0, 0, 0.35);
+      }
+    }
+
+    h3 {
+      font-size: 1.15rem;
+      margin: 0 0 0.6rem;
+    }
+
+    p {
+      color: var(--brand-text-dim);
+      line-height: 1.5;
+      margin: 0;
+      font-size: 0.95rem;
+    }
+
+    &--large {
+      grid-column: span 1;
+
+      @media (min-width: 768px) {
+        grid-column: span 2;
+      }
+
+      h3 {
+        font-size: 1.3rem;
+      }
+    }
+
+    &--small {
+      grid-column: span 1;
+    }
+
+    &--full {
+      grid-column: span 1;
+
+      @media (min-width: 768px) {
+        grid-column: 1 / -1;
+      }
+    }
+
+    &--surface {
+      background: var(--brand-ink-surface);
+    }
+
+    &--surface-2 {
+      background: var(--brand-ink-surface-2);
+    }
+
+    &--accent {
+      background: var(--brand-accent);
+
+      h3,
+      p {
+        color: var(--brand-accent-contrast);
+      }
+
+      p {
+        opacity: 0.75;
+      }
+    }
+  }
+}
+
+@include no-reveal('.bento__cell');

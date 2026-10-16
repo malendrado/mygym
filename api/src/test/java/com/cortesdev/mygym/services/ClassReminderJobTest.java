@@ -129,7 +129,8 @@ class ClassReminderJobTest {
 
         job.sendReminders();
 
-        assertEquals("Tu clase empieza en 30 minutos", sentMessage().title());
+        // la clase empieza en 25 minutos: el aviso dice la verdad (antes decia "30" porque esa era la meta, no el tiempo real)
+        assertEquals("Tu clase empieza en 25 minutos", sentMessage().title());
         assertNotNull(r.getReminderPushedAt());
     }
 

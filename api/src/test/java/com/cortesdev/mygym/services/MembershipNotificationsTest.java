@@ -94,7 +94,7 @@ class MembershipNotificationsTest {
         reminderJob.sendReminders();
 
         verify(emailService, never()).sendMembershipExpiringSoonMember(any(), any(), any(), anyLong());
-        verify(emailService, never()).sendMembershipExpiredMember(any(), any(), any());
+        verify(emailService, never()).sendMembershipExpiredMember(any(), any(), any(), org.mockito.ArgumentMatchers.anyBoolean());
         verify(pushService, never()).notifyUsers(any(), any());
     }
 
@@ -106,9 +106,29 @@ class MembershipNotificationsTest {
 
         reminderJob.sendReminders();
 
-        verify(emailService).sendMembershipExpiredMember(gym, m, plan);
-        verify(pushService).notifyUsers(java.util.List.of(m.getId()), PushMessages.membershipExpired(gym));
+        verify(emailService).sendMembershipExpiredMember(gym, m, plan, true);
+        verify(pushService).notifyUsers(java.util.List.of(m.getId()), PushMessages.membershipExpired(gym, true));
         verify(emailService, never()).sendMembershipExpiringSoonMember(any(), any(), any(), anyLong());
+    }
+
+    /** El aviso sale a las 09:00 del dia de vencimiento, pero el plan vence a la hora en que se pago: aun vigente, no puede decir "venció". */
+    @Test
+    void theNoticeOfTheExpiryDaySaysItExpiresTodayWhenTheExactTimeHasNotPassedYet() {
+        org.junit.jupiter.api.Assumptions.assumeTrue(
+                ZonedDateTime.now(ZONE).plusMinutes(30).toLocalDate().equals(ZonedDateTime.now(ZONE).toLocalDate()));
+        AppUser m = member(4);
+        when(appUserRepository.findByRoleAndPaidAtIsNotNull(Role.MEMBER)).thenReturn(List.of(m));
+        when(gymPlanRepository.findAllById(any())).thenReturn(List.of(plan));
+        when(gymRepository.findAllById(any())).thenReturn(List.of(gym));
+        when(memberService.periodEnd(m)).thenReturn(ZonedDateTime.now(ZONE).plusMinutes(30));
+        when(appUserRepository.findByGymIdAndRole(GYM_ID, Role.GYM_ADMIN)).thenReturn(List.of());
+
+        reminderJob.sendReminders();
+
+        verify(emailService).sendMembershipExpiredMember(gym, m, plan, false);
+        verify(emailService).sendMembershipExpiredAdmin(gym, m, plan, List.of(), false);
+        verify(pushService).notifyUsers(java.util.List.of(m.getId()), PushMessages.membershipExpired(gym, false));
+        verify(pushService, never()).notifyUsers(java.util.List.of(m.getId()), PushMessages.membershipExpired(gym, true));
     }
 
     @Test

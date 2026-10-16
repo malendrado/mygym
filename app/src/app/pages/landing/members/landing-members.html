@@ -1,0 +1,42 @@
+<section class="members" id="socios">
+  <div class="members__intro" appReveal>
+    <span class="members__eyebrow">Para quienes se inscriben en tu gimnasio</span>
+    <h2>Tus socios no ven una planilla. Ven una app que les simplifica todo.</h2>
+    <p>Lo que tú resuelves puertas adentro, tu socio lo nota apenas se inscribe: menos fricción, más constancia.</p>
+  </div>
+  <div class="members__layout">
+    <div class="members__asset">
+      <img
+        src="https://images.unsplash.com/photo-1719239163994-6413670c4e9f?q=80&w=1200&h=800&fit=crop&auto=format"
+        alt="Socio revisando su celular en la sala de musculación de un gimnasio"
+        width="1200"
+        height="800"
+        loading="lazy"
+      />
+      <article class="members__widget">
+        <p class="members__widget-label">Notificación al socio</p>
+        <div class="members__widget-row">
+          <ion-icon name="notifications-outline" aria-hidden="true"></ion-icon>
+          <span>Tu plan vence en 5 días</span>
+        </div>
+        <div class="members__widget-row">
+          <ion-icon name="flash-outline" aria-hidden="true"></ion-icon>
+          <span>Se liberó un cupo: Funcional 19:00</span>
+        </div>
+        <div class="members__widget-row">
+          <ion-icon name="alarm-outline" aria-hidden="true"></ion-icon>
+          <span>Tu clase empieza en 1 hora</span>
+        </div>
+      </article>
+    </div>
+    <div class="members__grid">
+      @for (benefit of memberBenefits; track benefit.title; let i = $index) {
+        <article class="members__card" [style.transition-delay.ms]="i * 70" appReveal>
+          <ion-icon [name]="benefit.icon" aria-hidden="true"></ion-icon>
+          <h3>{{ benefit.title }}</h3>
+          <p>{{ benefit.body }}</p>
+        </article>
+      }
+    </div>
+  </div>
+</section>

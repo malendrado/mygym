@@ -1,0 +1,196 @@
+@use '../shared/landing-shared' as *;
+
+@include landing-host;
+@include landing-base;
+@include button;
+@include button-ghost;
+
+.hero {
+  display: grid;
+  grid-template-columns: 1fr;
+  align-items: center;
+  gap: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: clamp(2rem, 6vw, 4rem) clamp(1.25rem, 4vw, 3rem) 3rem;
+
+  @media (min-width: 1024px) {
+    grid-template-columns: 1.1fr 0.9fr;
+    min-height: calc(100dvh - 68px);
+    padding-top: 0;
+  }
+
+  &__headline {
+    font-size: clamp(2.1rem, 5vw, 3.4rem);
+    line-height: 1.08;
+    letter-spacing: -0.02em;
+    font-weight: 700;
+    max-width: 16ch;
+    margin: 0 0 1.25rem;
+  }
+
+  &__subtext {
+    color: var(--brand-text-dim);
+    font-size: 1.05rem;
+    line-height: 1.5;
+    max-width: 42ch;
+    margin: 0 0 2rem;
+  }
+
+  &__ctas {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.85rem;
+  }
+
+  &__cta {
+    will-change: transform;
+    animation: cta-pulse 2.4s ease-in-out infinite;
+
+    &:active {
+      animation-play-state: paused;
+    }
+
+    @media (hover: hover) and (pointer: fine) {
+      &:hover {
+        animation-play-state: paused;
+      }
+    }
+  }
+
+  &__asset {
+    position: relative;
+    order: -1;
+    @extend %radius-card;
+    overflow: hidden;
+
+    img {
+      display: block;
+      width: 100%;
+      height: auto;
+      object-fit: cover;
+      animation: hero-drift 14s ease-in-out infinite alternate;
+    }
+
+    @media (min-width: 1024px) {
+      order: 1;
+      max-height: 640px;
+
+      img {
+        height: 100%;
+      }
+    }
+  }
+
+  &__widget {
+    position: absolute;
+    z-index: 2;
+    left: 1.25rem;
+    right: 1.25rem;
+    bottom: 1.25rem;
+    max-width: 260px;
+    background: var(--brand-ink-surface);
+    @extend %radius-card;
+    padding: 1.1rem 1.25rem;
+    box-shadow: 0 16px 32px rgba(0, 0, 0, 0.45);
+
+    &-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 0.75rem;
+    }
+
+    &-time {
+      font-family: var(--brand-font-mono);
+      font-weight: 700;
+      font-size: 0.95rem;
+    }
+
+    &-capacity {
+      color: var(--brand-accent);
+      font-family: var(--brand-font-mono);
+      font-size: 0.8rem;
+    }
+
+    &-avatars {
+      display: flex;
+      list-style: none;
+      margin: 0 0 0.75rem;
+      padding: 0;
+
+      li {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 26px;
+        height: 26px;
+        margin-left: -8px;
+        border: 2px solid var(--brand-ink-surface);
+        border-radius: 999px;
+        background: var(--brand-ink-surface-2);
+        color: var(--brand-text);
+        font-size: 0.65rem;
+        font-weight: 700;
+
+        &:first-child {
+          margin-left: 0;
+        }
+      }
+    }
+
+    &-label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin: 0;
+      color: var(--brand-text-dim);
+      font-size: 0.75rem;
+    }
+
+    &-live {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: var(--brand-accent);
+      animation: cta-pulse 2.4s ease-in-out infinite;
+    }
+  }
+}
+
+/* Motivated by: keeps the hero photo feeling alive without competing for attention. */
+@keyframes hero-drift {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.06);
+  }
+}
+
+/* Motivated by: a single continuous focal point so the hero doesn't read as fully
+   static at rest, without turning every CTA on the page into a pulsing light. */
+@keyframes cta-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--brand-accent) 45%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 12px color-mix(in srgb, var(--brand-accent) 0%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--brand-accent) 0%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero__asset img {
+    animation: none;
+  }
+
+  .hero__cta,
+  .hero__widget-live {
+    animation: none;
+  }
+}

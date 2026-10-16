@@ -1007,10 +1007,10 @@
         <a class="btn btn--ghost" href="#modulos">Ver los módulos</a>
       </div>
       <div class="hero-trust">
-        <span>🔐 <b>Row Level Security</b> real por gimnasio</span>
+        <span>🔐 Datos <b>separados por gimnasio</b></span>
         <span>📅 Reservas <b>en tiempo real</b></span>
         <span>💳 Pagos con <b>Flow</b> o transferencia</span>
-        <span>✉️ Emails <b>automáticos</b></span>
+        <span>✉️ Emails y <b>avisos al celular</b></span>
       </div>
     </div>
 
@@ -1168,7 +1168,7 @@
           </button>
           <div class="accordion-panel"><div><div class="accordion-body">
             Busca a cualquier socio por nombre o email, márcale el pago si te transfirió (con la fecha real de inicio y las clases que ya usó), o quítale el plan
-            si dejó de entrenar — todo en un clic. Tu panel además te avisa qué te falta configurar
+            si dejó de entrenar (se cancelan sus reservas futuras y se le avisa) — todo en un clic. Tu panel además te avisa qué te falta configurar
             (planes, horarios, marca, cobro) y te deja copiar tu link de alta al toque para compartirlo.
             <span class="accordion-benefit">✓ Todo el día a día — y el arranque — resuelto desde un solo panel</span>
           </div></div></div>
@@ -1197,8 +1197,8 @@
           <div class="accordion-panel"><div><div class="accordion-body">
             Por un corte de luz, un problema de seguridad o cualquier fuerza mayor: cierra el gimnasio
             por los días que necesites (o solo las clases que elijas, ordenadas por día y hora para no equivocarte), cancela las reservas afectadas, devuelve el cupo a quien tenía
-            plan limitado, y avisa a cada socio por email y por aviso en su celular con el motivo. Si se resuelve antes de lo
-            pensado, edita el cierre o levántalo al toque.
+            plan limitado, y avisa por email y por aviso en el celular, con el motivo, a quienes perdieron una clase — y a todos tus socios si el cierre es para hoy o mañana. Si se resuelve antes de lo
+            pensado, edita el cierre o levántalo al toque: también se avisa que ya terminó.
             <span class="accordion-benefit">✓ Ningún socio se entera por WhatsApp de que su clase se cayó — y nadie pierde su cupo del mes</span>
           </div></div></div>
         </div>
@@ -1254,7 +1254,7 @@
           <div class="accordion-panel"><div><div class="accordion-body">
             Tus socios pagan con Flow (tarjeta, Webpay y más medios) o transfieren directo a la cuenta
             que configures — el pago con Flow se confirma solo, apenas se hace, sin que nadie tenga que
-            revisarlo a mano. La comisión de la pasarela se ve clara antes de pagar, nunca es una sorpresa.
+            revisarlo a mano. El dinero del pago con Flow llega directo a la cuenta de Flow de tu gimnasio: mygym no lo recibe ni lo retiene. La comisión de la pasarela se ve clara antes de pagar, nunca es una sorpresa.
             <span class="accordion-benefit">✓ Dejas de perseguir transferencias a mano — y cuando sí llegan, las confirmas con un clic</span>
           </div></div></div>
         </div>
@@ -1262,12 +1262,12 @@
           <button class="accordion-trigger">
             <span class="accordion-trigger__title">
               <span class="accordion-trigger__icon">📊</span>
-              <b>Historial de asistencia</b>
+              <b>Agenda y asistencia</b>
             </span>
             <svg class="accordion-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
           </button>
           <div class="accordion-panel"><div><div class="accordion-body">
-            Elige un día, toca una clase y ves quién reservó y quién vino de verdad (con QR o marcado a mano), con WhatsApp directo para quien faltó y la posibilidad de corregir una asistencia. Además, un resumen por semana o por mes: qué horarios no funcionan, quiénes vienen más y quiénes más faltan.
+            Elige un día y ves cada clase con sus cupos (llena, cerrada o con gente en espera) y quiénes reservaron; en las ya hechas, quién vino de verdad (con QR o marcado a mano), con WhatsApp directo para quien faltó y la posibilidad de corregir una asistencia. Además, un resumen por semana o por mes: qué horarios no funcionan, quiénes vienen más y quiénes más faltan.
             <span class="accordion-benefit">✓ Decisiones con datos, no con la sensación de "esa clase está vacía siempre"</span>
           </div></div></div>
         </div>
@@ -1311,7 +1311,7 @@
           </button>
           <div class="accordion-panel"><div><div class="accordion-body">
             La clase que está pasando ahora, quién se anotó y qué viene después, siempre a la vista en la TV de la recepción.
-            Se empareja escribiendo un código una sola vez — nunca hay que tipear nada en la TV.
+            Se empareja escribiendo un código una sola vez — nunca hay que tipear nada en la TV. Mientras hay una clase en curso muestra un QR que se renueva solo: el socio lo escanea y queda marcada su asistencia.
             <span class="accordion-benefit">✓ Se actualiza sola, sin que nadie la toque nunca más</span>
           </div></div></div>
         </div>
@@ -1329,7 +1329,7 @@
             <svg class="accordion-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
           </button>
           <div class="accordion-panel"><div><div class="accordion-body">
-            Cupo en tiempo real, cancelación dentro de la ventana que el gimnasio permita —
+            Cupo en tiempo real (se actualiza solo en la pantalla abierta), reserva y cancelación dentro de las ventanas que defina el gimnasio —
             todo sin escribir a nadie por WhatsApp.
             <span class="accordion-benefit">✓ Reserva en 10 segundos, desde cualquier lugar</span>
           </div></div></div>
@@ -1344,8 +1344,9 @@
           </button>
           <div class="accordion-panel"><div><div class="accordion-body">
             Con la app instalada, el socio activa los avisos con un toque y los recibe aunque no la tenga abierta:
-            se liberó un cupo en la clase que esperaba, su clase empieza en una hora, el gimnasio cerró por una
-            emergencia o su plan está por vencer. Si está en una lista de espera, le avisamos apenas se libera el cupo.
+            se liberó un cupo en la clase que esperaba, su clase empieza pronto, el gimnasio cierra (o vuelve a operar),
+            le cancelan una reserva, cambian o eliminan su clase, o su plan está por vencer. Si está en una lista de espera,
+            le avisamos apenas se libera el cupo.
             <span class="accordion-benefit">✓ No pierde su clase por no mirar el correo, y los cupos liberados se llenan solos</span>
           </div></div></div>
         </div>
@@ -1359,7 +1360,7 @@
           </button>
           <div class="accordion-panel"><div><div class="accordion-body">
             Ve el nombre y la foto de quienes ya se anotaron — nunca su email, ni con nadie más
-            que administradores del gimnasio.
+            que administradores del gimnasio. Cada gimnasio decide si sus socios pueden ver esta lista.
             <span class="accordion-benefit">✓ Motivación social sin exponer datos privados de nadie</span>
           </div></div></div>
         </div>
@@ -1453,14 +1454,15 @@
           <button class="accordion-trigger">
             <span class="accordion-trigger__title">
               <span class="accordion-trigger__icon">🧱</span>
-              <b>Aislamiento real de datos</b>
+              <b>Datos separados por gimnasio</b>
             </span>
             <svg class="accordion-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
           </button>
           <div class="accordion-panel"><div><div class="accordion-body">
-            Row Level Security a nivel de base de datos — cada gimnasio ve solo lo suyo, siempre,
-            reforzado en la capa que menos se puede saltear.
-            <span class="accordion-benefit">✓ No es "una copia de la app por cliente", es una sola plataforma segura</span>
+            Cada consulta del servidor se limita al gimnasio de quien inició sesión — ese dato sale de su sesión, nunca de lo
+            que escriba el usuario —, así que un administrador no puede ver ni tocar lo de otro gimnasio. Además, la base de
+            datos tiene Row Level Security activo en todas sus tablas, y su API pública queda cerrada.
+            <span class="accordion-benefit">✓ No es "una copia de la app por cliente", es una sola plataforma con cada gimnasio separado de los demás</span>
           </div></div></div>
         </div>
         <div class="accordion-item">
@@ -1523,9 +1525,9 @@
     <div class="security-grid">
       <div class="security-card">
         <div class="security-card__icon">🧱</div>
-        <h3>Row Level Security</h3>
-        <p>Reforzado en PostgreSQL, no solo en el código de la aplicación — la base de datos misma
-          impide que un gimnasio vea filas de otro.</p>
+        <h3>Cada gimnasio, separado</h3>
+        <p>Cada dato lleva el gimnasio al que pertenece y el servidor lo filtra siempre según tu sesión: un
+          administrador nunca ve ni toca lo de otro. Además, la base tiene Row Level Security activo, así que su API pública está cerrada.</p>
       </div>
       <div class="security-card">
         <div class="security-card__icon">🙈</div>

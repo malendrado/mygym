@@ -1,0 +1,16 @@
+<section class="features">
+  <h2>Todo lo que tu gimnasio necesita, en un solo lugar</h2>
+  <div class="bento">
+    @for (feature of features; track feature.title; let i = $index) {
+      <article
+        class="bento__cell"
+        [class]="'bento__cell--' + feature.span + ' bento__cell--' + feature.tint"
+        [style.transition-delay.ms]="i * 70"
+        appReveal
+      >
+        <h3>{{ feature.title }}</h3>
+        <p>{{ feature.body }}</p>
+      </article>
+    }
+  </div>
+</section>

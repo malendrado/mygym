@@ -1,0 +1,155 @@
+@use '../shared/landing-shared' as *;
+
+@include landing-host;
+@include landing-base;
+@include button;
+
+.brand-divider {
+  display: flex;
+  justify-content: center;
+  padding: clamp(1.5rem, 5vw, 3rem) clamp(1.25rem, 4vw, 3rem) 0;
+
+  &__icon {
+    width: 96px;
+    height: 96px;
+    color: var(--brand-accent);
+    opacity: 0.16;
+
+    @media (min-width: 768px) {
+      width: 140px;
+      height: 140px;
+    }
+  }
+}
+
+.footer {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: clamp(1.5rem, 4vw, 2.5rem) clamp(1.25rem, 4vw, 3rem) clamp(3rem, 6vw, 4rem);
+  text-align: center;
+  display: grid;
+  gap: 1.5rem;
+  justify-items: center;
+
+  &__icon {
+    width: 48px;
+    height: 48px;
+    color: var(--brand-accent);
+  }
+
+  h2 {
+    @extend %section-heading;
+    margin: 0;
+  }
+
+  // Ícono de Instagram — pedido explícito del usuario: "algo entretenido jugando con el logo
+  // de insta y el logo de mygym". En reposo es el glyph clásico de Instagram (reconocible,
+  // apagado como el resto de los links del footer); al hover/focus, el puntito de "flash" de
+  // la cámara se transforma en el mark propio de mygym (mismo badge que el ícono grande de
+  // arriba) con un pop elástico — nunca se distorsiona la silueta de Instagram en sí, solo el
+  // detalle chico, así se mantiene reconocible mientras se mezcla con la marca.
+  &__social {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 1.5px solid var(--brand-ink-surface-2);
+    color: var(--brand-text-dim);
+    transition: color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+
+    &-ig {
+      width: 22px;
+      height: 22px;
+    }
+
+    &-ig-dot {
+      transition: opacity 0.15s ease;
+    }
+
+    &-badge {
+      position: absolute;
+      right: 3px;
+      bottom: 3px;
+      width: 16px;
+      height: 16px;
+      color: var(--brand-accent);
+      opacity: 0;
+      transform: scale(0.4) rotate(-15deg);
+      transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    &:focus-visible {
+      color: var(--brand-accent);
+      border-color: var(--brand-accent);
+      transform: translateY(-2px);
+
+      .footer__social-ig-dot {
+        opacity: 0;
+      }
+
+      .footer__social-badge {
+        opacity: 1;
+        transform: scale(1) rotate(0deg);
+      }
+    }
+
+    @media (hover: hover) and (pointer: fine) {
+      &:hover {
+        color: var(--brand-accent);
+        border-color: var(--brand-accent);
+        transform: translateY(-2px);
+
+        .footer__social-ig-dot {
+          opacity: 0;
+        }
+
+        .footer__social-badge {
+          opacity: 1;
+          transform: scale(1) rotate(0deg);
+        }
+      }
+    }
+  }
+
+  &__links {
+    display: flex;
+    gap: 1.25rem;
+    flex-wrap: wrap;
+    justify-content: center;
+
+    a {
+      color: var(--brand-text-dim);
+      font-size: 0.85rem;
+      text-decoration: none;
+
+      @media (hover: hover) and (pointer: fine) {
+        &:hover {
+          color: var(--brand-accent);
+          text-decoration: underline;
+        }
+      }
+    }
+  }
+
+  &__meta {
+    color: var(--brand-text-dim);
+    font-size: 0.85rem;
+    margin: 0;
+
+    a {
+      color: inherit;
+
+      @media (hover: hover) and (pointer: fine) {
+        &:hover {
+          color: var(--brand-accent);
+        }
+      }
+    }
+  }
+}
+
+@include reveal-section('.footer', '.brand-divider');
+@include no-reveal('.footer', '.brand-divider', '.footer__social', '.footer__social-badge', '.footer__social-ig-dot');

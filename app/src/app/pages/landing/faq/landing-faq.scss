@@ -1,0 +1,106 @@
+@use '../shared/landing-shared' as *;
+
+@include landing-host;
+@include landing-base;
+
+.steps {
+  @extend %section-container;
+
+  h2 {
+    @extend %section-heading;
+    max-width: 24ch;
+    margin: 0 0 2rem;
+  }
+
+  &__row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+
+    @media (min-width: 768px) {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+  &__card {
+    background: var(--brand-ink-surface);
+    @extend %radius-card;
+    padding: 1.75rem;
+
+    ion-icon {
+      font-size: 1.75rem;
+      color: var(--brand-accent);
+      margin-bottom: 1rem;
+    }
+
+    h3 {
+      font-size: 1.1rem;
+      margin: 0 0 0.5rem;
+    }
+
+    p {
+      color: var(--brand-text-dim);
+      line-height: 1.5;
+      font-size: 0.9rem;
+      margin: 0;
+    }
+  }
+}
+
+.faq {
+  @extend %section-pad;
+  max-width: 780px;
+
+  h2 {
+    @extend %section-heading;
+    margin: 0 0 1.5rem;
+  }
+
+  &__list {
+    display: grid;
+    gap: 0.75rem;
+  }
+
+  &__item {
+    background: var(--brand-ink-surface);
+    @extend %radius-card;
+    overflow: hidden;
+  }
+
+  &__question {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    background: none;
+    border: none;
+    padding: 1.1rem 1.5rem;
+    text-align: left;
+    font-family: var(--brand-font-display);
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--brand-text);
+    cursor: pointer;
+
+    ion-icon {
+      flex-shrink: 0;
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+  }
+
+  &__item--open &__question ion-icon {
+    transform: rotate(180deg);
+  }
+
+  &__answer {
+    margin: 0;
+    padding: 0 1.5rem 1.25rem;
+    color: var(--brand-text-dim);
+    line-height: 1.55;
+    font-size: 0.95rem;
+  }
+}
+
+@include reveal-card('.steps__card', '.faq__item');
+@include no-reveal('.steps__card', '.faq__item');

@@ -1,0 +1,107 @@
+@use '../shared/landing-shared' as *;
+
+@include landing-host;
+@include landing-base;
+@include button;
+
+.booking {
+  @extend %section-container;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+  align-items: center;
+
+  @media (min-width: 900px) {
+    grid-template-columns: 0.9fr 1.1fr;
+  }
+
+  &__copy {
+    h2 {
+      @extend %section-heading;
+      max-width: 18ch;
+      margin: 0 0 1rem;
+    }
+
+    p {
+      color: var(--brand-text-dim);
+      line-height: 1.6;
+      font-size: 1.05rem;
+      max-width: 40ch;
+      margin: 0;
+    }
+  }
+
+  &__card {
+    background: var(--brand-ink-surface);
+    @extend %radius-card;
+    padding: 1.75rem;
+  }
+
+  &__card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 1.25rem;
+  }
+
+  &__time {
+    font-family: var(--brand-font-mono);
+    font-weight: 700;
+    font-size: 1.1rem;
+  }
+
+  &__capacity {
+    color: var(--brand-accent);
+    font-family: var(--brand-font-mono);
+    font-size: 0.9rem;
+  }
+
+  &__attendees {
+    list-style: none;
+    margin: 0 0 1.5rem;
+    padding: 0;
+    display: grid;
+    gap: 0.75rem;
+
+    li {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 0.9rem;
+      color: var(--brand-text-dim);
+    }
+  }
+
+  &__avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 999px;
+    background: var(--brand-ink-surface-2);
+    color: var(--brand-text);
+    font-size: 0.7rem;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  &__button {
+    width: 100%;
+    text-align: center;
+    border: none;
+    font-family: var(--brand-font-display);
+    font-size: 0.95rem;
+    cursor: pointer;
+  }
+
+  &__note {
+    margin: 0.75rem 0 0;
+    font-size: 0.8rem;
+    color: var(--brand-text-dim);
+    text-align: center;
+  }
+}
+
+@include reveal-section('.booking');
+@include no-reveal('.booking');

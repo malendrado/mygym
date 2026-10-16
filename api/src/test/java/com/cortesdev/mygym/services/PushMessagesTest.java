@@ -42,6 +42,36 @@ class PushMessagesTest {
         assertEquals("reminder-5", PushMessages.classReminder(gym, block, wednesday, 60, 5L).tag());
     }
 
+    /** El cron corre cada 5 min y puede atrasarse: el aviso dice los minutos que de verdad faltan, no la meta de 60 o 30. */
+    @Test
+    void classReminderSaysTheRealMinutesLeftNotTheTarget() {
+        assertEquals("Tu clase empieza en 1 hora", PushMessages.classReminder(gym, block, wednesday, 58, 5L).title());
+        assertEquals("Tu clase empieza en 1 hora", PushMessages.classReminder(gym, block, wednesday, 55, 5L).title());
+        assertEquals("Tu clase empieza en 50 minutos", PushMessages.classReminder(gym, block, wednesday, 49, 5L).title());
+        assertEquals("Tu clase empieza en 30 minutos", PushMessages.classReminder(gym, block, wednesday, 29, 5L).title());
+        assertEquals("Tu clase empieza en 25 minutos", PushMessages.classReminder(gym, block, wednesday, 25, 5L).title());
+        assertEquals("Tu clase empieza en 10 minutos", PushMessages.classReminder(gym, block, wednesday, 11, 5L).title());
+    }
+
+    @Test
+    void rescheduledClassDoesNotRepeatTheDayWhenOnlyTheTimeChanged() {
+        GymBlock moved = GymBlock.builder().id(9L).gymId(1L).label("Funcional")
+                .dayOfWeek(java.time.DayOfWeek.WEDNESDAY).startTime(LocalTime.of(19, 30)).build();
+
+        PushMessage sameDay = PushMessages.blockRescheduled(moved, java.time.DayOfWeek.WEDNESDAY, LocalTime.of(19, 0));
+        assertEquals("Cambió el horario de Funcional", sameDay.title());
+        assertEquals("Ahora empieza a las 19:30 (antes 19:00) los miércoles.", sameDay.body());
+
+        PushMessage otherDay = PushMessages.blockRescheduled(moved, java.time.DayOfWeek.THURSDAY, LocalTime.of(19, 0));
+        assertEquals("Ahora es miércoles a las 19:30 (antes jueves a las 19:00). Revisa tus reservas.", otherDay.body());
+    }
+
+    @Test
+    void staffAlertSaysWhenTheClassIsAlreadyFullAgainInsteadOfZeroSpots() {
+        PushMessage full = PushMessages.memberCancelled(block, wednesday, "Ana Soto", 1, 0, 2);
+        assertEquals("Ana Soto canceló (miércoles 14). La clase ya se volvió a llenar · 2 en espera.", full.body());
+    }
+
     @Test
     void closureCancellationListsTheFirstClassesAndCountsTheRest() {
         PushMessage one = PushMessages.closureCancellation(gym, "corte de luz", List.of("Funcional — miércoles 14 de octubre"), 3L);
@@ -57,7 +87,8 @@ class PushMessagesTest {
     void membershipMessages() {
         assertEquals("Tu plan vence mañana", PushMessages.membershipExpiringSoon(gym, 1).title());
         assertEquals("Tu plan vence en 3 días", PushMessages.membershipExpiringSoon(gym, 3).title());
-        assertEquals("Tu membresía venció", PushMessages.membershipExpired(gym).title());
+        assertEquals("Tu membresía venció", PushMessages.membershipExpired(gym, true).title());
+        assertEquals("Tu membresía vence hoy", PushMessages.membershipExpired(gym, false).title());
         assertTrue(PushMessages.classesExhausted("30/10/2026").body().contains("30/10/2026"));
     }
 

@@ -1,0 +1,175 @@
+@use '../shared/landing-shared' as *;
+
+@include landing-host;
+@include landing-base;
+
+.why {
+  display: grid;
+  grid-template-columns: 1fr;
+  align-items: center;
+  gap: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: clamp(3rem, 8vw, 6rem) clamp(1.25rem, 4vw, 3rem);
+
+  @media (min-width: 1024px) {
+    grid-template-columns: 0.85fr 1.15fr;
+  }
+
+  &__copy {
+    h2 {
+      @extend %section-heading;
+      max-width: 16ch;
+      margin: 0 0 1rem;
+    }
+
+    p {
+      color: var(--brand-text-dim);
+      line-height: 1.6;
+      font-size: 1.05rem;
+      max-width: 42ch;
+      margin: 0;
+    }
+  }
+
+  &__asset {
+    position: relative;
+    @extend %radius-card;
+    overflow: hidden;
+
+    img {
+      display: block;
+      width: 100%;
+      height: auto;
+      object-fit: cover;
+    }
+  }
+
+  &__widget {
+    position: absolute;
+    z-index: 2;
+    left: 1.25rem;
+    right: 1.25rem;
+    bottom: 1.25rem;
+    max-width: 260px;
+    display: grid;
+    gap: 0.6rem;
+    background: var(--brand-ink-surface);
+    @extend %radius-card;
+    padding: 1rem 1.1rem;
+    box-shadow: 0 16px 32px rgba(0, 0, 0, 0.45);
+
+    &-label {
+      margin: 0;
+      color: var(--brand-text-dim);
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    &-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      font-size: 0.85rem;
+    }
+
+    &-pill {
+      padding: 0.2rem 0.6rem;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      white-space: nowrap;
+
+      &--unpaid {
+        background: #5c3a3a;
+        color: #f2d7d7;
+      }
+
+      &--active {
+        background: var(--brand-accent);
+        color: var(--brand-accent-contrast);
+      }
+    }
+  }
+}
+
+.band {
+  position: relative;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 clamp(1.25rem, 4vw, 3rem);
+
+  &__image {
+    display: block;
+    width: 100%;
+    height: clamp(260px, 40vw, 420px);
+    object-fit: cover;
+    @extend %radius-card;
+    animation: hero-drift 16s ease-in-out infinite alternate;
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0 clamp(1.25rem, 4vw, 3rem) 0;
+    @extend %radius-card;
+    background: linear-gradient(0deg, rgba(8, 14, 16, 0.88) 0%, rgba(8, 14, 16, 0.35) 45%, rgba(8, 14, 16, 0) 75%);
+    pointer-events: none;
+  }
+
+  &__quote {
+    position: absolute;
+    z-index: 1;
+    left: clamp(2.25rem, 5vw, 4rem);
+    bottom: clamp(1.75rem, 4vw, 3rem);
+    max-width: 26ch;
+    font-size: clamp(1.3rem, 2.6vw, 1.9rem);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1.25;
+    margin: 0;
+  }
+
+  &__widget {
+    position: absolute;
+    z-index: 1;
+    top: clamp(1.25rem, 3vw, 2rem);
+    right: clamp(1.25rem, 4vw, 3rem);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: color-mix(in srgb, var(--brand-ink-surface) 88%, transparent);
+    border-radius: 999px;
+    padding: 0.5rem 1rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.4);
+
+    ion-icon {
+      flex-shrink: 0;
+      color: var(--brand-accent);
+      font-size: 1rem;
+    }
+  }
+}
+
+/* Motivated by: keeps the band photo feeling alive without competing for attention. */
+@keyframes hero-drift {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.06);
+  }
+}
+
+@include reveal-section('.why', '.band');
+@include no-reveal('.why', '.band');
+
+@media (prefers-reduced-motion: reduce) {
+  .band__image {
+    animation: none;
+  }
+}

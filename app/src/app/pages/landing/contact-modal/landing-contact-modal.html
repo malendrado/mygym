@@ -1,0 +1,84 @@
+@if (contact.isOpen()) {
+  <div class="contact-modal" (click)="contact.close()">
+    <div
+      class="contact-modal__card"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Formulario de contacto"
+      (click)="$event.stopPropagation()"
+      (keydown)="onModalKeydown($event)"
+    >
+      <button #modalCloseButton class="contact-modal__close" type="button" (click)="contact.close()" aria-label="Cerrar">
+        &times;
+      </button>
+      @if (contact.isSubmitted()) {
+        <h3>Mensaje enviado</h3>
+        <p class="contact-modal__hint">
+          Ya te llegó tu consulta a contacto&#64;cortesdev.cl. Te contestamos apenas la veamos.
+        </p>
+        <button class="button button--primary contact-modal__submit" type="button" (click)="contact.close()">
+          Cerrar
+        </button>
+      } @else {
+        <h3>Déjanos tus datos</h3>
+        <a
+          class="contact-modal__whatsapp"
+          [href]="whatsappUrl"
+          target="_blank"
+          rel="noopener"
+          (click)="contact.close()"
+        >
+          <ion-icon name="logo-whatsapp" aria-hidden="true"></ion-icon>
+          Escríbenos por WhatsApp
+        </a>
+        <div class="contact-modal__divider"><span>o completa el formulario</span></div>
+        @if (contact.submitError()) {
+          <p class="contact-modal__error contact-modal__error--form" role="alert">{{ contact.submitError() }}</p>
+        }
+        <form (submit)="contact.submit($event, nameInput.value, emailInput.value, messageInput.value)" novalidate>
+          <label>
+            Nombre
+            <input
+              #nameInput
+              id="contact-name"
+              name="name"
+              type="text"
+              required
+              autocomplete="name"
+              [attr.aria-invalid]="contact.nameError() ? 'true' : null"
+              [attr.aria-describedby]="contact.nameError() ? 'contact-name-error' : null"
+              (blur)="contact.validateName(nameInput.value)"
+            />
+            @if (contact.nameError()) {
+              <span id="contact-name-error" class="contact-modal__error" role="alert">{{ contact.nameError() }}</span>
+            }
+          </label>
+          <label>
+            Email
+            <input
+              #emailInput
+              id="contact-email"
+              name="email"
+              type="email"
+              required
+              autocomplete="email"
+              [attr.aria-invalid]="contact.emailError() ? 'true' : null"
+              [attr.aria-describedby]="contact.emailError() ? 'contact-email-error' : null"
+              (blur)="contact.validateEmail(emailInput.value)"
+            />
+            @if (contact.emailError()) {
+              <span id="contact-email-error" class="contact-modal__error" role="alert">{{ contact.emailError() }}</span>
+            }
+          </label>
+          <label>
+            Mensaje
+            <textarea #messageInput name="message" rows="3" placeholder="Cuéntanos de tu gimnasio (opcional)">{{ contact.prefilledMessage() }}</textarea>
+          </label>
+          <button class="button button--primary contact-modal__submit" type="submit" [disabled]="contact.isSending()">
+            {{ contact.isSending() ? 'Enviando…' : 'Enviar' }}
+          </button>
+        </form>
+      }
+    </div>
+  </div>
+}

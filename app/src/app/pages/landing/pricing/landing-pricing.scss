@@ -1,0 +1,185 @@
+@use '../shared/landing-shared' as *;
+
+@include landing-host;
+@include landing-base;
+
+.states {
+  @extend %section-container;
+
+  h2 {
+    @extend %section-heading;
+    max-width: 28ch;
+    margin: 0 0 2rem;
+  }
+
+  &__grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+
+    @media (min-width: 768px) {
+      grid-template-columns: repeat(4, 1fr);
+    }
+  }
+
+  &__card {
+    background: var(--brand-ink-surface);
+    @extend %radius-card;
+    padding: 1.5rem;
+
+    p {
+      color: var(--brand-text-dim);
+      font-size: 0.9rem;
+      line-height: 1.5;
+      margin: 0.9rem 0 0;
+    }
+  }
+
+  &__pill {
+    display: inline-block;
+    padding: 0.3rem 0.85rem;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 700;
+  }
+
+  &__card--active &__pill {
+    background: var(--brand-accent);
+    color: var(--brand-accent-contrast);
+  }
+
+  &__card--trial &__pill {
+    background: transparent;
+    color: var(--brand-accent);
+    border: 1px solid var(--brand-accent);
+  }
+
+  &__card--frozen &__pill {
+    background: #3a4a5c;
+    color: #d7e3ee;
+  }
+
+  &__card--unpaid &__pill {
+    background: #5c3a3a;
+    color: #f2d7d7;
+  }
+}
+
+.pricing {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: clamp(2rem, 6vw, 4rem) clamp(1.25rem, 4vw, 3rem) clamp(3rem, 6vw, 5rem);
+
+  h2 {
+    @extend %section-heading;
+    max-width: 28ch;
+    margin: 0 0 2.5rem;
+  }
+
+  &__grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+    align-items: start;
+
+    @media (min-width: 900px) {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+  &__card {
+    position: relative;
+    background: var(--brand-ink-surface);
+    @extend %radius-card;
+    padding: 2rem;
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+
+    @media (hover: hover) and (pointer: fine) {
+      &:hover {
+        transform: translateY(-4px);
+      }
+    }
+
+    h3 {
+      margin: 0 0 0.4rem;
+      font-size: 1.2rem;
+    }
+
+    ul {
+      list-style: none;
+      margin: 1.5rem 0 0;
+      padding: 0;
+      display: grid;
+      gap: 0.6rem;
+
+      li {
+        font-size: 0.9rem;
+        color: var(--brand-text-dim);
+        padding-left: 1.1rem;
+        position: relative;
+
+        &::before {
+          content: '';
+          position: absolute;
+          left: 0;
+          top: 0.5em;
+          width: 6px;
+          height: 6px;
+          border-radius: 999px;
+          background: var(--brand-accent);
+        }
+      }
+    }
+
+    &--highlight {
+      background: var(--brand-ink-surface-2);
+      outline: 2px solid var(--brand-accent);
+
+      @media (min-width: 900px) {
+        transform: translateY(-0.75rem);
+
+        @media (hover: hover) and (pointer: fine) {
+          &:hover {
+            transform: translateY(-1.15rem);
+          }
+        }
+      }
+    }
+  }
+
+  &__badge {
+    position: absolute;
+    top: -0.7rem;
+    right: 1.5rem;
+    background: var(--brand-accent);
+    color: var(--brand-accent-contrast);
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.3rem 0.75rem;
+    border-radius: 999px;
+  }
+
+  &__clients {
+    color: var(--brand-text-dim);
+    font-size: 0.9rem;
+    margin: 0;
+  }
+
+  &__price {
+    font-family: var(--brand-font-mono);
+    font-size: 2rem;
+    font-weight: 700;
+    margin: 1rem 0 0;
+
+    span {
+      font-family: var(--brand-font-display);
+      font-size: 0.9rem;
+      font-weight: 400;
+      color: var(--brand-text-dim);
+    }
+  }
+}
+
+@include reveal-section('.pricing');
+@include reveal-card('.states__card');
+@include no-reveal('.pricing', '.states__card');

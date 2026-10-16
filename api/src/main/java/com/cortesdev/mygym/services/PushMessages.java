@@ -59,8 +59,14 @@ public final class PushMessages {
                 Urgency.HIGH);
     }
 
-    public static PushMessage classReminder(Gym gym, GymBlock block, LocalDate classDate, int minutesBefore, long reservationId) {
-        String lead = minutesBefore >= 60 ? "1 hora" : minutesBefore + " minutos";
+    /**
+     * `minutesToStart` son los minutos que REALMENTE faltan al enviar (no los de la meta de 60 o 30): el cron corre cada
+     * 5 minutos y puede atrasarse, y el aviso no debe decir "1 hora" cuando faltan 40 minutos. Se redondea a 5 para que no
+     * lea "29 minutos".
+     */
+    public static PushMessage classReminder(Gym gym, GymBlock block, LocalDate classDate, int minutesToStart, long reservationId) {
+        int rounded = Math.round(minutesToStart / 5f) * 5;
+        String lead = rounded >= 55 ? "1 hora" : Math.max(5, rounded) + " minutos";
         return new PushMessage(
                 "Tu clase empieza en " + lead,
                 block.getLabel() + " a las " + HOUR.format(block.getStartTime()) + " en " + gym.getName(),
@@ -88,10 +94,16 @@ public final class PushMessages {
                 Urgency.NORMAL);
     }
 
-    public static PushMessage membershipExpired(Gym gym) {
+    /**
+     * `alreadyExpired` = ya paso la hora exacta de vencimiento. El aviso sale a las 09:00 del DIA de vencimiento, pero el
+     * plan vence a la hora en que se pago (un plan pagado a las 18:30 sigue vigente hasta esa hora): ahi no puede decir "venció".
+     */
+    public static PushMessage membershipExpired(Gym gym, boolean alreadyExpired) {
         return new PushMessage(
-                "Tu membresía venció",
-                "Renueva cuando quieras para seguir entrenando en " + gym.getName() + ".",
+                alreadyExpired ? "Tu membresía venció" : "Tu membresía vence hoy",
+                alreadyExpired
+                        ? "Renueva cuando quieras para seguir entrenando en " + gym.getName() + "."
+                        : "Renueva hoy para seguir reservando clases en " + gym.getName() + ".",
                 "membership",
                 MEMBER_URL,
                 MAX_TTL_SECONDS,
@@ -126,12 +138,14 @@ public final class PushMessages {
                 startsToday ? Urgency.HIGH : Urgency.NORMAL);
     }
 
-    /** Se levantó un cierre antes de tiempo: las reservas que canceló siguen canceladas, pero ya se puede volver a reservar. */
-    public static PushMessage closureLifted(Gym gym, long closureId) {
+    /** Se levantó un cierre antes de tiempo: se avisa que ya terminó y que el gimnasio opera con normalidad. */
+    public static PushMessage closureLifted(Gym gym, GymClosure closure) {
+        String reason = closure.getReason() == null ? "" : closure.getReason().trim();
+        String cause = reason.isEmpty() ? "" : " por " + Character.toLowerCase(reason.charAt(0)) + reason.substring(1);
         return new PushMessage(
-                gym.getName() + " vuelve a abrir",
-                "Ya puedes volver a reservar tus clases.",
-                "closure-lifted-" + closureId,
+                "El cierre de " + gym.getName() + " terminó",
+                "El cierre" + cause + " ya terminó. Ahora operamos con normalidad.",
+                "closure-lifted-" + closure.getId(),
                 MEMBER_URL,
                 MAX_TTL_SECONDS,
                 Urgency.NORMAL);
@@ -150,10 +164,15 @@ public final class PushMessages {
 
     /** Cambió el día o la hora de una clase en la que el socio tiene reserva. */
     public static PushMessage blockRescheduled(GymBlock block, DayOfWeek oldDay, LocalTime oldStart) {
+        boolean sameDay = block.getDayOfWeek() == oldDay;
+        String body = sameDay
+                ? "Ahora empieza a las " + HOUR.format(block.getStartTime()) + " (antes " + HOUR.format(oldStart) + ") los "
+                        + dayName(oldDay) + "."
+                : "Ahora es " + dayName(block.getDayOfWeek()) + " a las " + HOUR.format(block.getStartTime()) + " (antes "
+                        + dayName(oldDay) + " a las " + HOUR.format(oldStart) + "). Revisa tus reservas.";
         return new PushMessage(
                 "Cambió el horario de " + block.getLabel(),
-                "Ahora es " + dayName(block.getDayOfWeek()) + " a las " + HOUR.format(block.getStartTime()) + " (antes "
-                        + dayName(oldDay) + " a las " + HOUR.format(oldStart) + "). Revisa tus reservas.",
+                body,
                 "block-" + block.getId(),
                 MEMBER_URL,
                 MAX_TTL_SECONDS,
@@ -199,7 +218,7 @@ public final class PushMessages {
             GymBlock block, LocalDate classDate, String memberName, int recentCancellations, int freeSpots, int waiting) {
         String head = recentCancellations > 1 ? recentCancellations + " cancelaciones" : "Cancelación";
         String who = recentCancellations > 1 ? memberName + " y " + (recentCancellations - 1) + " más cancelaron" : memberName + " canceló";
-        String spots = freeSpots == 1 ? "Queda 1 cupo" : "Quedan " + freeSpots + " cupos";
+        String spots = freeSpots == 0 ? "La clase ya se volvió a llenar" : freeSpots == 1 ? "Queda 1 cupo" : "Quedan " + freeSpots + " cupos";
         String queue = waiting > 0 ? " · " + waiting + " en espera" : "";
         return new PushMessage(
                 head + " · " + block.getLabel() + " " + HOUR.format(block.getStartTime()),

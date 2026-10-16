@@ -109,7 +109,7 @@ public class ClassReminderJob {
             reservation.setReminderPushedAt(nowInstant);
             pushService.notifyUsers(
                     List.of(reservation.getMemberId()),
-                    PushMessages.classReminder(gym, block, today, (int) reminderMinutes, reservation.getId()));
+                    PushMessages.classReminder(gym, block, today, (int) minutesToStart, reservation.getId()));
             sent++;
         }
         reservationRepository.saveAll(pending);

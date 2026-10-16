@@ -66,8 +66,8 @@ class MemberChangeNotifierTest {
         notifier.closureLifted(activeGym, closure);
 
         PushMessage message = sentTo(List.of(20L, 21L));
-        assertThat(message.title()).isEqualTo("XaloGym vuelve a abrir");
-        assertThat(message.body()).contains("volver a reservar");
+        assertThat(message.title()).isEqualTo("El cierre de XaloGym terminó");
+        assertThat(message.body()).contains("ya terminó").contains("operamos con normalidad").doesNotContain("reservar");
     }
 
     @Test

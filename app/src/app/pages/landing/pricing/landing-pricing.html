@@ -1,0 +1,37 @@
+<section class="states">
+  <h2>Un estado para cada socio, no solo activo o vencido</h2>
+  <div class="states__grid">
+    @for (state of membershipStates; track state.label; let i = $index) {
+      <article
+        class="states__card"
+        [class]="'states__card--' + state.tone"
+        [style.transition-delay.ms]="i * 70"
+        appReveal
+      >
+        <span class="states__pill">{{ state.label }}</span>
+        <p>{{ state.body }}</p>
+      </article>
+    }
+  </div>
+</section>
+
+<section class="pricing" id="precios" appReveal>
+  <h2>Un plan según cuántos socios tienes; las funciones a la medida están en el plan Escala</h2>
+  <div class="pricing__grid">
+    @for (tier of pricingTiers; track tier.name) {
+      <article class="pricing__card" [class.pricing__card--highlight]="tier.highlight">
+        @if (tier.highlight) {
+          <span class="pricing__badge">Más elegido</span>
+        }
+        <h3>{{ tier.name }}</h3>
+        <p class="pricing__clients">{{ tier.clients }}</p>
+        <p class="pricing__price">{{ tier.price }}<span> / mes{{ tier.showIva ? ' + IVA' : '' }}</span></p>
+        <ul>
+          @for (item of tier.items; track item) {
+            <li>{{ item }}</li>
+          }
+        </ul>
+      </article>
+    }
+  </div>
+</section>

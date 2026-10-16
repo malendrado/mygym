@@ -479,39 +479,48 @@ public class MemberLifecycleEmailService {
                 "Recibiste este correo porque " + escapeHtml(gym.getName()) + " te dejó clases fijas en tu plan.");
     }
 
-    public void sendMembershipExpiredMember(Gym gym, AppUser member, GymPlan plan) {
-        String headline = "Tu membresía venció";
-        String body = "<p style=\"margin:0 0 12px;\">Tu plan <strong style=\"color:#eaf6f7;\">" + escapeHtml(plan.getName())
-                + "</strong> se cumplió un mes después de tu último pago — mientras no renueves, no vas a poder "
-                + "reservar clases nuevas.</p>"
-                + "<p style=\"margin:0;\">Renueva cuando quieras para seguir entrenando en " + escapeHtml(gym.getName())
+    /** {@code alreadyExpired=false}: el aviso sale a las 09:00 pero el plan vence a la hora del pago, asi que aun esta vigente. */
+    public void sendMembershipExpiredMember(Gym gym, AppUser member, GymPlan plan, boolean alreadyExpired) {
+        String headline = alreadyExpired ? "Tu membresía venció" : "Tu membresía vence hoy";
+        String body = alreadyExpired
+                ? "<p style=\"margin:0 0 12px;\">Tu plan <strong style=\"color:#eaf6f7;\">" + escapeHtml(plan.getName())
+                        + "</strong> se cumplió un mes después de tu último pago — mientras no renueves, no vas a poder "
+                        + "reservar clases nuevas.</p>"
+                : "<p style=\"margin:0 0 12px;\">Tu plan <strong style=\"color:#eaf6f7;\">" + escapeHtml(plan.getName())
+                        + "</strong> se cumple hoy, un mes después de tu último pago — si no renuevas, desde entonces no "
+                        + "vas a poder reservar clases nuevas.</p>";
+        body += "<p style=\"margin:0;\">Renueva cuando quieras para seguir entrenando en " + escapeHtml(gym.getName())
                 + ".</p>";
         send(
                 gym,
                 member.getEmail(),
-                "Tu membresía en " + gym.getName() + " venció",
-                "Membresía vencida",
+                "Tu membresía en " + gym.getName() + (alreadyExpired ? " venció" : " vence hoy"),
+                alreadyExpired ? "Membresía vencida" : "Membresía por vencer",
                 headline,
                 body,
                 "Renovar plan",
                 LOGIN_URL,
                 "Recibiste este correo porque tu plan " + escapeHtml(plan.getName()) + " en " + escapeHtml(gym.getName())
-                        + " venció.");
+                        + (alreadyExpired ? " venció." : " vence hoy."));
     }
 
-    public void sendMembershipExpiredAdmin(Gym gym, AppUser member, GymPlan plan, List<String> adminEmails) {
-        String headline = "Un socio de " + gym.getName() + " no renovó su plan";
+    public void sendMembershipExpiredAdmin(Gym gym, AppUser member, GymPlan plan, List<String> adminEmails, boolean alreadyExpired) {
+        String headline = alreadyExpired
+                ? "Un socio de " + gym.getName() + " no renovó su plan"
+                : "Hoy vence el plan de un socio de " + gym.getName();
         String body = "<p style=\"margin:0 0 12px;\"><strong style=\"color:#eaf6f7;\">" + escapeHtml(member.getName())
-                + "</strong> (" + escapeHtml(member.getEmail()) + ") tenía el plan <strong style=\"color:#eaf6f7;\">"
+                + "</strong> (" + escapeHtml(member.getEmail()) + ") tiene el plan <strong style=\"color:#eaf6f7;\">"
                 + escapeHtml(plan.getName())
-                + "</strong>, que venció hoy sin renovación. No puede reservar clases nuevas mientras no pague de nuevo.</p>"
+                + (alreadyExpired
+                        ? "</strong>, que venció hoy sin renovación. No puede reservar clases nuevas mientras no pague de nuevo.</p>"
+                        : "</strong>, que vence hoy. Si no renueva, no podrá reservar clases nuevas hasta que pague de nuevo.</p>")
                 + "<p style=\"margin:0;\">Si quieres contactarlo, tienes su ficha en tu panel.</p>";
         for (String adminEmail : adminEmails) {
             send(
                     gym,
                     adminEmail,
-                    "Membresía vencida en " + gym.getName(),
-                    "Membresía vencida",
+                    (alreadyExpired ? "Membresía vencida en " : "Hoy vence una membresía en ") + gym.getName(),
+                    alreadyExpired ? "Membresía vencida" : "Membresía por vencer",
                     headline,
                     body,
                     "Ver mi panel",
