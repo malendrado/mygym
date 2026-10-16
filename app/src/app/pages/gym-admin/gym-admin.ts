@@ -1,4 +1,4 @@
-import { Component, DestroyRef, OnDestroy, computed, effect, inject, signal } from '@angular/core';
+import { Component, DestroyRef, OnDestroy, computed, effect, inject, signal, untracked } from '@angular/core';
 import { Router } from '@angular/router';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import {
@@ -83,6 +83,7 @@ import {
 import { InstallBanner } from '../member/install-banner/install-banner';
 import { GymLimitsPanel } from '../../core/components/gym-limits/gym-limits';
 import { GymPause } from '../../core/components/gym-pause/gym-pause';
+import { GymPauseService } from '../../core/services/gym-pause.service';
 import { PushBell } from '../../core/components/push-bell/push-bell';
 import { PushPrompt } from '../../core/components/push-prompt/push-prompt';
 import { BookingRulesCard } from '../../core/components/booking-rules-card/booking-rules-card';
@@ -415,6 +416,7 @@ const THEMED_ROOT_PROPERTIES = [
 export class GymAdmin implements OnDestroy {
   private readonly authService = inject(AuthService);
   private readonly gymService = inject(GymService);
+  private readonly gymPause = inject(GymPauseService);
   private readonly memberService = inject(MemberService);
   private readonly tvScreenService = inject(TvScreenService);
   private readonly profesorService = inject(ProfesorService);
@@ -687,6 +689,29 @@ export class GymAdmin implements OnDestroy {
     this.loadMembers();
     this.loadTvScreens();
     this.loadClosures();
+    // Otro administrador (o el super-admin) creó, editó o levantó un cierre con esta pantalla abierta: recarga la lista
+    // de cierres y la agenda sin esperar a que se toque algo. Ver GymPauseService.closuresChanged.
+    effect(() => {
+      if (this.gymPause.closuresChanged() === 0) {
+        return;
+      }
+      untracked(() => {
+        this.loadClosures();
+        this.historyRefresh.update((n) => n + 1);
+        this.boardRefresh.update((n) => n + 1);
+      });
+    });
+    // Alguien reservó o canceló con esta pantalla abierta: refresca la agenda y el tablero de la clase.
+    // Ver GymPauseService.reservationsChanged.
+    effect(() => {
+      if (this.gymPause.reservationsChanged() === 0) {
+        return;
+      }
+      untracked(() => {
+        this.historyRefresh.update((n) => n + 1);
+        this.boardRefresh.update((n) => n + 1);
+      });
+    });
     const boardTimer = setInterval(() => this.boardTick.set(Date.now()), 30_000);
     inject(DestroyRef).onDestroy(() => clearInterval(boardTimer));
     if (!this.isProfesor()) {

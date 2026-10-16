@@ -110,6 +110,7 @@ public class ReservationService {
     private final WaitlistService waitlistService;
     private final PushNotificationService pushService;
     private final StaffCancellationPush staffCancellationPush;
+    private final MemberChangeNotifier memberChangeNotifier;
     private final GymClosureService gymClosureService;
     private final GymPlanRepository gymPlanRepository;
     private final MemberLifecycleEmailService memberLifecycleEmailService;
@@ -505,9 +506,14 @@ public class ReservationService {
         if (reservation.getClassDate().isBefore(LocalDate.now(GYM_ZONE))) {
             throw new BookingWindowClosedException("No puedes cancelar una clase que ya pasó");
         }
+        boolean wasBooked = reservation.getStatus() == ReservationStatus.BOOKED;
         reservation.setStatus(ReservationStatus.CANCELLED);
         reservationRepository.save(reservation);
         waitlistService.onSpotFreed(block.getId(), reservation.getClassDate());
+        // Antes esta cancelacion era silenciosa: el socio se enteraba al abrir la app.
+        if (wasBooked) {
+            memberChangeNotifier.reservationCancelledByStaff(findGymOrThrow(block.getGymId()), block, reservation);
+        }
     }
 
     @Transactional(readOnly = true)

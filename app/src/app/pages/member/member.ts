@@ -1,4 +1,4 @@
-import { Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import {
@@ -24,6 +24,7 @@ import {
 import { addIcons } from 'ionicons';
 import { InstallBanner } from './install-banner/install-banner';
 import { GymPause } from '../../core/components/gym-pause/gym-pause';
+import { GymPauseService } from '../../core/services/gym-pause.service';
 import { PushBell } from '../../core/components/push-bell/push-bell';
 import { PushPrompt } from '../../core/components/push-prompt/push-prompt';
 import { WelcomeMission } from './welcome-mission/welcome-mission';
@@ -339,6 +340,7 @@ const OCCURRENCES_LOADING_MESSAGES = [
 export class MemberPage {
   private readonly authService = inject(AuthService);
   private readonly gymService = inject(GymService);
+  private readonly gymPause = inject(GymPauseService);
   private readonly reservationService = inject(ReservationService);
   private readonly workoutService = inject(WorkoutService);
   private readonly router = inject(Router);
@@ -869,6 +871,29 @@ export class MemberPage {
         // Fuera del ciclo reactivo: crear el alert toca el DOM de Ionic.
         setTimeout(() => void this.showMembershipAlert());
       }
+    });
+    // Otro dispositivo creó, editó o levantó un cierre con esta pantalla abierta: recarga aviso, clases y reservas
+    // (un cierre cancela reservas) sin esperar a que el socio toque algo. Ver GymPauseService.closuresChanged.
+    effect(() => {
+      if (this.gymPause.closuresChanged() === 0) {
+        return;
+      }
+      untracked(() => {
+        this.loadClosureNotice();
+        this.loadOccurrences();
+        this.loadMyReservations();
+      });
+    });
+    // Alguien reservó o canceló con esta pantalla abierta: recarga los cupos (X/Y) y las reservas, para no intentar reservar
+    // un cupo que ya se llenó ni perderse uno que se liberó. Ver GymPauseService.reservationsChanged.
+    effect(() => {
+      if (this.gymPause.reservationsChanged() === 0) {
+        return;
+      }
+      untracked(() => {
+        this.loadOccurrences();
+        this.loadMyReservations();
+      });
     });
     this.loadDashboard();
     this.loadPhotos();

@@ -65,6 +65,7 @@ public class GymClosureService {
     private final ReservationRepository reservationRepository;
     private final GymRepository gymRepository;
     private final WaitlistService waitlistService;
+    private final MemberChangeNotifier memberChangeNotifier;
     private final ClosureNotificationService closureNotificationService;
 
     /** Qué ocurrencias (día completo, o bloque+día puntual) quedan cerradas dentro de un rango —
@@ -355,6 +356,8 @@ public class GymClosureService {
         if (closure.getLiftedAt() == null) {
             closure.setLiftedAt(Instant.now());
             gymClosureRepository.save(closure);
+            // Las reservas que el cierre canceló siguen canceladas: se avisa que ya se puede volver a reservar.
+            gymRepository.findById(gymId).ifPresent(gym -> memberChangeNotifier.closureLifted(gym, closure));
         }
     }
 

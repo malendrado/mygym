@@ -1,4 +1,4 @@
-import { Component, Input, OnInit, computed, inject } from '@angular/core';
+import { Component, Input, OnDestroy, OnInit, computed, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { IonButton, IonIcon } from '@ionic/angular';
 import { addIcons } from 'ionicons';
@@ -31,7 +31,7 @@ interface ContactLink {
   templateUrl: './gym-pause.html',
   styleUrl: './gym-pause.scss',
 })
-export class GymPause implements OnInit {
+export class GymPause implements OnInit, OnDestroy {
   /** Quién mira: cambia el texto y a quién se le da el contacto. */
   @Input() audience: 'member' | 'staff' = 'member';
 
@@ -51,6 +51,11 @@ export class GymPause implements OnInit {
 
   ngOnInit(): void {
     void this.pause.check();
+    this.pause.watch();
+  }
+
+  ngOnDestroy(): void {
+    this.pause.unwatch();
   }
 
   protected async logout(): Promise<void> {

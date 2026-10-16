@@ -3,11 +3,14 @@ package com.cortesdev.mygym.services;
 import com.cortesdev.mygym.models.Gym;
 import com.cortesdev.mygym.models.GymBlock;
 import com.cortesdev.mygym.services.PushMessage.Urgency;
+import java.time.DayOfWeek;
 import java.time.Duration;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.TextStyle;
 import java.util.List;
 import java.util.Locale;
 
@@ -104,6 +107,67 @@ public final class PushMessages {
                 Urgency.NORMAL);
     }
 
+    /** Se levantó un cierre antes de tiempo: las reservas que canceló siguen canceladas, pero ya se puede volver a reservar. */
+    public static PushMessage closureLifted(Gym gym, long closureId) {
+        return new PushMessage(
+                gym.getName() + " vuelve a abrir",
+                "Ya puedes volver a reservar tus clases.",
+                "closure-lifted-" + closureId,
+                MEMBER_URL,
+                MAX_TTL_SECONDS,
+                Urgency.NORMAL);
+    }
+
+    /** El admin o un profesor le canceló una reserva al socio (por ejemplo, porque no alcanzó a cancelar él). */
+    public static PushMessage reservationCancelledByStaff(GymBlock block, LocalDate classDate, long reservationId) {
+        return new PushMessage(
+                "Cancelamos tu reserva",
+                when(block, classDate) + ". Puedes reservar otra clase cuando quieras.",
+                "staff-cancel-" + reservationId,
+                MEMBER_URL,
+                MAX_TTL_SECONDS,
+                Urgency.NORMAL);
+    }
+
+    /** Cambió el día o la hora de una clase en la que el socio tiene reserva. */
+    public static PushMessage blockRescheduled(GymBlock block, DayOfWeek oldDay, LocalTime oldStart) {
+        return new PushMessage(
+                "Cambió el horario de " + block.getLabel(),
+                "Ahora es " + dayName(block.getDayOfWeek()) + " a las " + HOUR.format(block.getStartTime()) + " (antes "
+                        + dayName(oldDay) + " a las " + HOUR.format(oldStart) + "). Revisa tus reservas.",
+                "block-" + block.getId(),
+                MEMBER_URL,
+                MAX_TTL_SECONDS,
+                Urgency.NORMAL);
+    }
+
+    /** La clase se desactivó o se eliminó: las reservas del socio ya no sirven. */
+    public static PushMessage blockCancelled(GymBlock block, List<LocalDate> classDates) {
+        List<String> days = classDates.stream().sorted().limit(2).map(DAY::format).toList();
+        String more = classDates.size() > 2 ? " y " + (classDates.size() - 2) + " más" : "";
+        return new PushMessage(
+                block.getLabel() + " ya no se dicta",
+                "Tenías reserva para " + String.join(", ", days) + more + ". Reserva otra clase cuando quieras.",
+                "block-" + block.getId(),
+                MEMBER_URL,
+                MAX_TTL_SECONDS,
+                Urgency.NORMAL);
+    }
+
+    /** El administrador le quitó el plan al socio (y se cancelaron sus reservas futuras). */
+    public static PushMessage planRemoved(Gym gym, int cancelledReservations) {
+        String cancelled = cancelledReservations == 0
+                ? ""
+                : cancelledReservations == 1 ? " y se canceló tu reserva" : " y se cancelaron tus " + cancelledReservations + " reservas";
+        return new PushMessage(
+                "Tu plan fue quitado",
+                "Tu plan en " + gym.getName() + " ya no está activo" + cancelled + ". Si es un error, habla con el gimnasio.",
+                "membership",
+                MEMBER_URL,
+                MAX_TTL_SECONDS,
+                Urgency.NORMAL);
+    }
+
     // ---------------------------------------------------------------------------------------
     // Equipo del gimnasio (admin y profesores)
     // ---------------------------------------------------------------------------------------
@@ -128,6 +192,10 @@ public final class PushMessages {
     }
 
     // ---------------------------------------------------------------------------------------
+
+    private static String dayName(DayOfWeek day) {
+        return day.getDisplayName(TextStyle.FULL, CL);
+    }
 
     private static String waitlistTag(GymBlock block, LocalDate classDate) {
         return "waitlist-" + block.getId() + "-" + classDate;

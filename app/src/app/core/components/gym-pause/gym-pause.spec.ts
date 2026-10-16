@@ -21,7 +21,13 @@ function render(audience: 'member' | 'staff', status: GymStatus | null) {
     providers: [
       {
         provide: GymPauseService,
-        useValue: { status: state.asReadonly(), paused: () => state()?.paused === true, check: vi.fn(async () => undefined) },
+        useValue: {
+          status: state.asReadonly(),
+          paused: () => state()?.paused === true,
+          check: vi.fn(async () => undefined),
+          watch: vi.fn(),
+          unwatch: vi.fn(),
+        },
       },
       { provide: AuthService, useValue: { logout } },
       { provide: Router, useValue: { navigate } },

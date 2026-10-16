@@ -8,8 +8,28 @@ import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface ReservationRepository extends JpaRepository<Reservation, Long> {
+
+    /** Cuantas reservas vigentes (BOOKED) hay desde `from` en adelante y cual es la mas nueva: cambia al reservar o cancelar. */
+    interface BookedStamp {
+        long getTotal();
+
+        Long getLastId();
+    }
+
+    /** Marca barata del estado de las reservas de un gimnasio (GymStatusController): una sola consulta por idx_reservation_block_date. */
+    @Query("select count(r) as total, max(r.id) as lastId from Reservation r "
+            + "where r.status = :status and r.classDate >= :from "
+            + "and r.gymBlockId in (select b.id from GymBlock b where b.gymId = :gymId)")
+    BookedStamp bookedStamp(
+            @Param("gymId") Long gymId, @Param("from") LocalDate from, @Param("status") ReservationStatus status);
+
+    default BookedStamp bookedStamp(Long gymId, LocalDate from) {
+        return bookedStamp(gymId, from, ReservationStatus.BOOKED);
+    }
 
     List<Reservation> findByGymBlockIdInAndClassDateBetweenAndStatus(
             List<Long> gymBlockIds, LocalDate from, LocalDate to, ReservationStatus status);
@@ -51,6 +71,9 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
     int countByMemberIdAndStatusAndClassDateBetween(Long memberId, ReservationStatus status, LocalDate from, LocalDate to);
 
     List<Reservation> findByGymBlockIdAndClassDateAndStatus(Long gymBlockId, LocalDate classDate, ReservationStatus status);
+
+    /** Reservas vigentes de una clase desde `from` en adelante: a quienes avisar si cambia de horario o se cancela la clase. */
+    List<Reservation> findByGymBlockIdAndStatusAndClassDateGreaterThanEqual(Long gymBlockId, ReservationStatus status, LocalDate from);
 
     List<Reservation> findByMemberIdIn(List<Long> memberIds);
 

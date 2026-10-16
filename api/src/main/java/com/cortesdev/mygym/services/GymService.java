@@ -101,6 +101,7 @@ public class GymService {
     private final MemberLifecycleEmailService memberLifecycleEmailService;
     private final DemoTourService demoTourService;
     private final GymCapacityService gymCapacityService;
+    private final MemberChangeNotifier memberChangeNotifier;
     private final com.cortesdev.mygym.security.GymPauseGuard gymPauseGuard;
     private final org.springframework.context.ApplicationEventPublisher eventPublisher;
 
@@ -699,6 +700,9 @@ public class GymService {
         assertGymExists(gymId);
         GymBlock block = findBlockOrThrow(gymId, blockId);
         validateSchedule(request.startTime(), request.endTime());
+        java.time.DayOfWeek oldDay = block.getDayOfWeek();
+        LocalTime oldStart = block.getStartTime();
+        boolean wasActive = block.isActive();
         block.setLabel(request.label());
         block.setDayOfWeek(request.dayOfWeek());
         // Las clases son por minuto: segundos y fracciones (que llegaron por la API) se descartan.
@@ -709,12 +713,23 @@ public class GymService {
         block.setInstructorName(request.instructorName());
         block.setInstructorPhoto(request.instructorPhoto());
         block.setActive(request.active());
-        return toResponse(gymBlockRepository.save(block));
+        GymBlock saved = gymBlockRepository.save(block);
+        // Quien tiene reserva en esta clase se entera del cambio (antes era silencioso).
+        if (wasActive && !saved.isActive()) {
+            memberChangeNotifier.blockCancelled(findGymOrThrow(gymId), saved);
+        } else if (saved.isActive() && (oldDay != saved.getDayOfWeek() || !oldStart.equals(saved.getStartTime()))) {
+            memberChangeNotifier.blockRescheduled(findGymOrThrow(gymId), saved, oldDay, oldStart);
+        }
+        return toResponse(saved);
     }
 
     public void removeBlock(Long gymId, Long blockId) {
         assertGymExists(gymId);
         GymBlock block = findBlockOrThrow(gymId, blockId);
+        // Borrar la clase arrastra sus reservas: se avisa ANTES, mientras todavia se pueden leer.
+        if (block.isActive()) {
+            memberChangeNotifier.blockCancelled(findGymOrThrow(gymId), block);
+        }
         gymBlockRepository.delete(block);
     }
 
@@ -929,6 +944,7 @@ public class GymService {
         AppUser member = appUserRepository
                 .findByIdAndGymId(memberId, gymId)
                 .orElseThrow(() -> new MemberNotFoundException(memberId));
+        boolean hadPlan = member.getPlanId() != null;
         member.setPlanId(null);
         member.setPaidAt(null);
         member.setUsedSessionsAtImport(null);
@@ -944,6 +960,9 @@ public class GymService {
             r.setFixedClassId(null);
         });
         reservationRepository.saveAll(futureReservations);
+        if (hadPlan) {
+            memberChangeNotifier.planRemoved(findGymOrThrow(gymId), memberId, futureReservations.size());
+        }
     }
 
     private void validateSchedule(LocalTime startTime, LocalTime endTime) {
