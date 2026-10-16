@@ -309,3 +309,24 @@ la prueba real que al tocar el aviso con la app cerrada abre `/member` (no la la
 - **El socio no instala la app** → no hay push. El correo sigue llegando; la tarjeta solo aparece con la app instalada.
 - **Rotar las claves VAPID invalida todas las suscripciones**: no rotarlas salvo filtración.
 - **Cuota de FCM/Apple**: gratis y sin límite práctico para este volumen.
+
+## Siguiente etapa (propuesta 2026-10-14; A-E IMPLEMENTADOS y DEPLOYADOS el 2026-10-15, commit 5b4a3dc; faltan F, G, I, J)
+
+Avisos nuevos ya identificados, por prioridad. Detalle y dudas abiertas en la memoria del proyecto (`mygym_push_next_notifications_2026_10_14`).
+
+| # | A quién | Evento | Enganche en el código |
+|---|---|---|---|
+| A | Socios que el cierre afectó | Se levanta un cierre antes de lo previsto | `GymClosureService.lift` (hoy solo marca `liftedAt`; las reservas siguen canceladas) |
+| B | Socio | Admin/profesor le cancela una reserva | `ReservationService.cancelAsAdmin` |
+| C | Socios anotados | Cambia la hora o el día de una clase con reservas | `GymService.updateBlock` |
+| D | Socios anotados | Se desactiva o elimina una clase con reservas | `GymService.updateBlock` (active=false) / `removeBlock` |
+| E | Socio | El admin le quita el plan | `GymService.revokePlan` |
+| F | Socio | Pago confirmado | `FlowPaymentService` / `GymService.simulatePlanPayment` |
+| G | Socio | Le reservan sus clases fijas | `FixedClassService.generateForCurrentPeriod` |
+| I | Admin | Socio nuevo se registra solo | `AuthService.joinGymWithGoogle`, `PasswordAuthService.activate` |
+| J | Admin | Alguien no pudo registrarse por falta de cupo | `GymCapacityService.assertSelfRegistrationAllowed` (máx. 1 al día) |
+
+Descartados por ahora: marcar asistencia a mano (ruido) y "clase llena" (opcional). Dudas abiertas: ¿A restaura las reservas canceladas o solo avisa?; ¿C y D también por correo?
+
+## Pendiente relacionado (2026-10-15): detectar la pausa y los cierres en pantallas abiertas — HECHO y DEPLOYADO el 2026-10-15 (5b4a3dc: `GymPauseService.watch()` + marcas en `/api/gym-status`, que ademas cubre cupos)
+La pausa y los cierres se aplican al instante en el servidor, pero la pantalla del socio no se refresca sola (solo la pestaña "En clase" del admin, cada 60 s, y la TV, cada 25 s). Mejora propuesta: consultar `GET /api/gym-status` cada 60 s y al volver a la pestaña (`visibilitychange`) en /member y /gym-admin; si hay pausa mostrar el aviso, si hay un cierre nuevo recargar la lista de clases. Detalle en la memoria `mygym_pending_2026_10_15`.
