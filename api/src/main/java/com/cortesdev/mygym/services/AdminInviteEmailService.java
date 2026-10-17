@@ -70,7 +70,7 @@ public class AdminInviteEmailService {
 
     private void send(String htmlTemplate, String subject, Gym gym, AppUser admin) {
         if (apiKey == null || apiKey.isBlank()) {
-            log.warn("RESEND_API_KEY no configurada — se omite el email de invitación para {}", admin.getEmail());
+            log.warn("RESEND_API_KEY no configurada — se omite el email de invitación para {}", LogMask.email(admin.getEmail()));
             return;
         }
         String html = renderHtml(htmlTemplate, gym, admin);
@@ -92,9 +92,9 @@ public class AdminInviteEmailService {
                         .body(body)
                         .retrieve()
                         .toBodilessEntity();
-                log.info("Email de invitación enviado a {} para el gimnasio {}", to, gymName);
+                log.info("Email de invitación enviado a {} para el gimnasio {}", LogMask.email(to), gymName);
             } catch (RestClientException e) {
-                log.error("Falló el envío del email de invitación a {}: {}", to, e.getMessage());
+                log.error("Falló el envío del email de invitación a {}: {}", LogMask.email(to), e.getMessage());
             }
         });
     }

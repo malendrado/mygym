@@ -197,6 +197,7 @@
         aria-label="Ver socios activos"
         (click)="viewMembersByStatus('ACTIVE')"
         (keydown.enter)="viewMembersByStatus('ACTIVE')"
+        (keydown.space)="$event.preventDefault(); viewMembersByStatus('ACTIVE')"
       >
         <ion-icon name="checkmark-circle-outline" aria-hidden="true"></ion-icon>
         <p class="member-stat__value">{{ activeMembers() }}</p>
@@ -209,6 +210,7 @@
         aria-label="Ver socios por vencer"
         (click)="viewMembersByStatus('EXPIRING_SOON')"
         (keydown.enter)="viewMembersByStatus('EXPIRING_SOON')"
+        (keydown.space)="$event.preventDefault(); viewMembersByStatus('EXPIRING_SOON')"
       >
         <ion-icon name="hourglass-outline" aria-hidden="true"></ion-icon>
         <p class="member-stat__value">{{ expiringSoonMembers() }}</p>
@@ -221,6 +223,7 @@
         aria-label="Ver socios vencidos"
         (click)="viewMembersByStatus('EXPIRED')"
         (keydown.enter)="viewMembersByStatus('EXPIRED')"
+        (keydown.space)="$event.preventDefault(); viewMembersByStatus('EXPIRED')"
       >
         <ion-icon name="close-circle-outline" aria-hidden="true"></ion-icon>
         <p class="member-stat__value">{{ expiredMembers() }}</p>
@@ -233,6 +236,7 @@
         aria-label="Ver socios sin pago"
         (click)="viewMembersByStatus('UNPAID')"
         (keydown.enter)="viewMembersByStatus('UNPAID')"
+        (keydown.space)="$event.preventDefault(); viewMembersByStatus('UNPAID')"
       >
         <ion-icon name="help-circle-outline" aria-hidden="true"></ion-icon>
         <p class="member-stat__value">{{ unpaidMembers() }}</p>
@@ -245,6 +249,7 @@
         aria-label="Ver invitados pendientes"
         (click)="viewMembersByInvite('PENDING')"
         (keydown.enter)="viewMembersByInvite('PENDING')"
+        (keydown.space)="$event.preventDefault(); viewMembersByInvite('PENDING')"
       >
         <ion-icon name="paper-plane-outline" aria-hidden="true"></ion-icon>
         <p class="member-stat__value">{{ invitedPendingMembers() }}</p>
@@ -328,9 +333,15 @@
           <ion-item>
             <ion-input label="Nombre *" formControlName="name" placeholder="Ej: Javiera Pulgar" />
           </ion-item>
+          @if (adminForm.controls.name.invalid && (adminForm.controls.name.dirty || adminForm.controls.name.touched)) {
+            <ion-note color="danger">Escribe el nombre (mínimo 2 letras).</ion-note>
+          }
           <ion-item lines="none">
             <ion-input label="Email *" type="email" autocomplete="email" formControlName="email" placeholder="Ej: javiera@mail.com" />
           </ion-item>
+          @if (adminForm.controls.email.invalid && (adminForm.controls.email.dirty || adminForm.controls.email.touched)) {
+            <ion-note color="danger">Ingresa un email válido.</ion-note>
+          }
           <p class="item-hint">Va a poder administrar este gimnasio iniciando sesión con Google usando este email.</p>
           <ion-button type="submit" fill="outline" [disabled]="adminForm.invalid || status() === 'saving'" class="ion-margin-top">
             Agregar administrador
@@ -406,9 +417,15 @@
           <ion-item>
             <ion-input label="Nombre *" formControlName="name" placeholder="Ej: Javiera Pulgar" />
           </ion-item>
+          @if (demoAdminForm.controls.name.invalid && (demoAdminForm.controls.name.dirty || demoAdminForm.controls.name.touched)) {
+            <ion-note color="danger">Escribe el nombre (mínimo 2 letras).</ion-note>
+          }
           <ion-item lines="none">
             <ion-input label="Email *" type="email" autocomplete="email" formControlName="email" placeholder="Ej: javiera@mail.com" />
           </ion-item>
+          @if (demoAdminForm.controls.email.invalid && (demoAdminForm.controls.email.dirty || demoAdminForm.controls.email.touched)) {
+            <ion-note color="danger">Ingresa un email válido.</ion-note>
+          }
           <p class="item-hint">Va a poder entrar a la demo iniciando sesión con Google usando este email.</p>
           <ion-button type="submit" fill="outline" [disabled]="demoAdminForm.invalid || status() === 'saving'" class="ion-margin-top">
             Dar acceso a la demo
@@ -477,7 +494,7 @@
             hidden
             (change)="onLogoFileSelected($event)"
           />
-          <p class="item-hint">Se genera aparte (skill de logos) según el nombre del gimnasio, y se pega acá una vez listo — o subí directamente un archivo PNG, JPG, WEBP o SVG.</p>
+          <p class="item-hint">Se genera aparte (skill de logos) según el nombre del gimnasio, y se pega aquí una vez listo — o sube directamente un archivo PNG, JPG, WEBP o SVG.</p>
           @if (configForm.controls.logoSvg.value.trim()) {
             <div class="logo-preview">
               <div class="logo-preview__badge">
@@ -932,6 +949,7 @@
         aria-label="Ver socios activos"
         (click)="viewMembersByStatus('ACTIVE')"
         (keydown.enter)="viewMembersByStatus('ACTIVE')"
+        (keydown.space)="$event.preventDefault(); viewMembersByStatus('ACTIVE')"
       >
         <ion-icon name="checkmark-circle-outline" aria-hidden="true"></ion-icon>
         <p class="member-stat__value">{{ activeMembers() }}</p>
@@ -944,6 +962,7 @@
         aria-label="Ver socios por vencer"
         (click)="viewMembersByStatus('EXPIRING_SOON')"
         (keydown.enter)="viewMembersByStatus('EXPIRING_SOON')"
+        (keydown.space)="$event.preventDefault(); viewMembersByStatus('EXPIRING_SOON')"
       >
         <ion-icon name="hourglass-outline" aria-hidden="true"></ion-icon>
         <p class="member-stat__value">{{ expiringSoonMembers() }}</p>
@@ -956,6 +975,7 @@
         aria-label="Ver socios vencidos"
         (click)="viewMembersByStatus('EXPIRED')"
         (keydown.enter)="viewMembersByStatus('EXPIRED')"
+        (keydown.space)="$event.preventDefault(); viewMembersByStatus('EXPIRED')"
       >
         <ion-icon name="close-circle-outline" aria-hidden="true"></ion-icon>
         <p class="member-stat__value">{{ expiredMembers() }}</p>
@@ -968,6 +988,7 @@
         aria-label="Ver socios sin pago"
         (click)="viewMembersByStatus('UNPAID')"
         (keydown.enter)="viewMembersByStatus('UNPAID')"
+        (keydown.space)="$event.preventDefault(); viewMembersByStatus('UNPAID')"
       >
         <ion-icon name="help-circle-outline" aria-hidden="true"></ion-icon>
         <p class="member-stat__value">{{ unpaidMembers() }}</p>
@@ -980,6 +1001,7 @@
         aria-label="Ver invitados pendientes"
         (click)="viewMembersByInvite('PENDING')"
         (keydown.enter)="viewMembersByInvite('PENDING')"
+        (keydown.space)="$event.preventDefault(); viewMembersByInvite('PENDING')"
       >
         <ion-icon name="paper-plane-outline" aria-hidden="true"></ion-icon>
         <p class="member-stat__value">{{ invitedPendingMembers() }}</p>
@@ -1000,9 +1022,15 @@
           <ion-item>
             <ion-input label="Nombre *" formControlName="name" placeholder="Ej: Javiera Pulgar" />
           </ion-item>
+          @if (memberForm.controls.name.invalid && (memberForm.controls.name.dirty || memberForm.controls.name.touched)) {
+            <ion-note color="danger">Escribe el nombre (mínimo 2 letras).</ion-note>
+          }
           <ion-item lines="none">
             <ion-input label="Email *" type="email" autocomplete="email" formControlName="email" placeholder="Ej: javiera@mail.com" />
           </ion-item>
+          @if (memberForm.controls.email.invalid && (memberForm.controls.email.dirty || memberForm.controls.email.touched)) {
+            <ion-note color="danger">Ingresa un email válido.</ion-note>
+          }
           <ion-button type="submit" fill="outline" [disabled]="memberForm.invalid || status() === 'saving'" class="ion-margin-top">
             Agregar socio
           </ion-button>
@@ -1023,27 +1051,24 @@
         </ion-card-title>
       </ion-card-header>
       <ion-card-content>
-        <div>
-          <ion-item lines="full">
-            <ion-label position="stacked">Nombre</ion-label>
-            <ion-input
-              [value]="newProfesorName()"
-              (ionInput)="newProfesorName.set($any($event.detail.value) ?? '')"
-            ></ion-input>
+        <form [formGroup]="profesorForm" (ngSubmit)="addProfesor()">
+          <ion-item>
+            <ion-input label="Nombre *" formControlName="name" placeholder="Ej: Javiera Pulgar" />
           </ion-item>
-          <ion-item lines="full">
-            <ion-label position="stacked">Email</ion-label>
-            <ion-input
-              type="email"
-              [value]="newProfesorEmail()"
-              (ionInput)="newProfesorEmail.set($any($event.detail.value) ?? '')"
-            ></ion-input>
+          @if (profesorForm.controls.name.invalid && (profesorForm.controls.name.dirty || profesorForm.controls.name.touched)) {
+            <ion-note color="danger">Escribe el nombre (mínimo 2 letras).</ion-note>
+          }
+          <ion-item lines="none">
+            <ion-input label="Email *" type="email" autocomplete="email" formControlName="email" placeholder="Ej: javiera@mail.com" />
           </ion-item>
+          @if (profesorForm.controls.email.invalid && (profesorForm.controls.email.dirty || profesorForm.controls.email.touched)) {
+            <ion-note color="danger">Ingresa un email válido.</ion-note>
+          }
           <ion-button
             expand="block"
-            type="button"
-            [disabled]="creatingProfesor() || !newProfesorName().trim() || !newProfesorEmail().trim()"
-            (click)="addProfesor()"
+            type="submit"
+            class="ion-margin-top"
+            [disabled]="creatingProfesor() || profesorForm.invalid"
           >
             @if (creatingProfesor()) {
               <ion-spinner name="crescent" slot="start"></ion-spinner>
@@ -1052,7 +1077,7 @@
             }
             Agregar profesor
           </ion-button>
-        </div>
+        </form>
         <ion-list lines="full">
           @for (profesor of profesores(); track profesor.id) {
             <ion-item>
@@ -1094,16 +1119,16 @@
           <ion-badge color="dark">{{ memberList.totalElements() }}</ion-badge>
         </ion-card-title>
         @if (memberStatusFilter()) {
-          <ion-chip (click)="clearMemberStatusFilter()">
+          <button type="button" class="filter-chip" [attr.aria-label]="'Quitar filtro ' + statusLabel(memberStatusFilter()!)" (click)="clearMemberStatusFilter()">
             Filtro: {{ statusLabel(memberStatusFilter()!) }}
             <ion-icon name="close-circle-outline" aria-hidden="true"></ion-icon>
-          </ion-chip>
+          </button>
         }
         @if (memberInviteFilter()) {
-          <ion-chip (click)="clearMemberInviteFilter()">
+          <button type="button" class="filter-chip" [attr.aria-label]="'Quitar filtro ' + inviteStatusLabel(memberInviteFilter()!)" (click)="clearMemberInviteFilter()">
             Filtro: {{ inviteStatusLabel(memberInviteFilter()!) }}
             <ion-icon name="close-circle-outline" aria-hidden="true"></ion-icon>
-          </ion-chip>
+          </button>
         }
       </ion-card-header>
       <ion-card-content>
@@ -1211,7 +1236,7 @@
                   </ion-button>
                   @if (member.planId) {
                     <ion-button
-                      fill="clear"
+                      fill="outline"
                       size="small"
                       color="danger"
                       class="member-action-btn member-action-btn--secondary"
@@ -1387,7 +1412,7 @@
       <ng-template>
         <app-member-profile-modal
           [title]="'Datos de ' + (profileMember()?.name ?? '')"
-          intro="RUT, dirección, fecha de nacimiento, celular y contacto de emergencia. Si el socio los completa él mismo al entrar, también quedan acá."
+          intro="RUT, dirección, fecha de nacimiento, celular y contacto de emergencia. Si el socio los completa él mismo al entrar, también quedan aquí."
           submitLabel="Guardar datos"
           [initial]="profileMember()"
           [saving]="savingMemberProfile()"
@@ -1600,7 +1625,7 @@
           Cada gimnasio recibe sus pagos directo en su propia cuenta de Flow, no en una cuenta compartida de mygym.
           Crea la cuenta del gimnasio en
           <a href="https://www.flow.cl" target="_blank" rel="noopener">flow.cl</a>
-          con estos mismos datos y después carga acá la API key/secret key que Flow te entregue. La cuenta bancaria de
+          con estos mismos datos y después carga aquí la API key/secret key que Flow te entregue. La cuenta bancaria de
           destino es la misma que configures en "Transferencia bancaria", más abajo.
         </p>
         @if (!flowAccount()?.configured) {
@@ -1810,7 +1835,7 @@
         <p class="item-hint">
           Muestra el horario en vivo en una tele del gym: quién está en la clase actual, quién viene
           en la siguiente y cuánto tiempo queda. En la TV, abre
-          <strong>mygym.cl/tv</strong>: va a aparecer un código de 6 caracteres. Ingrésalo acá
+          <strong>mygym.cl/tv</strong>: va a aparecer un código de 6 caracteres. Ingrésalo aquí
           abajo junto con un nombre (ej. "TV Recepción") y queda vinculada.
         </p>
 

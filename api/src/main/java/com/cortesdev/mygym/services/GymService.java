@@ -425,6 +425,9 @@ public class GymService {
             if (!allowedMime) {
                 throw new InvalidLogoException("Formato de imagen no soportado. Usa PNG, JPG o WEBP.");
             }
+            if (!ImageDataUri.hasMatchingSignature(trimmed)) {
+                throw new InvalidLogoException("El archivo no es una imagen PNG, JPG o WEBP válida.");
+            }
         } else {
             throw new InvalidLogoException("El logo debe ser un SVG o una imagen (PNG, JPG, WEBP).");
         }
@@ -465,6 +468,9 @@ public class GymService {
                 .anyMatch(prefix -> trimmed.toLowerCase(Locale.ROOT).startsWith(prefix));
         if (!allowedMime) {
             throw new InvalidLogoException("La foto debe ser una imagen (PNG, JPG o WEBP).");
+        }
+        if (!ImageDataUri.hasMatchingSignature(trimmed)) {
+            throw new InvalidLogoException("El archivo no es una imagen PNG, JPG o WEBP válida.");
         }
         GymPhoto photo = GymPhoto.builder()
                 .gymId(gymId)

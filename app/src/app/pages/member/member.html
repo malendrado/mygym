@@ -174,11 +174,29 @@
                 <dl class="bank-details">
                   <div><dt>Banco</dt><dd>{{ bankTransfer()?.bankName }}</dd></div>
                   <div><dt>Tipo de cuenta</dt><dd>{{ bankTransfer()?.accountType }}</dd></div>
-                  <div><dt>Número de cuenta</dt><dd>{{ bankTransfer()?.accountNumber }}</dd></div>
-                  <div><dt>RUT titular</dt><dd>{{ bankTransfer()?.holderRut }}</dd></div>
+                  <div>
+                    <dt>Número de cuenta</dt>
+                    <dd>
+                      {{ bankTransfer()?.accountNumber }}
+                      <button type="button" class="bank-details__copy" aria-label="Copiar número de cuenta" (click)="copyBankDetail(bankTransfer()?.accountNumber)">Copiar</button>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>RUT titular</dt>
+                    <dd>
+                      {{ bankTransfer()?.holderRut }}
+                      <button type="button" class="bank-details__copy" aria-label="Copiar RUT del titular" (click)="copyBankDetail(bankTransfer()?.holderRut)">Copiar</button>
+                    </dd>
+                  </div>
                   <div><dt>Nombre titular</dt><dd>{{ bankTransfer()?.holderName }}</dd></div>
                   @if (bankTransfer()?.confirmationEmail) {
-                    <div><dt>Envía tu comprobante a</dt><dd>{{ bankTransfer()?.confirmationEmail }}</dd></div>
+                    <div>
+                    <dt>Envía tu comprobante a</dt>
+                    <dd>
+                      {{ bankTransfer()?.confirmationEmail }}
+                      <button type="button" class="bank-details__copy" aria-label="Copiar correo para el comprobante" (click)="copyBankDetail(bankTransfer()?.confirmationEmail)">Copiar</button>
+                    </dd>
+                  </div>
                   }
                 </dl>
               </article>
@@ -315,6 +333,8 @@
                 [class.calendar-day--past]="cell.isPast"
                 [class.calendar-day--selected]="cell.iso === selectedDate()"
                 [class.calendar-day--has-classes]="cell.hasClasses"
+                [attr.aria-label]="calendarDayLabel(cell)"
+                [attr.aria-pressed]="cell.iso === selectedDate()"
                 (click)="selectDay(cell.iso)"
               >
                 <span class="calendar-day__number">{{ cell.dayNumber }}</span>
@@ -392,6 +412,7 @@
                     type="button"
                     class="class-tile__attendees-toggle"
                     data-tour="class-attendees"
+                    [attr.aria-expanded]="expandedAttendeesKey() === occurrenceKey(occurrence)"
                     (click)="toggleAttendees(occurrence)"
                   >
                     {{ expandedAttendeesKey() === occurrenceKey(occurrence) ? 'Ocultar' : 'Ver quién va' }}
@@ -446,7 +467,7 @@
                         <ion-button
                           class="class-tile__cancel"
                           expand="block"
-                          fill="clear"
+                          fill="outline"
                           color="danger"
                           size="small"
                           [disabled]="cancelingId() === occurrence.myReservationId"
@@ -534,7 +555,7 @@
     }
     </div>
     @if (checkoutPending()) {
-      <!-- Sin botón/click acá a propósito: no hay ninguna acción que tomar todavía,
+      <!-- Sin botón/click aquí a propósito: no hay ninguna acción que tomar todavía,
            el cartel de arriba ya dice que se está confirmando el pago con Flow. -->
       <span class="booking-teaser__cta booking-teaser__cta--static">
         <span class="booking-teaser__cta-card">
@@ -547,7 +568,7 @@
       </span>
     } @else if (!membershipLoaded()) {
       <!-- Mismo criterio que arriba (.membership): mientras no sepamos si ya tiene un plan
-           activo, nunca asumir "sin plan" — evita el mismo parpadeo acá abajo. -->
+           activo, nunca asumir "sin plan" — evita el mismo parpadeo aquí abajo. -->
       <span class="booking-teaser__cta booking-teaser__cta--static">
         <span class="booking-teaser__cta-card">
           <ion-spinner name="crescent"></ion-spinner>
@@ -709,7 +730,7 @@
                 <ion-button
                   class="class-tile__cancel"
                   expand="block"
-                  fill="clear"
+                  fill="outline"
                   color="danger"
                   size="small"
                   [disabled]="cancelingId() === reservation.id"
@@ -809,7 +830,7 @@
             <span class="booking-teaser__cta-body">Tu membresía venció — actívala de nuevo para reservar y ver tu historial.</span>
           } @else {
             <span class="booking-teaser__cta-title">Elige tu plan para ver tus reservas</span>
-            <span class="booking-teaser__cta-body">Activa un plan para reservar clases y ver tu historial acá.</span>
+            <span class="booking-teaser__cta-body">Activa un plan para reservar clases y ver tu historial aquí.</span>
           }
         </span>
       </button>

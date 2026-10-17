@@ -66,7 +66,7 @@
       <span class="mark-paid-stepper__value" aria-live="polite">{{ usedClasses() }} de {{ quota() }}</span>
       <button type="button" class="mark-paid-step" aria-label="Una más" [disabled]="usedClasses() >= (quota() ?? 0)" (click)="stepUsed(1)">+</button>
     </div>
-    <p class="item-hint">Clases que tomó fuera de la app desde esa fecha (sin reservar acá).</p>
+    <p class="item-hint">Clases que tomó fuera de la app desde esa fecha (sin reservar aquí).</p>
   }
 
   <!-- Resumen en vivo: lo que quedaría al confirmar -->

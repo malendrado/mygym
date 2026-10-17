@@ -60,7 +60,9 @@ public class GymCapacityService {
     }
 
     /** Lanza si no caben `toAdd` socios mas. Para altas hechas por el propio equipo del gimnasio. */
+    @Transactional
     public void assertMemberCapacity(Gym gym, int toAdd) {
+        lockGymForCount(gym.getId());
         if (freeMemberSlots(gym) < toAdd) {
             throw new GymLimitReachedException(
                     Kind.MEMBERS,
@@ -72,7 +74,9 @@ public class GymCapacityService {
      * Alta hecha por la propia persona (Google o email): si no hay cupo se le dice con buena onda y se avisa al
      * administrador (maximo un correo al dia).
      */
+    @Transactional
     public void assertSelfRegistrationAllowed(Gym gym) {
+        lockGymForCount(gym.getId());
         if (freeMemberSlots(gym) > 0) {
             return;
         }
@@ -82,18 +86,31 @@ public class GymCapacityService {
                 "Por ahora " + gym.getName() + " no tiene cupos disponibles. Avísale a tu gimnasio para que te habilite un lugar.");
     }
 
+    @Transactional
     public void assertProfesorCapacity(Long gymId) {
+        lockGymForCount(gymId);
         if (appUserRepository.countByGymIdAndRole(gymId, Role.PROFESOR) >= MAX_PROFESORES) {
             throw new GymLimitReachedException(
                     Kind.PROFESORES, "Llegaste al máximo de " + MAX_PROFESORES + " profesores por gimnasio.");
         }
     }
 
+    @Transactional
     public void assertAdminCapacity(Long gymId) {
+        lockGymForCount(gymId);
         if (appUserRepository.countByGymIdAndRole(gymId, Role.GYM_ADMIN) >= MAX_ADMINS) {
             throw new GymLimitReachedException(
                     Kind.ADMINS, "Llegaste al máximo de " + MAX_ADMINS + " administradores por gimnasio.");
         }
+    }
+
+    /**
+     * Serializa los chequeos de cupo de un mismo gimnasio: sin esto, varias altas en paralelo (doble clic, dos administradores,
+     * un reintento) contaban todas "queda 1 cupo" y se pasaban del limite. El bloqueo dura hasta el fin de la transaccion del
+     * llamador, que es la que inserta la cuenta. El resultado se ignora: si el gimnasio no existe, el llamador ya lo trata.
+     */
+    private void lockGymForCount(Long gymId) {
+        gymRepository.lockForCapacity(gymId);
     }
 
     private void notifyAdminsOncePerDay(Gym gym) {

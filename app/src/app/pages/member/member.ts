@@ -207,7 +207,7 @@ const BENEFITS: Benefit[] = [
   {
     icon: 'trending-up-outline',
     title: 'Tu constancia, a la vista',
-    body: 'Cada clase reservada es un paso más cerca de la meta — el historial queda acá.',
+    body: 'Cada clase reservada es un paso más cerca de la meta — el historial queda aquí.',
   },
 ];
 
@@ -1024,6 +1024,25 @@ export class MemberPage {
 
   protected formatShortDate(dateIso: string): string {
     return formatShortDate(dateIso);
+  }
+
+  // Nombre accesible del día del calendario: el número solo no dice mes ni si hay clases (el punto es decorativo).
+  protected calendarDayLabel(cell: MonthDayCell): string {
+    return `${dayMonthLabel(cell.iso)}${cell.hasClasses ? ', hay clases' : ''}`;
+  }
+
+  // Copia un dato de la transferencia (cuenta, RUT, correo) y avisa con un toast corto.
+  protected async copyBankDetail(value: string | null | undefined): Promise<void> {
+    if (!value) {
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(value);
+      const toast = await this.toastController.create({ message: 'Copiado', duration: 1500, position: 'bottom', color: 'success' });
+      await toast.present();
+    } catch {
+      this.showToast('No pudimos copiar. Cópialo a mano.', 'danger');
+    }
   }
 
   protected shortTime(time: string): string {

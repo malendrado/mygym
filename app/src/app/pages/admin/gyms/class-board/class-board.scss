@@ -34,7 +34,7 @@
   padding: 0;
   border: 0;
   background: none;
-  color: var(--brand-accent);
+  color: var(--brand-accent-text-safe, var(--brand-accent));
   font: inherit;
   font-size: 0.88rem;
   cursor: pointer;

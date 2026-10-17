@@ -35,7 +35,7 @@
       />
     </ion-item>
     @if (showError('rut')) {
-      <ion-note color="danger">{{ errorText('rut') }}</ion-note>
+      <ion-note color="danger" role="alert">{{ errorText('rut') }}</ion-note>
     }
 
     <ion-item lines="none">
@@ -49,7 +49,7 @@
       />
     </ion-item>
     @if (showError('address')) {
-      <ion-note color="danger">{{ errorText('address') }}</ion-note>
+      <ion-note color="danger" role="alert">{{ errorText('address') }}</ion-note>
     }
 
     <div class="mp-date">
@@ -57,7 +57,7 @@
       <input id="mp-birth" type="date" class="mp-date__input" formControlName="birthDate" [max]="maxBirthDate" autocomplete="bday" />
     </div>
     @if (showError('birthDate')) {
-      <ion-note color="danger">{{ errorText('birthDate') }}</ion-note>
+      <ion-note color="danger" role="alert">{{ errorText('birthDate') }}</ion-note>
     }
 
     <ion-item lines="none">
@@ -73,7 +73,7 @@
       />
     </ion-item>
     @if (showError('phone')) {
-      <ion-note color="danger">{{ errorText('phone') }}</ion-note>
+      <ion-note color="danger" role="alert">{{ errorText('phone') }}</ion-note>
     }
 
     <p class="mp-section">Contacto de emergencia</p>
@@ -88,7 +88,7 @@
       />
     </ion-item>
     @if (showError('emergencyContactName')) {
-      <ion-note color="danger">{{ errorText('emergencyContactName') }}</ion-note>
+      <ion-note color="danger" role="alert">{{ errorText('emergencyContactName') }}</ion-note>
     }
 
     <ion-item lines="none">
@@ -104,11 +104,11 @@
       />
     </ion-item>
     @if (showError('emergencyContactPhone')) {
-      <ion-note color="danger">{{ errorText('emergencyContactPhone') }}</ion-note>
+      <ion-note color="danger" role="alert">{{ errorText('emergencyContactPhone') }}</ion-note>
     }
 
     @if (serverErrorText()) {
-      <ion-note color="danger" class="mp-server-error">{{ serverErrorText() }}</ion-note>
+      <ion-note color="danger" role="alert" class="mp-server-error">{{ serverErrorText() }}</ion-note>
     }
   </form>
 </ion-content>

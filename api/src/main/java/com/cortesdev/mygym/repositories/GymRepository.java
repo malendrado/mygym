@@ -31,6 +31,14 @@ public interface GymRepository extends JpaRepository<Gym, Long> {
             + "g.waitlistHeadStartMinutes, g.showAttendeesToMembers, g.fixedMembersCurrentWeekOnly) FROM Gym g WHERE g.id = :id")
     java.util.Optional<Gym> findSettingsViewById(@org.springframework.data.repository.query.Param("id") Long id);
 
+    /**
+     * Bloquea la fila del gimnasio hasta el fin de la transaccion (FOR NO KEY UPDATE: no frena las altas de socios, que solo
+     * toman un bloqueo de clave foranea, pero si a otro chequeo de cupo). Asi dos altas simultaneas hacen el conteo una tras
+     * otra en vez de leer las dos "queda 1 cupo". Debe llamarse dentro de una transaccion de escritura.
+     */
+    @org.springframework.data.jpa.repository.Query(value = "SELECT id FROM gym WHERE id = :id FOR NO KEY UPDATE", nativeQuery = true)
+    java.util.Optional<Long> lockForCapacity(@org.springframework.data.repository.query.Param("id") Long id);
+
     /** Solo el cupo de socios: los indicadores del panel no necesitan traer el gimnasio entero (logo en base64 incluido). */
     @org.springframework.data.jpa.repository.Query("SELECT g.maxUsers FROM Gym g WHERE g.id = :id")
     java.util.Optional<Integer> findMaxUsersById(@org.springframework.data.repository.query.Param("id") Long id);

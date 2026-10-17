@@ -65,6 +65,18 @@ class AuthRateLimitFilterTest {
     }
 
     @Test
+    void thePublicPhotoRoutesAreLimitedPerRouteNotPerSlug() throws Exception {
+        for (int i = 1; i <= 240; i++) {
+            assertEquals(200, get("/api/public/gyms/gym" + (i % 7) + "/photos", "203.0.113.30"));
+        }
+        assertEquals(429, get("/api/public/gyms/otro-gym/photos", "203.0.113.30"));
+        for (int i = 1; i <= 60; i++) {
+            assertEquals(200, get("/api/public/tv/screens/tok" + i + "/photos", "203.0.113.31"));
+        }
+        assertEquals(429, get("/api/public/tv/screens/tokZ/photos", "203.0.113.31"));
+    }
+
+    @Test
     void rotatingTheClientWrittenPartOfXForwardedForNoLongerEvadesTheLimit() throws Exception {
         // Railway agrega la IP real al final; todo lo anterior lo escribe el atacante.
         for (int i = 1; i <= 10; i++) {

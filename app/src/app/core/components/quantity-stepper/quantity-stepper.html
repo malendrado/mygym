@@ -8,7 +8,7 @@
       class="stepper__btn"
       [disabled]="disabled() || value() <= min"
       (click)="decrement()"
-      aria-label="Restar"
+      [attr.aria-label]="label ? 'Restar a ' + label : 'Restar'"
     >
       <ion-icon name="remove-outline" aria-hidden="true"></ion-icon>
     </button>
@@ -16,6 +16,7 @@
       class="stepper__value"
       type="number"
       inputmode="numeric"
+      [attr.aria-label]="label || null"
       [value]="value()"
       [disabled]="disabled()"
       (change)="onManualInput($any($event.target).value)"
@@ -25,7 +26,7 @@
       class="stepper__btn"
       [disabled]="disabled() || value() >= max"
       (click)="increment()"
-      aria-label="Sumar"
+      [attr.aria-label]="label ? 'Sumar a ' + label : 'Sumar'"
     >
       <ion-icon name="add-outline" aria-hidden="true"></ion-icon>
     </button>

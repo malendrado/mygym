@@ -138,7 +138,7 @@ public class MemberService {
                     freeSlots--;
                 }
             } catch (Exception e) {
-                log.error("Fila de importación falló para {}: {}", row.email(), e.getMessage(), e);
+                log.error("Fila de importación falló para {}: {} (el detalle se omite: los errores de la base incluyen el correo completo)", LogMask.email(row.email()), e.getClass().getSimpleName());
                 results.add(new MemberImportRowResult(row.email(), false, "Error inesperado al importar esta fila."));
             }
         }

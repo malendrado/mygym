@@ -32,6 +32,11 @@ export class GymLimitsPanel {
     this._audience.set(value);
   }
 
+  // Título de la sección: para el super admin habla "de este gimnasio" (no es su gym).
+  protected readonly sectionTitle = computed(() =>
+    this._audience() === 'super' ? 'Cupos de este gimnasio' : 'Cupos de tu gimnasio',
+  );
+
   /** Una sola línea (solo socios), para ponerla junto a "Agregar" e "Importar". */
   @Input() compact = false;
 

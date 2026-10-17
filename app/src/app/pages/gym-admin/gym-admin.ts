@@ -1,6 +1,7 @@
 import { Component, DestroyRef, OnDestroy, computed, effect, inject, signal, untracked } from '@angular/core';
 import { Router } from '@angular/router';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { trimmedEmail } from '../../core/utils/trimmed-email.validator';
 import {
   IonBadge,
   IonButton,
@@ -9,7 +10,6 @@ import {
   IonCardContent,
   IonCardHeader,
   IonCardTitle,
-  IonChip,
   IonContent,
   IonHeader,
   IonIcon,
@@ -379,7 +379,6 @@ const THEMED_ROOT_PROPERTIES = [
     IonList,
     IonListHeader,
     IonBadge,
-    IonChip,
     IonModal,
     IonNote,
     IonSearchbar,
@@ -1028,7 +1027,7 @@ export class GymAdmin implements OnDestroy {
         },
         {
           title: 'Vincula una TV en 30 segundos',
-          body: 'Abre mygym.cl/tv en cualquier pantalla, aparece un código de 6 caracteres, lo ingresas acá con un nombre — sin cables ni apps que instalar. Puedes tener varias pantallas a la vez (recepción, sala).',
+          body: 'Abre mygym.cl/tv en cualquier pantalla, aparece un código de 6 caracteres, lo ingresas aquí con un nombre — sin cables ni apps que instalar. Puedes tener varias pantallas a la vez (recepción, sala).',
           targetSelector: '[data-tour="screens-pairing"]',
         },
       ],
@@ -1409,7 +1408,7 @@ export class GymAdmin implements OnDestroy {
       .updateMyIdentity({
         tagline: raw.tagline || null,
         description: raw.description || null,
-        instagramUrl: raw.instagramUrl || null,
+        instagramUrl: raw.instagramUrl.trim() || null,
         whatsappNumber: raw.whatsappNumber || null,
       })
       .subscribe({
@@ -2186,8 +2185,10 @@ export class GymAdmin implements OnDestroy {
   // ---- "Memoria Viva": profesores (solo GYM_ADMIN los crea, ver template) ----
 
   protected readonly profesores = signal<Profesor[]>([]);
-  protected readonly newProfesorName = signal('');
-  protected readonly newProfesorEmail = signal('');
+  protected readonly profesorForm = new FormGroup({
+    name: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.minLength(2), Validators.maxLength(150)] }),
+    email: new FormControl('', { nonNullable: true, validators: [Validators.required, trimmedEmail] }),
+  });
   protected readonly creatingProfesor = signal(false);
   protected readonly removingProfesorId = signal<number | null>(null);
 
@@ -2197,9 +2198,10 @@ export class GymAdmin implements OnDestroy {
   }
 
   protected addProfesor(): void {
-    const name = this.newProfesorName().trim();
-    const email = this.newProfesorEmail().trim();
-    if (!name || !email) {
+    const name = this.profesorForm.controls.name.value.trim();
+    const email = this.profesorForm.controls.email.value.trim();
+    if (this.profesorForm.invalid || !name || !email) {
+      this.profesorForm.markAllAsTouched();
       return;
     }
     this.creatingProfesor.set(true);
@@ -2207,8 +2209,7 @@ export class GymAdmin implements OnDestroy {
       next: (profesor) => {
         this.creatingProfesor.set(false);
         this.profesores.update((list) => [...list, profesor]);
-        this.newProfesorName.set('');
-        this.newProfesorEmail.set('');
+        this.profesorForm.reset({ name: '', email: '' });
         this.showToast(`${profesor.name} ya puede entrar como profesor.`);
       },
       error: (err: Error) => {
@@ -2244,8 +2245,10 @@ export class GymAdmin implements OnDestroy {
   // ---- Co-admins: autoservicio, antes solo lo podía hacer el super-admin ----
 
   protected readonly admins = signal<Admin[]>([]);
-  protected readonly newAdminName = signal('');
-  protected readonly newAdminEmail = signal('');
+  protected readonly adminForm = new FormGroup({
+    name: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.minLength(2), Validators.maxLength(150)] }),
+    email: new FormControl('', { nonNullable: true, validators: [Validators.required, trimmedEmail] }),
+  });
   protected readonly addingAdmin = signal(false);
   protected readonly removingAdminId = signal<number | null>(null);
 
@@ -2254,9 +2257,10 @@ export class GymAdmin implements OnDestroy {
   }
 
   protected addMyAdmin(): void {
-    const name = this.newAdminName().trim();
-    const email = this.newAdminEmail().trim();
-    if (!name || !email) {
+    const name = this.adminForm.controls.name.value.trim();
+    const email = this.adminForm.controls.email.value.trim();
+    if (this.adminForm.invalid || !name || !email) {
+      this.adminForm.markAllAsTouched();
       return;
     }
     const payload: CreateAdminRequest = { name, email };
@@ -2265,8 +2269,7 @@ export class GymAdmin implements OnDestroy {
       next: (admin) => {
         this.addingAdmin.set(false);
         this.admins.update((list) => [...list, admin]);
-        this.newAdminName.set('');
-        this.newAdminEmail.set('');
+        this.adminForm.reset({ name: '', email: '' });
         this.showToast(`Invitamos a ${admin.name} por correo — ya puede entrar con Google.`);
       },
       error: (err: Error) => {

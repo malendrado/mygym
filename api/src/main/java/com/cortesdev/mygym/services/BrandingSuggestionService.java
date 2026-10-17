@@ -73,7 +73,10 @@ public class BrandingSuggestionService {
                     Map.of("contents", List.of(Map.of("parts", List.of(Map.of("text", prompt)))));
             JsonNode response = restClient
                     .post()
-                    .uri("/v1beta/models/{model}:generateContent?key={key}", model, apiKey)
+                    .uri("/v1beta/models/{model}:generateContent", model)
+                    // La clave va en un header y no en la URL: una URL con ?key= termina en los logs, en las excepciones del cliente HTTP y en
+                    // cualquier proxy del camino.
+                    .header("x-goog-api-key", apiKey)
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(body)
                     .retrieve()

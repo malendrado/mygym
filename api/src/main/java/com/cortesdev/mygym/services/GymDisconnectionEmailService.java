@@ -109,7 +109,7 @@ public class GymDisconnectionEmailService {
 
     private boolean send(String to, String subject, String html, List<Map<String, String>> attachments) {
         if (apiKey == null || apiKey.isBlank()) {
-            log.warn("RESEND_API_KEY no configurada — se omite el email '{}' para {}", subject, to);
+            log.warn("RESEND_API_KEY no configurada — se omite el email '{}' para {}", subject, LogMask.email(to));
             return false;
         }
         try {
@@ -129,10 +129,10 @@ public class GymDisconnectionEmailService {
                     .body(body)
                     .retrieve()
                     .toBodilessEntity();
-            log.info("Email de desvinculación '{}' enviado a {}", subject, to);
+            log.info("Email de desvinculación '{}' enviado a {}", subject, LogMask.email(to));
             return true;
         } catch (RestClientException e) {
-            log.error("Falló el envío del email de desvinculación a {}: {}", to, e.getMessage());
+            log.error("Falló el envío del email de desvinculación a {}: {}", LogMask.email(to), e.getMessage());
             return false;
         }
     }

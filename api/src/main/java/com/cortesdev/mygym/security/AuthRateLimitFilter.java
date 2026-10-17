@@ -77,6 +77,14 @@ public class AuthRateLimitFilter extends OncePerRequestFilter {
     private static final Pattern TV_CHECKIN_CODE_PATH = Pattern.compile("^/api/public/tv/screens/[^/]+/checkin-code$");
     private static final Rule TV_CHECKIN_CODE_RULE = new Rule(300, false);
 
+    // GET /api/public/gyms/{slug}/photos y /api/public/tv/screens/{token}/photos: cada llamada lee hasta 8 fotos en base64 (varios MB)
+    // de la base y ocupa una conexion mientras tanto. El navegador las guarda 5-10 min; esto frena a quien las pida en bucle.
+    // Holgado porque un gimnasio comparte una sola IP (el wifi) entre todos sus socios.
+    private static final Pattern PUBLIC_PHOTOS_PATH = Pattern.compile("^/api/public/gyms/[^/]+/photos$");
+    private static final Rule PUBLIC_PHOTOS_RULE = new Rule(240, false);
+    private static final Pattern TV_PHOTOS_PATH = Pattern.compile("^/api/public/tv/screens/[^/]+/photos$");
+    private static final Rule TV_PHOTOS_RULE = new Rule(60, false);
+
     private final ObjectMapper objectMapper;
     private final ConcurrentHashMap<String, Window> attemptsByKey = new ConcurrentHashMap<>();
     private volatile long lastPurgeAt = System.currentTimeMillis();
@@ -152,12 +160,24 @@ public class AuthRateLimitFilter extends OncePerRequestFilter {
         if (JOIN_PATH.matcher(path).matches()) {
             return "/api/public/gyms/{slug}/join";
         }
+        if (PUBLIC_PHOTOS_PATH.matcher(path).matches()) {
+            return "/api/public/gyms/{slug}/photos";
+        }
+        if (TV_PHOTOS_PATH.matcher(path).matches()) {
+            return "/api/public/tv/screens/{token}/photos";
+        }
         return path;
     }
 
     private static Rule ruleFor(String method, String path) {
         if ("GET".equalsIgnoreCase(method)) {
-            return PAIRING_STATUS_PATH.matcher(path).matches() ? PAIRING_STATUS_RULE : null;
+            if (PAIRING_STATUS_PATH.matcher(path).matches()) {
+                return PAIRING_STATUS_RULE;
+            }
+            if (PUBLIC_PHOTOS_PATH.matcher(path).matches()) {
+                return PUBLIC_PHOTOS_RULE;
+            }
+            return TV_PHOTOS_PATH.matcher(path).matches() ? TV_PHOTOS_RULE : null;
         }
         if (!"POST".equalsIgnoreCase(method)) {
             return null;

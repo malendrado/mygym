@@ -527,6 +527,27 @@ ion-segment-button.segment-button-checked {
     font-weight: 600;
     text-align: right;
   }
+
+  // Botón de copiar por dato: texto chico pero área táctil de 44px.
+  &__copy {
+    min-height: 44px;
+    min-width: 44px;
+    margin-left: 0.4rem;
+    padding: 0 0.5rem;
+    border: none;
+    background: none;
+    color: var(--brand-accent-text-safe, var(--brand-accent));
+    font-family: inherit;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-decoration: underline;
+    cursor: pointer;
+
+    &:focus-visible {
+      outline: 2px solid var(--brand-accent);
+      outline-offset: 2px;
+    }
+  }
 }
 
 .membership-status {
@@ -1052,18 +1073,17 @@ ion-segment-button.segment-button-checked {
   &__attendees-toggle {
     align-self: flex-start;
     margin: 0.2rem 0 0;
-    padding: 0;
+    padding: 0.7rem 0;
     border: none;
     background: none;
     color: var(--brand-accent-text-safe, var(--brand-accent));
     font-family: inherit;
-    font-size: 0.66rem;
+    font-size: 0.72rem;
     font-weight: 600;
     text-decoration: underline;
     cursor: pointer;
-    // Ancho de touch-target sin agrandar el texto — mismo criterio que
-    // .class-tile__link (min-height 44px pero el texto sigue chico).
-    min-height: 32px;
+    // Touch-target de 44px con padding vertical, el texto sigue chico.
+    min-height: 44px;
   }
 
   &__action {
@@ -1087,7 +1107,7 @@ ion-segment-button.segment-button-checked {
     }
   }
 
-  // Cancelar es secundario (botón plano en rojo, sin relleno), pero conserva el piso táctil de 44px.
+  // Cancelar es secundario (borde rojo, sin relleno: se ve como botón y no como texto suelto) y conserva el piso táctil de 44px.
   &__cancel {
     height: 44px;
   }

@@ -1,6 +1,7 @@
 import { Component, OnDestroy, computed, effect, inject, signal, untracked } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { trimmedEmail } from '../../../../core/utils/trimmed-email.validator';
 import {
   IonBackButton,
   IonBadge,
@@ -10,7 +11,6 @@ import {
   IonCardContent,
   IonCardHeader,
   IonCardTitle,
-  IonChip,
   IonContent,
   IonHeader,
   IonIcon,
@@ -356,7 +356,6 @@ const THEMED_ROOT_PROPERTIES = [
     IonList,
     IonListHeader,
     IonBadge,
-    IonChip,
     IonModal,
     IonSearchbar,
     IonSegment,
@@ -1811,7 +1810,7 @@ export class GymForm implements OnDestroy {
       .updateIdentity(id, {
         tagline: raw.tagline || null,
         description: raw.description || null,
-        instagramUrl: raw.instagramUrl || null,
+        instagramUrl: raw.instagramUrl.trim() || null,
         whatsappNumber: raw.whatsappNumber || null,
       })
       .subscribe({
@@ -1861,8 +1860,10 @@ export class GymForm implements OnDestroy {
   // ---- Profesores del gym (contraparte de la sección "Profesores" del panel del dueño) ----
 
   protected readonly profesores = signal<Profesor[]>([]);
-  protected readonly newProfesorName = signal('');
-  protected readonly newProfesorEmail = signal('');
+  protected readonly profesorForm = new FormGroup({
+    name: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.minLength(2), Validators.maxLength(150)] }),
+    email: new FormControl('', { nonNullable: true, validators: [Validators.required, trimmedEmail] }),
+  });
   protected readonly creatingProfesor = signal(false);
   protected readonly removingProfesorId = signal<number | null>(null);
 
@@ -1873,9 +1874,10 @@ export class GymForm implements OnDestroy {
 
   protected addProfesor(): void {
     const id = this.gymId();
-    const name = this.newProfesorName().trim();
-    const email = this.newProfesorEmail().trim();
-    if (id === null || !name || !email) {
+    const name = this.profesorForm.controls.name.value.trim();
+    const email = this.profesorForm.controls.email.value.trim();
+    if (id === null || this.profesorForm.invalid || !name || !email) {
+      this.profesorForm.markAllAsTouched();
       return;
     }
     this.creatingProfesor.set(true);
@@ -1883,8 +1885,7 @@ export class GymForm implements OnDestroy {
       next: (profesor) => {
         this.creatingProfesor.set(false);
         this.profesores.update((list) => [...list, profesor]);
-        this.newProfesorName.set('');
-        this.newProfesorEmail.set('');
+        this.profesorForm.reset({ name: '', email: '' });
         this.showToast(`${profesor.name} ya puede entrar como profesor.`);
       },
       error: (err: Error) => {

@@ -654,7 +654,7 @@ public class MemberLifecycleEmailService {
             String ctaUrl,
             String footerText) {
         if (apiKey == null || apiKey.isBlank()) {
-            log.warn("RESEND_API_KEY no configurada — se omite el email '{}' para {}", subject, to);
+            log.warn("RESEND_API_KEY no configurada — se omite el email '{}' para {}", subject, LogMask.email(to));
             return;
         }
         String html = renderHtml(gym, badgeLabel, headline, bodyHtml, ctaText, ctaUrl, footerText);
@@ -674,9 +674,9 @@ public class MemberLifecycleEmailService {
                         .body(requestBody)
                         .retrieve()
                         .toBodilessEntity();
-                log.info("Email '{}' enviado a {}", subject, to);
+                log.info("Email '{}' enviado a {}", subject, LogMask.email(to));
             } catch (RestClientException e) {
-                log.error("Falló el envío del email '{}' a {}: {}", subject, to, e.getMessage());
+                log.error("Falló el envío del email '{}' a {}: {}", subject, LogMask.email(to), e.getMessage());
             }
         });
     }

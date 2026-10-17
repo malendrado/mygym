@@ -413,7 +413,7 @@ ion-header ion-toolbar ion-title {
   }
 
   &--registered {
-    color: var(--brand-accent);
+    color: var(--brand-accent-text-safe, var(--brand-accent));
     background: color-mix(in srgb, var(--brand-accent) 16%, transparent);
   }
 }
@@ -1068,5 +1068,32 @@ ion-header ion-toolbar ion-title {
   &:focus-visible {
     outline: 2px solid var(--brand-accent);
     outline-offset: 2px;
+  }
+}
+
+// Chip "Filtro: X" para quitar el filtro de socios. <button> real (antes ion-chip con click, sin foco ni teclado).
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 32px;
+  margin: 0.25rem 0.5rem 0 0;
+  padding: 0.25rem 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--brand-accent) 35%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brand-accent) 14%, transparent);
+  color: var(--brand-accent-text-safe, var(--brand-accent));
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--brand-accent);
+    outline-offset: 2px;
+  }
+
+  ion-icon {
+    font-size: 1rem;
   }
 }

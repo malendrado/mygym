@@ -7,8 +7,8 @@
       </p>
     }
   } @else {
-    <section class="gl" aria-label="Cupos de tu gimnasio">
-      <h3 class="gl__title">Cupos de tu gimnasio</h3>
+    <section class="gl" [attr.aria-label]="sectionTitle()">
+      <h3 class="gl__title">{{ sectionTitle() }}</h3>
       <div class="gl__rows">
         @for (row of rows(); track row.key) {
           <div class="gl__row" [class.gl__row--near]="row.state === 'near'" [class.gl__row--full]="row.state === 'full'">
