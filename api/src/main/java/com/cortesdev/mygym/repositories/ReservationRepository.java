@@ -31,6 +31,18 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
         return bookedStamp(gymId, from, ReservationStatus.BOOKED);
     }
 
+    /** Reservas BOOKED de esas clases en el rango, reducidas a lo que cuenta la asistencia (sin hidratar la entidad). */
+    @org.springframework.data.jpa.repository.Query("""
+            select new com.cortesdev.mygym.repositories.BookedSlot(r.gymBlockId, r.memberId, r.classDate, r.checkedInAt)
+            from Reservation r
+            where r.gymBlockId in :gymBlockIds and r.classDate between :from and :to
+              and r.status = com.cortesdev.mygym.models.ReservationStatus.BOOKED
+            """)
+    List<BookedSlot> findBookedSlotsInRange(
+            @org.springframework.data.repository.query.Param("gymBlockIds") List<Long> gymBlockIds,
+            @org.springframework.data.repository.query.Param("from") LocalDate from,
+            @org.springframework.data.repository.query.Param("to") LocalDate to);
+
     List<Reservation> findByGymBlockIdInAndClassDateBetweenAndStatus(
             List<Long> gymBlockIds, LocalDate from, LocalDate to, ReservationStatus status);
 

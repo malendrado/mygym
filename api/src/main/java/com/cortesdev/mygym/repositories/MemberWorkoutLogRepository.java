@@ -15,11 +15,26 @@ public interface MemberWorkoutLogRepository extends JpaRepository<MemberWorkoutL
 
     List<MemberWorkoutLog> findByReservationIdIn(List<Long> reservationIds);
 
-    /** Para WorkoutService.getNextPlanDay — todo log cuya sugerencia se calculó contra ESTE plan
-     *  pertenece a este plan para siempre (se fija en el momento de crear el log, nunca cambia
-     *  aunque el socio haya escrito texto libre), ver el comentario largo en MemberWorkoutLog.
-     *  Trae TODOS los logs del plan: solo lo usa el tablero "En clase", que carga muchos alumnos en lote. */
-    List<MemberWorkoutLog> findBySuggestedPlanDayIdIn(List<Long> planDayIds);
+    /** Por cada plan, el día que el socio hizo en su registro MÁS reciente (por fecha de la clase) entre los días de ese plan.
+     *  Una sola consulta para todo el tablero "En clase": antes se traían TODOS los registros de cada plan, con el JSONB de
+     *  ejercicios, y sus reservas, y crecía con el historial. Aquí Postgres se queda con una fila por plan y no lee los ejercicios.
+     *  Un registro de texto libre (sin día de plan) devuelve planDayId = null. */
+    @Query(value = """
+            SELECT DISTINCT ON (pd.workout_plan_id) pd.workout_plan_id AS planId, l.plan_day_id AS planDayId
+            FROM member_workout_log l
+            JOIN reservation r ON r.id = l.reservation_id
+            JOIN plan_day pd ON pd.id = l.suggested_plan_day_id
+            WHERE pd.workout_plan_id IN (:planIds)
+            ORDER BY pd.workout_plan_id, r.class_date DESC, l.id DESC
+            """, nativeQuery = true)
+    List<LatestPlanLog> findLatestPlanDayByPlan(@Param("planIds") List<Long> planIds);
+
+    /** Fila de findLatestPlanDayByPlan. */
+    interface LatestPlanLog {
+        Long getPlanId();
+
+        Long getPlanDayId();
+    }
 
     /** Fecha de la clase más reciente con registro de este socio, estrictamente anterior a `before`. Ancla de cada
      *  ventana del historial (y, con la fecha de la ventana ya cargada, dice si quedan más antiguas). */

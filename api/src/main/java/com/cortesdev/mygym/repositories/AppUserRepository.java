@@ -33,8 +33,8 @@ public interface AppUserRepository extends JpaRepository<AppUser, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<AppUser> findLockedByIdAndGymId(Long id, Long gymId);
 
-    /** Usado por MembershipReminderJob — solo socios que alguna vez pagaron. */
-    List<AppUser> findByRoleAndPaidAtIsNotNull(Role role);
+    /** Usado por MembershipReminderJob: solo socios cuyo último pago cae en la ventana en la que su período (1 mes) vence en 0 a 3 días. */
+    List<AppUser> findByRoleAndPaidAtBetween(Role role, java.time.Instant from, java.time.Instant to);
 
     /** Para la vista "Administradores" del super-admin — super-admins (sin gym_id) y gym-admins
      *  de todos los gimnasios, cada una en su propia consulta por rol. */

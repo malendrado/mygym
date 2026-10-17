@@ -724,7 +724,7 @@ public class ReservationService {
     }
 
     private Gym findGymOrThrow(Long gymId) {
-        return gymRepository.findById(gymId).orElseThrow(() -> new GymNotFoundException(gymId));
+        return gymRepository.findSettingsViewById(gymId).orElseThrow(() -> new GymNotFoundException(gymId));
     }
 
     /** true si faltan MÁS de `windowMinutes` minutos para el inicio — sirve tanto para el límite de

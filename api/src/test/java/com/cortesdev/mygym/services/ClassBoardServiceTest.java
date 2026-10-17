@@ -98,7 +98,7 @@ class ClassBoardServiceTest {
                 new WorkoutService(
                         workoutPlanRepository, planDayRepository, memberWorkoutLogRepository, reservationRepository, appUserRepository));
 
-        when(gymRepository.findById(GYM_ID)).thenReturn(Optional.of(Gym.builder().id(GYM_ID).build()));
+        when(gymRepository.existsById(GYM_ID)).thenReturn(true);
         when(gymBlockRepository.findByGymId(GYM_ID)).thenAnswer(inv -> List.copyOf(blocks));
         when(gymClosureService.scheduleFor(any(), any(), any()))
                 .thenAnswer(inv -> new GymClosureService.ClosureSchedule(
@@ -114,7 +114,26 @@ class ClassBoardServiceTest {
         when(workoutPlanRepository.findByMemberIdInAndActiveTrue(any())).thenAnswer(inv -> List.copyOf(plans));
         when(planDayRepository.findByWorkoutPlanIdInOrderByOrderIndexAsc(any())).thenAnswer(inv -> List.copyOf(days));
         when(planDayRepository.findAllById(any())).thenAnswer(inv -> List.copyOf(days));
-        when(memberWorkoutLogRepository.findBySuggestedPlanDayIdIn(any())).thenAnswer(inv -> List.copyOf(logs));
+        // Lo que hace la consulta real (DISTINCT ON por plan, la clase más reciente): una fila por plan con el día que hizo.
+        when(memberWorkoutLogRepository.findLatestPlanDayByPlan(any())).thenAnswer(inv -> {
+            List<Reservation> all = new ArrayList<>(attended);
+            all.addAll(reservations);
+            List<MemberWorkoutLogRepository.LatestPlanLog> out = new ArrayList<>();
+            for (WorkoutPlan plan : plans) {
+                Set<Long> dayIds = days.stream().filter(d -> d.getWorkoutPlanId().equals(plan.getId())).map(PlanDay::getId).collect(java.util.stream.Collectors.toSet());
+                logs.stream()
+                        .filter(l -> dayIds.contains(l.getSuggestedPlanDayId()))
+                        .filter(l -> all.stream().anyMatch(r -> r.getId().equals(l.getReservationId())))
+                        .max(java.util.Comparator
+                                .comparing((MemberWorkoutLog l) -> all.stream().filter(r -> r.getId().equals(l.getReservationId())).findFirst().get().getClassDate())
+                                .thenComparing(MemberWorkoutLog::getId))
+                        .ifPresent(l -> out.add(new MemberWorkoutLogRepository.LatestPlanLog() {
+                            public Long getPlanId() { return plan.getId(); }
+                            public Long getPlanDayId() { return l.getPlanDayId(); }
+                        }));
+            }
+            return out;
+        });
         when(memberWorkoutLogRepository.findByReservationIdIn(any())).thenAnswer(inv -> List.copyOf(logs));
         when(reservationRepository.findAllById(any())).thenAnswer(inv -> {
             Iterable<Long> ids = inv.getArgument(0);
@@ -261,7 +280,7 @@ class ClassBoardServiceTest {
 
     @Test
     void gymInexistenteEsNotFound() {
-        when(gymRepository.findById(99L)).thenReturn(Optional.empty());
+        when(gymRepository.existsById(99L)).thenReturn(false);
 
         assertThatThrownBy(() -> service.board(99L)).isInstanceOf(GymNotFoundException.class);
     }
@@ -402,7 +421,7 @@ class ClassBoardServiceTest {
         // Cada tipo de consulta se hace UNA vez para toda la clase (nunca una por alumno).
         verify(workoutPlanRepository, times(1)).findByMemberIdInAndActiveTrue(any());
         verify(planDayRepository, times(1)).findByWorkoutPlanIdInOrderByOrderIndexAsc(any());
-        verify(memberWorkoutLogRepository, times(1)).findBySuggestedPlanDayIdIn(any());
+        verify(memberWorkoutLogRepository, times(1)).findLatestPlanDayByPlan(any());
         verify(memberWorkoutLogRepository, times(1)).findByReservationIdIn(any());
         verify(reservationRepository, times(1))
                 .findByMemberIdInAndCheckedInAtIsNotNullAndClassDateGreaterThanEqual(any(), any());

@@ -13,6 +13,7 @@ import com.cortesdev.mygym.models.dto.MemberAttendanceDetail;
 import com.cortesdev.mygym.models.dto.MemberAttendanceRow;
 import com.cortesdev.mygym.models.dto.PageResponse;
 import com.cortesdev.mygym.repositories.AppUserRepository;
+import com.cortesdev.mygym.repositories.BookedSlot;
 import com.cortesdev.mygym.repositories.GymBlockRepository;
 import com.cortesdev.mygym.repositories.ReservationRepository;
 import com.cortesdev.mygym.services.exception.GymBlockNotFoundException;
@@ -80,15 +81,15 @@ public class AttendanceSummaryService {
 
         Map<Long, GymBlock> blocks = blocksOf(gymId);
         // Una sola consulta cubre el período y el anterior; se separan en memoria por fecha.
-        List<Reservation> all = fetch(blocks, previousFrom, to);
+        List<BookedSlot> all = fetch(blocks, previousFrom, to);
         ZonedDateTime now = ZonedDateTime.now(GYM_ZONE);
-        List<Reservation> current = new ArrayList<>();
-        List<Reservation> previous = new ArrayList<>();
-        for (Reservation r : all) {
+        List<BookedSlot> current = new ArrayList<>();
+        List<BookedSlot> previous = new ArrayList<>();
+        for (BookedSlot r : all) {
             if (!ended(r, blocks, now)) {
                 continue;
             }
-            (r.getClassDate().isBefore(from) ? previous : current).add(r);
+            (r.classDate().isBefore(from) ? previous : current).add(r);
         }
 
         Map<Long, int[]> byBlock = new LinkedHashMap<>();
@@ -96,12 +97,12 @@ public class AttendanceSummaryService {
         for (DayOfWeek day : DayOfWeek.values()) {
             byDay.put(day, new int[2]);
         }
-        for (Reservation r : current) {
-            int attended = r.getCheckedInAt() != null ? 1 : 0;
-            int[] block = byBlock.computeIfAbsent(r.getGymBlockId(), k -> new int[2]);
+        for (BookedSlot r : current) {
+            int attended = r.checkedInAt() != null ? 1 : 0;
+            int[] block = byBlock.computeIfAbsent(r.gymBlockId(), k -> new int[2]);
             block[0]++;
             block[1] += attended;
-            int[] day = byDay.get(blocks.get(r.getGymBlockId()).getDayOfWeek());
+            int[] day = byDay.get(blocks.get(r.gymBlockId()).getDayOfWeek());
             day[0]++;
             day[1] += attended;
         }
@@ -165,10 +166,10 @@ public class AttendanceSummaryService {
         int pageIndex = Math.max(page, 0);
 
         ZonedDateTime now = ZonedDateTime.now(GYM_ZONE);
-        List<Reservation> filtered = fetch(blocks, from, to).stream()
+        List<BookedSlot> filtered = fetch(blocks, from, to).stream()
                 .filter(r -> ended(r, blocks, now))
-                .filter(r -> blockId == null || r.getGymBlockId().equals(blockId))
-                .filter(r -> weekday == null || blocks.get(r.getGymBlockId()).getDayOfWeek() == weekday)
+                .filter(r -> blockId == null || r.gymBlockId().equals(blockId))
+                .filter(r -> weekday == null || blocks.get(r.gymBlockId()).getDayOfWeek() == weekday)
                 .toList();
         List<Aggregate> members = aggregateByMember(filtered).stream()
                 .filter(a -> !onlyMissed || a.missed() > 0)
@@ -213,7 +214,10 @@ public class AttendanceSummaryService {
                 })
                 .toList();
 
-        List<Reservation> endedOnes = reservations.stream().filter(r -> ended(r, blocks, now)).toList();
+        List<BookedSlot> endedOnes = reservations.stream()
+                .map(r -> new BookedSlot(r.getGymBlockId(), r.getMemberId(), r.getClassDate(), r.getCheckedInAt()))
+                .filter(r -> ended(r, blocks, now))
+                .toList();
         Aggregate agg = aggregateByMember(endedOnes).stream().findFirst().orElse(new Aggregate(memberId));
         MemberAttendanceRow header = new MemberAttendanceRow(
                 member.getId(),
@@ -250,15 +254,15 @@ public class AttendanceSummaryService {
         }
     }
 
-    private static List<Aggregate> aggregateByMember(List<Reservation> endedReservations) {
+    private static List<Aggregate> aggregateByMember(List<BookedSlot> endedReservations) {
         Map<Long, Aggregate> byMember = new HashMap<>();
-        for (Reservation r : endedReservations) {
-            Aggregate a = byMember.computeIfAbsent(r.getMemberId(), Aggregate::new);
+        for (BookedSlot r : endedReservations) {
+            Aggregate a = byMember.computeIfAbsent(r.memberId(), Aggregate::new);
             a.booked++;
-            if (r.getCheckedInAt() != null) {
+            if (r.checkedInAt() != null) {
                 a.attended++;
-            } else if (a.lastMissedDate == null || r.getClassDate().isAfter(a.lastMissedDate)) {
-                a.lastMissedDate = r.getClassDate();
+            } else if (a.lastMissedDate == null || r.classDate().isAfter(a.lastMissedDate)) {
+                a.lastMissedDate = r.classDate();
             }
         }
         return new ArrayList<>(byMember.values());
@@ -283,8 +287,8 @@ public class AttendanceSummaryService {
                 .toList();
     }
 
-    private static Totals totals(List<Reservation> endedReservations) {
-        int attended = (int) endedReservations.stream().filter(r -> r.getCheckedInAt() != null).count();
+    private static Totals totals(List<BookedSlot> endedReservations) {
+        int attended = (int) endedReservations.stream().filter(r -> r.checkedInAt() != null).count();
         return new Totals(endedReservations.size(), attended, endedReservations.size() - attended);
     }
 
@@ -292,18 +296,22 @@ public class AttendanceSummaryService {
         return gymBlockRepository.findByGymId(gymId).stream().collect(Collectors.toMap(GymBlock::getId, b -> b));
     }
 
-    private List<Reservation> fetch(Map<Long, GymBlock> blocks, LocalDate from, LocalDate to) {
+    private List<BookedSlot> fetch(Map<Long, GymBlock> blocks, LocalDate from, LocalDate to) {
         if (blocks.isEmpty()) {
             return List.of();
         }
-        return reservationRepository.findByGymBlockIdInAndClassDateBetweenAndStatus(
-                List.copyOf(blocks.keySet()), from, to, ReservationStatus.BOOKED);
+        return reservationRepository.findBookedSlotsInRange(
+                List.copyOf(blocks.keySet()), from, to);
+    }
+
+    private static boolean ended(Reservation r, Map<Long, GymBlock> blocks, ZonedDateTime now) {
+        return ended(new BookedSlot(r.getGymBlockId(), r.getMemberId(), r.getClassDate(), r.getCheckedInAt()), blocks, now);
     }
 
     /** Mismo criterio que ReservationService.isPastOccurrence: la clase termina a su hora de fin, en hora de Chile. */
-    private static boolean ended(Reservation r, Map<Long, GymBlock> blocks, ZonedDateTime now) {
-        GymBlock block = blocks.get(r.getGymBlockId());
-        return block != null && ZonedDateTime.of(r.getClassDate(), block.getEndTime(), GYM_ZONE).isBefore(now);
+    private static boolean ended(BookedSlot r, Map<Long, GymBlock> blocks, ZonedDateTime now) {
+        GymBlock block = blocks.get(r.gymBlockId());
+        return block != null && ZonedDateTime.of(r.classDate(), block.getEndTime(), GYM_ZONE).isBefore(now);
     }
 
     private static void validateRange(LocalDate from, LocalDate to) {

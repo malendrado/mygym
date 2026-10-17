@@ -252,4 +252,81 @@ class WorkoutHistoryWindowIntegrationTest {
 
         assertThat(String.join("\n", plan)).contains("idx_reservation_member_checkedin_date");
     }
+
+    // ---- paquete 3 de la auditoría 2026-10-17: consultas livianas del tablero y de las reservas ----
+
+    @Test
+    void theBoardAsksOnceForTheDayOfTheNewestLogOfEachPlanWithoutLoadingTheExercises() {
+        attended(10, true); // hizo el día 2, hace 10 días
+        Reservation newest = attended(3, false);
+        logRepository.save(MemberWorkoutLog.builder()
+                .reservationId(newest.getId()).suggestedPlanDayId(day2.getId()).planDayId(day1.getId())
+                .exercisesLog(List.of(new ExerciseLogEntry("Sentadilla", "60 kg"))).build());
+        // Otro socio con su propio plan: no se mezcla.
+        AppUser other = appUserRepository.save(AppUser.builder()
+                .email("otro-" + System.nanoTime() + "@test.com").name("Otro").role(Role.MEMBER).gymId(gymId).active(true).build());
+        WorkoutPlan otherPlan = workoutPlanRepository.save(WorkoutPlan.builder().memberId(other.getId()).name("R2").active(true).build());
+        planDayRepository.save(PlanDay.builder().workoutPlanId(otherPlan.getId()).orderIndex(1).title("A").build());
+        entityManager.flush();
+
+        List<MemberWorkoutLogRepository.LatestPlanLog> rows = logRepository.findLatestPlanDayByPlan(
+                List.of(day1.getWorkoutPlanId(), otherPlan.getId()));
+
+        // Solo el plan con registros; y de sus dos registros, el de la clase más reciente (hace 3 días: hizo el día 1).
+        assertThat(rows).hasSize(1);
+        assertThat(rows.get(0).getPlanId()).isEqualTo(day1.getWorkoutPlanId());
+        assertThat(rows.get(0).getPlanDayId()).isEqualTo(day1.getId());
+    }
+
+    @Test
+    void aFreeTextNewestLogMeansThePlanRestartsAtDayOneNotThePreviousDay() {
+        attended(10, true);
+        Reservation newest = attended(2, false);
+        logRepository.save(MemberWorkoutLog.builder()
+                .reservationId(newest.getId()).suggestedPlanDayId(day1.getId()).planDayId(null).freeTextLabel("Cardio libre")
+                .exercisesLog(List.of()).build());
+        entityManager.flush();
+
+        List<MemberWorkoutLogRepository.LatestPlanLog> rows = logRepository.findLatestPlanDayByPlan(List.of(day1.getWorkoutPlanId()));
+
+        assertThat(rows).hasSize(1);
+        assertThat(rows.get(0).getPlanDayId()).isNull();
+    }
+
+    @Test
+    void theLightGymViewCarriesTheBookingRulesButNotTheHeavyColumns() {
+        Gym full = gymRepository.findById(gymId).orElseThrow();
+        full.setLogoSvg("<svg>logo</svg>");
+        full.setBookingWindowMinutes(45);
+        full.setCancellationWindowMinutes(20);
+        full.setWaitlistHeadStartMinutes(15);
+        full.setShowAttendeesToMembers(true);
+        full.setFixedMembersCurrentWeekOnly(true);
+        gymRepository.save(full);
+        entityManager.flush();
+        entityManager.clear();
+
+        Gym light = gymRepository.findSettingsViewById(gymId).orElseThrow();
+
+        assertThat(light.getName()).isEqualTo("Gym historial");
+        assertThat(light.isActive()).isTrue();
+        assertThat(light.getBookingWindowMinutes()).isEqualTo(45);
+        assertThat(light.getCancellationWindowMinutes()).isEqualTo(20);
+        assertThat(light.getWaitlistHeadStartMinutes()).isEqualTo(15);
+        assertThat(light.isShowAttendeesToMembers()).isTrue();
+        assertThat(light.isFixedMembersCurrentWeekOnly()).isTrue();
+        assertThat(light.getLogoSvg()).isNull(); // el logo no se trae
+        assertThat(gymRepository.findSettingsViewById(-1L)).isEmpty();
+    }
+
+    @Test
+    void theForeignKeyIndexesOfV51ExistAndTheDuplicatesOfV49AreGone() {
+        List<String> names = jdbc.queryForList("select indexname from pg_indexes where schemaname = 'public'", String.class);
+
+        assertThat(names).contains(
+                "idx_member_workout_log_plan_day", "idx_manual_payment_plan", "idx_manual_payment_registered_by",
+                "idx_payment_plan", "idx_app_user_plan");
+        assertThat(names).doesNotContain("idx_payment_flow_token", "idx_reservation_cancelled_by_closure");
+        assertThat(names).contains("uk_payment_flow_token", "idx_reservation_cancelled_by_closure_id");
+    }
 }

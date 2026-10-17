@@ -113,7 +113,7 @@ class WaitlistServiceHeadStartTest {
                 .thenReturn(4); // capacidad 5 → 1 cupo libre
         when(waitlistRepository.findByGymBlockIdAndClassDateOrderByCreatedAtAsc(BLOCK_ID, DATE))
                 .thenReturn(List.of(entry(1, null), entry(2, null), entry(3, null)));
-        when(gymRepository.findById(GYM_ID)).thenReturn(Optional.of(g));
+        when(gymRepository.findSettingsViewById(GYM_ID)).thenReturn(Optional.of(g));
         when(appUserRepository.findById(anyLong()))
                 .thenAnswer(inv -> Optional.of(AppUser.builder().id(inv.getArgument(0)).name("X").build()));
 
@@ -133,7 +133,7 @@ class WaitlistServiceHeadStartTest {
                 .thenReturn(4);
         when(waitlistRepository.findByGymBlockIdAndClassDateOrderByCreatedAtAsc(BLOCK_ID, DATE))
                 .thenReturn(List.of(entry(1, null), entry(2, null)));
-        when(gymRepository.findById(GYM_ID)).thenReturn(Optional.of(g));
+        when(gymRepository.findSettingsViewById(GYM_ID)).thenReturn(Optional.of(g));
         when(appUserRepository.findById(1L)).thenReturn(Optional.of(AppUser.builder().id(1L).name("Ana").build()));
 
         waitlistService.onSpotFreed(BLOCK_ID, DATE);
@@ -152,7 +152,7 @@ class WaitlistServiceHeadStartTest {
         when(gymBlockRepository.findById(BLOCK_ID)).thenReturn(Optional.of(block()));
         when(reservationRepository.countByGymBlockIdAndClassDateAndStatus(BLOCK_ID, DATE, ReservationStatus.BOOKED)).thenReturn(4);
         when(waitlistRepository.findByGymBlockIdAndClassDateOrderByCreatedAtAsc(BLOCK_ID, DATE)).thenReturn(List.of(entry(1, null)));
-        when(gymRepository.findById(GYM_ID)).thenReturn(Optional.of(paused));
+        when(gymRepository.findSettingsViewById(GYM_ID)).thenReturn(Optional.of(paused));
 
         waitlistService.onSpotFreed(BLOCK_ID, DATE);
 

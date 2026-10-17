@@ -56,7 +56,7 @@ class MembershipNotificationsTest {
     }
 
     private void stubReminderWorld(AppUser member, long daysUntilExpiry) {
-        when(appUserRepository.findByRoleAndPaidAtIsNotNull(Role.MEMBER)).thenReturn(List.of(member));
+        when(appUserRepository.findByRoleAndPaidAtBetween(eq(Role.MEMBER), any(), any())).thenReturn(List.of(member));
         when(gymPlanRepository.findAllById(any())).thenReturn(List.of(plan));
         when(gymRepository.findAllById(any())).thenReturn(List.of(gym));
         // vence dentro de N días calendario (misma hora del día, así la cuenta por fecha es exacta)
@@ -117,7 +117,7 @@ class MembershipNotificationsTest {
         org.junit.jupiter.api.Assumptions.assumeTrue(
                 ZonedDateTime.now(ZONE).plusMinutes(30).toLocalDate().equals(ZonedDateTime.now(ZONE).toLocalDate()));
         AppUser m = member(4);
-        when(appUserRepository.findByRoleAndPaidAtIsNotNull(Role.MEMBER)).thenReturn(List.of(m));
+        when(appUserRepository.findByRoleAndPaidAtBetween(eq(Role.MEMBER), any(), any())).thenReturn(List.of(m));
         when(gymPlanRepository.findAllById(any())).thenReturn(List.of(plan));
         when(gymRepository.findAllById(any())).thenReturn(List.of(gym));
         when(memberService.periodEnd(m)).thenReturn(ZonedDateTime.now(ZONE).plusMinutes(30));
@@ -135,7 +135,7 @@ class MembershipNotificationsTest {
     void aPausedGymSendsNoMembershipNoticeAtAll() {
         Gym paused = Gym.builder().id(GYM_ID).name("XaloGym").active(false).build();
         AppUser m = member(4L);
-        when(appUserRepository.findByRoleAndPaidAtIsNotNull(Role.MEMBER)).thenReturn(List.of(m));
+        when(appUserRepository.findByRoleAndPaidAtBetween(eq(Role.MEMBER), any(), any())).thenReturn(List.of(m));
         when(gymPlanRepository.findAllById(any())).thenReturn(List.of(plan));
         when(gymRepository.findAllById(any())).thenReturn(List.of(paused));
         when(memberService.periodEnd(m)).thenReturn(ZonedDateTime.now(ZONE).plusDays(2));

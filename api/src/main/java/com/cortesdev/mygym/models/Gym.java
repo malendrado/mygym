@@ -27,6 +27,34 @@ import lombok.Setter;
 @Builder
 public class Gym {
 
+    /**
+     * Vista liviana de SOLO LECTURA para las reservas, la espera y los avisos: trae únicamente lo que esos flujos leen
+     * (nombre, estado, color y reglas de reserva) y deja fuera el logo (hasta 400 KB) y las llaves cifradas de Flow.
+     * Se construye desde GymRepository.findSettingsViewById; NUNCA se debe guardar (el resto de los campos queda en blanco).
+     */
+    public Gym(
+            Long id,
+            String name,
+            String slug,
+            boolean active,
+            String themeColor,
+            int bookingWindowMinutes,
+            int cancellationWindowMinutes,
+            int waitlistHeadStartMinutes,
+            boolean showAttendeesToMembers,
+            boolean fixedMembersCurrentWeekOnly) {
+        this.id = id;
+        this.name = name;
+        this.slug = slug;
+        this.active = active;
+        this.themeColor = themeColor;
+        this.bookingWindowMinutes = bookingWindowMinutes;
+        this.cancellationWindowMinutes = cancellationWindowMinutes;
+        this.waitlistHeadStartMinutes = waitlistHeadStartMinutes;
+        this.showAttendeesToMembers = showAttendeesToMembers;
+        this.fixedMembersCurrentWeekOnly = fixedMembersCurrentWeekOnly;
+    }
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

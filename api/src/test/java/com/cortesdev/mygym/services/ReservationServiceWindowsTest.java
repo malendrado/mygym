@@ -92,7 +92,7 @@ class ReservationServiceWindowsTest {
                 .build();
         when(reservationRepository.findByIdAndMemberId(RESERVATION_ID, MEMBER_ID)).thenReturn(Optional.of(reservation));
         when(gymBlockRepository.findById(BLOCK_ID)).thenReturn(Optional.of(block));
-        when(gymRepository.findById(GYM_ID)).thenReturn(Optional.of(gym));
+        when(gymRepository.findSettingsViewById(GYM_ID)).thenReturn(Optional.of(gym));
     }
 
     @Test
@@ -163,7 +163,7 @@ class ReservationServiceWindowsTest {
     @Test
     void bookAsksTheFixedWeekRuleAndStopsIfItRefuses() {
         GymBlock block = blockStartingIn(60 * 24 * 10);
-        when(gymRepository.findById(GYM_ID)).thenReturn(Optional.of(gym(30, 30)));
+        when(gymRepository.findSettingsViewById(GYM_ID)).thenReturn(Optional.of(gym(30, 30)));
         when(gymBlockRepository.findLockedByIdAndGymId(BLOCK_ID, GYM_ID)).thenReturn(Optional.of(block));
         org.mockito.Mockito.doThrow(new BookingWindowClosedException("solo esta semana"))
                 .when(fixedWeekRule).assertAllowed(any(Gym.class), org.mockito.ArgumentMatchers.eq(MEMBER_ID), any(LocalDate.class), org.mockito.ArgumentMatchers.eq("reservar"));
@@ -180,7 +180,7 @@ class ReservationServiceWindowsTest {
     @Test
     void bookFailsInsideTheBookingWindowWithItsOwnMessage() {
         GymBlock block = blockStartingIn(20);
-        when(gymRepository.findById(GYM_ID)).thenReturn(Optional.of(gym(30, 5)));
+        when(gymRepository.findSettingsViewById(GYM_ID)).thenReturn(Optional.of(gym(30, 5)));
         when(gymBlockRepository.findLockedByIdAndGymId(BLOCK_ID, GYM_ID)).thenReturn(Optional.of(block));
 
         assertThatThrownBy(() -> reservationService.book(
@@ -195,7 +195,7 @@ class ReservationServiceWindowsTest {
         // así que la validación de ventana pasa y falla recién más adelante (cierres/membresía),
         // nunca con el mensaje de ventana.
         GymBlock block = blockStartingIn(60);
-        when(gymRepository.findById(GYM_ID)).thenReturn(Optional.of(gym(10, 300)));
+        when(gymRepository.findSettingsViewById(GYM_ID)).thenReturn(Optional.of(gym(10, 300)));
         when(gymBlockRepository.findLockedByIdAndGymId(BLOCK_ID, GYM_ID)).thenReturn(Optional.of(block));
         when(gymClosureService.closedReasonFor(anyLong(), anyLong(), any(LocalDate.class))).thenReturn("Feriado");
 
@@ -207,7 +207,7 @@ class ReservationServiceWindowsTest {
     // --- datos de contacto obligatorios para reservar ---
 
     private void stubBookUpToTheProfileGate(com.cortesdev.mygym.models.AppUser member) {
-        when(gymRepository.findById(GYM_ID)).thenReturn(Optional.of(gym(10, 10)));
+        when(gymRepository.findSettingsViewById(GYM_ID)).thenReturn(Optional.of(gym(10, 10)));
         when(gymBlockRepository.findLockedByIdAndGymId(BLOCK_ID, GYM_ID)).thenReturn(Optional.of(blockStartingIn(60)));
         when(appUserRepository.findLockedByIdAndGymId(MEMBER_ID, GYM_ID)).thenReturn(Optional.of(member));
         when(memberService.hasActiveMembership(member)).thenReturn(true);
@@ -365,7 +365,7 @@ class ReservationServiceWindowsTest {
     void memberViewOfAttendeesIsForbiddenWhenTheGymHidesThem() {
         Gym hidden = gym(120, 120);
         hidden.setShowAttendeesToMembers(false);
-        when(gymRepository.findById(GYM_ID)).thenReturn(Optional.of(hidden));
+        when(gymRepository.findSettingsViewById(GYM_ID)).thenReturn(Optional.of(hidden));
 
         assertThatThrownBy(() -> reservationService.getOccurrenceAttendeesForMember(
                         GYM_ID, BLOCK_ID, LocalDate.now(ZONE)))

@@ -67,12 +67,14 @@ class AttendanceSummaryTest {
                 .thenReturn(List.of(
                         block(GAP, "GAP", DayOfWeek.MONDAY, LocalTime.of(19, 0), LocalTime.of(20, 0)),
                         block(CROSSFIT, "CrossFit", DayOfWeek.FRIDAY, LocalTime.of(7, 0), LocalTime.of(8, 0))));
-        when(reservationRepository.findByGymBlockIdInAndClassDateBetweenAndStatus(any(), any(), any(), any()))
+        when(reservationRepository.findBookedSlotsInRange(any(), any(), any()))
                 .thenAnswer(inv -> {
                     LocalDate f = inv.getArgument(1);
                     LocalDate t = inv.getArgument(2);
                     return reservations.stream()
                             .filter(r -> !r.getClassDate().isBefore(f) && !r.getClassDate().isAfter(t))
+                            .map(r -> new com.cortesdev.mygym.repositories.BookedSlot(
+                                    r.getGymBlockId(), r.getMemberId(), r.getClassDate(), r.getCheckedInAt()))
                             .toList();
                 });
         when(appUserRepository.findAllById(any())).thenAnswer(inv -> {

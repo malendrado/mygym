@@ -72,7 +72,9 @@ public class ClassBoardService {
     private record Slot(GymBlock block, LocalDate date, String status) {}
 
     public ClassBoardResponse board(Long gymId) {
-        gymRepository.findById(gymId).orElseThrow(() -> new GymNotFoundException(gymId));
+        if (!gymRepository.existsById(gymId)) {
+            throw new GymNotFoundException(gymId);
+        }
         ZonedDateTime now = ZonedDateTime.now(GYM_ZONE);
         LocalDate today = now.toLocalDate();
 
@@ -196,22 +198,12 @@ public class ClassBoardService {
                         .stream()
                         .collect(Collectors.groupingBy(PlanDay::getWorkoutPlanId));
 
-        // --- "Qué le toca": el último registro de cada plan (por fecha de la clase): 2 consultas ---
-        Map<Long, Long> planByDay = new HashMap<>();
-        daysByPlan.forEach((planId, days) -> days.forEach(d -> planByDay.put(d.getId(), planId)));
-        List<MemberWorkoutLog> planLogs =
-                planByDay.isEmpty() ? List.of() : memberWorkoutLogRepository.findBySuggestedPlanDayIdIn(List.copyOf(planByDay.keySet()));
-        Map<Long, LocalDate> planLogDates = classDatesOf(planLogs.stream().map(MemberWorkoutLog::getReservationId).toList());
-        Map<Long, MemberWorkoutLog> latestLogByPlan = new HashMap<>();
-        for (MemberWorkoutLog l : planLogs) {
-            Long planId = planByDay.get(l.getSuggestedPlanDayId());
-            LocalDate date = planLogDates.get(l.getReservationId());
-            if (planId == null || date == null) {
-                continue;
-            }
-            MemberWorkoutLog current = latestLogByPlan.get(planId);
-            if (current == null || date.isAfter(planLogDates.get(current.getReservationId()))) {
-                latestLogByPlan.put(planId, l);
+        // --- "Qué le toca": el día del último registro de cada plan (por fecha de la clase): 1 consulta, sin los ejercicios ---
+        Map<Long, Long> latestPlanDayByPlan = new HashMap<>();
+        if (!daysByPlan.isEmpty()) {
+            for (MemberWorkoutLogRepository.LatestPlanLog row :
+                    memberWorkoutLogRepository.findLatestPlanDayByPlan(List.copyOf(daysByPlan.keySet()))) {
+                latestPlanDayByPlan.put(row.getPlanId(), row.getPlanDayId());
             }
         }
 
@@ -253,7 +245,7 @@ public class ClassBoardService {
             boolean hasPlan = plan != null && !days.isEmpty();
             NextDay nextDay = null;
             if (hasPlan) {
-                PlanDay next = WorkoutService.nextDayAfter(days, latestLogByPlan.get(plan.getId()));
+                PlanDay next = WorkoutService.nextDayAfter(days, latestPlanDayByPlan.get(plan.getId()));
                 nextDay = new NextDay(next.getId(), next.getTitle(), next.getOrderIndex(), days.size());
             }
 
@@ -289,14 +281,6 @@ public class ClassBoardService {
                 ? List.of()
                 : log.getExercisesLog().stream().limit(MAX_EXERCISES_IN_CARD).toList();
         return new LastLog(r.getClassDate(), titleById.get(log.getSuggestedPlanDayId()), deviated, done, exercises);
-    }
-
-    private Map<Long, LocalDate> classDatesOf(List<Long> reservationIds) {
-        if (reservationIds.isEmpty()) {
-            return Map.of();
-        }
-        return reservationRepository.findAllById(reservationIds).stream()
-                .collect(Collectors.toMap(Reservation::getId, Reservation::getClassDate));
     }
 
     private BoardAttendee toAttendee(Reservation r, AppUser member, BoardMemory memory) {

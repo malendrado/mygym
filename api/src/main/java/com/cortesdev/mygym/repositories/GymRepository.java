@@ -22,6 +22,15 @@ public interface GymRepository extends JpaRepository<Gym, Long> {
     /** Para el control de pausa por peticion (GymPauseGuard): una consulta liviana, sin traer el logo ni las llaves. */
     boolean existsByIdAndActiveTrue(Long id);
 
+    /**
+     * Gimnasio "liviano" (ver el constructor de solo lectura de Gym): lo que necesitan reservar, cancelar, el calendario, la
+     * lista de espera y los avisos. Evita traer el logo y descifrar las llaves de Flow en cada reserva. No guardar el resultado.
+     */
+    @org.springframework.data.jpa.repository.Query("SELECT new com.cortesdev.mygym.models.Gym("
+            + "g.id, g.name, g.slug, g.active, g.themeColor, g.bookingWindowMinutes, g.cancellationWindowMinutes, "
+            + "g.waitlistHeadStartMinutes, g.showAttendeesToMembers, g.fixedMembersCurrentWeekOnly) FROM Gym g WHERE g.id = :id")
+    java.util.Optional<Gym> findSettingsViewById(@org.springframework.data.repository.query.Param("id") Long id);
+
     /** Solo el cupo de socios: los indicadores del panel no necesitan traer el gimnasio entero (logo en base64 incluido). */
     @org.springframework.data.jpa.repository.Query("SELECT g.maxUsers FROM Gym g WHERE g.id = :id")
     java.util.Optional<Integer> findMaxUsersById(@org.springframework.data.repository.query.Param("id") Long id);

@@ -42,6 +42,11 @@ public class MembershipReminderJob {
     private static final ZoneId GYM_ZONE = ZoneId.of("America/Santiago");
     private static final long REMINDER_DAYS_BEFORE = 3;
 
+    // Ventana del último pago que puede tener un período (pago + 1 mes) que vence en 0 a 3 días: un mes mide 28 a 31 días,
+    // así que el pago está entre 31 y 24 días atrás; se suma 1 día de margen a cada lado (hora de Chile vs. instante).
+    static final long PAID_AT_WINDOW_FROM_DAYS = 33;
+    static final long PAID_AT_WINDOW_TO_DAYS = 23;
+
     private final AppUserRepository appUserRepository;
     private final MemberService memberService;
     private final GymRepository gymRepository;
@@ -53,7 +58,13 @@ public class MembershipReminderJob {
     // tarde que un socio con la clase de la mañana ya se haya quedado sin poder reservar.
     @Scheduled(cron = "0 0 9 * * *", zone = "America/Santiago")
     public void sendReminders() {
-        List<AppUser> members = appUserRepository.findByRoleAndPaidAtIsNotNull(Role.MEMBER);
+        ZonedDateTime reference = ZonedDateTime.now(GYM_ZONE);
+        // Solo los socios cuyo período (último pago + 1 mes) vence entre hoy y dentro de 3 días: antes se cargaban todos los que
+        // alguna vez pagaron, de todos los gimnasios, cada mañana, solo para descartar casi todos en memoria.
+        List<AppUser> members = appUserRepository.findByRoleAndPaidAtBetween(
+                Role.MEMBER,
+                reference.minusDays(PAID_AT_WINDOW_FROM_DAYS).toInstant(),
+                reference.minusDays(PAID_AT_WINDOW_TO_DAYS).toInstant());
 
         // Antes esto era 1 findById de plan + 1 findById de gym POR SOCIO dentro del loop — con
         // volumen real de socios pagos, cientos de queries secuenciales cada mañana. Se trae todo
@@ -81,7 +92,7 @@ public class MembershipReminderJob {
                 log.error("No se pudo procesar el aviso de vencimiento para el socio {}: {}", member.getId(), e.getMessage());
             }
         }
-        log.info("MembershipReminderJob: {} avisos enviados de {} socios con plan pagado alguna vez", sent, members.size());
+        log.info("MembershipReminderJob: {} avisos enviados de {} socios con período por vencer", sent, members.size());
     }
 
     private boolean processMember(

@@ -94,7 +94,7 @@ class MemberChangeHooksTest {
                 .id(9L).gymBlockId(7L).memberId(MEMBER_ID).classDate(TODAY.plusDays(1)).status(ReservationStatus.BOOKED).build();
         when(reservationRepository.findById(9L)).thenReturn(Optional.of(reservation));
         when(gymBlockRepository.findById(7L)).thenReturn(Optional.of(block));
-        when(gymRepository.findById(GYM_ID)).thenReturn(Optional.of(gym));
+        when(gymRepository.findSettingsViewById(GYM_ID)).thenReturn(Optional.of(gym));
 
         reservationService.cancelAsAdmin(GYM_ID, 9L);
 

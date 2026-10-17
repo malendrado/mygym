@@ -59,6 +59,9 @@ public class TvScreenService {
 
     // Cuánto tiempo, desde que el admin reclama el código, se le entrega el token de la pantalla a quien consulte ese código.
     // 3 min: sobra para una TV con red lenta o que justo no consultaba, y sigue siendo corto para quien solo vio el código.
+    // Cada cuánto, como mucho, se actualiza TvScreen.lastPolledAt (ver getSchedule).
+    private static final Duration LAST_POLLED_WRITE_EVERY = Duration.ofMinutes(5);
+
     static final Duration TOKEN_DELIVERY_WINDOW = Duration.ofMinutes(3);
 
     // A diferencia del acceso a la demo comercial (7 días fijos, corte duro) — una TV es un
@@ -163,13 +166,20 @@ public class TvScreenService {
         return new TvCheckinCodeResponse(checkin.getCode(), checkin.getExpiresAt());
     }
 
+    // Una sola transacción (una conexión del pool de 5) para las ~9 consultas de cada consulta de la TV, que se repite cada 25 s
+    // por pantalla: sin esto cada consulta sacaba y devolvía una conexión por separado.
+    @Transactional
     public TvScheduleResponse getSchedule(String token) {
         TvScreen screen = tvScreenRepository
                 .findByToken(token)
                 .filter(this::isActive)
                 .orElseThrow(() -> new TvScreenNotFoundException(token));
-        screen.setLastPolledAt(Instant.now());
-        tvScreenRepository.save(screen);
+        // "Última vez vista" solo necesita precisión de minutos (y la pantalla se da de baja a los 90 días de silencio): se
+        // escribe como mucho cada 5 min y con un UPDATE directo, en vez de una escritura (SELECT + UPDATE) por consulta.
+        Instant polledAt = Instant.now();
+        if (screen.getLastPolledAt() == null || screen.getLastPolledAt().isBefore(polledAt.minus(LAST_POLLED_WRITE_EVERY))) {
+            tvScreenRepository.touchLastPolledAt(screen.getId(), polledAt);
+        }
 
         Gym gym = gymRepository.findById(screen.getGymId()).orElseThrow(() -> new GymNotFoundException(screen.getGymId()));
         if (!gym.isActive()) {

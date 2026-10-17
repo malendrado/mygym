@@ -72,7 +72,7 @@ public class WaitlistService {
     public void join(Long gymId, Long memberId, Long gymBlockId, LocalDate classDate) {
         // Un socio con clases fijas (y la regla de semana en curso encendida) no puede esperar una clase que después
         // no podría reservar.
-        gymRepository.findById(gymId)
+        gymRepository.findSettingsViewById(gymId)
                 .ifPresent(gym -> fixedWeekRule.assertAllowed(gym, memberId, classDate, "anotarte en la espera de"));
         GymBlock block = gymBlockRepository
                 .findByIdAndGymId(gymBlockId, gymId)
@@ -148,7 +148,7 @@ public class WaitlistService {
         if (unnotified.isEmpty()) {
             return;
         }
-        Gym gym = gymRepository.findById(block.getGymId()).orElse(null);
+        Gym gym = gymRepository.findSettingsViewById(block.getGymId()).orElse(null);
         if (gym == null || !gym.isActive()) {
             return; // gimnasio en pausa: no se avisa de cupos liberados
         }

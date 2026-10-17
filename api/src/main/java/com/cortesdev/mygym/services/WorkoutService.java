@@ -297,12 +297,17 @@ public class WorkoutService {
      *  calcular el día de muchos alumnos con sus datos ya cargados en lote. `last` = su último registro
      *  de ESTE plan (null si no tiene ninguno). */
     static PlanDay nextDayAfter(List<PlanDay> days, MemberWorkoutLog last) {
-        if (last == null || last.getPlanDayId() == null) {
+        return nextDayAfter(days, last == null ? null : last.getPlanDayId());
+    }
+
+    /** Igual, con solo el día de plan que hizo en su último registro (null = ninguno, o texto libre). */
+    static PlanDay nextDayAfter(List<PlanDay> days, Long lastPlanDayId) {
+        if (lastPlanDayId == null) {
             return days.get(0);
         }
         int lastIndex = -1;
         for (int i = 0; i < days.size(); i++) {
-            if (days.get(i).getId().equals(last.getPlanDayId())) {
+            if (days.get(i).getId().equals(lastPlanDayId)) {
                 lastIndex = i;
                 break;
             }
