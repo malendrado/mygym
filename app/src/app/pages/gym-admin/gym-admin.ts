@@ -754,16 +754,27 @@ export class GymAdmin implements OnDestroy {
     // llamaba una vez al entrar, nunca se refrescaba. Mientras la pestaña "Pantallas" está
     // abierta, refresca cada 15s (la TV sondea cada 25s, ver tv-screen.ts) para que el estado se
     // ponga al día solo, sin que el admin tenga que recargar la página entera.
-    effect(() => {
-      if (this.section() === 'screens') {
-        this.loadTvScreens();
-        this.tvScreensPollTimer = setInterval(() => this.loadTvScreens(), 15_000);
-      } else if (this.tvScreensPollTimer) {
-        clearInterval(this.tvScreensPollTimer);
-        this.tvScreensPollTimer = null;
+    effect((onCleanup) => {
+      if (this.section() !== 'screens') {
+        return;
       }
+      untracked(() => this.loadTvScreens());
+      // El timer vive solo mientras el efecto: si se re-ejecuta o el componente se destruye,
+      // onCleanup lo limpia antes de crear otro (antes se acumulaban intervalos).
+      const timer = setInterval(() => this.loadTvScreens(true), 15_000);
+      this.tvScreensPollTimer = timer;
+      onCleanup(() => {
+        clearInterval(timer);
+        if (this.tvScreensPollTimer === timer) {
+          this.tvScreensPollTimer = null;
+        }
+      });
     });
   }
+
+  // El refresco periódico avisa el error una sola vez hasta que una carga vuelva a funcionar,
+  // para no repetir el toast cada 15s con la red caída.
+  private tvScreensErrorShown = false;
 
   private tvScreensPollTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -1641,7 +1652,16 @@ export class GymAdmin implements OnDestroy {
   }
 
   protected closeModal(): void {
+    // Cierre a propósito (guardó, o descartó): no debe volver a preguntar por el borrador.
+    this.modalDirty.set(false);
     this.isModalOpen.set(false);
+  }
+
+  // Botón "Cancelar" del modal: pregunta antes de cerrar solo si hay cambios sin guardar.
+  protected async cancelBlockModal(): Promise<void> {
+    if (await this.confirmDiscard()) {
+      this.closeModal();
+    }
   }
 
   protected openSeriesModal(): void {
@@ -1688,7 +1708,7 @@ export class GymAdmin implements OnDestroy {
     request.subscribe({
       next: () => {
         this.status.set('idle');
-        this.isModalOpen.set(false);
+        this.closeModal();
         this.loadBlocks();
         this.showToast(editing ? 'Bloque guardado.' : 'Bloque creado.');
       },
@@ -1772,7 +1792,16 @@ export class GymAdmin implements OnDestroy {
   }
 
   protected closePlanModal(): void {
+    // Cierre a propósito (guardó, o descartó): no debe volver a preguntar por el borrador.
+    this.modalDirty.set(false);
     this.isPlanModalOpen.set(false);
+  }
+
+  // Botón "Cancelar" del modal: pregunta antes de cerrar solo si hay cambios sin guardar.
+  protected async cancelPlanModal(): Promise<void> {
+    if (await this.confirmDiscard()) {
+      this.closePlanModal();
+    }
   }
 
   protected savePlan(payload: CreateGymPlanRequest | UpdateGymPlanRequest): void {
@@ -1785,7 +1814,7 @@ export class GymAdmin implements OnDestroy {
     request.subscribe({
       next: () => {
         this.status.set('idle');
-        this.isPlanModalOpen.set(false);
+        this.closePlanModal();
         this.loadPlans();
         this.showToast(editing ? 'Plan guardado.' : 'Plan creado.');
       },
@@ -1816,12 +1845,27 @@ export class GymAdmin implements OnDestroy {
     });
   }
 
-  private async confirmAction(header: string, message: string, confirmText = 'Eliminar'): Promise<boolean> {
+  // Borrador sin guardar del modal abierto (lo informa el formulario hijo con dirtyChange). Solo
+  // hay un modal de edición abierto a la vez, así que una marca basta.
+  protected readonly modalDirty = signal(false);
+
+  // [canDismiss] de los modales con formulario: toque en el fondo, Esc o gesto preguntan solo si
+  // hay cambios. Es propiedad flecha para que `this` sobreviva al pasarla a Ionic.
+  protected readonly confirmDiscard = async (): Promise<boolean> =>
+    !this.modalDirty() ||
+    (await this.confirmAction('¿Descartar los cambios?', 'Lo que escribiste no se ha guardado.', 'Descartar', 'Seguir editando'));
+
+  private async confirmAction(
+    header: string,
+    message: string,
+    confirmText = 'Eliminar',
+    cancelText = 'Cancelar',
+  ): Promise<boolean> {
     const alert = await this.alertController.create({
       header,
       message,
       buttons: [
-        { text: 'Cancelar', role: 'cancel' },
+        { text: cancelText, role: 'cancel' },
         { text: confirmText, role: 'destructive' },
       ],
     });
@@ -1874,7 +1918,16 @@ export class GymAdmin implements OnDestroy {
   }
 
   protected closeMemberProfile(): void {
+    // Cierre a propósito (guardó, o descartó): no debe volver a preguntar por el borrador.
+    this.modalDirty.set(false);
     this.profileMember.set(null);
+  }
+
+  // Botón "Cancelar" del modal: pregunta antes de cerrar solo si hay cambios sin guardar.
+  protected async cancelMemberProfile(): Promise<void> {
+    if (await this.confirmDiscard()) {
+      this.closeMemberProfile();
+    }
   }
 
   protected confirmMemberProfile(profile: MemberProfile): void {
@@ -1887,7 +1940,7 @@ export class GymAdmin implements OnDestroy {
     this.memberProfileService.updateForMember(member.id, profile).subscribe({
       next: () => {
         this.savingMemberProfile.set(false);
-        this.profileMember.set(null);
+        this.closeMemberProfile();
         this.showToast(`Datos de ${member.name} guardados.`);
         this.loadMembers();
       },
@@ -2310,7 +2363,16 @@ export class GymAdmin implements OnDestroy {
   }
 
   protected closeWorkoutPlanModal(): void {
+    // Cierre a propósito (guardó, o descartó): no debe volver a preguntar por el borrador.
+    this.modalDirty.set(false);
     this.workoutPlanMember.set(null);
+  }
+
+  // Botón "Cancelar" del modal: pregunta antes de cerrar solo si hay cambios sin guardar.
+  protected async cancelWorkoutPlanModal(): Promise<void> {
+    if (await this.confirmDiscard()) {
+      this.closeWorkoutPlanModal();
+    }
   }
 
   // Si ya había una rutina activa, "Guardar" la reemplaza entera (desactiva la vieja, crea una
@@ -2335,7 +2397,7 @@ export class GymAdmin implements OnDestroy {
     this.workoutService.replacePlan(member.id, request).subscribe({
       next: () => {
         this.savingWorkoutPlan.set(false);
-        this.workoutPlanMember.set(null);
+        this.closeWorkoutPlanModal();
         this.showToast(`Rutina de ${member.name} actualizada.`);
         this.boardRefresh.update((n) => n + 1);
       },
@@ -2511,10 +2573,19 @@ export class GymAdmin implements OnDestroy {
     this.memberList.reload();
   }
 
-  private loadTvScreens(): void {
+  private loadTvScreens(periodic = false): void {
     this.tvScreenService.listMyScreens().subscribe({
-      next: (screens) => this.tvScreens.set(screens),
-      error: () => this.showToast('No pudimos cargar las pantallas. Intenta nuevamente.', 'danger'),
+      next: (screens) => {
+        this.tvScreensErrorShown = false;
+        this.tvScreens.set(screens);
+      },
+      error: () => {
+        if (periodic && this.tvScreensErrorShown) {
+          return;
+        }
+        this.tvScreensErrorShown = true;
+        this.showToast('No pudimos cargar las pantallas. Intenta nuevamente.', 'danger');
+      },
     });
   }
 

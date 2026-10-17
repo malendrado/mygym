@@ -1,4 +1,5 @@
 import { Component, EventEmitter, Input, Output, computed, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import {
   AbstractControl,
   FormControl,
@@ -27,6 +28,7 @@ import { addIcons } from 'ionicons';
 import { timeOutline } from 'ionicons/icons';
 import { CreateGymBlockRequest, DayOfWeek, GymBlock, UpdateGymBlockRequest } from '../../../../core/models/gym.model';
 import { QuantityStepper } from '../../../../core/components/quantity-stepper/quantity-stepper';
+import { trackDirty } from '../../../../core/utils/dirty-tracker';
 import { TIME_OPTIONS_15MIN } from '../../../../core/utils/time-options';
 import { CLASS_CATEGORY_OPTIONS, registerClassCategoryIcons } from '../../../../core/utils/class-category';
 
@@ -120,6 +122,7 @@ export class BloqueFormModal {
         instructorName: '',
       });
     }
+    this.dirtyTracker.markClean();
   }
 
   @Input() set saving(value: boolean) {
@@ -131,6 +134,8 @@ export class BloqueFormModal {
 
   @Output() saved = new EventEmitter<CreateGymBlockRequest | UpdateGymBlockRequest>();
   @Output() dismiss = new EventEmitter<void>();
+  /** Hay cambios sin guardar (el padre lo usa para no cerrar el modal sin avisar). */
+  @Output() dirtyChange = new EventEmitter<boolean>();
 
   // Activo / Pausado (solo al editar; un bloque nuevo nace activo).
   protected readonly active = signal(true);
@@ -153,6 +158,12 @@ export class BloqueFormModal {
       instructorName: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(80)] }),
     },
     { validators: endAfterStartValidator },
+  );
+
+  private readonly formValue = toSignal(this.form.valueChanges, { initialValue: null });
+  private readonly dirtyTracker = trackDirty(
+    () => [this.formValue(), this.form.getRawValue(), this._instructorPhoto(), this.active()],
+    (dirty) => this.dirtyChange.emit(dirty),
   );
 
   protected selectDay(day: DayOfWeek): void {

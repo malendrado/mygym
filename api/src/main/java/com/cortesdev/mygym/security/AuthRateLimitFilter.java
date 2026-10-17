@@ -67,6 +67,16 @@ public class AuthRateLimitFilter extends OncePerRequestFilter {
     private static final Pattern JOIN_PATH = Pattern.compile("^/api/public/gyms/[^/]+/join$");
     private static final Rule JOIN_RULE = MEDIUM;
 
+    // GET /api/public/tv/pairing/{code} — la TV lo consulta cada 3 s mientras espera el emparejamiento (~200 veces en los 10 min de
+    // vida del código); sin tope sería una vía para probar códigos. Holgado porque varias TV de un gimnasio comparten IP y se
+    // pueden emparejar a la vez (el código de 6 caracteres sigue siendo inviable de adivinar a este ritmo).
+    private static final Pattern PAIRING_STATUS_PATH = Pattern.compile("^/api/public/tv/pairing/[^/]+$");
+    private static final Rule PAIRING_STATUS_RULE = new Rule(1200, false);
+
+    // POST /api/public/tv/screens/{token}/checkin-code — cada llamada inserta una fila; la TV lo pide cada ~30 s.
+    private static final Pattern TV_CHECKIN_CODE_PATH = Pattern.compile("^/api/public/tv/screens/[^/]+/checkin-code$");
+    private static final Rule TV_CHECKIN_CODE_RULE = new Rule(300, false);
+
     private final ObjectMapper objectMapper;
     private final ConcurrentHashMap<String, Window> attemptsByKey = new ConcurrentHashMap<>();
     private volatile long lastPurgeAt = System.currentTimeMillis();
@@ -86,7 +96,7 @@ public class AuthRateLimitFilter extends OncePerRequestFilter {
         // Ruta ya decodificada y normalizada por el servlet: getRequestURI() devuelve el texto crudo y
         // "/api/public/auth/%6Cogin" llegaba al controlador pero no coincidía con la lista.
         String path = normalizedPath(request);
-        Rule rule = "POST".equalsIgnoreCase(request.getMethod()) ? ruleFor(path) : null;
+        Rule rule = ruleFor(request.getMethod(), path);
         if (rule == null) {
             filterChain.doFilter(request, response);
             return;
@@ -101,7 +111,7 @@ public class AuthRateLimitFilter extends OncePerRequestFilter {
 
         long now = System.currentTimeMillis();
         purgeIfDue(now);
-        String key = subject + "|" + path;
+        String key = subject + "|" + bucketOf(path);
         Window window = attemptsByKey.computeIfAbsent(key, k -> new Window(now));
 
         synchronized (window) {
@@ -128,10 +138,36 @@ public class AuthRateLimitFilter extends OncePerRequestFilter {
         return path.length() > 1 && path.endsWith("/") ? path.substring(0, path.length() - 1) : path;
     }
 
-    private static Rule ruleFor(String path) {
+    /**
+     * Una sola cuenta por ruta, no por texto de la URL: en las rutas con una parte variable (código, token, slug) contar por
+     * URL completa dejaba al atacante rotar esa parte y empezar de cero cada vez.
+     */
+    private static String bucketOf(String path) {
+        if (PAIRING_STATUS_PATH.matcher(path).matches()) {
+            return "/api/public/tv/pairing/{code}";
+        }
+        if (TV_CHECKIN_CODE_PATH.matcher(path).matches()) {
+            return "/api/public/tv/screens/{token}/checkin-code";
+        }
+        if (JOIN_PATH.matcher(path).matches()) {
+            return "/api/public/gyms/{slug}/join";
+        }
+        return path;
+    }
+
+    private static Rule ruleFor(String method, String path) {
+        if ("GET".equalsIgnoreCase(method)) {
+            return PAIRING_STATUS_PATH.matcher(path).matches() ? PAIRING_STATUS_RULE : null;
+        }
+        if (!"POST".equalsIgnoreCase(method)) {
+            return null;
+        }
         Rule exact = EXACT_RULES.get(path);
         if (exact != null) {
             return exact;
+        }
+        if (TV_CHECKIN_CODE_PATH.matcher(path).matches()) {
+            return TV_CHECKIN_CODE_RULE;
         }
         return JOIN_PATH.matcher(path).matches() ? JOIN_RULE : null;
     }

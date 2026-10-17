@@ -88,6 +88,21 @@ class UserSessionFilterTest {
     }
 
     @Test
+    void aTokenIssuedBeforeThePasswordChangeIsRevokedButOneIssuedAfterSurvives() {
+        UserSessionGuard guard = new UserSessionGuard(appUserRepository);
+        SessionView view = row(Role.MEMBER, GYM_ID, true);
+        Instant changedAt = Instant.parse("2026-10-17T15:00:00Z");
+        when(view.getSessionsValidAfter()).thenReturn(changedAt);
+        when(appUserRepository.findSessionViewById(USER_ID)).thenReturn(Optional.of(view));
+
+        assertEquals(false, guard.isValid(USER_ID, "MEMBER", GYM_ID, changedAt.minusSeconds(1)));
+        assertEquals(true, guard.isValid(USER_ID, "MEMBER", GYM_ID, changedAt)); // emitido en el mismo segundo: vale
+        assertEquals(true, guard.isValid(USER_ID, "MEMBER", GYM_ID, changedAt.plusSeconds(60)));
+        // Sin fecha de emisión conocida (o sin invalidación registrada) no se compara nada.
+        assertEquals(true, guard.isValid(USER_ID, "MEMBER", GYM_ID));
+    }
+
+    @Test
     void anActiveUserWithTheSameRoleAndGymPassesThrough() throws Exception {
         SessionView view = row(Role.GYM_ADMIN, GYM_ID, true);
         when(appUserRepository.findSessionViewById(USER_ID)).thenReturn(Optional.of(view));

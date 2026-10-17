@@ -47,6 +47,8 @@ public interface AppUserRepository extends JpaRepository<AppUser, Long> {
         Long getGymId();
 
         Boolean getActive();
+
+        java.time.Instant getSessionsValidAfter();
     }
 
     /** Consulta derivada con proyección cerrada: trae solo esas tres columnas ("SessionView" en el nombre es texto libre). */

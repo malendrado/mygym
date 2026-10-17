@@ -8,8 +8,11 @@ import com.cortesdev.mygym.models.dto.PublicGymResponse;
 import com.cortesdev.mygym.services.AuthService;
 import com.cortesdev.mygym.services.GymService;
 import jakarta.validation.Valid;
+import java.time.Duration;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.CacheControl;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -41,9 +44,13 @@ public class PublicGymController {
         return gymService.listPublicPlansBySlug(slug);
     }
 
+    // Hasta 8 fotos en base64 (varios MB) leídas de la base en cada visita a /j/{slug}: se deja que el navegador las guarde 5 min.
+    // Una foto nueva o borrada por el admin tarda como mucho ese tiempo en notarse en la página pública.
     @GetMapping("/{slug}/photos")
-    public List<GymPhotoResponse> getPublicPhotos(@PathVariable String slug) {
-        return gymService.listPublicPhotosBySlug(slug);
+    public ResponseEntity<List<GymPhotoResponse>> getPublicPhotos(@PathVariable String slug) {
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.maxAge(Duration.ofMinutes(5)).cachePublic())
+                .body(gymService.listPublicPhotosBySlug(slug));
     }
 
     @PostMapping("/{slug}/join")

@@ -57,6 +57,10 @@ public class TvScreenService {
 
     private static final Duration PAIRING_CODE_TTL = Duration.ofMinutes(10);
 
+    // Cuánto tiempo, desde que el admin reclama el código, se le entrega el token de la pantalla a quien consulte ese código.
+    // 3 min: sobra para una TV con red lenta o que justo no consultaba, y sigue siendo corto para quien solo vio el código.
+    static final Duration TOKEN_DELIVERY_WINDOW = Duration.ofMinutes(3);
+
     // A diferencia del acceso a la demo comercial (7 días fijos, corte duro) — una TV es un
     // dispositivo que se instala una vez y queda prendido meses/años. No tiene sentido un
     // vencimiento por tiempo fijo acá; en cambio, se apaga sola "por abandono" si deja de hacer
@@ -102,7 +106,13 @@ public class TvScreenService {
     @Transactional(readOnly = true)
     public TvPairingStatusResponse pairingStatus(String code) {
         TvPairingCode pairing = findValidPairing(code);
-        return new TvPairingStatusResponse(pairing.getClaimedAt() != null, pairing.getScreenToken());
+        // El código se muestra en una pantalla pública: quien lo vea o lo fotografíe podría consultarlo y llevarse el token de
+        // la pantalla (con él se leen nombres y fotos de socios y se generan QR de check-in). El token solo se entrega unos
+        // instantes después de que el admin reclama el código — la TV consulta cada 3 s, así que lo recibe sobradamente.
+        boolean claimed = pairing.getClaimedAt() != null;
+        boolean tokenStillDeliverable =
+                claimed && pairing.getClaimedAt().plus(TOKEN_DELIVERY_WINDOW).isAfter(Instant.now());
+        return new TvPairingStatusResponse(claimed, tokenStillDeliverable ? pairing.getScreenToken() : null);
     }
 
     public TvScreenResponse claimPairingCode(Long gymId, String code, String name) {

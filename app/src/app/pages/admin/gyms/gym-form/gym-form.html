@@ -386,6 +386,8 @@
               <ion-button
                 fill="clear"
                 color="danger"
+                [attr.aria-label]="'Quitar acceso demo de ' + admin.email"
+                [attr.title]="'Quitar acceso demo de ' + admin.email"
                 [disabled]="removingDemoAdminId() === admin.id"
                 (click)="removeDemoAdmin(admin)"
               >
@@ -785,13 +787,19 @@
       </ion-card-content>
     </ion-card>
 
-    <ion-modal class="wide-modal" [isOpen]="isModalOpen()" (didDismiss)="closeModal()">
+    <ion-modal
+      class="wide-modal"
+      [isOpen]="isModalOpen()"
+      [canDismiss]="confirmDiscard"
+      (didDismiss)="closeModal()"
+    >
       <ng-template>
         <app-bloque-form-modal
           [block]="editingBlock()"
           [saving]="status() === 'saving'"
           (saved)="saveBlock($event)"
-          (dismiss)="closeModal()"
+          (dismiss)="cancelBlockModal()"
+          (dirtyChange)="modalDirty.set($event)"
         />
       </ng-template>
     </ion-modal>
@@ -862,6 +870,7 @@
     <ion-modal
       class="wide-modal"
       [isOpen]="isPlanModalOpen()"
+      [canDismiss]="confirmDiscard"
       (didDismiss)="closePlanModal()"
       [style.--ion-color-primary]="themeColor()"
       [style.--ion-color-primary-contrast]="themeContrast()"
@@ -873,7 +882,8 @@
           [plan]="editingPlan()"
           [saving]="status() === 'saving'"
           (saved)="savePlan($event)"
-          (dismiss)="closePlanModal()"
+          (dismiss)="cancelPlanModal()"
+          (dirtyChange)="modalDirty.set($event)"
         />
       </ng-template>
     </ion-modal>
@@ -1341,6 +1351,7 @@
     <ion-modal
       class="wide-modal"
       [isOpen]="workoutPlanMember() !== null"
+      [canDismiss]="confirmDiscard"
       (didDismiss)="closeWorkoutPlanModal()"
       [style.--ion-color-primary]="themeColor()"
       [style.--ion-color-primary-contrast]="themeContrast()"
@@ -1357,7 +1368,8 @@
           (loadMoreHistory)="loadMoreWorkoutHistory()"
           [saving]="savingWorkoutPlan()"
           (saved)="confirmWorkoutPlan($event)"
-          (dismiss)="closeWorkoutPlanModal()"
+          (dismiss)="cancelWorkoutPlanModal()"
+          (dirtyChange)="modalDirty.set($event)"
         />
       </ng-template>
     </ion-modal>
@@ -1365,6 +1377,7 @@
     <ion-modal
       class="wide-modal"
       [isOpen]="profileMember() !== null"
+      [canDismiss]="confirmDiscard"
       (didDismiss)="closeMemberProfile()"
       [style.--ion-color-primary]="themeColor()"
       [style.--ion-color-primary-contrast]="themeContrast()"
@@ -1380,7 +1393,8 @@
           [saving]="savingMemberProfile()"
           [serverError]="memberProfileError()"
           (saved)="confirmMemberProfile($event)"
-          (dismiss)="closeMemberProfile()"
+          (dismiss)="cancelMemberProfile()"
+          (dirtyChange)="modalDirty.set($event)"
         />
       </ng-template>
     </ion-modal>
@@ -1811,6 +1825,8 @@
               <ion-button
                 fill="clear"
                 color="danger"
+                [attr.aria-label]="'Desvincular la pantalla ' + screen.name"
+                [attr.title]="'Desvincular la pantalla ' + screen.name"
                 [disabled]="removingScreenId() === screen.id"
                 (click)="removeTvScreen(screen)"
               >

@@ -80,6 +80,25 @@ class PasswordAuthSelfRegisterTest {
     }
 
     @Test
+    void conElGimnasioLlenoAmbosCasosRespondenIgualYNoSeMiraSiElEmailExiste() {
+        // Si el cupo solo se revisara para emails nuevos, "gimnasio lleno" delataría qué emails ya tienen cuenta.
+        org.mockito.Mockito.doThrow(new com.cortesdev.mygym.services.exception.GymLimitReachedException(
+                        com.cortesdev.mygym.services.exception.GymLimitReachedException.Kind.MEMBERS, "sin cupos"))
+                .when(gymCapacityService).assertSelfRegistrationAllowed(gym);
+        when(appUserRepository.findByEmail("ana@x.cl")).thenReturn(Optional.of(user(60L, true)));
+
+        org.junit.jupiter.api.Assertions.assertThrows(
+                com.cortesdev.mygym.services.exception.GymLimitReachedException.class,
+                () -> service.requestSelfRegistration("Ana", "ana@x.cl", "xalogym"));
+        org.junit.jupiter.api.Assertions.assertThrows(
+                com.cortesdev.mygym.services.exception.GymLimitReachedException.class,
+                () -> service.requestSelfRegistration("Nueva", "nueva@x.cl", "xalogym"));
+
+        verify(appUserRepository, never()).findByEmail(any());
+        verify(emailService, never()).sendPasswordReset(any(), any(), any());
+    }
+
+    @Test
     void emailNuevoRecibeElCorreoDeActivacionDeSiempre() {
         when(appUserRepository.findByEmail("nuevo@x.cl")).thenReturn(Optional.empty());
 

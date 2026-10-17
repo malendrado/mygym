@@ -40,6 +40,9 @@ public class AppUser {
      *  puede estar presente, ausente, o ambos a la vez. */
     private String passwordHash;
 
+    /** Los JWT emitidos antes de este instante ya no valen (se fija al cambiar la contraseña). null = ninguna invalidación. */
+    private Instant sessionsValidAfter;
+
     private String name;
 
     /** Foto de perfil de Google (claim "picture" del ID token) — null si nunca se logueó con Google. */

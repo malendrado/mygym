@@ -36,6 +36,34 @@ class AuthRateLimitFilterTest {
         return response.getStatus();
     }
 
+    private int get(String path, String forwardedFor) throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", path);
+        request.setServletPath(path);
+        request.setRequestURI(path);
+        request.addHeader("X-Forwarded-For", forwardedFor);
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        filter.doFilter(request, response, new MockFilterChain());
+        return response.getStatus();
+    }
+
+    @Test
+    void probingTvPairingCodesAndMintingCheckinCodesIsLimitedButOtherGetsAreNot() throws Exception {
+        for (int i = 1; i <= 1200; i++) {
+            assertEquals(200, get("/api/public/tv/pairing/ABC" + (i % 10), "203.0.113.20"));
+        }
+        assertEquals(429, get("/api/public/tv/pairing/XYZ234", "203.0.113.20"));
+        assertEquals(200, get("/api/public/tv/pairing/XYZ234", "203.0.113.21")); // otra IP, otro contador
+        // Un GET cualquiera nunca se cuenta (solo las rutas listadas).
+        for (int i = 1; i <= 500; i++) {
+            assertEquals(200, get("/api/public/gyms/xalogym/plans", "203.0.113.22"));
+        }
+
+        for (int i = 1; i <= 300; i++) {
+            assertEquals(200, post("/api/public/tv/screens/tok123/checkin-code", "203.0.113.23"));
+        }
+        assertEquals(429, post("/api/public/tv/screens/tok123/checkin-code", "203.0.113.23"));
+    }
+
     @Test
     void rotatingTheClientWrittenPartOfXForwardedForNoLongerEvadesTheLimit() throws Exception {
         // Railway agrega la IP real al final; todo lo anterior lo escribe el atacante.

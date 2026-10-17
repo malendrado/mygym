@@ -87,6 +87,9 @@ public class PasswordAuthService {
             log.info("Auto-registro con contraseña ignorado: gym '{}' no existe o está inactivo", gymSlug);
             return;
         }
+        // El cupo se revisa ANTES de mirar si el email existe: si solo se revisara para emails nuevos, un gimnasio lleno
+        // respondería distinto según el email tuviera cuenta o no, y eso permitiría averiguar qué emails están registrados.
+        gymCapacityService.assertSelfRegistrationAllowed(gym);
         String normalized = AppUser.normalizeEmail(email);
         AppUser existing = appUserRepository.findByEmail(normalized).orElse(null);
         if (existing != null) {
@@ -101,8 +104,6 @@ public class PasswordAuthService {
             }
             return;
         }
-        // Sin cupo se avisa YA (y no despues de mandar un correo de activacion que no se podria usar).
-        gymCapacityService.assertSelfRegistrationAllowed(gym);
         String rawToken = createToken(builder -> builder
                 .purpose(AuthTokenPurpose.SELF_REGISTER)
                 .pendingName(name)
@@ -182,6 +183,10 @@ public class PasswordAuthService {
                 throw new InvalidOrExpiredTokenException();
             }
             user.setPasswordHash(hash);
+            // Cambiar la clave corta las sesiones anteriores (un token robado deja de servir): el JWT dura 30 días y antes
+            // sobrevivía al reseteo. UserSessionGuard lo nota en ≤30 s. Truncado a segundos porque el iat del JWT va en segundos
+            // y la sesión que se emite justo abajo no debe quedar invalidada.
+            user.setSessionsValidAfter(Instant.now().truncatedTo(java.time.temporal.ChronoUnit.SECONDS));
             appUserRepository.save(user);
         }
 

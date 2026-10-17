@@ -62,7 +62,8 @@ public class UserSessionFilter extends OncePerRequestFilter {
                     && guard.isValid(
                             userId.longValue(),
                             jwtAuth.getToken().getClaimAsString("role"),
-                            gymId != null ? gymId.longValue() : null);
+                            gymId != null ? gymId.longValue() : null,
+                            jwtAuth.getToken().getIssuedAt());
             if (!valid) {
                 respondRevoked(response);
                 return;

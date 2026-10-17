@@ -1,9 +1,11 @@
 import { Component, EventEmitter, Input, Output, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { IonButton, IonButtons, IonContent, IonFooter, IonHeader, IonIcon, IonInput, IonItem, IonNote, IonSpinner, IonTitle, IonToolbar } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { idCardOutline } from 'ionicons/icons';
 import { MemberProfile } from '../../models/member.model';
+import { trackDirty } from '../../utils/dirty-tracker';
 import { formatRut, isValidRut, rutFormatValidator } from '../../utils/rut';
 import {
   addressValidator,
@@ -63,6 +65,7 @@ export class MemberProfileModal {
       emergencyContactName: value?.emergencyContactName ?? '',
       emergencyContactPhone: value?.emergencyContactPhone ? formatMobile(value.emergencyContactPhone) : '',
     });
+    this.dirtyTracker.markClean();
   }
 
   @Input() set saving(value: boolean) {
@@ -76,6 +79,8 @@ export class MemberProfileModal {
 
   @Output() saved = new EventEmitter<MemberProfile>();
   @Output() dismiss = new EventEmitter<void>();
+  /** Hay cambios sin guardar (el padre admin lo usa para no cerrar el modal sin avisar). */
+  @Output() dirtyChange = new EventEmitter<boolean>();
 
   protected readonly maxBirthDate = todayIsoDate();
   protected readonly maxAddress = MAX_ADDRESS_LENGTH;
@@ -99,6 +104,12 @@ export class MemberProfileModal {
       validators: [Validators.required, mobileValidator()],
     }),
   });
+
+  private readonly formValue = toSignal(this.form.valueChanges, { initialValue: null });
+  private readonly dirtyTracker = trackDirty(
+    () => [this.formValue(), this.form.getRawValue()],
+    (dirty) => this.dirtyChange.emit(dirty),
+  );
 
   protected showError(name: FieldName): boolean {
     const c = this.form.controls[name];

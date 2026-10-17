@@ -55,7 +55,11 @@ class GymAdminReadAccessTest {
 
     @BeforeEach
     void sessionsAreValidAndTheGymIsActive() {
-        when(userSessionGuard.isValid(anyLong(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+        when(userSessionGuard.isValid(
+                        anyLong(),
+                        org.mockito.ArgumentMatchers.any(),
+                        org.mockito.ArgumentMatchers.any(),
+                        org.mockito.ArgumentMatchers.any()))
                 .thenReturn(true);
         when(gymPauseGuard.isPaused(anyLong())).thenReturn(false);
         // DemoAccessExpiryFilter busca al usuario DEMO_ADMIN: que exista y su acceso no haya vencido.

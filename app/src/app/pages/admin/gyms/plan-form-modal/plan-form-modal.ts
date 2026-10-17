@@ -1,4 +1,5 @@
 import { Component, EventEmitter, Input, Output, computed, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import {
   IonButton,
@@ -18,6 +19,7 @@ import {
 import { addIcons } from 'ionicons';
 import { pricetagOutline } from 'ionicons/icons';
 import { CreateGymPlanRequest, GymPlan, UpdateGymPlanRequest } from '../../../../core/models/gym.model';
+import { trackDirty } from '../../../../core/utils/dirty-tracker';
 import { QuantityStepper } from '../../../../core/components/quantity-stepper/quantity-stepper';
 
 addIcons({ 'pricetag-outline': pricetagOutline });
@@ -126,6 +128,7 @@ export class PlanFormModal {
       this._selectedCategory.set(null);
       this._unlimited.set(false);
     }
+    this.dirtyTracker.markClean();
   }
 
   @Input() set saving(value: boolean) {
@@ -137,6 +140,8 @@ export class PlanFormModal {
 
   @Output() saved = new EventEmitter<CreateGymPlanRequest | UpdateGymPlanRequest>();
   @Output() dismiss = new EventEmitter<void>();
+  /** Hay cambios sin guardar (el padre lo usa para no cerrar el modal sin avisar). */
+  @Output() dirtyChange = new EventEmitter<boolean>();
 
   // Activo / Pausado (solo al editar; un plan nuevo nace activo).
   protected readonly active = signal(true);
@@ -168,6 +173,12 @@ export class PlanFormModal {
     priceClp: new FormControl<number | null>(null, { validators: [Validators.required, Validators.min(350)] }),
     monthlyClasses: new FormControl(8, { nonNullable: true, validators: [Validators.min(1), Validators.max(500)] }),
   });
+
+  private readonly formValue = toSignal(this.form.valueChanges, { initialValue: null });
+  private readonly dirtyTracker = trackDirty(
+    () => [this.formValue(), this.form.getRawValue(), this._selectedCategory(), this._unlimited(), this.active()],
+    (dirty) => this.dirtyChange.emit(dirty),
+  );
 
   protected applyTemplate(template: PlanTemplate): void {
     this._selectedCategory.set(template.category);

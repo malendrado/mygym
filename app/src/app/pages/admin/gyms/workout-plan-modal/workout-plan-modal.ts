@@ -15,6 +15,7 @@ import {
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { addCircleOutline, barbellOutline, closeCircleOutline, informationCircleOutline } from 'ionicons/icons';
+import { trackDirty } from '../../../../core/utils/dirty-tracker';
 import { WorkoutHistoryFilter } from '../../../../core/components/workout-history-filter/workout-history-filter';
 import { CreateWorkoutPlanRequest, MemberWorkoutLog, WorkoutPlan } from '../../../../core/models/workout.model';
 import {
@@ -63,6 +64,7 @@ export class WorkoutPlanModal {
   @Input() set plan(value: WorkoutPlan | null) {
     this._name.set(value?.name ?? '');
     this._dayTitles.set(value && value.days.length > 0 ? value.days.map((d) => d.title) : ['']);
+    this.dirtyTracker.markClean();
   }
 
   /** Registros ya cargados del socio, el más reciente primero (se pide de a 7 días). */
@@ -81,12 +83,19 @@ export class WorkoutPlanModal {
 
   @Output() saved = new EventEmitter<CreateWorkoutPlanRequest>();
   @Output() dismiss = new EventEmitter<void>();
+  /** Hay una rutina a medio escribir sin guardar (el padre lo usa para no cerrar sin avisar). */
+  @Output() dirtyChange = new EventEmitter<boolean>();
 
   private readonly _name = signal('');
   protected readonly name = this._name.asReadonly();
 
   private readonly _dayTitles = signal<string[]>(['']);
   protected readonly dayTitles = this._dayTitles.asReadonly();
+
+  private readonly dirtyTracker = trackDirty(
+    () => [this._name(), this._dayTitles()],
+    (dirty) => this.dirtyChange.emit(dirty),
+  );
 
   private readonly _history = signal<MemberWorkoutLog[]>([]);
   protected readonly historyValue = this._history.asReadonly();
