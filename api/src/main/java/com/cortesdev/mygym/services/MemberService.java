@@ -167,8 +167,7 @@ public class MemberService {
                         || contains(u.getName(), needle)
                         || contains(u.getEmail(), needle)
                         || matchesContactDigits(u, needle))
-                .sorted(Comparator.comparing((AppUser u) -> u.getName() == null ? "" : u.getName().toLowerCase())
-                        .thenComparing(AppUser::getId))
+                .sorted(searchOrder(status))
                 .toList();
         int safeSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
         int safePage = Math.max(page, 0);
@@ -176,6 +175,21 @@ public class MemberService {
         int to = Math.min(from + safeSize, matches.size());
         return new PageResponse<>(
                 toResponses(matches.subList(from, to)), safePage, safeSize, matches.size(), to < matches.size());
+    }
+
+    // Orden de la lista: por defecto nombre. Con EXPIRING_SOON/EXPIRED el que vence antes (o venció hace más
+    // tiempo) va primero: periodEnd = paidAt + 1 mes, así que paidAt ascendente es lo mismo y no recalcula
+    // fechas por fila; sin pago (null) al final. UNPAID no tiene fecha, queda por nombre. Desempate siempre
+    // nombre e id, para que la paginación sea estable.
+    private static Comparator<AppUser> searchOrder(String status) {
+        Comparator<AppUser> byName =
+                Comparator.comparing((AppUser u) -> u.getName() == null ? "" : u.getName().toLowerCase())
+                        .thenComparing(AppUser::getId);
+        if ("EXPIRING_SOON".equals(status) || "EXPIRED".equals(status)) {
+            return Comparator.comparing(AppUser::getPaidAt, Comparator.nullsLast(Comparator.<Instant>naturalOrder()))
+                    .thenComparing(byName);
+        }
+        return byName;
     }
 
     // Búsqueda por RUT o celular: solo con 3+ dígitos ("k" cuenta, es el dígito verificador) y sin importar puntos, guión, +56 o espacios.

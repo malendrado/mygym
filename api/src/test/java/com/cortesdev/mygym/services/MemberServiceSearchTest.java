@@ -129,6 +129,39 @@ class MemberServiceSearchTest {
     }
 
     @Test
+    void expiredAndExpiringSoonOrderByDueDateWithStablePagination() {
+        List<AppUser> roster = appUserRepository.findByGymIdAndRole(GYM_ID, Role.MEMBER);
+        Instant sameDay = daysAgo(60);
+        roster.add(member("Yara", "yara@x.cl", sameDay, null, null)); // EXPIRED, empata fecha con Mario
+        roster.add(member("Mario", "mario@x.cl", sameDay, null, null)); // EXPIRED
+        roster.add(member("Olga", "olga@x.cl", daysAgo(200), null, null)); // EXPIRED, la más antigua
+        ZonedDateTime now = ZonedDateTime.now(ZONE);
+        roster.add(member("Zara", "zara@x.cl", now.minusMonths(1).plusDays(1).toInstant(), null, null)); // vence antes que Ana
+
+        // más antiguo primero, empate por fecha resuelto por nombre; sin duplicados ni saltos entre páginas
+        PageResponse<MemberResponse> p0 = memberService.searchMembers(GYM_ID, null, "EXPIRED", null, 0, 2);
+        PageResponse<MemberResponse> p1 = memberService.searchMembers(GYM_ID, null, "EXPIRED", null, 1, 2);
+        PageResponse<MemberResponse> p2 = memberService.searchMembers(GYM_ID, null, "EXPIRED", null, 2, 2);
+        assertThat(p0.items()).extracting(MemberResponse::name).containsExactly("Olga", "beto");
+        assertThat(p1.items()).extracting(MemberResponse::name).containsExactly("Mario", "Yara");
+        assertThat(p2.items()).isEmpty();
+        assertThat(p0.hasNext()).isTrue();
+        assertThat(p1.hasNext()).isFalse();
+
+        assertThat(memberService.searchMembers(GYM_ID, null, "EXPIRING_SOON", null, 0, 10).items())
+                .extracting(MemberResponse::name)
+                .containsExactly("Zara", "Ana");
+
+        // sin filtro, ACTIVE y UNPAID siguen alfabéticos
+        assertThat(memberService.searchMembers(GYM_ID, null, null, null, 0, 50).items())
+                .extracting(MemberResponse::name)
+                .containsExactly("Ana", "beto", "Carla", "diego", "Elena", "Mario", "Olga", "Yara", "Zara", "zoe");
+        assertThat(memberService.searchMembers(GYM_ID, null, "UNPAID", null, 0, 50).items())
+                .extracting(MemberResponse::name)
+                .containsExactly("Carla", "diego");
+    }
+
+    @Test
     void summaryCountsTheWholeGymWithTheSameRules() {
         MemberSummaryResponse summary = memberService.memberSummary(GYM_ID);
         assertThat(summary.total()).isEqualTo(6);

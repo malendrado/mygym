@@ -419,9 +419,9 @@ public class MemberLifecycleEmailService {
         String headline = "Tu membresía vence en " + daysRemaining + " " + dayWord;
         String body = "<p style=\"margin:0 0 12px;\">Tu plan <strong style=\"color:#eaf6f7;\">" + escapeHtml(plan.getName())
                 + "</strong> vence en " + daysRemaining + " " + dayWord
-                + " — paga antes de esa fecha para no quedarte sin poder reservar.</p>"
-                + "<p style=\"margin:0;\">Puedes pagar cuando quieras desde tu cuenta en " + escapeHtml(gym.getName())
-                + ".</p>";
+                + ". Hasta entonces puedes seguir reservando con normalidad.</p>"
+                + "<p style=\"margin:0;\">Cuando venza, podrás renovarlo desde tu cuenta en " + escapeHtml(gym.getName())
+                + " (si pagas antes, se pierden los días que te queden).</p>";
         send(
                 gym,
                 member.getEmail(),
@@ -429,7 +429,7 @@ public class MemberLifecycleEmailService {
                 "Por vencer",
                 headline,
                 body,
-                "Pagar mi plan",
+                "Ver mi plan",
                 LOGIN_URL,
                 "Recibiste este correo porque tu plan " + escapeHtml(plan.getName()) + " en " + escapeHtml(gym.getName())
                         + " está por vencer.");

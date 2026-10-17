@@ -87,7 +87,7 @@ public final class PushMessages {
         String when = daysRemaining == 1 ? "mañana" : "en " + daysRemaining + " días";
         return new PushMessage(
                 "Tu plan vence " + when,
-                "Renueva para seguir reservando clases en " + gym.getName() + ".",
+                "Sigue reservando con normalidad. Cuando venza, podrás renovarlo en " + gym.getName() + ".",
                 "membership",
                 MEMBER_URL,
                 MAX_TTL_SECONDS,
