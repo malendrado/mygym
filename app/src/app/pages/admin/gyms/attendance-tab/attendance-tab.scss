@@ -57,8 +57,10 @@
   color: var(--brand-text);
   cursor: pointer;
 
-  &:hover {
-    border-color: var(--brand-accent);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      border-color: var(--brand-accent);
+    }
   }
 
   &:focus-visible {

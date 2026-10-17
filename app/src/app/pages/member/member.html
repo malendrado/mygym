@@ -4,7 +4,7 @@
     <ion-toolbar><ion-title>mygym</ion-title></ion-toolbar>
   </ion-header>
   <ion-content class="ion-padding member-loading">
-    <ion-spinner name="crescent"></ion-spinner>
+    <span role="status" aria-live="polite"><ion-spinner name="crescent" aria-label="Cargando"></ion-spinner></span>
   </ion-content>
 } @else {
   <ion-header
@@ -48,10 +48,11 @@
       </div>
     }
     @if (closureNotice(); as notice) {
-      <div class="closure-notice-banner">
+      <div class="closure-notice-banner" role="status">
         <ion-icon name="ban-outline" aria-hidden="true"></ion-icon>
         <span>
-          {{ gym()?.name ?? 'El gimnasio' }} está cerrado {{ closureDatesLabel() }} por: {{ notice.reason }}.
+          {{ gym()?.name ?? 'El gimnasio' }} está cerrado {{ closureDatesLabel() }} por: {{ withoutTrailingDot(notice.reason) }}.
+          Tus reservas de esos días se cancelan.
         </span>
       </div>
     }
@@ -71,7 +72,7 @@
       <ion-segment [value]="section()" (ionChange)="setSection($any($event.detail.value))">
         <ion-segment-button value="reservar">
           <ion-icon name="calendar-outline" aria-hidden="true"></ion-icon>
-          <ion-label>Reserva tu Bloque</ion-label>
+          <ion-label>Reserva tu clase</ion-label>
         </ion-segment-button>
         <ion-segment-button value="reservas">
           <ion-icon name="checkmark-done-outline" aria-hidden="true"></ion-icon>
@@ -93,6 +94,7 @@
     [style.--brand-accent-contrast]="gym()?.themeContrast ?? '#1a2b00'"
     [style.--member-bg]="themeSurface()?.bg ?? null"
     [style.--member-card]="themeSurface()?.card ?? null"
+    [style.--member-warning-text]="gym()?.themeMode === 'LIGHT' ? '#8a6100' : null"
     [style.--brand-accent-text-safe]="accentTextSafe()"
   >
     <div class="member-page">
@@ -100,7 +102,15 @@
       @if (gym()?.name) {
         <p class="member-topbar__eyebrow">{{ gym()!.name }}</p>
       }
-      <h1>Hola, {{ firstName() }}</h1>
+      <div class="member-topbar__row">
+        <h1>Hola, {{ firstName() }}</h1>
+        @if (!isDemoPreview) {
+          <button type="button" class="member-topbar__profile" aria-label="Mis datos: ver o editar mis datos de contacto" (click)="openProfileEdit()">
+            <ion-icon name="person-circle-outline" aria-hidden="true"></ion-icon>
+            Mis datos
+          </button>
+        }
+      </div>
     </div>
 
     @if (section() === 'reservar') {
@@ -124,12 +134,12 @@
 
     <section class="membership">
       @if (!membershipLoaded() && !checkoutPending()) {
-        <div class="membership-status membership-status--pending">
-          <ion-spinner name="crescent"></ion-spinner>
+        <div class="membership-status membership-status--pending" role="status" aria-live="polite">
+          <ion-spinner name="crescent" aria-label="Cargando"></ion-spinner>
         </div>
       } @else if (checkoutPending()) {
-        <div class="membership-status membership-status--pending">
-          <ion-spinner name="crescent"></ion-spinner>
+        <div class="membership-status membership-status--pending" role="status" aria-live="polite">
+          <ion-spinner name="crescent" aria-label="Cargando"></ion-spinner>
           <p>Confirmando tu pago con Flow.cl...</p>
         </div>
       } @else if (membershipError()) {
@@ -199,6 +209,18 @@
                   </div>
                   }
                 </dl>
+                @if (transferWhatsappUrl(); as waUrl) {
+                  @if (transferNotified()) {
+                    <p class="transfer-notice" role="status">
+                      <ion-icon name="checkmark-done-outline" aria-hidden="true"></ion-icon>
+                      Esperando confirmación del gimnasio. Ellos activan tu plan apenas vean la transferencia.
+                    </p>
+                  }
+                  <a class="transfer-notify" [href]="waUrl" target="_blank" rel="noopener" (click)="notifyTransfer()">
+                    <ion-icon name="logo-whatsapp" aria-hidden="true"></ion-icon>
+                    Ya transferí, avisar al gimnasio
+                  </a>
+                }
               </article>
             }
           </div>
@@ -229,8 +251,8 @@
           </div>
         }
       } @else if (membership().status === 'pending') {
-        <div class="membership-status membership-status--pending">
-          <ion-spinner name="crescent"></ion-spinner>
+        <div class="membership-status membership-status--pending" role="status" aria-live="polite">
+          <ion-spinner name="crescent" aria-label="Cargando"></ion-spinner>
           <p>Confirmando tu pago con Flow.cl...</p>
         </div>
       } @else {
@@ -248,7 +270,7 @@
                 @if (expirySoon()) {
                   <ion-icon name="alert-circle-outline" aria-hidden="true"></ion-icon>
                 }
-                {{ expiryLabel() }} · se renueva el {{ renewsOnLabel() }}
+                {{ expiryLabel() }}
               </p>
             }
           </div>
@@ -282,8 +304,8 @@
     <div class="booking-teaser" [class.booking-teaser--locked]="bookingLocked()">
     <div class="booking-teaser__content" [inert]="bookingLocked()">
     @if (status() === 'loading') {
-      <div class="occurrences-loading">
-        <ion-spinner name="crescent"></ion-spinner>
+      <div class="occurrences-loading" role="status" aria-live="polite">
+        <ion-spinner name="crescent" aria-label="Cargando"></ion-spinner>
         <p>{{ occurrencesLoadingMessage }}</p>
       </div>
     } @else if (status() === 'error' && occurrences().length === 0) {
@@ -376,7 +398,7 @@
                 [class.class-tile--live-pending]="isOccurrenceLive(occurrence) && !occurrence.myCheckedInAt"
                 [attr.data-tour]="isOccurrenceLive(occurrence) && !occurrence.myCheckedInAt ? 'checkin-hint' : null"
               >
-                <p class="class-tile__title">
+                <p class="class-tile__title" [attr.title]="occurrence.label">
                   <ion-icon [name]="categoryIcon(occurrence.category)" aria-hidden="true"></ion-icon>
                   {{ occurrence.label }}
                 </p>
@@ -420,7 +442,7 @@
                   @if (expandedAttendeesKey() === occurrenceKey(occurrence)) {
                     <div class="attendees-list">
                       @if (loadingAttendeesKey() === occurrenceKey(occurrence)) {
-                        <ion-spinner name="crescent"></ion-spinner>
+                        <ion-spinner name="crescent" aria-label="Cargando"></ion-spinner>
                       } @else {
                         @for (attendee of attendeesFor(occurrence); track $index) {
                           <span class="attendees-list__item">
@@ -558,8 +580,8 @@
       <!-- Sin botón/click aquí a propósito: no hay ninguna acción que tomar todavía,
            el cartel de arriba ya dice que se está confirmando el pago con Flow. -->
       <span class="booking-teaser__cta booking-teaser__cta--static">
-        <span class="booking-teaser__cta-card">
-          <ion-spinner name="crescent"></ion-spinner>
+        <span class="booking-teaser__cta-card" role="status" aria-live="polite">
+          <ion-spinner name="crescent" aria-label="Cargando"></ion-spinner>
           <span class="booking-teaser__cta-title">Confirmando tu pago</span>
           <span class="booking-teaser__cta-body">
             Así se ve tu calendario de clases — se desbloquea apenas Flow confirme el pago.
@@ -570,8 +592,8 @@
       <!-- Mismo criterio que arriba (.membership): mientras no sepamos si ya tiene un plan
            activo, nunca asumir "sin plan" — evita el mismo parpadeo aquí abajo. -->
       <span class="booking-teaser__cta booking-teaser__cta--static">
-        <span class="booking-teaser__cta-card">
-          <ion-spinner name="crescent"></ion-spinner>
+        <span class="booking-teaser__cta-card" role="status" aria-live="polite">
+          <ion-spinner name="crescent" aria-label="Cargando"></ion-spinner>
         </span>
       </span>
     } @else if (membershipError()) {
@@ -637,13 +659,13 @@
     @if (instagramUrl() || whatsappLink()) {
       <div class="member-contact">
         @if (instagramUrl()) {
-          <a [href]="instagramUrl()" target="_blank" rel="noopener">
+          <a [href]="instagramUrl()" target="_blank" rel="noopener" aria-label="Instagram (se abre en una pestaña nueva)">
             <ion-icon name="logo-instagram" aria-hidden="true"></ion-icon>
             Instagram
           </a>
         }
         @if (whatsappLink()) {
-          <a [href]="whatsappLink()" target="_blank" rel="noopener">
+          <a [href]="whatsappLink()" target="_blank" rel="noopener" aria-label="WhatsApp (se abre en una pestaña nueva)">
             <ion-icon name="logo-whatsapp" aria-hidden="true"></ion-icon>
             WhatsApp
           </a>
@@ -651,7 +673,7 @@
       </div>
     }
     } @else if (section() === 'reservas') {
-    <p class="section-hook">Tu historial de clases, ordenado y a la vista.</p>
+    <p class="section-hook">Tus próximas clases y tu historial.</p>
 
     <div class="booking-teaser" [class.booking-teaser--locked]="bookingLocked()">
     <div class="booking-teaser__content" [inert]="bookingLocked()">
@@ -671,7 +693,7 @@
             [class.class-tile--live]="isReservationLive(reservation)"
             [class.class-tile--live-pending]="isReservationLive(reservation) && !reservation.checkedInAt"
           >
-            <p class="class-tile__title">{{ reservation.blockLabel }}</p>
+            <p class="class-tile__title" [attr.title]="reservation.blockLabel">{{ reservation.blockLabel }}</p>
             @if (reservation.fixed) {
               <ion-badge color="medium" class="class-tile__fixed-badge">Clase fija</ion-badge>
             }
@@ -801,16 +823,16 @@
 
     @if (checkoutPending()) {
       <span class="booking-teaser__cta booking-teaser__cta--static">
-        <span class="booking-teaser__cta-card">
-          <ion-spinner name="crescent"></ion-spinner>
+        <span class="booking-teaser__cta-card" role="status" aria-live="polite">
+          <ion-spinner name="crescent" aria-label="Cargando"></ion-spinner>
           <span class="booking-teaser__cta-title">Confirmando tu pago</span>
           <span class="booking-teaser__cta-body">Tus reservas se desbloquean apenas Flow confirme el pago.</span>
         </span>
       </span>
     } @else if (!membershipLoaded()) {
       <span class="booking-teaser__cta booking-teaser__cta--static">
-        <span class="booking-teaser__cta-card">
-          <ion-spinner name="crescent"></ion-spinner>
+        <span class="booking-teaser__cta-card" role="status" aria-live="polite">
+          <ion-spinner name="crescent" aria-label="Cargando"></ion-spinner>
         </span>
       </span>
     } @else if (membershipError()) {
@@ -818,7 +840,7 @@
         <span class="booking-teaser__cta-card">
           <ion-icon name="alert-circle-outline" aria-hidden="true"></ion-icon>
           <span class="booking-teaser__cta-title">No pudimos verificar tu plan</span>
-          <span class="booking-teaser__cta-body">Reintenta desde la pestaña Reserva tu Bloque para ver tus reservas.</span>
+          <span class="booking-teaser__cta-body">Reintenta desde la pestaña Reserva tu clase para ver tus reservas.</span>
         </span>
       </span>
     } @else if (bookingLocked()) {
@@ -840,8 +862,8 @@
     <p class="section-hook">Anota qué hiciste cada vez que entrenas — tu profesor lo ve antes de hablar contigo.</p>
 
     @if (loadingWorkout()) {
-      <div class="occurrences-loading">
-        <ion-spinner name="crescent"></ion-spinner>
+      <div class="occurrences-loading" role="status" aria-live="polite">
+        <ion-spinner name="crescent" aria-label="Cargando"></ion-spinner>
       </div>
     } @else if (pendingWorkoutError() && !justSavedLog()) {
       <app-error-state
@@ -892,7 +914,7 @@
         <p class="item-hint">Aún no tienes clases por registrar — reserva y marca asistencia primero.</p>
         <ion-button fill="outline" size="small" (click)="setSection('reservar')">
           <ion-icon name="calendar-outline" slot="start" aria-hidden="true"></ion-icon>
-          Reserva tu bloque
+          Reserva tu clase
         </ion-button>
       } @else {
         <section class="member-section workout-form">
@@ -990,6 +1012,7 @@
             type="button"
             class="workout-day-chip"
             [class.workout-day-chip--selected]="!useFreeText() && selectedPlanDayId() === day.id"
+            [attr.aria-pressed]="!useFreeText() && selectedPlanDayId() === day.id"
             (click)="selectPlanDay(day.id)"
           >
             {{ day.title }}
@@ -1000,6 +1023,7 @@
           class="workout-day-chip"
           data-tour="workout-free-text"
           [class.workout-day-chip--selected]="useFreeText()"
+          [attr.aria-pressed]="useFreeText()"
           (click)="selectFreeText()"
         >
           Otro
@@ -1010,6 +1034,7 @@
           <ion-label position="stacked">¿Qué hiciste?</ion-label>
           <ion-input
             placeholder="Ej. Remo"
+            maxlength="200"
             [value]="freeTextLabel()"
             (ionInput)="setFreeTextLabel($any($event.detail.value) ?? '')"
           ></ion-input>
@@ -1020,11 +1045,15 @@
         <ion-item lines="full">
           <ion-input
             placeholder="Ejercicio"
+            [attr.aria-label]="'Ejercicio ' + ($index + 1)"
+            maxlength="200"
             [value]="row.exercise"
             (ionInput)="setExerciseField($index, 'exercise', $any($event.detail.value) ?? '')"
           ></ion-input>
           <ion-input
             placeholder="Notas"
+            [attr.aria-label]="'Notas del ejercicio ' + ($index + 1)"
+            maxlength="500"
             [value]="row.notes ?? ''"
             (ionInput)="setExerciseField($index, 'notes', $any($event.detail.value) ?? '')"
           ></ion-input>
@@ -1062,6 +1091,28 @@
         [serverError]="profileError()"
         (saved)="saveProfile($event)"
         (dismiss)="profileIncomplete.set(false); logout()"
+      />
+    </ng-template>
+  </ion-modal>
+  <ion-modal
+    [isOpen]="profileEditOpen()"
+    (didDismiss)="profileEditOpen.set(false)"
+    [style.--ion-color-primary]="gym()?.themeColor ?? '#c6ff3d'"
+    [style.--ion-color-primary-contrast]="gym()?.themeContrast ?? '#1a2b00'"
+    [style.--brand-accent]="gym()?.themeColor ?? '#c6ff3d'"
+    [style.--brand-accent-contrast]="gym()?.themeContrast ?? '#1a2b00'"
+  >
+    <ng-template>
+      <app-member-profile-modal
+        title="Mis datos"
+        intro="Revisa o actualiza tus datos de contacto. Los cambios quedan guardados para el gimnasio."
+        submitLabel="Guardar cambios"
+        [required]="false"
+        [initial]="memberProfile()"
+        [saving]="savingProfile()"
+        [serverError]="profileError()"
+        (saved)="saveProfile($event)"
+        (dismiss)="profileEditOpen.set(false)"
       />
     </ng-template>
   </ion-modal>

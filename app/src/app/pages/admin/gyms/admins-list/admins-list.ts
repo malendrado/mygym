@@ -1,6 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import {
   IonBackButton,
+  IonButton,
   IonButtons,
   IonContent,
   IonHeader,
@@ -39,6 +40,7 @@ type Tab = 'super' | 'gym';
     IonToolbar,
     IonTitle,
     IonButtons,
+    IonButton,
     IonBackButton,
     IonContent,
     IonIcon,
@@ -60,6 +62,11 @@ export class AdminsList {
   protected readonly gymAdmins = signal<GymAdminListItem[]>([]);
 
   constructor() {
+    this.load();
+  }
+
+  protected load(): void {
+    this.status.set('loading');
     this.gymService.listSuperAdmins().subscribe({
       next: (admins) => this.superAdmins.set(admins),
       error: () => this.status.set('error'),

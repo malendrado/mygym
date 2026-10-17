@@ -30,8 +30,10 @@
   cursor: pointer;
   transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 
-  &:hover {
-    border-color: var(--ion-color-primary, var(--brand-accent));
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      border-color: var(--ion-color-primary, var(--brand-accent));
+    }
   }
 
   &--selected {
@@ -74,5 +76,11 @@
     border-color: var(--ion-color-primary, var(--brand-accent));
     color: var(--ion-color-primary-contrast, var(--brand-accent-contrast));
     font-weight: 600;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .template-chip {
+    transition: none;
   }
 }

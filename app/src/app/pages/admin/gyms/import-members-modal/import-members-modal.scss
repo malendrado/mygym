@@ -47,6 +47,12 @@
   cursor: pointer;
   min-height: 44px;
 
+  // El input real está oculto (opacity 0): el aro de foco se dibuja en el contenedor.
+  &:focus-within {
+    outline: 2px solid var(--brand-accent);
+    outline-offset: 2px;
+  }
+
   input {
     position: absolute;
     inset: 0;

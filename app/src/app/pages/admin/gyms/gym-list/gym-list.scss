@@ -111,9 +111,11 @@
   color: inherit;
   transition: transform 0.15s ease, border-color 0.15s ease;
 
-  &:hover {
-    transform: translateY(-2px);
-    border-color: var(--brand-ink-surface-2);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      transform: translateY(-2px);
+      border-color: var(--brand-ink-surface-2);
+    }
   }
 }
 
@@ -195,7 +197,8 @@
     inset: 0;
     z-index: 0;
     background: linear-gradient(90deg, rgba(198, 255, 61, 0.16), rgba(198, 255, 61, 0.03));
-    transition: width 0.4s ease-out;
+    transform-origin: left center;
+    transition: transform 0.24s cubic-bezier(0.23, 1, 0.32, 1);
   }
 
   &__name,
@@ -272,5 +275,57 @@
   p {
     margin: 0 0 1.25rem;
     color: var(--brand-text-dim);
+  }
+}
+
+// Cabecera del super admin: a 360px los 3 botones con texto se desbordaban y tapaban el título.
+// En móvil quedan solo con ícono (cada uno con aria-label).
+@media (max-width: 600px) {
+  .hdr-btn__label {
+    display: none;
+  }
+
+  .hdr-btn ion-icon {
+    margin-inline: 0;
+  }
+}
+
+// Esqueleto de carga: mismas alturas que las tarjetas finales para que no salte el layout.
+.gyms-skeleton__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.gyms-skel {
+  background: var(--brand-ink-surface);
+  animation: gyms-skel-pulse 1.4s ease-in-out infinite;
+
+  &--stat {
+    min-height: 6.4rem;
+  }
+
+  &--card {
+    min-height: 4.7rem;
+  }
+}
+
+@keyframes gyms-skel-pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gym-card,
+  .visit-row__bar {
+    transition: none;
+  }
+
+  .gyms-skel {
+    animation: none;
   }
 }

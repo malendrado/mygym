@@ -14,6 +14,7 @@ import { firstValueFrom } from 'rxjs';
 import { of, throwError } from 'rxjs';
 import { retry, timeout } from 'rxjs/operators';
 import * as XLSX from 'xlsx';
+import { trackDirty } from '../../../../core/utils/dirty-tracker';
 import { FixedClassImportRow, FixedClassRowStatus } from '../../../../core/models/fixed-class.model';
 import { DayOfWeek, GymBlock, sortBlocksBySchedule } from '../../../../core/models/gym.model';
 import { AuthService } from '../../../../core/services/auth.service';
@@ -119,6 +120,8 @@ export class ImportFixedClassesModal {
   }
 
   @Output() dismiss = new EventEmitter<void>();
+  /** Hay cambios sin guardar (el padre lo usa para no cerrar el modal sin avisar). */
+  @Output() dirtyChange = new EventEmitter<boolean>();
   /** Se emite si al menos un socio quedó cargado, para que el padre recargue la lista de Socios. */
   @Output() imported = new EventEmitter<void>();
 
@@ -138,6 +141,16 @@ export class ImportFixedClassesModal {
   protected readonly progress = signal({ done: 0, total: 0 });
   protected readonly outcomes = signal<MemberOutcome[]>([]);
   protected readonly summary = signal<{ members: number; created: number; failed: number } | null>(null);
+
+  // Hay borrador mientras el archivo ya se leyó y falta importarlo (o se está importando).
+  private readonly dirtyTracker = trackDirty(
+    () => this.stage() === 'preview' || this.stage() === 'validating' || this.stage() === 'importing',
+    (dirty) => this.dirtyChange.emit(dirty),
+  );
+
+  constructor() {
+    this.dirtyTracker.markClean();
+  }
 
   protected readonly okRows = computed(() => this.rows().filter((r) => r.status === 'ok'));
   protected readonly warningRows = computed(() => this.rows().filter((r) => r.status === 'warning'));

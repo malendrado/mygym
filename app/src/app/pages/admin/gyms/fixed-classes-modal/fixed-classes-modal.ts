@@ -2,6 +2,7 @@ import { Component, EventEmitter, Input, Output, computed, signal } from '@angul
 import { IonButton, IonButtons, IonContent, IonFooter, IonHeader, IonIcon, IonSpinner, IonTitle, IonToolbar } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { informationCircleOutline, repeatOutline } from 'ionicons/icons';
+import { trackDirty } from '../../../../core/utils/dirty-tracker';
 import { FixedClass } from '../../../../core/models/fixed-class.model';
 import { DayOfWeek, GymBlock, sortBlocksBySchedule } from '../../../../core/models/gym.model';
 import { dayLongLabel } from '../../../../core/utils/fixed-class-import';
@@ -43,6 +44,8 @@ export class FixedClassesModal {
     const byDay = new Map<DayOfWeek, number>();
     active.forEach((c) => byDay.set(c.dayOfWeek, c.blockId));
     this.selectedByDay.set(byDay);
+    // Lo recién cargado es el estado base: solo lo que cambie el usuario cuenta como borrador.
+    this.dirtyTracker.markClean();
   }
 
   @Input() set saving(value: boolean) {
@@ -51,6 +54,8 @@ export class FixedClassesModal {
 
   @Output() saved = new EventEmitter<number[]>();
   @Output() dismiss = new EventEmitter<void>();
+  /** Hay cambios sin guardar (el padre lo usa para no cerrar el modal sin avisar). */
+  @Output() dirtyChange = new EventEmitter<boolean>();
 
   private readonly _blocks = signal<GymBlock[]>([]);
   private readonly _inactive = signal<FixedClass[]>([]);
@@ -68,6 +73,11 @@ export class FixedClassesModal {
   });
 
   protected readonly selectedCount = computed(() => this.selectedByDay().size);
+
+  private readonly dirtyTracker = trackDirty(
+    () => Array.from(this.selectedByDay()).sort((a, b) => a[0].localeCompare(b[0])),
+    (dirty) => this.dirtyChange.emit(dirty),
+  );
 
   protected isSelected(block: GymBlock): boolean {
     return this.selectedByDay().get(block.dayOfWeek) === block.id;

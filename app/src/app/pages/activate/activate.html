@@ -7,15 +7,19 @@
 <ion-content class="ion-padding activate-content">
   <div class="activate-card">
     @if (status() === 'loading') {
-      <div class="activate-loading">
-        <ion-spinner name="crescent"></ion-spinner>
+      <div class="activate-loading" role="status" aria-live="polite">
+        <ion-spinner name="crescent" aria-label="Cargando"></ion-spinner>
       </div>
+    } @else if (status() === 'network') {
+      <h1>No pudimos revisar tu link</h1>
+      <p role="alert">Parece un problema de conexión. Revisa tu internet e intenta de nuevo.</p>
+      <ion-button expand="block" (click)="loadToken()">Reintentar</ion-button>
     } @else if (status() === 'invalid') {
       <h1>Este link ya no es válido</h1>
       <p>Puede que haya expirado o que ya lo hayas usado. Pide uno nuevo desde la pantalla de ingreso.</p>
-      <ion-button expand="block" routerLink="/login">Ir a ingresar</ion-button>
+      <ion-button expand="block" routerLink="/login" [queryParams]="{ mode: 'forgot' }">Pedir un link nuevo</ion-button>
     } @else if (status() === 'welcome') {
-      <div class="activate-welcome">
+      <div class="activate-welcome" role="status" aria-live="polite">
         <h1>¡Listo!</h1>
         <p>Ya puedes entrar a mygym.</p>
       </div>
@@ -79,6 +83,9 @@
           }
           Crear mi contraseña
         </ion-button>
+        @if (submitHint; as hint) {
+          <p class="activate-hint">{{ hint }}</p>
+        }
       </form>
 
       @if (errorMessage()) {

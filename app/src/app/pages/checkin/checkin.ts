@@ -29,14 +29,23 @@ export class CheckinPage {
   protected readonly classLabels = signal<string[]>([]);
   protected readonly classLabelText = computed(() => this.classLabels().join(' y '));
 
+  private readonly code = this.route.snapshot.paramMap.get('code');
+
   constructor() {
     addIcons({ checkmarkCircleOutline, alertCircleOutline });
-    const code = this.route.snapshot.paramMap.get('code');
+    this.confirm();
+  }
+
+  /** Confirma la asistencia; también lo repite el botón "Reintentar" tras un error. */
+  protected confirm(): void {
+    const code = this.code;
     if (!code) {
       this.status.set('error');
       this.errorMessage.set('Falta el código de la clase.');
       return;
     }
+    this.status.set('checking');
+    this.errorMessage.set(null);
     this.reservationService.checkIn(code).subscribe({
       next: (res) => {
         this.classLabels.set(res.classLabels);
@@ -47,6 +56,10 @@ export class CheckinPage {
         this.errorMessage.set(err?.message ?? 'No pudimos confirmar tu asistencia.');
       },
     });
+  }
+
+  protected get canRetry(): boolean {
+    return !!this.code;
   }
 
   protected goToMember(): void {

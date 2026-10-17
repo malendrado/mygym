@@ -169,7 +169,7 @@
         (keydown.space)="$event.preventDefault(); viewMembersByStatus('ACTIVE')"
       >
         <ion-icon name="checkmark-circle-outline" aria-hidden="true"></ion-icon>
-        <p class="member-stat__value">{{ activeMembers() }}</p>
+        <p class="member-stat__value">{{ activeMembers() ?? '—' }}</p>
         <p class="member-stat__label">Activos</p>
       </div>
       <div
@@ -182,7 +182,7 @@
         (keydown.space)="$event.preventDefault(); viewMembersByStatus('EXPIRING_SOON')"
       >
         <ion-icon name="hourglass-outline" aria-hidden="true"></ion-icon>
-        <p class="member-stat__value">{{ expiringSoonMembers() }}</p>
+        <p class="member-stat__value">{{ expiringSoonMembers() ?? '—' }}</p>
         <p class="member-stat__label">Por vencer</p>
       </div>
       <div
@@ -195,7 +195,7 @@
         (keydown.space)="$event.preventDefault(); viewMembersByStatus('EXPIRED')"
       >
         <ion-icon name="close-circle-outline" aria-hidden="true"></ion-icon>
-        <p class="member-stat__value">{{ expiredMembers() }}</p>
+        <p class="member-stat__value">{{ expiredMembers() ?? '—' }}</p>
         <p class="member-stat__label">Vencidos</p>
       </div>
       <div
@@ -208,7 +208,7 @@
         (keydown.space)="$event.preventDefault(); viewMembersByStatus('UNPAID')"
       >
         <ion-icon name="help-circle-outline" aria-hidden="true"></ion-icon>
-        <p class="member-stat__value">{{ unpaidMembers() }}</p>
+        <p class="member-stat__value">{{ unpaidMembers() ?? '—' }}</p>
         <p class="member-stat__label">Sin pago</p>
       </div>
       <div
@@ -221,7 +221,7 @@
         (keydown.space)="$event.preventDefault(); viewMembersByInvite('PENDING')"
       >
         <ion-icon name="paper-plane-outline" aria-hidden="true"></ion-icon>
-        <p class="member-stat__value">{{ invitedPendingMembers() }}</p>
+        <p class="member-stat__value">{{ invitedPendingMembers() ?? '—' }}</p>
         <p class="member-stat__label">Invitados</p>
       </div>
     </div>
@@ -234,7 +234,7 @@
       <p class="item-hint">Envíaselo a tus futuros socios para que se registren directo, sin pasar por ti.</p>
       <div class="share-link-card__row">
         <code>{{ joinUrl() }}</code>
-        <ion-button fill="clear" size="small" (click)="copyJoinLink()">
+        <ion-button fill="clear" size="small" aria-label="Copiar link de alta" (click)="copyJoinLink()">
           <ion-icon name="copy-outline" slot="start" aria-hidden="true"></ion-icon>
           Copiar
         </ion-button>
@@ -287,7 +287,7 @@
                 class="member-action-btn"
                 [disabled]="removingAdminId() === admin.id"
                 (click)="removeMyAdmin(admin)"
-                aria-label="Quitar administrador"
+                [attr.aria-label]="'Quitar a ' + admin.name"
               >
                 @if (removingAdminId() === admin.id) {
                   <ion-spinner name="crescent" slot="icon-only"></ion-spinner>
@@ -307,13 +307,13 @@
             <ion-input label="Nombre *" formControlName="name" placeholder="Ej: Javiera Pulgar" />
           </ion-item>
           @if (adminForm.controls.name.invalid && (adminForm.controls.name.dirty || adminForm.controls.name.touched)) {
-            <ion-note color="danger">Escribe el nombre (mínimo 2 letras).</ion-note>
+            <ion-note color="danger" role="alert">Escribe el nombre (mínimo 2 letras).</ion-note>
           }
           <ion-item lines="none">
             <ion-input label="Email *" type="email" autocomplete="email" formControlName="email" placeholder="Ej: javiera@mail.com" />
           </ion-item>
           @if (adminForm.controls.email.invalid && (adminForm.controls.email.dirty || adminForm.controls.email.touched)) {
-            <ion-note color="danger">Ingresa un email válido.</ion-note>
+            <ion-note color="danger" role="alert">Ingresa un email válido.</ion-note>
           }
           <p class="item-hint">Va a poder administrar este gimnasio iniciando sesión con Google usando este email.</p>
           <ion-button
@@ -358,6 +358,7 @@
             <ion-input label-placement="stacked"
               label="RUT de la empresa"
               formControlName="companyRut"
+              autocomplete="off"
               placeholder="Ej: 76.123.456-7"
               (ionBlur)="formatRutOnBlur(flowAccountForm.controls.companyRut)"
             />
@@ -366,7 +367,7 @@
             flowAccountForm.controls.companyRut.invalid &&
             (flowAccountForm.controls.companyRut.dirty || flowAccountForm.controls.companyRut.touched)
           ) {
-            <ion-note color="danger">RUT inválido — revisa el número y el dígito verificador.</ion-note>
+            <ion-note color="danger" role="alert">RUT inválido — revisa el número y el dígito verificador.</ion-note>
           }
           <ion-item>
             <ion-input label-placement="stacked" label="Razón social" formControlName="companyName" placeholder="Nombre legal de tu empresa" />
@@ -395,6 +396,7 @@
             <ion-input label-placement="stacked"
               label="RUT"
               formControlName="legalRepRut"
+              autocomplete="off"
               placeholder="Ej: 12.345.678-9"
               (ionBlur)="formatRutOnBlur(flowAccountForm.controls.legalRepRut)"
             />
@@ -403,10 +405,10 @@
             flowAccountForm.controls.legalRepRut.invalid &&
             (flowAccountForm.controls.legalRepRut.dirty || flowAccountForm.controls.legalRepRut.touched)
           ) {
-            <ion-note color="danger">RUT inválido — revisa el número y el dígito verificador.</ion-note>
+            <ion-note color="danger" role="alert">RUT inválido — revisa el número y el dígito verificador.</ion-note>
           }
           <ion-item>
-            <ion-input label-placement="stacked" label="Teléfono" formControlName="legalRepPhone" placeholder="+56912345678" />
+            <ion-input label-placement="stacked" label="Teléfono" type="tel" inputmode="tel" autocomplete="tel" formControlName="legalRepPhone" placeholder="+56912345678" />
           </ion-item>
 
           <ion-list-header>
@@ -427,10 +429,10 @@
             flowAccountForm.controls.contactEmail.invalid &&
             (flowAccountForm.controls.contactEmail.dirty || flowAccountForm.controls.contactEmail.touched)
           ) {
-            <ion-note color="danger">Ingresa un email válido.</ion-note>
+            <ion-note color="danger" role="alert">Ingresa un email válido.</ion-note>
           }
           <ion-item>
-            <ion-input label-placement="stacked" label="Teléfono de contacto" formControlName="contactPhone" placeholder="+56912345678" />
+            <ion-input label-placement="stacked" label="Teléfono de contacto" type="tel" inputmode="tel" autocomplete="tel" formControlName="contactPhone" placeholder="+56912345678" />
           </ion-item>
 
           <ion-button
@@ -474,12 +476,13 @@
             </ion-select>
           </ion-item>
           <ion-item>
-            <ion-input label-placement="stacked" label="Número de cuenta" formControlName="accountNumber" placeholder="Ej: 00012345678" />
+            <ion-input label-placement="stacked" label="Número de cuenta" inputmode="numeric" autocomplete="off" formControlName="accountNumber" placeholder="Ej: 00012345678" />
           </ion-item>
           <ion-item>
             <ion-input label-placement="stacked"
               label="RUT titular"
               formControlName="holderRut"
+              autocomplete="off"
               placeholder="Ej: 12.345.678-9"
               (ionBlur)="formatRutOnBlur(bankTransferForm.controls.holderRut)"
             />
@@ -488,7 +491,7 @@
             bankTransferForm.controls.holderRut.invalid &&
             (bankTransferForm.controls.holderRut.dirty || bankTransferForm.controls.holderRut.touched)
           ) {
-            <ion-note color="danger">RUT inválido — revisa el número y el dígito verificador.</ion-note>
+            <ion-note color="danger" role="alert">RUT inválido — revisa el número y el dígito verificador.</ion-note>
           }
           <ion-item>
             <ion-input label-placement="stacked" label="Nombre titular" formControlName="holderName" placeholder="Nombre completo o razón social" />
@@ -505,7 +508,7 @@
             bankTransferForm.controls.confirmationEmail.invalid &&
             (bankTransferForm.controls.confirmationEmail.dirty || bankTransferForm.controls.confirmationEmail.touched)
           ) {
-            <ion-note color="danger">Ingresa un email válido.</ion-note>
+            <ion-note color="danger" role="alert">Ingresa un email válido.</ion-note>
           }
           <ion-button
             type="submit"
@@ -766,6 +769,7 @@
     <ion-modal
       class="wide-modal"
       [isOpen]="isSeriesModalOpen()"
+      [canDismiss]="confirmDiscard"
       (didDismiss)="closeSeriesModal()"
       [style.--ion-color-primary]="themeColor()"
       [style.--ion-color-primary-contrast]="themeContrast()"
@@ -775,7 +779,7 @@
       [style.--gym-panel-card]="themeSurface().card"
     >
       <ng-template>
-        <app-bloque-series-modal (confirmed)="confirmSeries($event)" (dismiss)="closeSeriesModal()" />
+        <app-bloque-series-modal (confirmed)="confirmSeries($event)" (dismiss)="cancelSeriesModal()" (dirtyChange)="modalDirty.set($event)" />
       </ng-template>
     </ion-modal>
     }
@@ -859,7 +863,7 @@
       </ng-template>
     </ion-modal>
   } @else if (section() === 'members') {
-    <div class="history-mode" role="tablist" aria-label="Socios" data-tour="members-board">
+    <div class="history-mode" [class.history-mode--3]="!isProfesor()" role="tablist" aria-label="Socios" data-tour="members-board">
       <button
         type="button"
         role="tab"
@@ -880,6 +884,18 @@
       >
         En clase
       </button>
+      @if (!isProfesor()) {
+      <button
+        type="button"
+        role="tab"
+        class="history-mode__btn"
+        [class.history-mode__btn--active]="memberSub() === 'team'"
+        [attr.aria-selected]="memberSub() === 'team'"
+        (click)="setMemberSub('team')"
+      >
+        Profesores
+      </button>
+      }
     </div>
     @if (memberSub() === 'board') {
       <app-class-board
@@ -888,6 +904,79 @@
         [refreshToken]="boardRefresh()"
         (editRoutine)="openWorkoutPlanForMember($event)"
       />
+    }
+    @if (memberSub() === 'team') {
+    <ion-card>
+      <ion-card-header>
+        <ion-card-title>
+          <ion-icon name="barbell-outline" aria-hidden="true"></ion-icon>
+          Profesores
+          <ion-badge color="dark">{{ profesores().length }}</ion-badge>
+        </ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <app-gym-limits [limits]="limits()" audience="admin" [compact]="true" compactKey="profesores" />
+        <form [formGroup]="profesorForm" (ngSubmit)="addProfesor()">
+          <ion-item>
+            <ion-input label="Nombre *" formControlName="name" placeholder="Ej: Javiera Pulgar" />
+          </ion-item>
+          @if (profesorForm.controls.name.invalid && (profesorForm.controls.name.dirty || profesorForm.controls.name.touched)) {
+            <ion-note color="danger" role="alert">Escribe el nombre (mínimo 2 letras).</ion-note>
+          }
+          <ion-item lines="none">
+            <ion-input label="Email *" type="email" autocomplete="email" formControlName="email" placeholder="Ej: javiera@mail.com" />
+          </ion-item>
+          @if (profesorForm.controls.email.invalid && (profesorForm.controls.email.dirty || profesorForm.controls.email.touched)) {
+            <ion-note color="danger" role="alert">Ingresa un email válido.</ion-note>
+          }
+          <ion-button
+            data-tour="profesor-add"
+            expand="block"
+            type="submit"
+            class="ion-margin-top"
+            [disabled]="creatingProfesor() || profesorForm.invalid"
+          >
+            @if (creatingProfesor()) {
+              <ion-spinner name="crescent" slot="start"></ion-spinner>
+            } @else {
+              <ion-icon name="person-add-outline" slot="start" aria-hidden="true"></ion-icon>
+            }
+            Agregar profesor
+          </ion-button>
+        </form>
+        <ion-list lines="full">
+          @for (profesor of profesores(); track profesor.id) {
+            <ion-item>
+              <ion-label>
+                <div class="member-row">
+                  <span class="member-row__name">{{ profesor.name }}</span>
+                  <span class="member-row__email">{{ profesor.email }}</span>
+                </div>
+              </ion-label>
+              <ion-button
+                fill="clear"
+                size="small"
+                color="danger"
+                class="member-action-btn"
+                [disabled]="removingProfesorId() === profesor.id"
+                (click)="removeProfesor(profesor)"
+                [attr.aria-label]="'Quitar a ' + profesor.name"
+              >
+                @if (removingProfesorId() === profesor.id) {
+                  <ion-spinner name="crescent" slot="icon-only"></ion-spinner>
+                } @else {
+                  <ion-icon name="trash-outline" slot="icon-only" aria-hidden="true"></ion-icon>
+                }
+              </ion-button>
+            </ion-item>
+          } @empty {
+            <ion-item lines="none">
+              <ion-label>Todavía no hay profesores agregados.</ion-label>
+            </ion-item>
+          }
+        </ion-list>
+      </ion-card-content>
+    </ion-card>
     }
     @if (memberSub() === 'members') {
 
@@ -906,7 +995,7 @@
         (keydown.space)="$event.preventDefault(); viewMembersByStatus('ACTIVE')"
       >
         <ion-icon name="checkmark-circle-outline" aria-hidden="true"></ion-icon>
-        <p class="member-stat__value">{{ activeMembers() }}</p>
+        <p class="member-stat__value">{{ activeMembers() ?? '—' }}</p>
         <p class="member-stat__label">Activos</p>
       </div>
       <div
@@ -919,7 +1008,7 @@
         (keydown.space)="$event.preventDefault(); viewMembersByStatus('EXPIRING_SOON')"
       >
         <ion-icon name="hourglass-outline" aria-hidden="true"></ion-icon>
-        <p class="member-stat__value">{{ expiringSoonMembers() }}</p>
+        <p class="member-stat__value">{{ expiringSoonMembers() ?? '—' }}</p>
         <p class="member-stat__label">Por vencer</p>
       </div>
       <div
@@ -932,7 +1021,7 @@
         (keydown.space)="$event.preventDefault(); viewMembersByStatus('EXPIRED')"
       >
         <ion-icon name="close-circle-outline" aria-hidden="true"></ion-icon>
-        <p class="member-stat__value">{{ expiredMembers() }}</p>
+        <p class="member-stat__value">{{ expiredMembers() ?? '—' }}</p>
         <p class="member-stat__label">Vencidos</p>
       </div>
       <div
@@ -945,7 +1034,7 @@
         (keydown.space)="$event.preventDefault(); viewMembersByStatus('UNPAID')"
       >
         <ion-icon name="help-circle-outline" aria-hidden="true"></ion-icon>
-        <p class="member-stat__value">{{ unpaidMembers() }}</p>
+        <p class="member-stat__value">{{ unpaidMembers() ?? '—' }}</p>
         <p class="member-stat__label">Sin pago</p>
       </div>
       <div
@@ -958,7 +1047,7 @@
         (keydown.space)="$event.preventDefault(); viewMembersByInvite('PENDING')"
       >
         <ion-icon name="paper-plane-outline" aria-hidden="true"></ion-icon>
-        <p class="member-stat__value">{{ invitedPendingMembers() }}</p>
+        <p class="member-stat__value">{{ invitedPendingMembers() ?? '—' }}</p>
         <p class="member-stat__label">Invitados</p>
       </div>
     </div>
@@ -977,13 +1066,13 @@
             <ion-input label="Nombre *" formControlName="name" placeholder="Ej: Javiera Pulgar" />
           </ion-item>
           @if (memberForm.controls.name.invalid && (memberForm.controls.name.dirty || memberForm.controls.name.touched)) {
-            <ion-note color="danger">Escribe el nombre (mínimo 2 letras).</ion-note>
+            <ion-note color="danger" role="alert">Escribe el nombre (mínimo 2 letras).</ion-note>
           }
           <ion-item lines="none">
             <ion-input label="Email *" type="email" autocomplete="email" formControlName="email" placeholder="Ej: javiera@mail.com" />
           </ion-item>
           @if (memberForm.controls.email.invalid && (memberForm.controls.email.dirty || memberForm.controls.email.touched)) {
-            <ion-note color="danger">Ingresa un email válido.</ion-note>
+            <ion-note color="danger" role="alert">Ingresa un email válido.</ion-note>
           }
           <ion-button type="submit" fill="outline" [disabled]="memberForm.invalid || status() === 'saving' || limits()?.members?.free === 0" class="ion-margin-top">
             Agregar socio
@@ -999,79 +1088,6 @@
         </ion-button>
       </ion-card-content>
     </ion-card>
-
-    @if (!isProfesor()) {
-      <ion-card>
-        <ion-card-header>
-          <ion-card-title>
-            <ion-icon name="barbell-outline" aria-hidden="true"></ion-icon>
-            Profesores
-            <ion-badge color="dark">{{ profesores().length }}</ion-badge>
-          </ion-card-title>
-        </ion-card-header>
-        <ion-card-content>
-          <form [formGroup]="profesorForm" (ngSubmit)="addProfesor()">
-            <ion-item>
-              <ion-input label="Nombre *" formControlName="name" placeholder="Ej: Javiera Pulgar" />
-            </ion-item>
-            @if (profesorForm.controls.name.invalid && (profesorForm.controls.name.dirty || profesorForm.controls.name.touched)) {
-              <ion-note color="danger">Escribe el nombre (mínimo 2 letras).</ion-note>
-            }
-            <ion-item lines="none">
-              <ion-input label="Email *" type="email" autocomplete="email" formControlName="email" placeholder="Ej: javiera@mail.com" />
-            </ion-item>
-            @if (profesorForm.controls.email.invalid && (profesorForm.controls.email.dirty || profesorForm.controls.email.touched)) {
-              <ion-note color="danger">Ingresa un email válido.</ion-note>
-            }
-            <ion-button
-              data-tour="profesor-add"
-              expand="block"
-              type="submit"
-              class="ion-margin-top"
-              [disabled]="creatingProfesor() || profesorForm.invalid"
-            >
-              @if (creatingProfesor()) {
-                <ion-spinner name="crescent" slot="start"></ion-spinner>
-              } @else {
-                <ion-icon name="person-add-outline" slot="start" aria-hidden="true"></ion-icon>
-              }
-              Agregar profesor
-            </ion-button>
-          </form>
-          <ion-list lines="full">
-            @for (profesor of profesores(); track profesor.id) {
-              <ion-item>
-                <ion-label>
-                  <div class="member-row">
-                    <span class="member-row__name">{{ profesor.name }}</span>
-                    <span class="member-row__email">{{ profesor.email }}</span>
-                  </div>
-                </ion-label>
-                <ion-button
-                  fill="clear"
-                  size="small"
-                  color="danger"
-                  class="member-action-btn"
-                  [disabled]="removingProfesorId() === profesor.id"
-                  (click)="removeProfesor(profesor)"
-                  aria-label="Quitar profesor"
-                >
-                  @if (removingProfesorId() === profesor.id) {
-                    <ion-spinner name="crescent" slot="icon-only"></ion-spinner>
-                  } @else {
-                    <ion-icon name="trash-outline" slot="icon-only" aria-hidden="true"></ion-icon>
-                  }
-                </ion-button>
-              </ion-item>
-            } @empty {
-              <ion-item lines="none">
-                <ion-label>Todavía no hay profesores agregados.</ion-label>
-              </ion-item>
-            }
-          </ion-list>
-        </ion-card-content>
-      </ion-card>
-    }
 
     <ion-card id="members-list-card">
       <ion-card-header>
@@ -1096,7 +1112,7 @@
       <ion-card-content>
         <ion-searchbar
           data-tour="members-search"
-          placeholder="Buscar por nombre o email"
+          placeholder="Buscar por nombre, email, RUT o celular"
           [value]="memberSearchQuery()"
           (ionInput)="memberList.setSearch($any($event.detail.value) ?? '')"
           (ionClear)="memberList.setSearch('')"
@@ -1195,49 +1211,6 @@
                     }
                     {{ member.planId ? 'Renovar' : 'Marcar pago' }}
                   </ion-button>
-                @if (member.planId && !isProfesor()) {
-                  <ion-button
-                    [attr.data-tour]="member.id === firstMemberWithPlanId() ? 'members-revoke-plan' : null"
-                    fill="outline"
-                    size="small"
-                    color="danger"
-                    class="member-action-btn member-action-btn--secondary"
-                    [disabled]="revokingPlanId() === member.id"
-                    (click)="revokeMemberPlan(member)"
-                  >
-                    @if (revokingPlanId() === member.id) {
-                      <ion-spinner name="crescent" slot="start"></ion-spinner>
-                    } @else {
-                      <ion-icon name="remove-circle-outline" slot="start" aria-hidden="true"></ion-icon>
-                    }
-                    Quitar plan
-                  </ion-button>
-                }
-                <ion-button
-                  [attr.data-tour]="member.id === firstMemberId() ? 'members-workout' : null"
-                  fill="outline"
-                  size="small"
-                  class="member-action-btn member-action-btn--secondary"
-                  (click)="openWorkoutPlanModal(member)"
-                >
-                  <ion-icon name="barbell-outline" slot="start" aria-hidden="true"></ion-icon>
-                  Rutina
-                </ion-button>
-                <ion-button
-                  [attr.data-tour]="member.id === firstMemberId() ? 'members-fixed-classes' : null"
-                  fill="outline"
-                  size="small"
-                  class="member-action-btn member-action-btn--secondary"
-                  [disabled]="loadingFixedClassesId() === member.id"
-                  (click)="openFixedClassesModal(member)"
-                >
-                  @if (loadingFixedClassesId() === member.id) {
-                    <ion-spinner name="crescent" slot="start"></ion-spinner>
-                  } @else {
-                    <ion-icon name="repeat-outline" slot="start" aria-hidden="true"></ion-icon>
-                  }
-                  Clases fijas
-                </ion-button>
                 @if (memberWhatsapp(member); as wa) {
                   <ion-button
                     fill="outline"
@@ -1253,36 +1226,9 @@
                   </ion-button>
                 }
                 <ion-button
-                  [attr.data-tour]="member.id === firstMemberId() ? 'members-profile' : null"
                   fill="outline"
                   size="small"
-                  class="member-action-btn member-action-btn--secondary"
-                  (click)="openMemberProfile(member)"
-                >
-                  <ion-icon name="id-card-outline" slot="start" aria-hidden="true"></ion-icon>
-                  Datos
-                </ion-button>
-                @if (!isProfesor()) {
-                  <ion-button
-                    [attr.data-tour]="member.id === firstMemberId() ? 'members-delete' : null"
-                    fill="clear"
-                    size="small"
-                    color="danger"
-                    class="member-action-btn member-action-btn--secondary"
-                    [disabled]="deletingMemberId() === member.id"
-                    (click)="deleteMember(member)"
-                    aria-label="Eliminar socio permanentemente"
-                  >
-                    @if (deletingMemberId() === member.id) {
-                      <ion-spinner name="crescent" slot="icon-only"></ion-spinner>
-                    } @else {
-                      <ion-icon name="trash-outline" slot="icon-only" aria-hidden="true"></ion-icon>
-                    }
-                  </ion-button>
-                }
-                <ion-button
-                  fill="outline"
-                  size="small"
+                  [attr.data-tour]="member.id === firstMemberId() ? 'members-actions' : null"
                   class="member-action-btn member-actions__more"
                   [attr.aria-label]="'Acciones para ' + member.name"
                   (click)="openMemberActions(member)"
@@ -1406,6 +1352,7 @@
     <ion-modal
       class="wide-modal"
       [isOpen]="fixedClassesMember() !== null"
+      [canDismiss]="confirmDiscard"
       (didDismiss)="closeFixedClassesModal()"
       [style.--ion-color-primary]="themeColor()"
       [style.--ion-color-primary-contrast]="themeContrast()"
@@ -1422,7 +1369,8 @@
           [hint]="fixedClassesHint(fixedClassesMember())"
           [saving]="savingFixedClasses()"
           (saved)="confirmFixedClasses($event)"
-          (dismiss)="closeFixedClassesModal()"
+          (dismiss)="cancelFixedClassesModal()"
+          (dirtyChange)="modalDirty.set($event)"
         />
       </ng-template>
     </ion-modal>
@@ -1430,6 +1378,7 @@
     <ion-modal
       class="wide-modal"
       [isOpen]="isImportFixedClassesOpen()"
+      [canDismiss]="confirmDiscard"
       (didDismiss)="closeImportFixedClasses()"
       [style.--ion-color-primary]="themeColor()"
       [style.--ion-color-primary-contrast]="themeContrast()"
@@ -1442,7 +1391,8 @@
         <app-import-fixed-classes-modal
           [blocks]="blocks()"
           (imported)="onFixedClassesImported()"
-          (dismiss)="closeImportFixedClasses()"
+          (dismiss)="cancelImportFixedClasses()"
+          (dirtyChange)="modalDirty.set($event)"
         />
       </ng-template>
     </ion-modal>
@@ -1450,6 +1400,7 @@
     <ion-modal
       class="wide-modal"
       [isOpen]="isImportModalOpen()"
+      [canDismiss]="confirmDiscard"
       (didDismiss)="closeImportModal()"
       [style.--ion-color-primary]="themeColor()"
       [style.--ion-color-primary-contrast]="themeContrast()"
@@ -1464,7 +1415,8 @@
           [existingEmails]="memberEmails()"
           [freeSlots]="limits()?.members?.free ?? null"
           (imported)="onMembersImported()"
-          (dismiss)="closeImportModal()"
+          (dismiss)="cancelImportModal()"
+          (dirtyChange)="modalDirty.set($event)"
         />
       </ng-template>
     </ion-modal>
@@ -1524,6 +1476,7 @@
                 <button
                   type="button"
                   class="theme-card"
+                  [attr.aria-pressed]="palette.hex === themeColor()"
                   [class.theme-card--selected]="palette.hex === themeColor()"
                   [style.background]="surfaceFor(palette).bg"
                   [disabled]="themeSaving()"
@@ -1557,6 +1510,7 @@
                 <button
                   type="button"
                   class="theme-card"
+                  [attr.aria-pressed]="palette.hex === themeColor() && themeMode() === 'LIGHT'"
                   [class.theme-card--selected]="palette.hex === themeColor() && themeMode() === 'LIGHT'"
                   [style.background]="palette.bg"
                   [disabled]="themeSaving()"
@@ -1600,10 +1554,10 @@
             />
           </ion-item>
           <ion-item>
-            <ion-input label="Instagram (link)" formControlName="instagramUrl" placeholder="https://instagram.com/tugym" />
+            <ion-input label="Instagram (link)" inputmode="url" autocapitalize="off" autocomplete="off" spellcheck="false" formControlName="instagramUrl" placeholder="https://instagram.com/tugym" />
           </ion-item>
           <ion-item>
-            <ion-input label="WhatsApp (número)" formControlName="whatsappNumber" placeholder="+56912345678" />
+            <ion-input label="WhatsApp (número)" type="tel" inputmode="tel" autocomplete="tel" formControlName="whatsappNumber" placeholder="+56912345678" />
           </ion-item>
           <ion-button type="submit" [disabled]="identityForm.invalid || identitySaving()" class="ion-margin-top">
             {{ identitySaving() ? 'Guardando...' : 'Guardar identidad' }}
@@ -1722,7 +1676,11 @@
               label="Código de la TV *"
               formControlName="code"
               placeholder="Ej: A3K9QZ"
-              style="text-transform: uppercase"
+              class="tv-code-input"
+              maxlength="6"
+              autocapitalize="characters"
+              autocomplete="off"
+              spellcheck="false"
             />
           </ion-item>
           <ion-item lines="none">
@@ -1732,7 +1690,7 @@
             {{ claimingScreen() ? 'Vinculando...' : 'Vincular pantalla' }}
           </ion-button>
           @if (tvScreenError(); as error) {
-            <ion-note color="danger">{{ error }}</ion-note>
+            <ion-note color="danger" role="alert">{{ error }}</ion-note>
           }
         </form>
       </ion-card-content>
@@ -1774,8 +1732,8 @@
               </ion-label>
               @if (closure.editable) {
                 <div class="closure-item-actions">
-                  <ion-button fill="clear" (click)="openEditClosureModal(closure)">Editar</ion-button>
-                  <ion-button fill="clear" (click)="liftClosure(closure)" [disabled]="liftingClosureId() === closure.id">
+                  <ion-button fill="outline" size="small" [attr.aria-label]="'Editar cierre del ' + isoRange(closure.startDate, closure.endDate)" (click)="openEditClosureModal(closure)">Editar</ion-button>
+                  <ion-button fill="outline" size="small" [attr.aria-label]="'Levantar cierre del ' + isoRange(closure.startDate, closure.endDate)" (click)="liftClosure(closure)" [disabled]="liftingClosureId() === closure.id">
                     {{ liftingClosureId() === closure.id ? 'Levantando...' : 'Levantar' }}
                   </ion-button>
                 </div>
@@ -1818,6 +1776,7 @@
     <ion-modal
       class="wide-modal"
       [isOpen]="isClosureModalOpen()"
+      [canDismiss]="confirmDiscard"
       (didDismiss)="closeClosureModal()"
       [style.--ion-color-primary]="themeColor()"
       [style.--ion-color-primary-contrast]="themeContrast()"
@@ -1833,7 +1792,8 @@
           [saving]="closureSaving()"
           (preview)="requestClosurePreview($event)"
           (confirmed)="confirmClosure($event)"
-          (dismiss)="closeClosureModal()"
+          (dismiss)="cancelClosureModal()"
+          (dirtyChange)="modalDirty.set($event)"
         />
       </ng-template>
     </ion-modal>

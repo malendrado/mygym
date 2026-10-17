@@ -39,6 +39,8 @@ export class GymLimitsPanel {
 
   /** Una sola línea (solo socios), para ponerla junto a "Agregar" e "Importar". */
   @Input() compact = false;
+  /** Qué cupo muestra la línea compacta: socios (Agregar socio) o profesores (pestaña Profesores). */
+  @Input() compactKey: 'members' | 'profesores' = 'members';
 
   protected readonly rows = computed<LimitRow[]>(() => {
     const limits = this._limits();
@@ -68,5 +70,5 @@ export class GymLimitsPanel {
     ];
   });
 
-  protected readonly members = computed(() => this.rows().find((r) => r.key === 'members') ?? null);
+  protected readonly members = computed(() => this.rows().find((r) => r.key === this.compactKey) ?? null);
 }

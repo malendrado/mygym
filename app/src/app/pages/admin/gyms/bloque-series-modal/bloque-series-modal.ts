@@ -1,4 +1,5 @@
 import { Component, EventEmitter, Output, computed, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import {
   IonButton,
@@ -19,6 +20,7 @@ import {
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { closeCircleOutline, sparklesOutline, timeOutline } from 'ionicons/icons';
+import { trackDirty } from '../../../../core/utils/dirty-tracker';
 import { CreateGymBlockRequest, DayOfWeek } from '../../../../core/models/gym.model';
 import { DAYS } from '../bloque-form-modal/bloque-form-modal';
 import { QuantityStepper } from '../../../../core/components/quantity-stepper/quantity-stepper';
@@ -76,6 +78,8 @@ export class BloqueSeriesModal {
 
   @Output() confirmed = new EventEmitter<CreateGymBlockRequest[]>();
   @Output() dismiss = new EventEmitter<void>();
+  /** Hay cambios sin guardar (el padre lo usa para no cerrar el modal sin avisar). */
+  @Output() dirtyChange = new EventEmitter<boolean>();
 
   protected readonly form = new FormGroup({
     days: new FormControl<DayOfWeek[]>(['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY'], {
@@ -99,6 +103,19 @@ export class BloqueSeriesModal {
     const value = this.form.getRawValue();
     return toMinutes(value.closeTime) <= toMinutes(value.openTime);
   });
+
+  private readonly formValue = toSignal(this.form.valueChanges, { initialValue: null });
+  private readonly dirtyTracker = trackDirty(
+    () => {
+      this.formValue();
+      return [this.form.getRawValue(), this.draft().length];
+    },
+    (dirty) => this.dirtyChange.emit(dirty),
+  );
+
+  constructor() {
+    this.dirtyTracker.markClean();
+  }
 
   protected toggleDay(day: DayOfWeek, checked: boolean): void {
     const current = this.form.controls.days.value;

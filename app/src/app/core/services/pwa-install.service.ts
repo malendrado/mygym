@@ -31,9 +31,11 @@ export class PwaInstallService {
     window.matchMedia?.('(display-mode: standalone)').matches ||
     (navigator as Navigator & { standalone?: boolean }).standalone === true;
 
-  // iOS has no install API; Chrome/Firefox on iOS can't add to home screen, only Safari can.
-  readonly isIosSafari =
-    /iphone|ipad|ipod/i.test(navigator.userAgent) && !/crios|fxios|edgios/i.test(navigator.userAgent);
+  // iOS no tiene API de instalación: se agrega desde el menú Compartir. Safari siempre pudo; Chrome (crios), Firefox
+  // (fxios) y Edge (edgios) en iOS también pueden desde iOS 16.4, así que solo se descartan en versiones anteriores.
+  readonly isIosSafari = detectIosAddToHome();
+  /** iOS con un navegador que no es Safari (Chrome, Firefox, Edge): el botón Compartir queda en otro lugar. */
+  readonly isIosOtherBrowser = this.isIosSafari && /crios|fxios|edgios/i.test(navigator.userAgent);
 
   // Touch devices only: on desktop Chrome already shows its own install icon in the address bar.
   readonly isTouchDevice = window.matchMedia?.('(pointer: coarse)').matches ?? false;
@@ -127,4 +129,22 @@ function readInstalled(): boolean {
   } catch {
     return false;
   }
+}
+
+function detectIosAddToHome(): boolean {
+  const ua = navigator.userAgent;
+  if (!/iphone|ipad|ipod/i.test(ua)) {
+    return false;
+  }
+  if (!/crios|fxios|edgios/i.test(ua)) {
+    return true; // Safari
+  }
+  // En iOS el UA trae la versión del sistema como "OS 16_4" (o "CPU OS 16_4" en iPad).
+  const match = /OS (\d+)_(\d+)/i.exec(ua);
+  if (!match) {
+    return false;
+  }
+  const major = Number(match[1]);
+  const minor = Number(match[2]);
+  return major > 16 || (major === 16 && minor >= 4);
 }

@@ -30,11 +30,12 @@ export class MemberListState {
   readonly searchQuery = signal('');
 
   readonly summary = signal<MemberSummary | null>(null);
-  readonly active = computed(() => this.summary()?.active ?? 0);
-  readonly expiringSoon = computed(() => this.summary()?.expiringSoon ?? 0);
-  readonly expired = computed(() => this.summary()?.expired ?? 0);
-  readonly unpaid = computed(() => this.summary()?.unpaid ?? 0);
-  readonly invitedPending = computed(() => this.summary()?.invitedPending ?? 0);
+  // Conteos de las calugas: null = todavía no llegan (o fallaron) — la plantilla muestra "—", nunca un 0 falso.
+  readonly active = computed(() => this.summary()?.active ?? null);
+  readonly expiringSoon = computed(() => this.summary()?.expiringSoon ?? null);
+  readonly expired = computed(() => this.summary()?.expired ?? null);
+  readonly unpaid = computed(() => this.summary()?.unpaid ?? null);
+  readonly invitedPending = computed(() => this.summary()?.invitedPending ?? null);
 
   readonly totalPages = computed(() => Math.max(1, Math.ceil(this.totalElements() / MemberListState.PAGE_SIZE)));
   readonly hasActiveFilter = computed(
@@ -43,6 +44,7 @@ export class MemberListState {
 
   private pageSub?: Subscription;
   private summarySub?: Subscription;
+  private summaryInFlight = false;
   private searchTimer?: ReturnType<typeof setTimeout>;
 
   constructor(
@@ -71,6 +73,20 @@ export class MemberListState {
     this.searchQuery.set(value);
     clearTimeout(this.searchTimer);
     this.searchTimer = setTimeout(() => this.goTo(0), MemberListState.SEARCH_DEBOUNCE_MS);
+  }
+
+  /**
+   * Tras agregar un socio: deja la lista buscando por su email (con los filtros de calugas quitados, que si no
+   * podían esconderlo) y refresca página + conteos en un solo pedido. El buscador ya muestra el texto porque
+   * se enlaza a searchQuery.
+   */
+  showNewMember(email: string): void {
+    clearTimeout(this.searchTimer);
+    this.statusFilter.set(null);
+    this.inviteFilter.set(null);
+    this.searchQuery.set(email);
+    this.page.set(0);
+    this.reload();
   }
 
   // Las calugas son un único grupo de filtro mutuamente excluyente (ver gym-admin.ts): elegir
@@ -135,10 +151,24 @@ export class MemberListState {
 
   private loadSummary(): void {
     this.summarySub?.unsubscribe();
+    this.summaryInFlight = true;
     this.summarySub = this.fetchSummary().subscribe({
-      next: (summary) => this.summary.set(summary),
-      // Los conteos son informativos: si fallan, la lista sigue funcionando con los últimos valores.
-      error: () => undefined,
+      next: (summary) => {
+        this.summary.set(summary);
+        this.summaryInFlight = false;
+      },
+      // Los conteos son informativos: si fallan, la lista sigue funcionando (sin toast) y las calugas
+      // muestran "—" (o el último valor bueno); ensureSummary() reintenta al volver a abrir la pestaña.
+      error: () => {
+        this.summaryInFlight = false;
+      },
     });
+  }
+
+  /** Reintenta los conteos solo si aún no hay datos (falló o no llegó) y no hay un pedido en vuelo. */
+  ensureSummary(): void {
+    if (this.summary() === null && !this.summaryInFlight) {
+      this.loadSummary();
+    }
   }
 }

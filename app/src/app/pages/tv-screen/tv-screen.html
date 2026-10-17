@@ -24,8 +24,8 @@
           } @else {
             <span class="tv-chip__initial">{{ a.firstName.charAt(0) }}</span>
           }
-          <!-- En 's' y 'm' el plan ya va escrito junto al nombre (o no hay lugar): la etiqueta sobre el avatar le tapaba la inicial. -->
-          @if (a.planId != null && a.planName && fit.layout().tier.name !== 's' && fit.layout().tier.name !== 'm') {
+          <!-- Solo en 'xl': en 'l' el plan ya va escrito (a 14px) junto al nombre y en 's'/'m' no hay lugar; la etiqueta, también a 14px, le taparía la inicial al avatar. -->
+          @if (a.planId != null && a.planName && fit.layout().tier.name === 'xl') {
             <span class="tv-chip__plan-tag">{{ planShort(a.planName) }}</span>
           }
           @if (a.checkedIn) {
@@ -38,7 +38,8 @@
         </span>
         <span class="tv-chip__text">
           <span class="tv-chip__name" [style.color]="a.planId != null ? planTextColor(a.planId) : null">{{ chipName(a, fit.layout().tier.name) }}</span>
-          @if (a.planName && fit.layout().tier.name !== 's') {
+          <!-- Sin plan escrito en 's' ni 'm': a distancia no se lee a menos de 14px y no cabe; queda el color del chip + la leyenda. -->
+          @if (a.planName && fit.layout().tier.name !== 's' && fit.layout().tier.name !== 'm') {
             <span class="tv-chip__plan" [style.background]="planColor(a.planId)" [style.color]="planTextColor(a.planId)">
               {{ a.planName }}
             </span>

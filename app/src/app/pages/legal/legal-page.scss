@@ -23,8 +23,10 @@
     font-weight: 600;
     font-family: var(--brand-font-heading);
 
-    &:hover {
-      text-decoration: underline;
+    @media (hover: hover) and (pointer: fine) {
+      &:hover {
+        text-decoration: underline;
+      }
     }
   }
 

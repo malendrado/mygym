@@ -1,4 +1,4 @@
-import { Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
+import { Component, DestroyRef, ElementRef, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import {
   IonButton,
@@ -8,7 +8,6 @@ import {
   IonInput,
   IonItem,
   IonSpinner,
-  IonText,
   IonTitle,
   IonToolbar,
 } from '@ionic/angular';
@@ -77,7 +76,6 @@ export const PREFERRED_PLAN_KEY = 'mygym.preferredPlan';
     IonToolbar,
     IonTitle,
     IonContent,
-    IonText,
     IonIcon,
     IonSpinner,
     IonItem,
@@ -98,7 +96,9 @@ export class Join {
   private readonly socialAuthService = inject(SocialAuthService);
   private readonly destroyRef = inject(DestroyRef);
 
-  private readonly slug = this.route.snapshot.paramMap.get('slug') ?? '';
+  private readonly sentTitle = viewChild<ElementRef<HTMLElement>>('sentTitle');
+
+  protected readonly slug = this.route.snapshot.paramMap.get('slug') ?? '';
   private timeoutHandle: ReturnType<typeof setTimeout> | null = null;
 
   protected readonly status = signal<Status>('loading');
@@ -306,6 +306,7 @@ export class Join {
       next: () => {
         this.registerSubmitting.set(false);
         this.registerSent.set(true);
+        this.focusSentTitle();
       },
       error: (err: Error & { status?: number }) => {
         this.registerSubmitting.set(false);
@@ -315,6 +316,7 @@ export class Join {
           this.errorMessage.set(err.message);
         } else {
           this.registerSent.set(true);
+          this.focusSentTitle();
         }
       },
     });
@@ -334,6 +336,15 @@ export class Join {
       this.activePhoto.update((index) => (index + 1) % total);
     }, HERO_ROTATE_MS);
     this.destroyRef.onDestroy(() => clearInterval(timer));
+  }
+
+  private focusSentTitle(): void {
+    setTimeout(() => this.sentTitle()?.nativeElement.focus());
+  }
+
+  // Mouse encima o foco de teclado en el encabezado: se deja de rotar para no mover la foto bajo el usuario.
+  protected pauseRotation(): void {
+    this.rotationPausedUntil = Date.now() + HERO_PAUSE_AFTER_TAP_MS;
   }
 
   protected showPhoto(index: number): void {

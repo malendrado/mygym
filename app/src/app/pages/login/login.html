@@ -8,7 +8,7 @@
   <div class="login-card">
     <div class="login-card__badge">
       <svg viewBox="0 0 512 512" aria-hidden="true">
-        <g id="icon">
+        <g>
           <path fill="currentColor" fill-rule="evenodd" d="
             M128,40 H384 A88,88 0 0 1 472,128 V384 A88,88 0 0 1 384,472 H128 A88,88 0 0 1 40,384 V128 A88,88 0 0 1 128,40 Z
             M128,72 H384 A56,56 0 0 1 440,128 V384 A56,56 0 0 1 384,440 H128 A56,56 0 0 1 72,384 V128 A56,56 0 0 1 128,72 Z
@@ -28,11 +28,16 @@
       </svg>
     </div>
     <h1>Ingresa a mygym</h1>
+    @if (gymContext(); as ctx) {
+      <p class="login-gym">Ingresas a {{ ctx.name }}</p>
+    }
 
     @if (signingIn() || showWelcome()) {
-      <p>Usa tu cuenta de Google para reservar clases o administrar tu gimnasio.</p>
-      <div class="login-loading">
-        <ion-spinner name="crescent"></ion-spinner>
+      @if (!showWelcome()) {
+        <p>Usa tu cuenta de Google para reservar clases o administrar tu gimnasio.</p>
+      }
+      <div class="login-loading" role="status" aria-live="polite">
+        <ion-spinner name="crescent" aria-label="Cargando"></ion-spinner>
         @if (showWelcome()) {
           <p>¡Qué bueno verte de nuevo!</p>
           <p class="login-loading__subtitle">Estamos abriendo tu portal...</p>
@@ -60,7 +65,11 @@
             type="email"
             label="Email"
             label-placement="stacked"
-            autocomplete="email"
+            autocomplete="username"
+            inputmode="email"
+            autocapitalize="off"
+            autocorrect="off"
+            spellcheck="false"
             [value]="loginEmail()"
             (ionInput)="loginEmail.set($any($event.detail.value) ?? '')"
           ></ion-input>
@@ -104,8 +113,10 @@
       </form>
     } @else {
       @if (forgotSent()) {
-        <p>Si el email que escribiste tiene una cuenta, te enviamos un correo para continuar — revisa tu bandeja de entrada (y el spam).</p>
-        <p class="password-auth__hint">¿No llega? Es posible que aún no tengas cuenta: pídele a tu gimnasio su link de registro.</p>
+        <div role="status" aria-live="polite">
+          <p #sentTitle tabindex="-1" class="login-sent">Si el email que escribiste tiene una cuenta, te enviamos un correo para continuar — revisa tu bandeja de entrada (y el spam).</p>
+          <p class="password-auth__hint">¿No llega? Es posible que aún no tengas cuenta: pídele a tu gimnasio su link de registro.</p>
+        </div>
       } @else {
         <p>Escribe tu email y te mandamos un link para crear o cambiar tu contraseña.</p>
         <form class="password-auth" (submit)="$event.preventDefault(); submitForgotPassword()">
@@ -115,6 +126,10 @@
               label="Email"
               label-placement="stacked"
               autocomplete="email"
+              inputmode="email"
+              autocapitalize="off"
+              autocorrect="off"
+              spellcheck="false"
               [value]="forgotEmail()"
               (ionInput)="forgotEmail.set($any($event.detail.value) ?? '')"
             ></ion-input>
@@ -129,6 +144,10 @@
       }
       <p class="password-auth__hint">Si aún no tienes cuenta, pídele a tu gimnasio su link de registro.</p>
       <button type="button" class="password-auth__switch" (click)="setMode('password')">volver a ingresar</button>
+    }
+
+    @if (gymContext(); as ctx) {
+      <a class="login-gym-back" [routerLink]="['/j', ctx.slug]">Volver a {{ ctx.name }}</a>
     }
 
     @if (errorMessage()) {

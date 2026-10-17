@@ -301,7 +301,7 @@
   border-radius: 999px;
   background: var(--brand-ink-surface-2);
   color: var(--brand-text);
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   font-weight: 600;
 
   &--accent {
@@ -322,6 +322,7 @@
   border-radius: 50%;
   background: transparent;
   color: #25d366;
+  color: light-dark(#12803f, #25d366);
   text-decoration: none;
   cursor: pointer;
 

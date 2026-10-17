@@ -100,6 +100,8 @@
 }
 
 .tour-card__title {
+  // Recibe el foco al abrir cada paso (tabindex=-1): sin contorno, no es un control.
+  outline: none;
   margin: 0 0 0.35rem;
   font-size: 1.05rem;
   font-weight: 700;
@@ -117,6 +119,12 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
+}
+
+.tour-card ion-button {
+  // size="small" deja ~34px de alto: se sube al mínimo táctil sin cambiar el ancho de la tarjeta.
+  --min-height: 44px;
+  min-height: 44px;
 }
 
 .tour-card__nav {

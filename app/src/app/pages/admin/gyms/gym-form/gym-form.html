@@ -71,7 +71,7 @@
             <ion-input label="Nombre *" formControlName="name" placeholder="Ej: Gold Gym" />
           </ion-item>
           @if (createForm.controls.name.invalid && (createForm.controls.name.dirty || createForm.controls.name.touched)) {
-            <ion-note color="danger">El nombre es obligatorio (mínimo 2 caracteres).</ion-note>
+            <ion-note color="danger" role="alert">El nombre es obligatorio (mínimo 2 caracteres).</ion-note>
           }
 
           <ion-button
@@ -85,7 +85,7 @@
             {{ suggestStatus() === 'loading' ? 'Generando...' : 'Sugerir color y logo con IA' }}
           </ion-button>
           @if (suggestStatus() === 'error') {
-            <ion-note color="danger">No pudimos generar una sugerencia. Intenta de nuevo.</ion-note>
+            <ion-note color="danger" role="alert">No pudimos generar una sugerencia. Intenta de nuevo.</ion-note>
           }
           @if (brandingSuggestion(); as suggestion) {
             <div class="branding-preview">
@@ -101,19 +101,19 @@
             <ion-input label="Slug *" formControlName="slug" placeholder="Ej: gold-gym" />
           </ion-item>
           @if (createForm.controls.slug.invalid && (createForm.controls.slug.dirty || createForm.controls.slug.touched)) {
-            <ion-note color="danger">Usa minúsculas, números y guiones (ej: mi-gimnasio).</ion-note>
+            <ion-note color="danger" role="alert">Usa minúsculas, números y guiones (ej: mi-gimnasio).</ion-note>
           }
 
           <app-quantity-stepper label="Cupo máximo de usuarios *" formControlName="maxUsers" [min]="1" [max]="10000" />
           @if (createForm.controls.maxUsers.invalid && (createForm.controls.maxUsers.dirty || createForm.controls.maxUsers.touched)) {
-            <ion-note color="danger">El cupo debe ser mayor a 0.</ion-note>
+            <ion-note color="danger" role="alert">El cupo debe ser mayor a 0.</ion-note>
           }
 
           <ion-item>
             <ion-input label="Nombre del dueño *" formControlName="ownerName" placeholder="Ej: Javiera Pulgar" />
           </ion-item>
           @if (createForm.controls.ownerName.invalid && (createForm.controls.ownerName.dirty || createForm.controls.ownerName.touched)) {
-            <ion-note color="danger">El nombre del dueño es obligatorio.</ion-note>
+            <ion-note color="danger" role="alert">El nombre del dueño es obligatorio.</ion-note>
           }
 
           <ion-item lines="none">
@@ -121,7 +121,7 @@
           </ion-item>
           <p class="item-hint">El dueño va a poder administrar este gimnasio iniciando sesión con Google usando este email.</p>
           @if (createForm.controls.ownerEmail.invalid && (createForm.controls.ownerEmail.dirty || createForm.controls.ownerEmail.touched)) {
-            <ion-note color="danger">Ingresa un email válido.</ion-note>
+            <ion-note color="danger" role="alert">Ingresa un email válido.</ion-note>
           }
 
           <ion-button type="submit" expand="block" [disabled]="createForm.invalid || status() === 'saving'" class="ion-margin-top">
@@ -156,7 +156,7 @@
     </div>
 
     @if (status() === 'error') {
-      <ion-text color="danger"><p>Ocurrió un error. Intenta nuevamente.</p></ion-text>
+      <ion-text color="danger" role="alert"><p>Ocurrió un error. Intenta nuevamente.</p></ion-text>
     }
 
     @if (section() === 'general') {
@@ -200,7 +200,7 @@
         (keydown.space)="$event.preventDefault(); viewMembersByStatus('ACTIVE')"
       >
         <ion-icon name="checkmark-circle-outline" aria-hidden="true"></ion-icon>
-        <p class="member-stat__value">{{ activeMembers() }}</p>
+        <p class="member-stat__value">{{ activeMembers() ?? '—' }}</p>
         <p class="member-stat__label">Activos</p>
       </div>
       <div
@@ -213,7 +213,7 @@
         (keydown.space)="$event.preventDefault(); viewMembersByStatus('EXPIRING_SOON')"
       >
         <ion-icon name="hourglass-outline" aria-hidden="true"></ion-icon>
-        <p class="member-stat__value">{{ expiringSoonMembers() }}</p>
+        <p class="member-stat__value">{{ expiringSoonMembers() ?? '—' }}</p>
         <p class="member-stat__label">Por vencer</p>
       </div>
       <div
@@ -226,7 +226,7 @@
         (keydown.space)="$event.preventDefault(); viewMembersByStatus('EXPIRED')"
       >
         <ion-icon name="close-circle-outline" aria-hidden="true"></ion-icon>
-        <p class="member-stat__value">{{ expiredMembers() }}</p>
+        <p class="member-stat__value">{{ expiredMembers() ?? '—' }}</p>
         <p class="member-stat__label">Vencidos</p>
       </div>
       <div
@@ -239,7 +239,7 @@
         (keydown.space)="$event.preventDefault(); viewMembersByStatus('UNPAID')"
       >
         <ion-icon name="help-circle-outline" aria-hidden="true"></ion-icon>
-        <p class="member-stat__value">{{ unpaidMembers() }}</p>
+        <p class="member-stat__value">{{ unpaidMembers() ?? '—' }}</p>
         <p class="member-stat__label">Sin pago</p>
       </div>
       <div
@@ -252,7 +252,7 @@
         (keydown.space)="$event.preventDefault(); viewMembersByInvite('PENDING')"
       >
         <ion-icon name="paper-plane-outline" aria-hidden="true"></ion-icon>
-        <p class="member-stat__value">{{ invitedPendingMembers() }}</p>
+        <p class="member-stat__value">{{ invitedPendingMembers() ?? '—' }}</p>
         <p class="member-stat__label">Invitados</p>
       </div>
     </div>
@@ -265,7 +265,7 @@
       <p class="item-hint">Envíaselo a los futuros socios para que se registren directo, sin pasar por el dueño.</p>
       <div class="share-link-card__row">
         <code>{{ joinUrl() }}</code>
-        <ion-button fill="clear" size="small" (click)="copyJoinLink()">
+        <ion-button fill="clear" size="small" aria-label="Copiar link de alta" (click)="copyJoinLink()">
           <ion-icon name="copy-outline" slot="start" aria-hidden="true"></ion-icon>
           Copiar
         </ion-button>
@@ -312,7 +312,7 @@
                 color="danger"
                 [disabled]="removingAdminId() === admin.id"
                 (click)="removeAdmin(admin)"
-                aria-label="Eliminar administrador permanentemente"
+                [attr.aria-label]="'Eliminar a ' + admin.name + ' permanentemente'"
               >
                 @if (removingAdminId() === admin.id) {
                   <ion-spinner name="crescent" slot="icon-only"></ion-spinner>
@@ -334,20 +334,20 @@
             <ion-input label="Nombre *" formControlName="name" placeholder="Ej: Javiera Pulgar" />
           </ion-item>
           @if (adminForm.controls.name.invalid && (adminForm.controls.name.dirty || adminForm.controls.name.touched)) {
-            <ion-note color="danger">Escribe el nombre (mínimo 2 letras).</ion-note>
+            <ion-note color="danger" role="alert">Escribe el nombre (mínimo 2 letras).</ion-note>
           }
           <ion-item lines="none">
             <ion-input label="Email *" type="email" autocomplete="email" formControlName="email" placeholder="Ej: javiera@mail.com" />
           </ion-item>
           @if (adminForm.controls.email.invalid && (adminForm.controls.email.dirty || adminForm.controls.email.touched)) {
-            <ion-note color="danger">Ingresa un email válido.</ion-note>
+            <ion-note color="danger" role="alert">Ingresa un email válido.</ion-note>
           }
           <p class="item-hint">Va a poder administrar este gimnasio iniciando sesión con Google usando este email.</p>
           <ion-button type="submit" fill="outline" [disabled]="adminForm.invalid || status() === 'saving'" class="ion-margin-top">
             Agregar administrador
           </ion-button>
           @if (adminError(); as error) {
-            <ion-note color="danger">{{ error }}</ion-note>
+            <ion-note color="danger" role="alert">{{ error }}</ion-note>
           }
         </form>
       </ion-card-content>
@@ -418,20 +418,20 @@
             <ion-input label="Nombre *" formControlName="name" placeholder="Ej: Javiera Pulgar" />
           </ion-item>
           @if (demoAdminForm.controls.name.invalid && (demoAdminForm.controls.name.dirty || demoAdminForm.controls.name.touched)) {
-            <ion-note color="danger">Escribe el nombre (mínimo 2 letras).</ion-note>
+            <ion-note color="danger" role="alert">Escribe el nombre (mínimo 2 letras).</ion-note>
           }
           <ion-item lines="none">
             <ion-input label="Email *" type="email" autocomplete="email" formControlName="email" placeholder="Ej: javiera@mail.com" />
           </ion-item>
           @if (demoAdminForm.controls.email.invalid && (demoAdminForm.controls.email.dirty || demoAdminForm.controls.email.touched)) {
-            <ion-note color="danger">Ingresa un email válido.</ion-note>
+            <ion-note color="danger" role="alert">Ingresa un email válido.</ion-note>
           }
           <p class="item-hint">Va a poder entrar a la demo iniciando sesión con Google usando este email.</p>
           <ion-button type="submit" fill="outline" [disabled]="demoAdminForm.invalid || status() === 'saving'" class="ion-margin-top">
             Dar acceso a la demo
           </ion-button>
           @if (demoAdminError(); as error) {
-            <ion-note color="danger">{{ error }}</ion-note>
+            <ion-note color="danger" role="alert">{{ error }}</ion-note>
           }
         </form>
       </ion-card-content>
@@ -456,7 +456,7 @@
 
           <app-quantity-stepper label="Cupo máximo de usuarios *" formControlName="maxUsers" [min]="1" [max]="10000" />
           @if (configForm.controls.maxUsers.invalid && (configForm.controls.maxUsers.dirty || configForm.controls.maxUsers.touched)) {
-            <ion-note color="danger">El cupo debe ser mayor a 0.</ion-note>
+            <ion-note color="danger" role="alert">El cupo debe ser mayor a 0.</ion-note>
           }
 
           <ion-item lines="none">
@@ -561,7 +561,7 @@
             />
           </ion-item>
           @if (disconnectError(); as error) {
-            <ion-note color="danger">{{ error }}</ion-note>
+            <ion-note color="danger" role="alert">{{ error }}</ion-note>
           }
           <div class="danger-modal__actions">
             <ion-button fill="clear" color="medium" [disabled]="disconnecting()" (click)="closeDisconnectModal()">
@@ -821,9 +821,10 @@
       </ng-template>
     </ion-modal>
 
-    <ion-modal class="wide-modal" [isOpen]="isSeriesModalOpen()" (didDismiss)="closeSeriesModal()">
+    <ion-modal class="wide-modal" [isOpen]="isSeriesModalOpen()" [canDismiss]="confirmDiscard"
+      (didDismiss)="closeSeriesModal()">
       <ng-template>
-        <app-bloque-series-modal (confirmed)="confirmSeries($event)" (dismiss)="closeSeriesModal()" />
+        <app-bloque-series-modal (confirmed)="confirmSeries($event)" (dismiss)="cancelSeriesModal()" (dirtyChange)="modalDirty.set($event)" />
       </ng-template>
     </ion-modal>
     }
@@ -905,7 +906,7 @@
       </ng-template>
     </ion-modal>
     } @else if (section() === 'members') {
-    <div class="history-mode" role="tablist" aria-label="Socios" data-tour="members-board">
+    <div class="history-mode history-mode--3" role="tablist" aria-label="Socios" data-tour="members-board">
       <button
         type="button"
         role="tab"
@@ -926,6 +927,16 @@
       >
         En clase
       </button>
+      <button
+        type="button"
+        role="tab"
+        class="history-mode__btn"
+        [class.history-mode__btn--active]="memberSub() === 'team'"
+        [attr.aria-selected]="memberSub() === 'team'"
+        (click)="setMemberSub('team')"
+      >
+        Profesores
+      </button>
     </div>
     @if (memberSub() === 'board') {
       <app-class-board
@@ -935,113 +946,7 @@
         (editRoutine)="openWorkoutPlanForMember($event)"
       />
     }
-    @if (memberSub() === 'members') {
-
-    <p class="member-stats-heading">
-      <ion-icon name="people-outline" aria-hidden="true"></ion-icon>
-      Estado de los socios del gimnasio
-    </p>
-    <div class="member-stats">
-      <div
-        class="member-stat member-stat--active"
-        role="button"
-        tabindex="0"
-        aria-label="Ver socios activos"
-        (click)="viewMembersByStatus('ACTIVE')"
-        (keydown.enter)="viewMembersByStatus('ACTIVE')"
-        (keydown.space)="$event.preventDefault(); viewMembersByStatus('ACTIVE')"
-      >
-        <ion-icon name="checkmark-circle-outline" aria-hidden="true"></ion-icon>
-        <p class="member-stat__value">{{ activeMembers() }}</p>
-        <p class="member-stat__label">Activos</p>
-      </div>
-      <div
-        class="member-stat member-stat--soon"
-        role="button"
-        tabindex="0"
-        aria-label="Ver socios por vencer"
-        (click)="viewMembersByStatus('EXPIRING_SOON')"
-        (keydown.enter)="viewMembersByStatus('EXPIRING_SOON')"
-        (keydown.space)="$event.preventDefault(); viewMembersByStatus('EXPIRING_SOON')"
-      >
-        <ion-icon name="hourglass-outline" aria-hidden="true"></ion-icon>
-        <p class="member-stat__value">{{ expiringSoonMembers() }}</p>
-        <p class="member-stat__label">Por vencer</p>
-      </div>
-      <div
-        class="member-stat member-stat--warn"
-        role="button"
-        tabindex="0"
-        aria-label="Ver socios vencidos"
-        (click)="viewMembersByStatus('EXPIRED')"
-        (keydown.enter)="viewMembersByStatus('EXPIRED')"
-        (keydown.space)="$event.preventDefault(); viewMembersByStatus('EXPIRED')"
-      >
-        <ion-icon name="close-circle-outline" aria-hidden="true"></ion-icon>
-        <p class="member-stat__value">{{ expiredMembers() }}</p>
-        <p class="member-stat__label">Vencidos</p>
-      </div>
-      <div
-        class="member-stat member-stat--dim"
-        role="button"
-        tabindex="0"
-        aria-label="Ver socios sin pago"
-        (click)="viewMembersByStatus('UNPAID')"
-        (keydown.enter)="viewMembersByStatus('UNPAID')"
-        (keydown.space)="$event.preventDefault(); viewMembersByStatus('UNPAID')"
-      >
-        <ion-icon name="help-circle-outline" aria-hidden="true"></ion-icon>
-        <p class="member-stat__value">{{ unpaidMembers() }}</p>
-        <p class="member-stat__label">Sin pago</p>
-      </div>
-      <div
-        class="member-stat member-stat--invited"
-        role="button"
-        tabindex="0"
-        aria-label="Ver invitados pendientes"
-        (click)="viewMembersByInvite('PENDING')"
-        (keydown.enter)="viewMembersByInvite('PENDING')"
-        (keydown.space)="$event.preventDefault(); viewMembersByInvite('PENDING')"
-      >
-        <ion-icon name="paper-plane-outline" aria-hidden="true"></ion-icon>
-        <p class="member-stat__value">{{ invitedPendingMembers() }}</p>
-        <p class="member-stat__label">Invitados</p>
-      </div>
-    </div>
-
-    <ion-card>
-      <ion-card-header>
-        <ion-card-title>
-          <ion-icon name="people-outline" aria-hidden="true"></ion-icon>
-          Agregar socio
-        </ion-card-title>
-      </ion-card-header>
-      <ion-card-content>
-        <app-gym-limits [limits]="limits()" audience="super" [compact]="true" />
-        <form [formGroup]="memberForm" (ngSubmit)="submitMember()">
-          <ion-item>
-            <ion-input label="Nombre *" formControlName="name" placeholder="Ej: Javiera Pulgar" />
-          </ion-item>
-          @if (memberForm.controls.name.invalid && (memberForm.controls.name.dirty || memberForm.controls.name.touched)) {
-            <ion-note color="danger">Escribe el nombre (mínimo 2 letras).</ion-note>
-          }
-          <ion-item lines="none">
-            <ion-input label="Email *" type="email" autocomplete="email" formControlName="email" placeholder="Ej: javiera@mail.com" />
-          </ion-item>
-          @if (memberForm.controls.email.invalid && (memberForm.controls.email.dirty || memberForm.controls.email.touched)) {
-            <ion-note color="danger">Ingresa un email válido.</ion-note>
-          }
-          <ion-button type="submit" fill="outline" [disabled]="memberForm.invalid || status() === 'saving'" class="ion-margin-top">
-            Agregar socio
-          </ion-button>
-        </form>
-        <ion-button expand="block" fill="clear" (click)="openImportFixedClasses()">
-          <ion-icon name="repeat-outline" slot="start" aria-hidden="true"></ion-icon>
-          Importar clases fijas desde Excel
-        </ion-button>
-      </ion-card-content>
-    </ion-card>
-
+    @if (memberSub() === 'team') {
     <ion-card>
       <ion-card-header>
         <ion-card-title>
@@ -1051,18 +956,19 @@
         </ion-card-title>
       </ion-card-header>
       <ion-card-content>
+        <app-gym-limits [limits]="limits()" audience="super" [compact]="true" compactKey="profesores" />
         <form [formGroup]="profesorForm" (ngSubmit)="addProfesor()">
           <ion-item>
             <ion-input label="Nombre *" formControlName="name" placeholder="Ej: Javiera Pulgar" />
           </ion-item>
           @if (profesorForm.controls.name.invalid && (profesorForm.controls.name.dirty || profesorForm.controls.name.touched)) {
-            <ion-note color="danger">Escribe el nombre (mínimo 2 letras).</ion-note>
+            <ion-note color="danger" role="alert">Escribe el nombre (mínimo 2 letras).</ion-note>
           }
           <ion-item lines="none">
             <ion-input label="Email *" type="email" autocomplete="email" formControlName="email" placeholder="Ej: javiera@mail.com" />
           </ion-item>
           @if (profesorForm.controls.email.invalid && (profesorForm.controls.email.dirty || profesorForm.controls.email.touched)) {
-            <ion-note color="danger">Ingresa un email válido.</ion-note>
+            <ion-note color="danger" role="alert">Ingresa un email válido.</ion-note>
           }
           <ion-button
             expand="block"
@@ -1093,7 +999,7 @@
                 color="danger"
                 [disabled]="removingProfesorId() === profesor.id"
                 (click)="removeProfesor(profesor)"
-                aria-label="Quitar profesor"
+                [attr.aria-label]="'Quitar a ' + profesor.name"
               >
                 @if (removingProfesorId() === profesor.id) {
                   <ion-spinner name="crescent" slot="icon-only"></ion-spinner>
@@ -1108,6 +1014,113 @@
             </ion-item>
           }
         </ion-list>
+      </ion-card-content>
+    </ion-card>
+    }
+    @if (memberSub() === 'members') {
+
+    <p class="member-stats-heading">
+      <ion-icon name="people-outline" aria-hidden="true"></ion-icon>
+      Estado de los socios del gimnasio
+    </p>
+    <div class="member-stats">
+      <div
+        class="member-stat member-stat--active"
+        role="button"
+        tabindex="0"
+        aria-label="Ver socios activos"
+        (click)="viewMembersByStatus('ACTIVE')"
+        (keydown.enter)="viewMembersByStatus('ACTIVE')"
+        (keydown.space)="$event.preventDefault(); viewMembersByStatus('ACTIVE')"
+      >
+        <ion-icon name="checkmark-circle-outline" aria-hidden="true"></ion-icon>
+        <p class="member-stat__value">{{ activeMembers() ?? '—' }}</p>
+        <p class="member-stat__label">Activos</p>
+      </div>
+      <div
+        class="member-stat member-stat--soon"
+        role="button"
+        tabindex="0"
+        aria-label="Ver socios por vencer"
+        (click)="viewMembersByStatus('EXPIRING_SOON')"
+        (keydown.enter)="viewMembersByStatus('EXPIRING_SOON')"
+        (keydown.space)="$event.preventDefault(); viewMembersByStatus('EXPIRING_SOON')"
+      >
+        <ion-icon name="hourglass-outline" aria-hidden="true"></ion-icon>
+        <p class="member-stat__value">{{ expiringSoonMembers() ?? '—' }}</p>
+        <p class="member-stat__label">Por vencer</p>
+      </div>
+      <div
+        class="member-stat member-stat--warn"
+        role="button"
+        tabindex="0"
+        aria-label="Ver socios vencidos"
+        (click)="viewMembersByStatus('EXPIRED')"
+        (keydown.enter)="viewMembersByStatus('EXPIRED')"
+        (keydown.space)="$event.preventDefault(); viewMembersByStatus('EXPIRED')"
+      >
+        <ion-icon name="close-circle-outline" aria-hidden="true"></ion-icon>
+        <p class="member-stat__value">{{ expiredMembers() ?? '—' }}</p>
+        <p class="member-stat__label">Vencidos</p>
+      </div>
+      <div
+        class="member-stat member-stat--dim"
+        role="button"
+        tabindex="0"
+        aria-label="Ver socios sin pago"
+        (click)="viewMembersByStatus('UNPAID')"
+        (keydown.enter)="viewMembersByStatus('UNPAID')"
+        (keydown.space)="$event.preventDefault(); viewMembersByStatus('UNPAID')"
+      >
+        <ion-icon name="help-circle-outline" aria-hidden="true"></ion-icon>
+        <p class="member-stat__value">{{ unpaidMembers() ?? '—' }}</p>
+        <p class="member-stat__label">Sin pago</p>
+      </div>
+      <div
+        class="member-stat member-stat--invited"
+        role="button"
+        tabindex="0"
+        aria-label="Ver invitados pendientes"
+        (click)="viewMembersByInvite('PENDING')"
+        (keydown.enter)="viewMembersByInvite('PENDING')"
+        (keydown.space)="$event.preventDefault(); viewMembersByInvite('PENDING')"
+      >
+        <ion-icon name="paper-plane-outline" aria-hidden="true"></ion-icon>
+        <p class="member-stat__value">{{ invitedPendingMembers() ?? '—' }}</p>
+        <p class="member-stat__label">Invitados</p>
+      </div>
+    </div>
+
+    <ion-card>
+      <ion-card-header>
+        <ion-card-title>
+          <ion-icon name="people-outline" aria-hidden="true"></ion-icon>
+          Agregar socio
+        </ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <app-gym-limits [limits]="limits()" audience="super" [compact]="true" />
+        <form [formGroup]="memberForm" (ngSubmit)="submitMember()">
+          <ion-item>
+            <ion-input label="Nombre *" formControlName="name" placeholder="Ej: Javiera Pulgar" />
+          </ion-item>
+          @if (memberForm.controls.name.invalid && (memberForm.controls.name.dirty || memberForm.controls.name.touched)) {
+            <ion-note color="danger" role="alert">Escribe el nombre (mínimo 2 letras).</ion-note>
+          }
+          <ion-item lines="none">
+            <ion-input label="Email *" type="email" autocomplete="email" formControlName="email" placeholder="Ej: javiera@mail.com" />
+          </ion-item>
+          @if (memberForm.controls.email.invalid && (memberForm.controls.email.dirty || memberForm.controls.email.touched)) {
+            <ion-note color="danger" role="alert">Ingresa un email válido.</ion-note>
+          }
+          <ion-button type="submit" fill="outline" [disabled]="memberForm.invalid || status() === 'saving'" class="ion-margin-top">
+            Agregar socio
+          </ion-button>
+        </form>
+        <ion-button expand="block" fill="clear" (click)="openImportFixedClasses()">
+          <ion-icon name="repeat-outline" slot="start" aria-hidden="true"></ion-icon>
+          Importar clases fijas desde Excel
+        </ion-button>
       </ion-card-content>
     </ion-card>
 
@@ -1135,7 +1148,7 @@
         <ion-item lines="none" class="history-search-item">
           <ion-icon name="search-outline" slot="start" aria-hidden="true"></ion-icon>
           <ion-input
-            placeholder="Buscar socio por nombre o email..."
+            placeholder="Buscar por nombre, email, RUT o celular"
             [value]="memberSearch()"
             (ionInput)="onMemberSearchInput($any($event.detail).value ?? '')"
           ></ion-input>
@@ -1234,46 +1247,6 @@
                     }
                     {{ member.planId ? 'Renovar' : 'Marcar pago' }}
                   </ion-button>
-                  @if (member.planId) {
-                    <ion-button
-                      fill="outline"
-                      size="small"
-                      color="danger"
-                      class="member-action-btn member-action-btn--secondary"
-                      [disabled]="revokingPlanId() === member.id"
-                      (click)="revokeMemberPlan(member)"
-                    >
-                      @if (revokingPlanId() === member.id) {
-                        <ion-spinner name="crescent" slot="start"></ion-spinner>
-                      } @else {
-                        <ion-icon name="remove-circle-outline" slot="start" aria-hidden="true"></ion-icon>
-                      }
-                      Quitar plan
-                    </ion-button>
-                  }
-              <ion-button
-                fill="outline"
-                size="small"
-                class="member-action-btn member-action-btn--secondary"
-                (click)="openWorkoutPlanModal(member)"
-              >
-                <ion-icon name="barbell-outline" slot="start" aria-hidden="true"></ion-icon>
-                Rutina
-              </ion-button>
-              <ion-button
-                fill="outline"
-                size="small"
-                class="member-action-btn member-action-btn--secondary"
-                [disabled]="loadingFixedClassesId() === member.id"
-                (click)="openFixedClassesModal(member)"
-              >
-                @if (loadingFixedClassesId() === member.id) {
-                  <ion-spinner name="crescent" slot="start"></ion-spinner>
-                } @else {
-                  <ion-icon name="repeat-outline" slot="start" aria-hidden="true"></ion-icon>
-                }
-                Clases fijas
-              </ion-button>
               @if (memberWhatsapp(member); as wa) {
                 <ion-button
                   fill="outline"
@@ -1288,25 +1261,6 @@
                   <ion-icon name="logo-whatsapp" slot="icon-only" aria-hidden="true"></ion-icon>
                 </ion-button>
               }
-              <ion-button fill="outline" size="small" class="member-action-btn member-action-btn--secondary" (click)="openMemberProfile(member)">
-                <ion-icon name="id-card-outline" slot="start" aria-hidden="true"></ion-icon>
-                Datos
-              </ion-button>
-              <ion-button
-                fill="clear"
-                size="small"
-                color="danger"
-                class="member-action-btn member-action-btn--secondary"
-                [disabled]="deletingMemberId() === member.id"
-                (click)="deleteMember(member)"
-                aria-label="Eliminar socio permanentemente"
-              >
-                @if (deletingMemberId() === member.id) {
-                  <ion-spinner name="crescent" slot="icon-only"></ion-spinner>
-                } @else {
-                  <ion-icon name="trash-outline" slot="icon-only" aria-hidden="true"></ion-icon>
-                }
-              </ion-button>
               <ion-button
                 fill="outline"
                 size="small"
@@ -1427,6 +1381,7 @@
     <ion-modal
       class="wide-modal"
       [isOpen]="fixedClassesMember() !== null"
+      [canDismiss]="confirmDiscard"
       (didDismiss)="closeFixedClassesModal()"
       [style.--ion-color-primary]="themeColor()"
       [style.--ion-color-primary-contrast]="themeContrast()"
@@ -1441,7 +1396,8 @@
           [hint]="fixedClassesHint(fixedClassesMember())"
           [saving]="savingFixedClasses()"
           (saved)="confirmFixedClasses($event)"
-          (dismiss)="closeFixedClassesModal()"
+          (dismiss)="cancelFixedClassesModal()"
+          (dirtyChange)="modalDirty.set($event)"
         />
       </ng-template>
     </ion-modal>
@@ -1449,6 +1405,7 @@
     <ion-modal
       class="wide-modal"
       [isOpen]="isImportFixedClassesOpen()"
+      [canDismiss]="confirmDiscard"
       (didDismiss)="closeImportFixedClasses()"
       [style.--ion-color-primary]="themeColor()"
       [style.--ion-color-primary-contrast]="themeContrast()"
@@ -1460,7 +1417,8 @@
           [gymId]="gymId()"
           [blocks]="blocks()"
           (imported)="onFixedClassesImported()"
-          (dismiss)="closeImportFixedClasses()"
+          (dismiss)="cancelImportFixedClasses()"
+          (dirtyChange)="modalDirty.set($event)"
         />
       </ng-template>
     </ion-modal>
@@ -1490,6 +1448,7 @@
                 <button
                   type="button"
                   class="theme-card"
+                  [attr.aria-pressed]="palette.hex === themeColor()"
                   [class.theme-card--selected]="palette.hex === themeColor()"
                   [style.background]="surfaceFor(palette).bg"
                   [disabled]="themeSaving()"
@@ -1523,6 +1482,7 @@
                 <button
                   type="button"
                   class="theme-card"
+                  [attr.aria-pressed]="palette.hex === themeColor() && themeMode() === 'LIGHT'"
                   [class.theme-card--selected]="palette.hex === themeColor() && themeMode() === 'LIGHT'"
                   [style.background]="palette.bg"
                   [disabled]="themeSaving()"
@@ -1566,10 +1526,10 @@
             />
           </ion-item>
           <ion-item>
-            <ion-input label="Instagram (link)" formControlName="instagramUrl" placeholder="https://instagram.com/elgym" />
+            <ion-input label="Instagram (link)" inputmode="url" autocapitalize="off" autocomplete="off" spellcheck="false" formControlName="instagramUrl" placeholder="https://instagram.com/elgym" />
           </ion-item>
           <ion-item>
-            <ion-input label="WhatsApp (número)" formControlName="whatsappNumber" placeholder="+56912345678" />
+            <ion-input label="WhatsApp (número)" type="tel" inputmode="tel" autocomplete="tel" formControlName="whatsappNumber" placeholder="+56912345678" />
           </ion-item>
           <ion-button type="submit" [disabled]="identityForm.invalid || identitySaving()" class="ion-margin-top">
             {{ identitySaving() ? 'Guardando...' : 'Guardar identidad' }}
@@ -1644,6 +1604,7 @@
             <ion-input label-placement="stacked"
               label="RUT de la empresa"
               formControlName="companyRut"
+              autocomplete="off"
               placeholder="Ej: 76.123.456-7"
               (ionBlur)="formatRutOnBlur(flowAccountForm.controls.companyRut)"
             />
@@ -1652,7 +1613,7 @@
             flowAccountForm.controls.companyRut.invalid &&
             (flowAccountForm.controls.companyRut.dirty || flowAccountForm.controls.companyRut.touched)
           ) {
-            <ion-note color="danger">RUT inválido — revisa el número y el dígito verificador.</ion-note>
+            <ion-note color="danger" role="alert">RUT inválido — revisa el número y el dígito verificador.</ion-note>
           }
           <ion-item>
             <ion-input label-placement="stacked" label="Razón social" formControlName="companyName" placeholder="Nombre legal de la empresa" />
@@ -1681,6 +1642,7 @@
             <ion-input label-placement="stacked"
               label="RUT"
               formControlName="legalRepRut"
+              autocomplete="off"
               placeholder="Ej: 12.345.678-9"
               (ionBlur)="formatRutOnBlur(flowAccountForm.controls.legalRepRut)"
             />
@@ -1689,10 +1651,10 @@
             flowAccountForm.controls.legalRepRut.invalid &&
             (flowAccountForm.controls.legalRepRut.dirty || flowAccountForm.controls.legalRepRut.touched)
           ) {
-            <ion-note color="danger">RUT inválido — revisa el número y el dígito verificador.</ion-note>
+            <ion-note color="danger" role="alert">RUT inválido — revisa el número y el dígito verificador.</ion-note>
           }
           <ion-item>
-            <ion-input label-placement="stacked" label="Teléfono" formControlName="legalRepPhone" placeholder="+56912345678" />
+            <ion-input label-placement="stacked" label="Teléfono" type="tel" inputmode="tel" autocomplete="tel" formControlName="legalRepPhone" placeholder="+56912345678" />
           </ion-item>
 
           <ion-list-header>
@@ -1713,10 +1675,10 @@
             flowAccountForm.controls.contactEmail.invalid &&
             (flowAccountForm.controls.contactEmail.dirty || flowAccountForm.controls.contactEmail.touched)
           ) {
-            <ion-note color="danger">Ingresa un email válido.</ion-note>
+            <ion-note color="danger" role="alert">Ingresa un email válido.</ion-note>
           }
           <ion-item>
-            <ion-input label-placement="stacked" label="Teléfono de contacto" formControlName="contactPhone" placeholder="+56912345678" />
+            <ion-input label-placement="stacked" label="Teléfono de contacto" type="tel" inputmode="tel" autocomplete="tel" formControlName="contactPhone" placeholder="+56912345678" />
           </ion-item>
 
           <ion-list-header>
@@ -1780,12 +1742,13 @@
             </ion-select>
           </ion-item>
           <ion-item>
-            <ion-input label-placement="stacked" label="Número de cuenta" formControlName="accountNumber" placeholder="Ej: 00012345678" />
+            <ion-input label-placement="stacked" label="Número de cuenta" inputmode="numeric" autocomplete="off" formControlName="accountNumber" placeholder="Ej: 00012345678" />
           </ion-item>
           <ion-item>
             <ion-input label-placement="stacked"
               label="RUT titular"
               formControlName="holderRut"
+              autocomplete="off"
               placeholder="Ej: 12.345.678-9"
               (ionBlur)="formatRutOnBlur(bankTransferForm.controls.holderRut)"
             />
@@ -1794,7 +1757,7 @@
             bankTransferForm.controls.holderRut.invalid &&
             (bankTransferForm.controls.holderRut.dirty || bankTransferForm.controls.holderRut.touched)
           ) {
-            <ion-note color="danger">RUT inválido — revisa el número y el dígito verificador.</ion-note>
+            <ion-note color="danger" role="alert">RUT inválido — revisa el número y el dígito verificador.</ion-note>
           }
           <ion-item>
             <ion-input label-placement="stacked" label="Nombre titular" formControlName="holderName" placeholder="Nombre completo o razón social" />
@@ -1811,7 +1774,7 @@
             bankTransferForm.controls.confirmationEmail.invalid &&
             (bankTransferForm.controls.confirmationEmail.dirty || bankTransferForm.controls.confirmationEmail.touched)
           ) {
-            <ion-note color="danger">Ingresa un email válido.</ion-note>
+            <ion-note color="danger" role="alert">Ingresa un email válido.</ion-note>
           }
           <ion-button
             type="submit"
@@ -1872,7 +1835,11 @@
               label="Código de la TV *"
               formControlName="code"
               placeholder="Ej: A3K9QZ"
-              style="text-transform: uppercase"
+              class="tv-code-input"
+              maxlength="6"
+              autocapitalize="characters"
+              autocomplete="off"
+              spellcheck="false"
             />
           </ion-item>
           <ion-item lines="none">
@@ -1882,7 +1849,7 @@
             {{ claimingScreen() ? 'Vinculando...' : 'Vincular pantalla' }}
           </ion-button>
           @if (tvScreenError(); as error) {
-            <ion-note color="danger">{{ error }}</ion-note>
+            <ion-note color="danger" role="alert">{{ error }}</ion-note>
           }
         </form>
       </ion-card-content>
@@ -1924,8 +1891,8 @@
               </ion-label>
               @if (closure.editable) {
                 <div class="closure-item-actions">
-                  <ion-button fill="clear" (click)="openEditClosureModal(closure)">Editar</ion-button>
-                  <ion-button fill="clear" (click)="liftClosure(closure)" [disabled]="liftingClosureId() === closure.id">
+                  <ion-button fill="outline" size="small" [attr.aria-label]="'Editar cierre del ' + isoRange(closure.startDate, closure.endDate)" (click)="openEditClosureModal(closure)">Editar</ion-button>
+                  <ion-button fill="outline" size="small" [attr.aria-label]="'Levantar cierre del ' + isoRange(closure.startDate, closure.endDate)" (click)="liftClosure(closure)" [disabled]="liftingClosureId() === closure.id">
                     {{ liftingClosureId() === closure.id ? 'Levantando...' : 'Levantar' }}
                   </ion-button>
                 </div>
@@ -1968,6 +1935,7 @@
     <ion-modal
       class="wide-modal"
       [isOpen]="isClosureModalOpen()"
+      [canDismiss]="confirmDiscard"
       (didDismiss)="closeClosureModal()"
       [style.--ion-color-primary]="themeColor()"
       [style.--ion-color-primary-contrast]="themeContrast()"
@@ -1983,7 +1951,8 @@
           [saving]="closureSaving()"
           (preview)="requestClosurePreview($event)"
           (confirmed)="confirmClosure($event)"
-          (dismiss)="closeClosureModal()"
+          (dismiss)="cancelClosureModal()"
+          (dirtyChange)="modalDirty.set($event)"
         />
       </ng-template>
     </ion-modal>

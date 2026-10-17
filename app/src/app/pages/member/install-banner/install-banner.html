@@ -35,7 +35,11 @@
               </div>
             </div>
             <p class="install-popover__hint">
-              El botón de compartir está abajo, en la barra de Safari
+              @if (pwa.isIosOtherBrowser) {
+                Busca Compartir en la barra de direcciones o en el menú del navegador
+              } @else {
+                El botón de compartir está abajo, en la barra de Safari
+              }
               <ion-icon class="install-popover__hint-arrow" name="chevron-down-outline" aria-hidden="true"></ion-icon>
             </p>
           </div>

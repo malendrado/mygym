@@ -62,8 +62,10 @@
   color: var(--brand-text);
   cursor: pointer;
 
-  &:hover {
-    border-color: var(--brand-accent);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      border-color: var(--brand-accent);
+    }
   }
 
   &:focus-visible {
@@ -91,8 +93,10 @@
     font-weight: 600;
     cursor: pointer;
 
-    &:hover {
-      background: var(--brand-ink-surface);
+    @media (hover: hover) and (pointer: fine) {
+      &:hover {
+        background: var(--brand-ink-surface);
+      }
     }
 
     &:focus-visible {
@@ -217,8 +221,10 @@
     background-color 120ms ease-out,
     border-color 120ms ease-out;
 
-  &:hover {
-    border-color: var(--brand-accent);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      border-color: var(--brand-accent);
+    }
   }
 
   &:active {
@@ -549,9 +555,11 @@
     font-size: 1.3rem;
   }
 
-  &:hover {
-    background: var(--brand-ink-surface-2);
-    color: var(--brand-text);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      background: var(--brand-ink-surface-2);
+      color: var(--brand-text);
+    }
   }
 
   &:active {
@@ -565,6 +573,7 @@
 
   &--whatsapp {
     color: #25d366;
+    color: light-dark(#12803f, #25d366);
   }
 
   &--mark {
@@ -610,8 +619,10 @@
   cursor: pointer;
   transition: transform 160ms ease-out;
 
-  &:hover {
-    border-color: var(--brand-accent);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      border-color: var(--brand-accent);
+    }
   }
 
   &:active {

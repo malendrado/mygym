@@ -23,6 +23,7 @@ import { firstValueFrom } from 'rxjs';
 import { of, throwError } from 'rxjs';
 import { retry, timeout } from 'rxjs/operators';
 import * as XLSX from 'xlsx';
+import { trackDirty } from '../../../../core/utils/dirty-tracker';
 import { GymPlan } from '../../../../core/models/gym.model';
 import { MemberImportRow, MemberImportRowResult } from '../../../../core/models/member.model';
 import { AuthService } from '../../../../core/services/auth.service';
@@ -162,6 +163,8 @@ export class ImportMembersModal {
   @Input() freeSlots: number | null = null;
 
   @Output() dismiss = new EventEmitter<void>();
+  /** Hay cambios sin guardar (el padre lo usa para no cerrar el modal sin avisar). */
+  @Output() dirtyChange = new EventEmitter<boolean>();
   // Se emite si al menos un socio se importó bien, para que gym-admin.ts recargue la lista —
   // no espera a que el admin cierre el modal, el resumen final queda visible igual.
   @Output() imported = new EventEmitter<void>();
@@ -188,6 +191,16 @@ export class ImportMembersModal {
   protected readonly currentChunkLabel = signal('');
   protected readonly summary = signal<{ imported: number; failed: number } | null>(null);
   protected readonly failedDetails = signal<FailedImport[]>([]);
+
+  // Hay borrador mientras el archivo ya se leyó y falta importarlo (o se está importando).
+  private readonly dirtyTracker = trackDirty(
+    () => this.stage() === 'preview' || this.stage() === 'importing',
+    (dirty) => this.dirtyChange.emit(dirty),
+  );
+
+  constructor() {
+    this.dirtyTracker.markClean();
+  }
 
   protected readonly okRows = computed(() => this.rows().filter((r) => r.status === 'ok'));
   protected readonly warningRows = computed(() => this.rows().filter((r) => r.status === 'warning'));

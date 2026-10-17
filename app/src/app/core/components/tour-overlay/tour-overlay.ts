@@ -65,6 +65,8 @@ export class TourOverlay {
   private onSettleScroll?: () => void;
   private settleScrollEl: HTMLElement | null = null;
   private settleToken = 0;
+  // Elemento que tenía el foco antes de abrir el tour, para devolvérselo al cerrar.
+  private focusOpener: HTMLElement | null = null;
 
   constructor() {
     effect(() => {
@@ -75,8 +77,14 @@ export class TourOverlay {
         this.cancelScrollSettle();
         this.rect.set(null);
         this.visible.set(false);
+        this.restoreFocus();
         return;
       }
+      if (!this.focusOpener && document.activeElement instanceof HTMLElement) {
+        this.focusOpener = document.activeElement;
+      }
+      // El título del paso recibe el foco (y se anuncia) apenas se pinta la tarjeta.
+      setTimeout(() => this.focusCardTitle());
       this.visible.set(false);
       step.beforeShow?.();
       this.positionAfterSettle();
@@ -98,6 +106,47 @@ export class TourOverlay {
   protected onEscape(): void {
     if (this.tourService.isOpen()) {
       this.tourService.skip();
+    }
+  }
+
+  // aria-modal="true": el Tab no puede escaparse hacia la página oscurecida de atrás.
+  @HostListener('document:keydown', ['$event'])
+  protected onKeydown(event: KeyboardEvent): void {
+    if (event.key !== 'Tab' || !this.tourService.isOpen()) {
+      return;
+    }
+    const card = document.querySelector('.tour-card');
+    if (!card) {
+      return;
+    }
+    const focusables = Array.from(card.querySelectorAll<HTMLElement>('button, ion-button')).filter(
+      (el) => !el.hasAttribute('disabled'),
+    );
+    if (focusables.length === 0) {
+      return;
+    }
+    const active = document.activeElement;
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    const inside = !!active && card.contains(active);
+    if (event.shiftKey && (!inside || active === first || active === card.querySelector('.tour-card__title'))) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && (!inside || active === last)) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+
+  private focusCardTitle(): void {
+    (document.querySelector('.tour-card__title') as HTMLElement | null)?.focus({ preventScroll: true });
+  }
+
+  private restoreFocus(): void {
+    const opener = this.focusOpener;
+    this.focusOpener = null;
+    if (opener && document.contains(opener)) {
+      opener.focus({ preventScroll: true });
     }
   }
 

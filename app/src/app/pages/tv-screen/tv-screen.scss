@@ -200,8 +200,10 @@
 
   &__img {
     display: block;
-    width: 5.4rem;
-    height: 5.4rem;
+    // Más grande para escanearlo desde el sillón/la sala (antes 5.4rem). Tope por alto (15vh) para que a 950x540 el
+    // header no se coma el roster; el header (min-height) crece solo si el QR lo pide.
+    width: clamp(6.5rem, min(9vw, 15vh), 9rem);
+    height: clamp(6.5rem, min(9vw, 15vh), 9rem);
   }
 
   &__text {
@@ -745,7 +747,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.3rem 0.9rem;
-  font-size: max(11px, clamp(0.8rem, 0.9vw, 0.9rem));
+  font-size: max(14px, clamp(0.8rem, 0.9vw, 0.9rem));
   opacity: 0.85;
 
   &__item {
@@ -939,10 +941,10 @@
     font-size: 1.4rem;
   }
   .tv-chip__plan {
-    font-size: max(11px, 0.9rem);
+    font-size: max(14px, 0.9rem);
   }
   .tv-chip__plan-tag {
-    font-size: max(11px, 0.8rem);
+    font-size: max(14px, 0.8rem);
   }
 }
 
@@ -953,10 +955,7 @@
     font-size: 1.2rem;
   }
   .tv-chip__plan {
-    font-size: max(11px, 0.8rem);
-  }
-  .tv-chip__plan-tag {
-    font-size: max(11px, 0.75rem);
+    font-size: max(14px, 0.8rem);
   }
 }
 
@@ -964,12 +963,6 @@
   --avatar: 2.5rem;
   .tv-chip__name {
     font-size: 1rem;
-  }
-  .tv-chip__plan {
-    font-size: max(11px, 0.8rem);
-  }
-  .tv-chip__plan-tag {
-    font-size: max(11px, 0.7rem);
   }
 }
 
@@ -1157,7 +1150,7 @@
   border: 1px solid currentColor;
   font-family: var(--brand-font-display);
   font-weight: 600;
-  font-size: max(11px, 0.8rem);
+  font-size: max(14px, 0.8rem);
   white-space: nowrap;
 }
 

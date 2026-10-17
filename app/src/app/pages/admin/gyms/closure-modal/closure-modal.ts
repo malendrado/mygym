@@ -1,4 +1,5 @@
 import { Component, EventEmitter, Input, Output, computed, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import {
   IonButton,
@@ -16,6 +17,7 @@ import {
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { alertCircleOutline, banOutline, warningOutline } from 'ionicons/icons';
+import { trackDirty } from '../../../../core/utils/dirty-tracker';
 import { DayOfWeek, GymBlock, GymClosureCreateRequest, GymClosurePreview, sortBlocksBySchedule } from '../../../../core/models/gym.model';
 
 addIcons({ 'ban-outline': banOutline, 'warning-outline': warningOutline, 'alert-circle-outline': alertCircleOutline });
@@ -118,6 +120,8 @@ export class ClosureModal {
   @Output() preview = new EventEmitter<GymClosureCreateRequest>();
   @Output() confirmed = new EventEmitter<GymClosureCreateRequest>();
   @Output() dismiss = new EventEmitter<void>();
+  /** Hay cambios sin guardar (el padre lo usa para no cerrar el modal sin avisar). */
+  @Output() dirtyChange = new EventEmitter<boolean>();
 
   private readonly _blocks = signal<GymBlock[]>([]);
   protected readonly blocksList = this._blocks.asReadonly();
@@ -161,7 +165,18 @@ export class ClosureModal {
     reason: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.maxLength(500)] }),
   });
 
+  private readonly formValue = toSignal(this.form.valueChanges, { initialValue: null });
+  // Motivo, fechas, alcance y clases elegidas: si hay algo distinto al estado inicial, hay borrador.
+  private readonly dirtyTracker = trackDirty(
+    () => {
+      this.formValue();
+      return [this.form.getRawValue(), Array.from(this.selectedBlockIds()).sort()];
+    },
+    (dirty) => this.dirtyChange.emit(dirty),
+  );
+
   constructor() {
+    this.dirtyTracker.markClean();
     this.form.valueChanges.subscribe(() => {
       const start = this.form.controls.startDate.value;
       const end = this.form.controls.endDate.value;

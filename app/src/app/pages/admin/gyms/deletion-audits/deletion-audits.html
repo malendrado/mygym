@@ -17,7 +17,10 @@
   @if (status() === 'loading') {
     <div class="audits-loading"><ion-spinner name="crescent"></ion-spinner></div>
   } @else if (status() === 'error') {
-    <ion-text color="danger"><p>No pudimos cargar el historial. Intenta nuevamente.</p></ion-text>
+    <div class="audits-error">
+      <ion-text color="danger"><p role="alert">No pudimos cargar el historial. Intenta nuevamente.</p></ion-text>
+      <ion-button fill="outline" size="small" (click)="load()">Reintentar</ion-button>
+    </div>
   } @else if (audits().length === 0) {
     <div class="audits-empty">
       <ion-icon name="document-text-outline" aria-hidden="true"></ion-icon>

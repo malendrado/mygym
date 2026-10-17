@@ -6,8 +6,8 @@
   </ion-header>
   <ion-content class="ion-padding join-content">
     @if (status() === 'loading') {
-      <div class="join-loading">
-        <ion-spinner name="crescent"></ion-spinner>
+      <div class="join-loading" role="status" aria-live="polite">
+        <ion-spinner name="crescent" aria-label="Cargando"></ion-spinner>
       </div>
     } @else {
       <div class="join-card">
@@ -42,7 +42,12 @@
       <div class="join-card__story">
         <!-- Encabezado: foto grande (la galería rota sola, con crossfade) con el logo y el nombre
              encima. Sin fotos queda un fondo con el color de marca: la página no se ve vacía. -->
-        <div class="join-hero" [class.join-hero--empty]="photos().length === 0">
+        <div
+          class="join-hero"
+          [class.join-hero--empty]="photos().length === 0"
+          (pointerenter)="pauseRotation()"
+          (focusin)="pauseRotation()"
+        >
           @for (photo of photos(); track photo.id; let i = $index) {
             <img
               class="join-hero__img"
@@ -64,14 +69,13 @@
         </div>
 
         @if (photos().length > 1) {
-          <div class="join-thumbs" role="tablist" aria-label="Fotos del gimnasio">
+          <div class="join-thumbs" role="group" aria-label="Fotos del gimnasio" (pointerenter)="pauseRotation()" (focusin)="pauseRotation()">
             @for (photo of photos(); track photo.id; let i = $index) {
               <button
                 type="button"
-                role="tab"
                 class="join-thumbs__btn"
                 [class.is-active]="i === activePhoto()"
-                [attr.aria-selected]="i === activePhoto()"
+                [attr.aria-pressed]="i === activePhoto()"
                 [attr.aria-label]="'Ver foto ' + (i + 1)"
                 [style.--i]="i"
                 (click)="showPhoto(i)"
@@ -183,13 +187,14 @@
               <ion-icon name="mail-outline" aria-hidden="true"></ion-icon>
               Registrarme con email
             </button>
+            <p class="auth-signup-prompt">¿Ya tienes cuenta? <a routerLink="/login" [queryParams]="{ gym: slug }">Ingresa con tu email y contraseña</a></p>
           } @else if (registerSent()) {
-            <ion-text color="medium">
-              <p>
+            <div role="status" aria-live="polite">
+              <p #sentTitle tabindex="-1" class="join-sent">
                 Si los datos son válidos, te enviamos un correo para crear o recuperar tu contraseña — revisa tu
                 bandeja de entrada (y el spam).
               </p>
-            </ion-text>
+            </div>
           } @else {
             <form class="password-auth" (submit)="$event.preventDefault(); submitSelfRegister()">
               <ion-item lines="full">
@@ -207,6 +212,10 @@
                   label="Email"
                   label-placement="stacked"
                   autocomplete="email"
+                  inputmode="email"
+                  autocapitalize="off"
+                  autocorrect="off"
+                  spellcheck="false"
                   [value]="registerEmail()"
                   (ionInput)="registerEmail.set($any($event.detail.value) ?? '')"
                 ></ion-input>
@@ -230,15 +239,15 @@
                 Unirme con Google
               </button>
             }
-            <p class="auth-signup-prompt">¿Ya tienes cuenta? <a routerLink="/login">Ingresa</a></p>
+            <p class="auth-signup-prompt">¿Ya tienes cuenta? <a routerLink="/login" [queryParams]="{ gym: slug }">Ingresa</a></p>
           }
         } @else if (status() === 'joining') {
-          <div class="join-status">
-            <ion-spinner name="crescent"></ion-spinner>
-            <p>Verificando tu cuenta con Google...</p>
+          <div class="join-status" role="status" aria-live="polite">
+            <ion-spinner name="crescent" aria-label="Cargando"></ion-spinner>
+            <p>Verificando tu cuenta…</p>
           </div>
         } @else if (status() === 'welcome') {
-          <div class="join-welcome">
+          <div class="join-welcome" role="status" aria-live="polite">
             <ion-icon name="sparkles-outline" aria-hidden="true"></ion-icon>
             @if (isNewMember()) {
               <h2>¡Estamos creando tu cuenta en {{ gym()!.name }}!</h2>

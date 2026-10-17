@@ -27,6 +27,11 @@
         label="RUT *"
         labelPlacement="stacked"
         formControlName="rut"
+        aria-required="true"
+        [class.ion-invalid]="showError('rut')"
+        [class.ion-touched]="showError('rut')"
+        [attr.aria-invalid]="showError('rut') ? 'true' : null"
+        [attr.aria-describedby]="showError('rut') ? 'mp-err-rut' : null"
         placeholder="12.345.678-5"
         autocomplete="off"
         inputmode="text"
@@ -35,7 +40,7 @@
       />
     </ion-item>
     @if (showError('rut')) {
-      <ion-note color="danger" role="alert">{{ errorText('rut') }}</ion-note>
+      <ion-note id="mp-err-rut" color="danger" role="alert">{{ errorText('rut') }}</ion-note>
     }
 
     <ion-item lines="none">
@@ -43,21 +48,37 @@
         label="Dirección *"
         labelPlacement="stacked"
         formControlName="address"
+        aria-required="true"
+        [class.ion-invalid]="showError('address')"
+        [class.ion-touched]="showError('address')"
+        [attr.aria-invalid]="showError('address') ? 'true' : null"
+        [attr.aria-describedby]="showError('address') ? 'mp-err-address' : null"
         placeholder="Calle, número y comuna"
         autocomplete="street-address"
         [maxlength]="maxAddress"
       />
     </ion-item>
     @if (showError('address')) {
-      <ion-note color="danger" role="alert">{{ errorText('address') }}</ion-note>
+      <ion-note id="mp-err-address" color="danger" role="alert">{{ errorText('address') }}</ion-note>
     }
 
     <div class="mp-date">
       <label for="mp-birth">Fecha de nacimiento *</label>
-      <input id="mp-birth" type="date" class="mp-date__input" formControlName="birthDate" [max]="maxBirthDate" autocomplete="bday" />
+      <input
+        id="mp-birth"
+        type="date"
+        class="mp-date__input"
+        [class.mp-date__input--invalid]="showError('birthDate')"
+        formControlName="birthDate"
+        [max]="maxBirthDate"
+        autocomplete="bday"
+        aria-required="true"
+        [attr.aria-invalid]="showError('birthDate') ? 'true' : null"
+        [attr.aria-describedby]="showError('birthDate') ? 'mp-err-birthDate' : null"
+      />
     </div>
     @if (showError('birthDate')) {
-      <ion-note color="danger" role="alert">{{ errorText('birthDate') }}</ion-note>
+      <ion-note id="mp-err-birthDate" color="danger" role="alert">{{ errorText('birthDate') }}</ion-note>
     }
 
     <ion-item lines="none">
@@ -66,6 +87,11 @@
         labelPlacement="stacked"
         type="tel"
         formControlName="phone"
+        aria-required="true"
+        [class.ion-invalid]="showError('phone')"
+        [class.ion-touched]="showError('phone')"
+        [attr.aria-invalid]="showError('phone') ? 'true' : null"
+        [attr.aria-describedby]="showError('phone') ? 'mp-err-phone' : null"
         placeholder="+56 9 1234 5678"
         autocomplete="tel"
         inputmode="tel"
@@ -73,7 +99,7 @@
       />
     </ion-item>
     @if (showError('phone')) {
-      <ion-note color="danger" role="alert">{{ errorText('phone') }}</ion-note>
+      <ion-note id="mp-err-phone" color="danger" role="alert">{{ errorText('phone') }}</ion-note>
     }
 
     <p class="mp-section">Contacto de emergencia</p>
@@ -82,13 +108,18 @@
         label="Nombre del contacto *"
         labelPlacement="stacked"
         formControlName="emergencyContactName"
+        aria-required="true"
+        [class.ion-invalid]="showError('emergencyContactName')"
+        [class.ion-touched]="showError('emergencyContactName')"
+        [attr.aria-invalid]="showError('emergencyContactName') ? 'true' : null"
+        [attr.aria-describedby]="showError('emergencyContactName') ? 'mp-err-emergencyContactName' : null"
         placeholder="Nombre y apellido"
         autocomplete="off"
         [maxlength]="maxEmergencyName"
       />
     </ion-item>
     @if (showError('emergencyContactName')) {
-      <ion-note color="danger" role="alert">{{ errorText('emergencyContactName') }}</ion-note>
+      <ion-note id="mp-err-emergencyContactName" color="danger" role="alert">{{ errorText('emergencyContactName') }}</ion-note>
     }
 
     <ion-item lines="none">
@@ -97,6 +128,11 @@
         labelPlacement="stacked"
         type="tel"
         formControlName="emergencyContactPhone"
+        aria-required="true"
+        [class.ion-invalid]="showError('emergencyContactPhone')"
+        [class.ion-touched]="showError('emergencyContactPhone')"
+        [attr.aria-invalid]="showError('emergencyContactPhone') ? 'true' : null"
+        [attr.aria-describedby]="showError('emergencyContactPhone') ? 'mp-err-emergencyContactPhone' : null"
         placeholder="+56 9 1234 5678"
         autocomplete="off"
         inputmode="tel"
@@ -104,11 +140,11 @@
       />
     </ion-item>
     @if (showError('emergencyContactPhone')) {
-      <ion-note color="danger" role="alert">{{ errorText('emergencyContactPhone') }}</ion-note>
+      <ion-note id="mp-err-emergencyContactPhone" color="danger" role="alert">{{ errorText('emergencyContactPhone') }}</ion-note>
     }
 
     @if (serverErrorText()) {
-      <ion-note color="danger" role="alert" class="mp-server-error">{{ serverErrorText() }}</ion-note>
+      <ion-note id="mp-err-server" color="danger" role="alert" class="mp-server-error">{{ serverErrorText() }}</ion-note>
     }
   </form>
 </ion-content>

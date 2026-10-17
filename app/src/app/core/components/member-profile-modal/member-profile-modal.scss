@@ -38,6 +38,10 @@ ion-note {
   width: 100%;
 }
 
+.mp-date__input--invalid {
+  border-color: var(--ion-color-danger);
+}
+
 .mp-server-error {
   margin-top: 0.75rem;
 }

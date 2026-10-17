@@ -325,7 +325,7 @@
     color: var(--brand-accent-contrast);
     border-radius: 999px;
     padding: 0.15rem 0.55rem;
-    font-size: 0.62rem;
+    font-size: 0.75rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.03em;
@@ -347,7 +347,7 @@
 
     span {
       font-family: var(--brand-font-display);
-      font-size: 0.65rem;
+      font-size: 0.75rem;
       font-weight: 400;
       color: var(--brand-text-dim);
     }
@@ -355,7 +355,7 @@
 
   &__quota {
     margin: 0.2rem 0 0;
-    font-size: 0.72rem;
+    font-size: 0.78rem;
     color: var(--brand-text-dim);
   }
 }
@@ -868,4 +868,9 @@ $ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   align-items: flex-start;
   gap: 0.25rem;
   margin-top: 0.5rem;
+}
+
+// El mensaje que recibe el foco tras el registro no necesita el contorno del navegador.
+.join-sent:focus {
+  outline: none;
 }

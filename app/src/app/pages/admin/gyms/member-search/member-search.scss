@@ -90,9 +90,11 @@
     font-size: 1.3rem;
   }
 
-  &:hover {
-    background: var(--brand-ink-surface-2);
-    color: var(--brand-text);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      background: var(--brand-ink-surface-2);
+      color: var(--brand-text);
+    }
   }
 
   &:active {
@@ -191,6 +193,10 @@
   font-weight: 600;
   cursor: pointer;
   text-decoration: underline;
+
+  @media (pointer: coarse) {
+    min-height: 44px;
+  }
 }
 
 .ms-avatar {

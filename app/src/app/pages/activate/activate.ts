@@ -12,7 +12,7 @@ addIcons({ 'eye-outline': eyeOutline, 'eye-off-outline': eyeOffOutline, 'alert-c
 // alcance a leer antes de redirigir.
 const WELCOME_PAUSE_MS = 1600;
 
-type Status = 'loading' | 'ready' | 'invalid' | 'saving' | 'welcome';
+type Status = 'loading' | 'ready' | 'invalid' | 'network' | 'saving' | 'welcome';
 
 /**
  * Pantalla única de "crea tu contraseña" para las 3 variantes del mismo token (ver
@@ -43,18 +43,35 @@ export class Activate {
   protected readonly passwordVisible = signal(false);
 
   constructor() {
+    this.loadToken();
+  }
+
+  protected loadToken(): void {
     if (!this.token) {
       this.status.set('invalid');
       return;
     }
+    this.status.set('loading');
     this.authService.getTokenInfo(this.token).subscribe({
       next: (info) => {
         this.purpose.set(info.purpose);
         this.displayName.set(info.displayName);
         this.status.set('ready');
       },
-      error: () => this.status.set('invalid'),
+      // Sin conexión (0) o falla del servidor (5xx) el link puede ser perfectamente válido:
+      // se ofrece reintentar en vez de decirle que expiró.
+      error: (err: Error & { status?: number }) =>
+        this.status.set(err.status === 0 || (err.status ?? 0) >= 500 ? 'network' : 'invalid'),
     });
+  }
+
+  /** Por qué el botón está deshabilitado (null si no lo está por contraseña). */
+  protected get submitHint(): string | null {
+    const missing = 8 - this.password().length;
+    if (missing > 0) {
+      return `Te faltan ${missing} ${missing === 1 ? 'carácter' : 'caracteres'} para llegar a 8.`;
+    }
+    return null;
   }
 
   protected togglePasswordVisible(): void {

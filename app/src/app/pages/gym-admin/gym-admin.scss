@@ -64,11 +64,13 @@ ion-content {
   transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 
   ion-badge {
-    font-size: 0.68rem;
+    font-size: 0.75rem;
   }
 
-  &:hover {
-    border-color: var(--ion-color-primary, var(--brand-accent));
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      border-color: var(--ion-color-primary, var(--brand-accent));
+    }
   }
 
   &--selected {
@@ -147,7 +149,7 @@ ion-header ion-toolbar ion-title {
 // de forzarlo dentro de <ion-title>, evita pelear con ese encapsulamiento.
 .admin-identity-bar {
   padding: 0 1rem 0.4rem;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   color: var(--brand-text-dim);
   background: var(--ion-toolbar-background, var(--brand-ink-surface));
 }
@@ -280,16 +282,21 @@ ion-header ion-toolbar ion-title {
   &__attendees-toggle {
     align-self: flex-start;
     margin-top: 0.4rem;
-    padding: 0;
-    border: none;
+    padding: 0.25rem 0.75rem;
+    border: 1px solid color-mix(in srgb, var(--brand-accent) 35%, transparent);
+    border-radius: 999px;
     background: none;
     color: var(--brand-accent-text-safe, var(--brand-accent));
     font-family: inherit;
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     font-weight: 600;
-    text-decoration: underline;
     cursor: pointer;
     min-height: 32px;
+
+    // En táctil el área de toque llega a 44px sin cambiar cómo se ve en escritorio.
+    @media (pointer: coarse) {
+      min-height: 44px;
+    }
   }
 }
 
@@ -533,7 +540,12 @@ ion-header ion-toolbar ion-title {
   cursor: pointer;
   transition: border-color 0.15s ease, transform 0.15s ease;
 
-  &:hover,
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      border-color: var(--brand-accent);
+    }
+  }
+
   &:focus-visible {
     border-color: var(--brand-accent);
   }
@@ -683,7 +695,12 @@ ion-header ion-toolbar ion-title {
     border-radius: 8px;
     transition: background-color 0.15s ease;
 
-    &:hover,
+    @media (hover: hover) and (pointer: fine) {
+      &:hover {
+        background: var(--brand-ink-surface-2);
+      }
+    }
+
     &:focus-visible {
       background: var(--brand-ink-surface-2);
     }
@@ -705,7 +722,7 @@ ion-header ion-toolbar ion-title {
 
 .member-stat__label {
   margin: 0;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   color: var(--brand-text-dim);
 }
 
@@ -961,7 +978,7 @@ ion-header ion-toolbar ion-title {
 // Título de cada grupo de colores en "Mi marca" (Energía, Calma, Frescura, Premium).
 .palette-group__title {
   margin: 1rem 0 0.4rem;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -1011,21 +1028,11 @@ ion-header ion-toolbar ion-title {
   }
 }
 
-// Acciones por socio en mobile: seis botones no caben en 360-430 px, así que quedan solo los
-// frecuentes (estado, Marcar pago, WhatsApp) y el resto pasa a un botón "Acciones" que abre una
-// hoja inferior con la lista (openMemberActions). En desktop sigue todo a la vista.
+// Acciones por socio, en todos los anchos: a la vista solo el botón principal (Renovar / Marcar pago),
+// WhatsApp (si hay celular) y "Acciones"; Rutina, Clases fijas, Datos, Quitar plan y Eliminar viven en la
+// hoja que abre "Acciones" (openMemberActions).
 .member-actions__more {
-  display: none;
-}
-
-@media (max-width: 600px) {
-  .member-action-btn--secondary {
-    display: none;
-  }
-
-  .member-actions__more {
-    display: inline-block;
-  }
+  display: inline-block;
 }
 
 // Aviso "tu clase empieza en N min" (15 minutos antes), visible en cualquier pestaña del panel.
@@ -1088,6 +1095,10 @@ ion-header ion-toolbar ion-title {
   font-weight: 600;
   cursor: pointer;
 
+  @media (pointer: coarse) {
+    min-height: 44px;
+  }
+
   &:focus-visible {
     outline: 2px solid var(--brand-accent);
     outline-offset: 2px;
@@ -1095,5 +1106,22 @@ ion-header ion-toolbar ion-title {
 
   ion-icon {
     font-size: 1rem;
+  }
+}
+
+// Código de la TV: siempre en mayúsculas (antes era un style inline en el template).
+.tv-code-input {
+  text-transform: uppercase;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-card,
+  .member-stat {
+    transition: none;
+  }
+
+  .theme-card:active,
+  .member-stat:active {
+    transform: none;
   }
 }

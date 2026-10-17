@@ -178,11 +178,18 @@
   }
 
   &__login {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    min-height: 44px;
+    // 2px de relleno + 2px de margen negativo: el área táctil llega a 44px de ancho sin empujar el layout (a 360px no hay holgura).
+    padding: 0 2px;
+    margin: 0 -2px;
     color: var(--brand-text-dim);
     text-decoration: none;
     font-size: 0.9rem;
 
-    ion-icon { font-size: 1rem; vertical-align: -2px; }
+    ion-icon { font-size: 1rem; }
 
     @media (hover: hover) and (pointer: fine) {
       &:hover { color: var(--brand-text); }
@@ -190,6 +197,7 @@
   }
 
   &__cta {
+    min-height: 44px;
     padding: 0.55rem 1.25rem;
     border: none;
     border-radius: 999px;

@@ -322,3 +322,25 @@ h3 {
     transform: none !important;
   }
 }
+
+// Movimiento reducido: se apagan las transiciones y animaciones decorativas de toda la app (basta con que terminen al
+// instante; 0.01ms y no 0 para que sigan disparándose transitionend/animationend). Opacidad y color no se tocan a mano.
+// Los modales, toasts y spinners de Ionic animan por su cuenta (Web Animations / shadow DOM) y siguen funcionando.
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+
+  // Indicadores de carga propios: girar es lo que dice "estoy trabajando", si se congelan la pantalla parece colgada.
+  .tv-loading__spinner {
+    animation-duration: 1.6s !important;
+    animation-iteration-count: infinite !important;
+  }
+}

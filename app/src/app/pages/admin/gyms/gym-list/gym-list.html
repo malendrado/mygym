@@ -2,17 +2,17 @@
   <ion-toolbar>
     <ion-title><img src="favicon.svg" class="brand-icon" alt="" /> mygym</ion-title>
     <ion-buttons slot="end">
-      <ion-button routerLink="/admin/gyms/admins">
+      <ion-button class="hdr-btn" routerLink="/admin/gyms/admins" aria-label="Administradores">
         <ion-icon name="people-outline" slot="start" aria-hidden="true"></ion-icon>
-        Administradores
+        <span class="hdr-btn__label">Administradores</span>
       </ion-button>
-      <ion-button routerLink="/admin/gyms/deletion-audits">
+      <ion-button class="hdr-btn" routerLink="/admin/gyms/deletion-audits" aria-label="Desvinculaciones">
         <ion-icon name="document-text-outline" slot="start" aria-hidden="true"></ion-icon>
-        Desvinculaciones
+        <span class="hdr-btn__label">Desvinculaciones</span>
       </ion-button>
-      <ion-button (click)="logout()">
+      <ion-button class="hdr-btn" (click)="logout()" aria-label="Salir">
         <ion-icon name="log-out-outline" slot="start" aria-hidden="true"></ion-icon>
-        Salir
+        <span class="hdr-btn__label">Salir</span>
       </ion-button>
     </ion-buttons>
   </ion-toolbar>
@@ -30,7 +30,19 @@
   </div>
 
   @if (!gymList.loaded()) {
-    <p class="item-hint">Cargando gimnasios…</p>
+    <div class="gyms-skeleton" role="status" aria-busy="true">
+      <span class="gyms-skeleton__sr">Cargando gimnasios…</span>
+      <div class="gyms-stats" aria-hidden="true">
+        @for (i of skeletonItems; track i) {
+          <div class="gyms-stat gyms-skel gyms-skel--stat"></div>
+        }
+      </div>
+      <div class="gym-grid" aria-hidden="true">
+        @for (i of skeletonItems; track i) {
+          <div class="gym-card gyms-skel gyms-skel--card"></div>
+        }
+      </div>
+    </div>
   } @else {
     <div class="gyms-stats">
       <div class="gyms-stat">
@@ -148,7 +160,7 @@
         <div class="visit-list">
           @for (row of stats.byGym; track row.gymId ?? row.gymName) {
             <div class="visit-row" [class.visit-row--unresolved]="row.gymId === null">
-              <div class="visit-row__bar" [style.width.%]="(row.total / maxByGymVisits()) * 100"></div>
+              <div class="visit-row__bar" [style.transform]="'scaleX(' + row.total / maxByGymVisits() + ')'"></div>
               <span class="visit-row__name">{{ row.gymName }}</span>
               <span class="visit-row__meta">{{ row.last30d }} en 30 días</span>
               <span class="visit-row__total">{{ row.total }}</span>
@@ -162,8 +174,8 @@
   }
 
   <ion-fab vertical="bottom" horizontal="end" slot="fixed">
-    <ion-fab-button routerLink="/admin/gyms/new">
-      <ion-icon name="add"></ion-icon>
+    <ion-fab-button routerLink="/admin/gyms/new" aria-label="Nuevo gimnasio">
+      <ion-icon name="add" aria-hidden="true"></ion-icon>
     </ion-fab-button>
   </ion-fab>
 </ion-content>

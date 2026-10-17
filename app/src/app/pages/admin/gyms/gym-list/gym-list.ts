@@ -70,6 +70,7 @@ type Status = 'idle' | 'loading' | 'loaded' | 'error';
   styleUrl: './gym-list.scss',
 })
 export class GymList implements ViewWillEnter {
+  protected readonly skeletonItems = [0, 1, 2, 3];
   private readonly gymService = inject(GymService);
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);

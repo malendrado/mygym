@@ -50,9 +50,12 @@
   &__fill {
     display: block;
     height: 100%;
-    border-radius: inherit;
+    // Sin redondeo propio: el track recorta, y al escalar en X los extremos redondeados se aplastarían.
+    border-radius: 0;
+    width: 100%;
     background: var(--brand-accent, #c6ff3d);
-    transition: width 320ms cubic-bezier(0.23, 1, 0.32, 1);
+    transform-origin: left center;
+    transition: transform 240ms cubic-bezier(0.23, 1, 0.32, 1);
   }
 
   &__hint {
@@ -65,8 +68,10 @@
     background: #f5b942;
   }
 
+  // Texto de aviso: en modo claro (color-scheme: light en :root) usa un tono oscuro legible; el color vivo queda en barra y punto.
   &__row--near &__hint {
     color: #f5b942;
+    color: light-dark(#8a5a00, #f5b942);
     opacity: 1;
   }
 
@@ -76,6 +81,7 @@
 
   &__row--full &__hint {
     color: #ff6b81;
+    color: light-dark(#b4233a, #ff6b81);
     opacity: 1;
     font-weight: 600;
   }
@@ -98,6 +104,7 @@
 
   &--near {
     color: #f5b942;
+    color: light-dark(#8a5a00, #f5b942);
   }
 
   &--near &__dot {
@@ -106,6 +113,7 @@
 
   &--full {
     color: #ff6b81;
+    color: light-dark(#b4233a, #ff6b81);
   }
 
   &--full &__dot {

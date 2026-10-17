@@ -645,7 +645,14 @@ export class GymForm implements OnDestroy {
     const publicId = this.route.snapshot.paramMap.get('publicId');
     if (publicId) {
       this.hasPublicId.set(true);
+      this.restoreFromUrl();
       this.resolveAndLoadGym(publicId);
+      // La sección activa (y la sub pestaña de Socios) viven en la URL: recargar o compartir el enlace vuelve al mismo lugar.
+      effect(() => {
+        const section = this.section();
+        const sub = this.memberSub();
+        untracked(() => this.syncUrl(section, sub));
+      });
     }
 
     // Mismo mecanismo que gym-admin.ts: los overlays de Ionic (ion-select,
@@ -713,8 +720,55 @@ export class GymForm implements OnDestroy {
     return this.hasPublicId();
   }
 
+  // ?s=<sección>&sub=<sub pestaña de Socios>, validado contra las secciones válidas; no toca otros parámetros.
+  private restoreFromUrl(): void {
+    // Optional chaining: los tests arman un ActivatedRoute mínimo sin queryParamMap.
+    const params = this.route.snapshot.queryParamMap;
+    const s = (params?.get('s') ?? null) as Section | null;
+    if (!s || !(Object.keys(SECTION_LABELS) as Section[]).includes(s)) {
+      return;
+    }
+    this.section.set(s);
+    if (s === 'members') {
+      const sub = params.get('sub');
+      if (sub === 'members' || sub === 'board' || sub === 'team') {
+        this.memberSub.set(sub);
+      }
+    }
+  }
+
+  private syncUrl(section: Section, sub: 'members' | 'board' | 'team'): void {
+    const tree = this.router.parseUrl(this.router.url);
+    // Solo en esta pantalla (/admin/gyms/:publicId): la página puede seguir viva con otra ruta ya activa.
+    const segments = tree.root.children['primary']?.segments ?? [];
+    if (segments.length !== 3 || segments[0].path !== 'admin' || segments[1].path !== 'gyms') {
+      return;
+    }
+    const s = section === 'general' ? null : section;
+    const subParam = section === 'members' ? sub : null;
+    if ((tree.queryParams['s'] ?? null) === s && (tree.queryParams['sub'] ?? null) === subParam) {
+      return;
+    }
+    void this.router.navigate([], {
+      queryParams: { s, sub: subParam },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
+  }
+
+  // Ionic reutiliza la página al volver: reescribe la sección en la URL por si la navegación la dejó sin ?s=.
+  ionViewWillEnter(): void {
+    if (this.hasPublicId()) {
+      this.syncUrl(this.section(), this.memberSub());
+    }
+  }
+
   protected setSection(section: Section): void {
     this.section.set(section);
+    if (section === 'general' || section === 'members') {
+      // Si los conteos de las calugas fallaron antes, se reintentan al volver a abrir la pestaña.
+      this.memberList.ensureSummary();
+    }
     if (section === 'classes') {
       // Sin bloques la Agenda queda vacía: se abre directo en Horarios para crear el primero.
       this.classesSub.set(this.blocks().length > 0 ? 'agenda' : 'schedule');
@@ -739,11 +793,11 @@ export class GymForm implements OnDestroy {
   }
 
   // Socios tiene dos subsecciones: "Mis socios" (todo lo de siempre) y "En clase" (tablero de la clase de ahora).
-  protected readonly memberSub = signal<'members' | 'board'>('members');
+  protected readonly memberSub = signal<'members' | 'board' | 'team'>('members');
   // Sube cuando cambió una rutina, para que el tablero refresque "Sin rutina" al instante.
   protected readonly boardRefresh = signal(0);
 
-  protected setMemberSub(sub: 'members' | 'board'): void {
+  protected setMemberSub(sub: 'members' | 'board' | 'team'): void {
     this.memberSub.set(sub);
   }
 
@@ -1346,7 +1400,15 @@ export class GymForm implements OnDestroy {
   }
 
   protected closeSeriesModal(): void {
+    this.modalDirty.set(false);
     this.isSeriesModalOpen.set(false);
+  }
+
+  // Botón "Cancelar" del modal: pregunta antes de cerrar solo si hay cambios sin guardar.
+  protected async cancelSeriesModal(): Promise<void> {
+    if (await this.confirmDiscard()) {
+      this.closeSeriesModal();
+    }
   }
 
   protected async confirmSeries(drafts: CreateGymBlockRequest[]): Promise<void> {
@@ -1354,6 +1416,7 @@ export class GymForm implements OnDestroy {
     if (id === null) {
       return;
     }
+    this.modalDirty.set(false);
     this.isSeriesModalOpen.set(false);
     this.seriesCreating.set(true);
     // Un solo request con todos los bloques — antes era un POST secuencial por bloque (podían
@@ -1579,8 +1642,10 @@ export class GymForm implements OnDestroy {
       next: (member) => {
         this.memberForm.reset({ name: '', email: '' });
         this.status.set('idle');
-        this.memberList.reload();
+        // El nuevo socio queda a la vista: la búsqueda pasa a su email y se baja a la lista.
+        this.memberList.showNewMember(member.email);
         this.loadLimits(id);
+        this.scrollToMembersList();
         this.showToast(`Socio agregado: ${member.name}. Le enviamos un correo para activar su cuenta y elegir un plan.`);
       },
       error: (err: Error & { status?: number }) => {
@@ -2325,15 +2390,15 @@ export class GymForm implements OnDestroy {
     });
   }
 
-  // Menú "Acciones" de un socio (mobile): hoja inferior con las opciones, igual que en gym-admin.
+  // Menú "Acciones" de un socio (todos los anchos): hoja inferior con las opciones, igual que en gym-admin.
   protected async openMemberActions(member: Member): Promise<void> {
     const buttons = [
-      ...(member.planId
-        ? [{ text: 'Quitar plan', icon: 'remove-circle-outline', handler: () => this.revokeMemberPlan(member) }]
-        : []),
       { text: 'Rutina', icon: 'barbell-outline', handler: () => this.openWorkoutPlanModal(member) },
       { text: 'Clases fijas', icon: 'repeat-outline', handler: () => void this.openFixedClassesModal(member) },
       { text: 'Datos de contacto', icon: 'id-card-outline', handler: () => this.openMemberProfile(member) },
+      ...(member.planId
+        ? [{ text: 'Quitar plan', icon: 'remove-circle-outline', handler: () => this.revokeMemberPlan(member) }]
+        : []),
       { text: 'Eliminar socio', role: 'destructive', icon: 'trash-outline', handler: () => this.deleteMember(member) },
       { text: 'Cancelar', role: 'cancel', icon: 'close-outline' },
     ];
@@ -2415,7 +2480,15 @@ export class GymForm implements OnDestroy {
   }
 
   protected closeFixedClassesModal(): void {
+    this.modalDirty.set(false);
     this.fixedClassesMember.set(null);
+  }
+
+  // Botón "Cancelar" del modal: pregunta antes de cerrar solo si hay cambios sin guardar.
+  protected async cancelFixedClassesModal(): Promise<void> {
+    if (await this.confirmDiscard()) {
+      this.closeFixedClassesModal();
+    }
   }
 
   protected confirmFixedClasses(blockIds: number[]): void {
@@ -2428,6 +2501,7 @@ export class GymForm implements OnDestroy {
     this.fixedClassService.save(member.id, blockIds, id).subscribe({
       next: (result) => {
         this.savingFixedClasses.set(false);
+        this.modalDirty.set(false);
         this.fixedClassesMember.set(null);
         this.showToast(fixedClassSaveMessage(result, member.name));
         this.memberList.reload();
@@ -2444,7 +2518,15 @@ export class GymForm implements OnDestroy {
   }
 
   protected closeImportFixedClasses(): void {
+    this.modalDirty.set(false);
     this.isImportFixedClassesOpen.set(false);
+  }
+
+  // Botón "Cancelar" del modal: pregunta antes de cerrar solo si hay cambios sin guardar.
+  protected async cancelImportFixedClasses(): Promise<void> {
+    if (await this.confirmDiscard()) {
+      this.closeImportFixedClasses();
+    }
   }
 
   protected onFixedClassesImported(): void {
@@ -2458,7 +2540,15 @@ export class GymForm implements OnDestroy {
   }
 
   protected closeClosureModal(): void {
+    this.modalDirty.set(false);
     this.isClosureModalOpen.set(false);
+  }
+
+  // Botón "Cancelar" del modal: pregunta antes de cerrar solo si hay cambios sin guardar.
+  protected async cancelClosureModal(): Promise<void> {
+    if (await this.confirmDiscard()) {
+      this.closeClosureModal();
+    }
   }
 
   protected requestClosurePreview(request: GymClosureCreateRequest): void {
@@ -2490,6 +2580,7 @@ export class GymForm implements OnDestroy {
     this.gymService.createClosure(id, request).subscribe({
       next: (closure) => {
         this.closureSaving.set(false);
+        this.modalDirty.set(false);
         this.isClosureModalOpen.set(false);
         this.closureList.reload();
         this.showToast(

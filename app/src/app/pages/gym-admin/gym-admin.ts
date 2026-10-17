@@ -1,5 +1,5 @@
 import { Component, DestroyRef, OnDestroy, computed, effect, inject, signal, untracked } from '@angular/core';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { trimmedEmail } from '../../core/utils/trimmed-email.validator';
 import {
@@ -300,6 +300,10 @@ const SECTION_LABELS: Record<Section, string> = {
   closures: 'Cierres',
 };
 
+// Secciones que un PROFESOR puede abrir (el resto es de gestión: planes, marca, cierres). Se usa al leer ?s= de la URL.
+const PROFESOR_SECTIONS: readonly Section[] = ['general', 'classes', 'members', 'screens'];
+const MEMBER_SUBS = ['members', 'board', 'team'] as const;
+
 // Índice → DayOfWeek, para saber qué día de semana cae una fecha elegida a
 // mano en el selector de Historial. Construido a partir de componentes
 // y/m/d explícitos (nunca `new Date(isoString)`) para no repetir el bug de
@@ -426,6 +430,7 @@ export class GymAdmin implements OnDestroy {
   private readonly profesorService = inject(ProfesorService);
   private readonly workoutService = inject(WorkoutService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly toastController = inject(ToastController);
   private readonly actionSheetController = inject(ActionSheetController);
   private readonly alertController = inject(AlertController);
@@ -687,6 +692,7 @@ export class GymAdmin implements OnDestroy {
   protected readonly maxPhotos = MAX_PHOTOS;
 
   constructor() {
+    this.restoreFromUrl();
     this.loadGym();
     this.loadBlocks();
     this.loadPlans();
@@ -715,6 +721,12 @@ export class GymAdmin implements OnDestroy {
         this.historyRefresh.update((n) => n + 1);
         this.boardRefresh.update((n) => n + 1);
       });
+    });
+    // La sección activa (y la sub pestaña de Socios) viven en la URL: recargar o compartir el enlace vuelve al mismo lugar.
+    effect(() => {
+      const section = this.section();
+      const sub = this.memberSub();
+      untracked(() => this.syncUrl(section, sub));
     });
     const boardTimer = setInterval(() => this.boardTick.set(Date.now()), 30_000);
     inject(DestroyRef).onDestroy(() => clearInterval(boardTimer));
@@ -788,8 +800,59 @@ export class GymAdmin implements OnDestroy {
     }
   }
 
+  // Ionic reutiliza la página al volver: reescribe la sección en la URL por si la navegación la dejó sin ?s=.
+  ionViewWillEnter(): void {
+    this.syncUrl(this.section(), this.memberSub());
+  }
+
+  // ?s=<sección>&sub=<sub pestaña de Socios>. Lo explícito gana sobre la regla de "En clase"; se valida contra
+  // las secciones del rol (un PROFESOR no abre planes, marca ni cierres) y no se tocan otros parámetros de la URL.
+  private restoreFromUrl(): void {
+    const params = this.route.snapshot.queryParamMap;
+    const s = params.get('s') as Section | null;
+    const allowed: readonly Section[] = this.isProfesor()
+      ? PROFESOR_SECTIONS
+      : (Object.keys(SECTION_LABELS) as Section[]);
+    if (!s || !allowed.includes(s)) {
+      return;
+    }
+    this.section.set(s);
+    if (s === 'branding') {
+      this.ensurePhotosLoaded();
+    }
+    if (s === 'members') {
+      const sub = params.get('sub') as (typeof MEMBER_SUBS)[number] | null;
+      if (sub && MEMBER_SUBS.includes(sub) && !(sub === 'team' && this.isProfesor())) {
+        this.memberSub.set(sub);
+      }
+    }
+  }
+
+  private syncUrl(section: Section, sub: (typeof MEMBER_SUBS)[number]): void {
+    const tree = this.router.parseUrl(this.router.url);
+    // Solo en esta pantalla: la página puede seguir viva (caché de Ionic) con otra ruta ya activa.
+    const segments = tree.root.children['primary']?.segments ?? [];
+    if (segments.length !== 1 || segments[0].path !== 'gym-admin') {
+      return;
+    }
+    const s = section === 'general' ? null : section;
+    const subParam = section === 'members' ? sub : null;
+    if ((tree.queryParams['s'] ?? null) === s && (tree.queryParams['sub'] ?? null) === subParam) {
+      return;
+    }
+    void this.router.navigate([], {
+      queryParams: { s, sub: subParam },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
+  }
+
   protected setSection(section: Section): void {
     this.section.set(section);
+    if (section === 'general' || section === 'members') {
+      // Si los conteos de las calugas fallaron antes, se reintentan al volver a abrir la pestaña.
+      this.memberList.ensureSummary();
+    }
     if (section === 'classes') {
       // Sin bloques la Agenda queda vacía: se abre directo en Horarios para crear el primero.
       this.classesSub.set(this.blocks().length > 0 ? 'agenda' : 'schedule');
@@ -894,6 +957,7 @@ export class GymAdmin implements OnDestroy {
       steps: [
         {
           title: 'El estado de cada socio, de un vistazo',
+          beforeShow: () => this.memberSub.set('members'),
           body: 'Activo, por vencer, vencido o sin pago — toca cualquiera para filtrar la lista al instante.',
           targetSelector: '[data-tour="members-stats"]',
         },
@@ -904,7 +968,7 @@ export class GymAdmin implements OnDestroy {
         },
         {
           title: 'Encuentra a cualquier socio al instante',
-          body: 'Busca por nombre o email en toda tu lista, sin scrollear.',
+          body: 'Busca por nombre, email, RUT o celular en toda tu lista, sin scrollear.',
           targetSelector: '[data-tour="members-search"]',
         },
         {
@@ -913,29 +977,24 @@ export class GymAdmin implements OnDestroy {
           targetSelector: '[data-tour="members-mark-paid"]',
         },
         {
-          title: 'Suma profesores a tu equipo',
-          body: 'Dales acceso de solo-gestión: pueden ver reservas y marcar asistencia, sin tocar tus planes ni tu marca.',
-          targetSelector: '[data-tour="profesor-add"]',
-        },
-        {
           title: 'Quita un plan si hace falta',
-          body: 'Por impago, conflicto o cualquier motivo — el socio vuelve a "Sin pago" sin perder su cuenta; sus reservas futuras se cancelan y se le avisa.',
-          targetSelector: '[data-tour="members-revoke-plan"]',
+          body: 'En "Acciones" de cada socio con plan: por impago, conflicto o cualquier motivo, el socio vuelve a "Sin pago" sin perder su cuenta; sus reservas futuras se cancelan y se le avisa. Antes te pide confirmar.',
+          targetSelector: '[data-tour="members-actions"]',
         },
         {
           title: 'Coaching real, no solo reservas',
-          body: 'Abre la rutina de cualquier socio, ve qué anotó en su última clase y arma su plan de entrenamiento.',
-          targetSelector: '[data-tour="members-workout"]',
+          body: 'En "Acciones" abres la rutina de cualquier socio, ves qué anotó en su última clase y armas su plan de entrenamiento.',
+          targetSelector: '[data-tour="members-actions"]',
         },
         {
           title: 'Clases fijas para tus socios de siempre',
-          body: 'Deja precargada la clase a la que va cada socio (por ejemplo lunes y miércoles a las 19:00): se le reserva sola cada semana, se le descuenta de su plan y se renueva cuando paga. También puedes subirlas desde un Excel.',
-          targetSelector: '[data-tour="members-fixed-classes"]',
+          body: 'En "Acciones", deja precargada la clase a la que va cada socio (por ejemplo lunes y miércoles a las 19:00): se le reserva sola cada semana, se le descuenta de su plan y se renueva cuando paga. También puedes subirlas desde un Excel.',
+          targetSelector: '[data-tour="members-actions"]',
         },
         {
           title: 'Datos de cada socio, y WhatsApp directo',
-          body: 'RUT, dirección, fecha de nacimiento, celular y contacto de emergencia, todos validados: el socio los completa al entrar y tú puedes cargarlos o corregirlos aquí. Con su celular, un botón verde te abre WhatsApp para escribirle al instante.',
-          targetSelector: '[data-tour="members-profile"]',
+          body: 'RUT, dirección, fecha de nacimiento, celular y contacto de emergencia, todos validados: el socio los completa al entrar y tú puedes cargarlos o corregirlos desde "Acciones" > "Datos de contacto". Con su celular, un botón verde te abre WhatsApp para escribirle al instante.',
+          targetSelector: '[data-tour="members-actions"]',
         },
         {
           title: 'Tu clase de ahora, con la memoria de cada alumno',
@@ -944,8 +1003,14 @@ export class GymAdmin implements OnDestroy {
         },
         {
           title: 'Gestiona bajas reales',
-          body: 'Elimina a un socio permanentemente cuando deja el gimnasio — no solo altas, control completo del ciclo de vida.',
-          targetSelector: '[data-tour="members-delete"]',
+          body: 'En "Acciones", elimina a un socio permanentemente cuando deja el gimnasio (te pide confirmar) — no solo altas, control completo del ciclo de vida.',
+          targetSelector: '[data-tour="members-actions"]',
+        },
+        {
+          title: 'Suma profesores a tu equipo',
+          body: 'En la pestaña "Profesores" les das acceso de solo-gestión: pueden ver reservas y marcar asistencia, sin tocar tus planes ni tu marca.',
+          targetSelector: '[data-tour="profesor-add"]',
+          beforeShow: () => this.memberSub.set('team'),
         },
       ],
     },
@@ -1099,17 +1164,17 @@ export class GymAdmin implements OnDestroy {
     this.tourService.start(sectionTour.tour, sectionTour.steps);
   }
 
-  // Menú "Acciones" de un socio (mobile): hoja inferior con una lista de opciones con ícono y texto,
-  // en el mismo orden que los botones de desktop. Eliminar va al final, en rojo y separado del resto;
-  // deleteMember ya pide confirmación aparte, así que no hace falta una segunda acá.
+  // Menú "Acciones" de un socio (todos los anchos): hoja inferior con una lista de opciones con ícono y texto.
+  // En la fila solo quedan el botón principal y WhatsApp. Eliminar va al final, en rojo y separado del resto;
+  // revokeMemberPlan y deleteMember ya piden confirmación aparte, así que no hace falta una segunda acá.
   protected async openMemberActions(member: Member): Promise<void> {
     const buttons = [
-      ...(member.planId && !this.isProfesor()
-        ? [{ text: 'Quitar plan', icon: 'remove-circle-outline', handler: () => this.revokeMemberPlan(member) }]
-        : []),
       { text: 'Rutina', icon: 'barbell-outline', handler: () => this.openWorkoutPlanModal(member) },
       { text: 'Clases fijas', icon: 'repeat-outline', handler: () => void this.openFixedClassesModal(member) },
       { text: 'Datos de contacto', icon: 'id-card-outline', handler: () => this.openMemberProfile(member) },
+      ...(member.planId && !this.isProfesor()
+        ? [{ text: 'Quitar plan', icon: 'remove-circle-outline', handler: () => this.revokeMemberPlan(member) }]
+        : []),
       ...(!this.isProfesor()
         ? [{ text: 'Eliminar socio', role: 'destructive', icon: 'trash-outline', handler: () => this.deleteMember(member) }]
         : []),
@@ -1132,7 +1197,7 @@ export class GymAdmin implements OnDestroy {
   }
 
   // Socios tiene dos subsecciones: "Mis socios" (todo lo de siempre) y "En clase" (tablero de la clase de ahora).
-  protected readonly memberSub = signal<'members' | 'board'>('members');
+  protected readonly memberSub = signal<'members' | 'board' | 'team'>('members');
   // Sube cuando cambió una rutina, para que el tablero refresque "Sin rutina" al instante.
   protected readonly boardRefresh = signal(0);
 
@@ -1155,7 +1220,7 @@ export class GymAdmin implements OnDestroy {
     this.memberSub.set('board');
   }
 
-  protected setMemberSub(sub: 'members' | 'board'): void {
+  protected setMemberSub(sub: 'members' | 'board' | 'team'): void {
     this.memberSub.set(sub);
   }
 
@@ -1668,10 +1733,19 @@ export class GymAdmin implements OnDestroy {
   }
 
   protected closeSeriesModal(): void {
+    this.modalDirty.set(false);
     this.isSeriesModalOpen.set(false);
   }
 
+  // Botón "Cancelar" del modal: pregunta antes de cerrar solo si hay cambios sin guardar.
+  protected async cancelSeriesModal(): Promise<void> {
+    if (await this.confirmDiscard()) {
+      this.closeSeriesModal();
+    }
+  }
+
   protected async confirmSeries(drafts: CreateGymBlockRequest[]): Promise<void> {
+    this.modalDirty.set(false);
     this.isSeriesModalOpen.set(false);
     // Mismo criterio que ImportMembersModal.confirmImport — un DEMO_ADMIN nunca puede crear
     // bloques, así que no tiene sentido intentar N requests que van a fallar todas igual.
@@ -1882,7 +1956,11 @@ export class GymAdmin implements OnDestroy {
       next: (member) => {
         this.memberForm.reset({ name: '', email: '' });
         this.status.set('idle');
-        this.loadMembers();
+        // El nuevo socio queda a la vista: la búsqueda pasa a su email (el buscador muestra el texto, y su
+        // "x" la quita) y se baja a la lista.
+        this.loadLimits();
+        this.memberList.showNewMember(member.email);
+        this.scrollToMembersList();
         this.showToast(`Socio agregado: ${member.name}. Le enviamos un correo para activar su cuenta y elegir un plan.`);
       },
       error: (err: Error) => {
@@ -1986,7 +2064,15 @@ export class GymAdmin implements OnDestroy {
   }
 
   protected closeFixedClassesModal(): void {
+    this.modalDirty.set(false);
     this.fixedClassesMember.set(null);
+  }
+
+  // Botón "Cancelar" del modal: pregunta antes de cerrar solo si hay cambios sin guardar.
+  protected async cancelFixedClassesModal(): Promise<void> {
+    if (await this.confirmDiscard()) {
+      this.closeFixedClassesModal();
+    }
   }
 
   protected confirmFixedClasses(blockIds: number[]): void {
@@ -1998,6 +2084,7 @@ export class GymAdmin implements OnDestroy {
     this.fixedClassService.save(member.id, blockIds).subscribe({
       next: (result) => {
         this.savingFixedClasses.set(false);
+        this.modalDirty.set(false);
         this.fixedClassesMember.set(null);
         this.showToast(fixedClassSaveMessage(result, member.name));
         this.loadMembers();
@@ -2016,7 +2103,15 @@ export class GymAdmin implements OnDestroy {
   }
 
   protected closeImportFixedClasses(): void {
+    this.modalDirty.set(false);
     this.isImportFixedClassesOpen.set(false);
+  }
+
+  // Botón "Cancelar" del modal: pregunta antes de cerrar solo si hay cambios sin guardar.
+  protected async cancelImportFixedClasses(): Promise<void> {
+    if (await this.confirmDiscard()) {
+      this.closeImportFixedClasses();
+    }
   }
 
   protected onFixedClassesImported(): void {
@@ -2031,7 +2126,15 @@ export class GymAdmin implements OnDestroy {
   }
 
   protected closeImportModal(): void {
+    this.modalDirty.set(false);
     this.isImportModalOpen.set(false);
+  }
+
+  // Botón "Cancelar" del modal: pregunta antes de cerrar solo si hay cambios sin guardar.
+  protected async cancelImportModal(): Promise<void> {
+    if (await this.confirmDiscard()) {
+      this.closeImportModal();
+    }
   }
 
   protected onMembersImported(): void {
@@ -2653,7 +2756,15 @@ export class GymAdmin implements OnDestroy {
   }
 
   protected closeClosureModal(): void {
+    this.modalDirty.set(false);
     this.isClosureModalOpen.set(false);
+  }
+
+  // Botón "Cancelar" del modal: pregunta antes de cerrar solo si hay cambios sin guardar.
+  protected async cancelClosureModal(): Promise<void> {
+    if (await this.confirmDiscard()) {
+      this.closeClosureModal();
+    }
   }
 
   protected requestClosurePreview(request: GymClosureCreateRequest): void {
@@ -2684,6 +2795,7 @@ export class GymAdmin implements OnDestroy {
     this.gymService.createMyClosure(request).subscribe({
       next: (closure) => {
         this.closureSaving.set(false);
+        this.modalDirty.set(false);
         this.isClosureModalOpen.set(false);
         this.loadClosures();
         this.showToast(

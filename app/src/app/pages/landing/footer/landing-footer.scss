@@ -121,6 +121,9 @@
     justify-content: center;
 
     a {
+      display: inline-flex;
+      align-items: center;
+      min-height: 44px;
       color: var(--brand-text-dim);
       font-size: 0.85rem;
       text-decoration: none;
@@ -141,6 +144,8 @@
 
     a {
       color: inherit;
+      // Enlace en línea dentro del texto: el relleno vertical agranda el área táctil sin cambiar la altura de la línea.
+      padding: 0.85rem 0.25rem;
 
       @media (hover: hover) and (pointer: fine) {
         &:hover {

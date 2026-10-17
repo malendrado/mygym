@@ -179,6 +179,7 @@
   margin-right: 0.3rem;
   border-radius: 50%;
   color: #25d366;
+  color: light-dark(#12803f, #25d366);
   text-decoration: none;
 
   &:focus-visible {
@@ -258,8 +259,10 @@
   font-size: 0.8rem;
   cursor: pointer;
 
-  &:hover {
-    border-color: var(--brand-accent);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      border-color: var(--brand-accent);
+    }
   }
 
   &:focus-visible {
@@ -340,8 +343,10 @@
     transform 120ms ease-out,
     border-color 120ms ease-out;
 
-  &:hover:not(:disabled) {
-    border-color: var(--brand-accent);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover:not(:disabled) {
+      border-color: var(--brand-accent);
+    }
   }
 
   &:active:not(:disabled) {
@@ -425,8 +430,10 @@
   font-weight: 600;
   cursor: pointer;
 
-  &:hover {
-    text-decoration: underline;
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      text-decoration: underline;
+    }
   }
 
   &:focus-visible {
@@ -487,8 +494,10 @@
   cursor: pointer;
   transition: background-color 120ms ease-out;
 
-  &:hover {
-    background: var(--brand-ink-surface-2);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      background: var(--brand-ink-surface-2);
+    }
   }
 
   &:focus-visible {
@@ -567,9 +576,15 @@
   letter-spacing: 0.04em;
   cursor: pointer;
 
-  &:hover {
-    color: var(--brand-text);
-    background: var(--brand-ink-surface-2);
+  @media (pointer: coarse) {
+    min-height: 44px;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      color: var(--brand-text);
+      background: var(--brand-ink-surface-2);
+    }
   }
 
   &:focus-visible {
@@ -691,9 +706,11 @@
     font-size: 1.3rem;
   }
 
-  &:hover {
-    background: var(--brand-ink-surface-2);
-    color: var(--brand-text);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      background: var(--brand-ink-surface-2);
+      color: var(--brand-text);
+    }
   }
 
   &:active {

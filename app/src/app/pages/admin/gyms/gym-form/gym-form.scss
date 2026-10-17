@@ -227,7 +227,7 @@
 // como lo que es: un campo de código, no un párrafo.
 .logo-svg-input {
   font-family: var(--brand-font-mono);
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   --padding-top: 0.5rem;
   --padding-bottom: 0.5rem;
 }
@@ -318,11 +318,13 @@
   transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 
   ion-badge {
-    font-size: 0.68rem;
+    font-size: 0.75rem;
   }
 
-  &:hover {
-    border-color: var(--ion-color-primary, var(--brand-accent));
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      border-color: var(--ion-color-primary, var(--brand-accent));
+    }
   }
 
   &--selected {
@@ -438,16 +440,21 @@
   &__attendees-toggle {
     align-self: flex-start;
     margin-top: 0.4rem;
-    padding: 0;
-    border: none;
+    padding: 0.25rem 0.75rem;
+    border: 1px solid color-mix(in srgb, var(--brand-accent) 35%, transparent);
+    border-radius: 999px;
     background: none;
     color: var(--brand-accent-text-safe, var(--brand-accent));
     font-family: inherit;
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     font-weight: 600;
-    text-decoration: underline;
     cursor: pointer;
     min-height: 32px;
+
+    // En táctil el área de toque llega a 44px sin cambiar cómo se ve en escritorio.
+    @media (pointer: coarse) {
+      min-height: 44px;
+    }
   }
 }
 
@@ -526,7 +533,7 @@ ion-segment-button.segment-button-checked {
 }
 
 .demo-admin-detail {
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   color: var(--brand-text-dim);
 }
 
@@ -611,7 +618,12 @@ ion-segment-button.segment-button-checked {
   cursor: pointer;
   transition: border-color 0.15s ease, transform 0.15s ease;
 
-  &:hover,
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      border-color: var(--brand-accent);
+    }
+  }
+
   &:focus-visible {
     border-color: var(--brand-accent);
   }
@@ -671,7 +683,7 @@ ion-segment-button.segment-button-checked {
 
 .member-stat__label {
   margin: 0;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   color: var(--brand-text-dim);
 }
 
@@ -897,7 +909,7 @@ ion-segment-button.segment-button-checked {
 // Título de cada grupo de colores en "Mi marca" (Energía, Calma, Frescura, Premium).
 .palette-group__title {
   margin: 1rem 0 0.4rem;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -947,20 +959,11 @@ ion-segment-button.segment-button-checked {
   }
 }
 
-// Acciones por socio en mobile: igual que en gym-admin — quedan estado, Marcar pago y WhatsApp, y el
-// resto pasa al botón "Acciones" (hoja inferior, openMemberActions).
+// Acciones por socio, en todos los anchos: a la vista solo el botón principal (Renovar / Marcar pago),
+// WhatsApp (si hay celular) y "Acciones"; Rutina, Clases fijas, Datos, Quitar plan y Eliminar viven en la
+// hoja que abre "Acciones" (openMemberActions).
 .member-actions__more {
-  display: none;
-}
-
-@media (max-width: 600px) {
-  .member-action-btn--secondary {
-    display: none;
-  }
-
-  .member-actions__more {
-    display: inline-block;
-  }
+  display: inline-block;
 }
 
 // Fila de socio: nombre/estado a un lado y acciones al otro (apiladas en mobile). Igual que gym-admin.
@@ -1024,6 +1027,10 @@ ion-segment-button.segment-button-checked {
   font-weight: 600;
   cursor: pointer;
 
+  @media (pointer: coarse) {
+    min-height: 44px;
+  }
+
   &:focus-visible {
     outline: 2px solid var(--brand-accent);
     outline-offset: 2px;
@@ -1031,5 +1038,22 @@ ion-segment-button.segment-button-checked {
 
   ion-icon {
     font-size: 1rem;
+  }
+}
+
+// Código de la TV: siempre en mayúsculas (antes era un style inline en el template).
+.tv-code-input {
+  text-transform: uppercase;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-card,
+  .member-stat {
+    transition: none;
+  }
+
+  .theme-card:active,
+  .member-stat:active {
+    transform: none;
   }
 }

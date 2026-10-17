@@ -3,10 +3,10 @@
   <ion-toolbar>
     <ion-title>
       <ion-icon name="ban-outline" aria-hidden="true"></ion-icon>
-      Cerrar gimnasio
+      Cierre de emergencia
     </ion-title>
     <ion-buttons slot="end">
-      <ion-button (click)="cancel()">Cerrar</ion-button>
+      <ion-button (click)="cancel()">Cancelar</ion-button>
     </ion-buttons>
   </ion-toolbar>
 </ion-header>
@@ -22,11 +22,11 @@
       <div class="closure-dates">
         <ion-item lines="none">
           <ion-label position="stacked">Desde</ion-label>
-          <input type="date" class="closure-date-input" formControlName="startDate" />
+          <input type="date" class="closure-date-input" formControlName="startDate" aria-label="Desde" />
         </ion-item>
         <ion-item lines="none">
           <ion-label position="stacked">Hasta</ion-label>
-          <input type="date" class="closure-date-input" formControlName="endDate" />
+          <input type="date" class="closure-date-input" formControlName="endDate" aria-label="Hasta" />
         </ion-item>
       </div>
       @if (form.controls.endDate.value < form.controls.startDate.value) {
@@ -154,6 +154,7 @@
       <ion-button type="button" expand="block" [disabled]="!canAskPreview()" (click)="askPreview()">
         Ver impacto
       </ion-button>
+      <ion-button type="button" expand="block" fill="clear" color="medium" (click)="cancel()">Cancelar</ion-button>
     } @else {
       <ion-buttons slot="start">
         <ion-button type="button" [disabled]="isSaving()" (click)="backToForm()">Volver</ion-button>

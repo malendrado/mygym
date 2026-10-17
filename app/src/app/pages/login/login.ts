@@ -1,11 +1,12 @@
-import { Component, DestroyRef, inject, signal } from '@angular/core';
-import { ActivatedRoute, Router } from '@angular/router';
+import { Component, DestroyRef, ElementRef, inject, signal, viewChild } from '@angular/core';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { IonButton, IonContent, IonHeader, IonIcon, IonInput, IonItem, IonSpinner, IonTitle, IonToolbar } from '@ionic/angular';
 import { GoogleSigninButtonDirective, SocialAuthService } from '@abacritt/angularx-social-login';
 import { addIcons } from 'ionicons';
 import { alertCircleOutline, eyeOffOutline, eyeOutline, logoGoogle, mailOutline } from 'ionicons/icons';
 import { GoogleButtonFrameDirective } from '../../core/directives/google-button-frame.directive';
 import { AuthService } from '../../core/services/auth.service';
+import { GymService } from '../../core/services/gym.service';
 import { homeRouteForRole } from '../../core/models/auth.model';
 
 addIcons({
@@ -42,6 +43,7 @@ type LoginMode = 'google' | 'password' | 'forgot';
     IonIcon,
     GoogleSigninButtonDirective,
     GoogleButtonFrameDirective,
+    RouterLink,
   ],
   templateUrl: './login.html',
   styleUrl: './login.scss',
@@ -51,7 +53,14 @@ export class Login {
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private readonly gymService = inject(GymService);
   private readonly destroyRef = inject(DestroyRef);
+
+  // Título que recibe el foco al confirmar "te enviamos un correo" (lectores de pantalla).
+  private readonly sentTitle = viewChild<ElementRef<HTMLElement>>('sentTitle');
+
+  // Gimnasio de origen (?gym=slug, lo pasa /j/:slug): solo se muestra si el slug es válido.
+  protected readonly gymContext = signal<{ slug: string; name: string } | null>(null);
 
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly signingIn = signal(false);
@@ -73,6 +82,32 @@ export class Login {
   protected readonly forgotSent = signal(false);
 
   constructor() {
+    // Ya hay sesión: no tiene sentido mostrar el formulario de ingreso.
+    const current = this.authService.currentUser();
+    if (current) {
+      // Misma regla de returnUrl que el ingreso normal (solo un MEMBER, solo rutas internas).
+      const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl');
+      this.router.navigateByUrl(
+        current.role === 'MEMBER' && returnUrl?.startsWith('/') && !returnUrl.startsWith('//')
+          ? returnUrl
+          : homeRouteForRole(current.role),
+      );
+      return;
+    }
+
+    const query = this.route.snapshot.queryParamMap;
+    if (query.get('mode') === 'forgot') {
+      this.mode.set('forgot');
+    }
+    const gymSlug = query.get('gym')?.trim();
+    if (gymSlug) {
+      // Slug inválido o carga fallida: se ignora en silencio, el login funciona igual.
+      this.gymService.getPublicBySlug(gymSlug).subscribe({
+        next: (gym) => this.gymContext.set({ slug: gymSlug, name: gym.name }),
+        error: () => {},
+      });
+    }
+
     this.socialAuthService.authState.subscribe((user) => {
       if (!user?.idToken) {
         return;
@@ -169,13 +204,19 @@ export class Login {
       next: () => {
         this.forgotSubmitting.set(false);
         this.forgotSent.set(true);
+        this.focusSentTitle();
       },
       error: () => {
         // Mismo mensaje genérico aunque algo falle de verdad — nunca distinguir motivos.
         this.forgotSubmitting.set(false);
         this.forgotSent.set(true);
+        this.focusSentTitle();
       },
     });
+  }
+
+  private focusSentTitle(): void {
+    setTimeout(() => this.sentTitle()?.nativeElement.focus());
   }
 
   private armTimeout(): void {

@@ -1,6 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import {
   IonBackButton,
+  IonButton,
   IonButtons,
   IonContent,
   IonHeader,
@@ -31,7 +32,7 @@ type Status = 'loading' | 'loaded' | 'error';
  */
 @Component({
   selector: 'app-deletion-audits',
-  imports: [IonHeader, IonToolbar, IonTitle, IonButtons, IonBackButton, IonContent, IonIcon, IonSpinner, IonText],
+  imports: [IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonBackButton, IonContent, IonIcon, IonSpinner, IonText],
   templateUrl: './deletion-audits.html',
   styleUrl: './deletion-audits.scss',
 })
@@ -42,6 +43,11 @@ export class DeletionAudits {
   protected readonly audits = signal<GymDeletionAudit[]>([]);
 
   constructor() {
+    this.load();
+  }
+
+  protected load(): void {
+    this.status.set('loading');
     this.gymService.listDeletionAudits().subscribe({
       next: (audits) => {
         this.audits.set(audits);

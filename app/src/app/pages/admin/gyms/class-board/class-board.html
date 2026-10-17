@@ -1,8 +1,8 @@
-<section class="cb" aria-live="polite">
+<section class="cb">
   @if (loading() && !board()) {
     <div class="cb-center"><ion-spinner name="crescent"></ion-spinner></div>
   } @else if (failed()) {
-    <p class="cb-empty">
+    <p class="cb-empty" role="alert">
       No pudimos cargar la clase.
       <button type="button" class="cb-link" (click)="retry()">Reintentar</button>
     </p>
@@ -10,15 +10,14 @@
     <p class="cb-empty">No hay clases en curso ni próximas esta semana.</p>
   } @else {
     <!-- 1) Elegir la clase: todas las en curso + la siguiente -->
-    <div class="cb-pills" role="tablist" aria-label="Clases">
+    <div class="cb-pills" role="group" aria-label="Clases">
       @for (c of classes(); track classKey(c)) {
         <button
           type="button"
-          role="tab"
           class="cb-pill"
           [class.cb-pill--active]="selected() === c"
           [class.cb-pill--live]="c.status === 'LIVE'"
-          [attr.aria-selected]="selected() === c"
+          [attr.aria-pressed]="selected() === c"
           (click)="choose(c)"
         >
           @if (c.status === 'LIVE') {
@@ -37,7 +36,7 @@
           <span class="cb-title__sub">· {{ cls.instructorName }}</span>
         }
       </h3>
-      <p class="cb-summary">
+      <p class="cb-summary" aria-live="polite">
         <span class="cb-num">{{ counts().booked }}</span> {{ counts().booked === 1 ? 'reservó' : 'reservaron' }}
         @if (cls.status === 'LIVE') {
           · <span class="cb-num">{{ counts().arrived }}</span> {{ counts().arrived === 1 ? 'llegó' : 'llegaron' }}
@@ -47,17 +46,17 @@
       @if (counts().noPlan || counts().unlogged || counts().first) {
         <div class="cb-chips">
           @if (counts().noPlan) {
-            <button type="button" class="cb-chip" [class.cb-chip--on]="filter() === 'noPlan'" (click)="setFilter('noPlan')">
+            <button type="button" class="cb-chip" [class.cb-chip--on]="filter() === 'noPlan'" [attr.aria-pressed]="filter() === 'noPlan'" (click)="setFilter('noPlan')">
               {{ counts().noPlan }} sin rutina
             </button>
           }
           @if (counts().unlogged) {
-            <button type="button" class="cb-chip" [class.cb-chip--on]="filter() === 'unlogged'" (click)="setFilter('unlogged')">
+            <button type="button" class="cb-chip" [class.cb-chip--on]="filter() === 'unlogged'" [attr.aria-pressed]="filter() === 'unlogged'" (click)="setFilter('unlogged')">
               {{ counts().unlogged }} no {{ counts().unlogged === 1 ? 'anotó' : 'anotaron' }} la última
             </button>
           }
           @if (counts().first) {
-            <button type="button" class="cb-chip" [class.cb-chip--on]="filter() === 'first'" (click)="setFilter('first')">
+            <button type="button" class="cb-chip" [class.cb-chip--on]="filter() === 'first'" [attr.aria-pressed]="filter() === 'first'" (click)="setFilter('first')">
               {{ counts().first }} {{ counts().first === 1 ? 'primera clase' : 'primeras clases' }}
             </button>
           }

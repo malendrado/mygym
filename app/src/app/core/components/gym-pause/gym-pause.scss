@@ -43,6 +43,7 @@
   }
 
   &__title {
+    outline: none; // recibe el foco al abrir (tabindex=-1), no es un control
     margin: 0;
     font-size: 1.2rem;
     line-height: 1.25;

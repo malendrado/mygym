@@ -1,4 +1,4 @@
-import { Component, ElementRef, OnDestroy, afterNextRender, output, signal, viewChild } from '@angular/core';
+import { Component, ElementRef, HostListener, OnDestroy, afterNextRender, output, signal, viewChild } from '@angular/core';
 import { IonIcon } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { closeOutline } from 'ionicons/icons';
@@ -36,6 +36,7 @@ export class QrScanner implements OnDestroy {
   protected readonly state = signal<ScannerState>('starting');
 
   private readonly video = viewChild.required<ElementRef<HTMLVideoElement>>('video');
+  private readonly closeBtn = viewChild.required<ElementRef<HTMLButtonElement>>('closeBtn');
   private stream: MediaStream | null = null;
   private timer: ReturnType<typeof setTimeout> | null = null;
   private detector: BarcodeDetectorLike | null = null;
@@ -43,11 +44,20 @@ export class QrScanner implements OnDestroy {
   private stopped = false;
 
   constructor() {
-    afterNextRender(() => void this.start());
+    afterNextRender(() => {
+      // El foco entra al diálogo (teclado y lector de pantalla) y Escape lo cierra.
+      this.closeBtn().nativeElement.focus();
+      void this.start();
+    });
   }
 
   ngOnDestroy(): void {
     this.stopCamera();
+  }
+
+  @HostListener('document:keydown.escape')
+  protected onEscape(): void {
+    this.close();
   }
 
   protected close(): void {

@@ -356,3 +356,36 @@
   line-height: 1.4;
   color: var(--brand-text-dim, inherit);
 }
+
+// Contexto del gimnasio de origen (?gym=slug): "Ingresas a X" + enlace de vuelta a su página.
+.login-gym {
+  margin: -0.25rem 0 0.75rem;
+  font-weight: 600;
+  color: var(--brand-text);
+}
+
+.login-gym-back {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-top: 0.5rem;
+  font-size: 1rem;
+  color: var(--brand-text-dim);
+  text-decoration: underline;
+
+  &:focus-visible {
+    outline: 3px solid var(--brand-accent);
+    outline-offset: 2px;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      color: var(--brand-text);
+    }
+  }
+}
+
+// El título que recibe el foco al enviar el correo no necesita el contorno del navegador.
+.login-sent:focus {
+  outline: none;
+}

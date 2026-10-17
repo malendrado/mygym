@@ -1,4 +1,4 @@
-import { Component, Input, OnDestroy, OnInit, computed, inject } from '@angular/core';
+import { Component, ElementRef, Input, OnDestroy, OnInit, computed, effect, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { IonButton, IonIcon } from '@ionic/angular';
 import { addIcons } from 'ionicons';
@@ -39,6 +39,11 @@ export class GymPause implements OnInit, OnDestroy {
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
 
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  // Hermanos de la ruta del diálogo que pusimos en `inert` (para quitarlos al reanudar sin tocar los que ya lo estaban).
+  private inertified: Element[] = [];
+  private focusOpener: HTMLElement | null = null;
+
   protected readonly status = this.pause.status;
   protected readonly contacts = computed<ContactLink[]>(() => {
     const status = this.pause.status();
@@ -49,6 +54,18 @@ export class GymPause implements OnInit, OnDestroy {
     return contact ? toLinks(contact) : [];
   });
 
+  constructor() {
+    // aria-modal por sí solo no impide que el teclado ni el lector de pantalla lleguen a la app borrosa de atrás: se deja
+    // inerte todo lo que no es el aviso y el foco se lleva al título. Al reanudar se devuelve todo como estaba.
+    effect(() => {
+      if (this.pause.paused()) {
+        this.blockBackground();
+      } else {
+        this.releaseBackground();
+      }
+    });
+  }
+
   ngOnInit(): void {
     void this.pause.check();
     this.pause.watch();
@@ -56,6 +73,52 @@ export class GymPause implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.pause.unwatch();
+    this.releaseBackground();
+  }
+
+  private blockBackground(): void {
+    if (this.inertified.length > 0) {
+      return;
+    }
+    if (document.activeElement instanceof HTMLElement && document.activeElement !== document.body) {
+      this.focusOpener = document.activeElement;
+    }
+    // El aviso vive dentro de la página (no en el router-outlet), así que se marca como inerte cada hermano a lo largo de
+    // la ruta desde el aviso hasta <body>, dejando intacta la rama del propio aviso.
+    let node: Element | null = this.host.nativeElement;
+    // El host es display:contents: la ruta empieza en él mismo.
+    while (node && node !== document.body) {
+      const parent: Element | null = node.parentElement;
+      if (!parent) {
+        break;
+      }
+      for (const sibling of Array.from(parent.children)) {
+        if (sibling !== node && !sibling.hasAttribute('inert') && !/^(SCRIPT|STYLE|LINK|TEMPLATE)$/.test(sibling.tagName)) {
+          sibling.setAttribute('inert', '');
+          this.inertified.push(sibling);
+        }
+      }
+      node = parent;
+    }
+    // Se espera a que el @if pinte el aviso antes de enfocar el título.
+    setTimeout(() => {
+      (this.host.nativeElement.querySelector('#gym-pause-title') as HTMLElement | null)?.focus({ preventScroll: true });
+    });
+  }
+
+  private releaseBackground(): void {
+    if (this.inertified.length === 0) {
+      return;
+    }
+    for (const el of this.inertified) {
+      el.removeAttribute('inert');
+    }
+    this.inertified = [];
+    const opener = this.focusOpener;
+    this.focusOpener = null;
+    if (opener && document.contains(opener)) {
+      opener.focus({ preventScroll: true });
+    }
   }
 
   protected async logout(): Promise<void> {

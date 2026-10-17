@@ -51,3 +51,15 @@ export function membershipMessage(
   }
   return null;
 }
+
+/** Mensaje del SOCIO al gimnasio: avisa que ya hizo la transferencia (con el plan elegido, si lo hay). */
+export function transferNoticeMessage(
+  memberName: string | null | undefined,
+  gymName: string,
+  planName?: string | null,
+): string {
+  const first = firstName(memberName);
+  const who = first ? `Soy ${first}. ` : '';
+  const plan = planName?.trim() ? ` del plan ${planName.trim()}` : '';
+  return `Hola, ${who}ya hice la transferencia${plan} a ${gymName}. ¿Me confirman el pago?`;
+}

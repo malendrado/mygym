@@ -51,6 +51,7 @@ import {
   informationCircleOutline,
   lockClosedOutline,
   logOutOutline,
+  personCircleOutline,
   logoInstagram,
   logoWhatsapp,
   playOutline,
@@ -78,6 +79,7 @@ import {
 import { deriveSurfaceTint, ensureMinContrastColor, syncThemeOverrides } from '../../core/utils/gym-theme';
 import { registerClassCategoryIcons, resolveClassCategoryIcon } from '../../core/utils/class-category';
 import { MemberProfileModal } from '../../core/components/member-profile-modal/member-profile-modal';
+import { transferNoticeMessage } from '../../core/utils/whatsapp-messages';
 import { MemberProfile } from '../../core/models/member.model';
 import { MemberProfileService } from '../../core/services/member-profile.service';
 import { errorText } from '../../core/utils/error-text';
@@ -104,6 +106,7 @@ addIcons({
   'trending-up-outline': trendingUpOutline,
   'sparkles-outline': sparklesOutline,
   'log-out-outline': logOutOutline,
+  'person-circle-outline': personCircleOutline,
   'logo-instagram': logoInstagram,
   'logo-whatsapp': logoWhatsapp,
   'checkmark-done-outline': checkmarkDoneOutline,
@@ -411,6 +414,11 @@ export class MemberPage {
   // Cierre de emergencia (ver GymClosureService) — banner con el motivo + clases marcadas
   // "Cerrado" (occurrence.closed, ver member.html). Nunca aplica en demo preview.
   protected readonly closureNotice = signal<GymClosureNotice | null>(null);
+
+  /** El motivo lo escribe el admin: si ya trae punto final, el template no debe duplicarlo. */
+  protected withoutTrailingDot(text: string): string {
+    return text.trim().replace(/[.\s]+$/, '');
+  }
   // El backend manda startDate/endDate en ISO — formateados igual que renewsOnLabel() para no
   // mostrar fechas crudas tipo "2026-10-07" en el banner (detectado en auditoría UX 2026-10-04).
   protected readonly closureDatesLabel = computed(() => {
@@ -421,6 +429,31 @@ export class MemberPage {
     const start = dayMonthLabel(notice.startDate);
     return notice.startDate === notice.endDate ? `el ${start}` : `del ${start} al ${dayMonthLabel(notice.endDate)}`;
   });
+
+  // Transferencia: confirmación solo de esta sesión (no se guarda nada en el servidor) tras tocar "Ya transferí".
+  protected readonly transferNotified = signal(false);
+  protected readonly transferWhatsappUrl = computed(() => {
+    const link = this.whatsappLink();
+    if (!link) {
+      return null;
+    }
+    const plan = this.paymentChoicePlan();
+    const message = transferNoticeMessage(this.firstName(), this.gym()?.name ?? 'el gimnasio', plan?.name ?? null);
+    return `${link}?text=${encodeURIComponent(message)}`;
+  });
+
+  protected notifyTransfer(): void {
+    this.transferNotified.set(true);
+    this.showToast('Listo, avisa al gimnasio por WhatsApp.');
+  }
+
+  // "Mis datos": el socio edita sus datos de contacto cuando quiera (el modal obligatorio es otro).
+  protected readonly profileEditOpen = signal(false);
+
+  protected openProfileEdit(): void {
+    this.profileError.set(null);
+    this.profileEditOpen.set(true);
+  }
 
   protected readonly photos = signal<GymPhoto[]>([]);
   // Tira de fotos del gimnasio en el header — antes el header no tenía nada
@@ -562,7 +595,7 @@ export class MemberPage {
     if (days === 1) {
       return 'Vence mañana';
     }
-    return `Vence en ${days} días`;
+    return `Vence el ${this.renewsOnLabel()} (en ${days} días)`;
   });
   protected readonly renewsOnLabel = computed(() => {
     const end = this.membershipPeriodEnd();
@@ -1061,7 +1094,8 @@ export class MemberPage {
   protected setSection(section: 'reservar' | 'reservas' | 'rutina'): void {
     this.section.set(section);
     if (section === 'rutina') {
-      this.loadPendingWorkout();
+      // Volver a la pestaña no debe borrar lo que el socio ya estaba anotando (ver loadPendingWorkout).
+      this.loadPendingWorkout(false, true);
     }
   }
 
@@ -1335,7 +1369,16 @@ export class MemberPage {
     return log.planDayId === null || log.planDayId !== log.suggestedPlanDayId;
   }
 
-  protected loadPendingWorkout(keepSavedLog = false): void {
+  // Borrador de la rutina: se conserva mientras siga la misma reserva pendiente y el socio ya haya escrito algo.
+  private draftReservationId: number | null = null;
+
+  private hasWorkoutDraft(): boolean {
+    return (
+      this.exerciseRows().some((row) => row.exercise.trim() || row.notes?.trim()) || this.freeTextLabel().trim().length > 0
+    );
+  }
+
+  protected loadPendingWorkout(keepSavedLog = false, keepDraft = false): void {
     this.loadingWorkout.set(true);
     this.pendingWorkoutError.set(false);
     if (!keepSavedLog) {
@@ -1347,7 +1390,11 @@ export class MemberPage {
         this.pendingWorkout.set(pending);
         this.loadingWorkout.set(false);
         if (pending.status === 'READY') {
-          this.resetWorkoutForm(pending.suggestedPlanDayId);
+          const sameReservation = pending.reservationId !== null && pending.reservationId === this.draftReservationId;
+          if (!(keepDraft && sameReservation && this.hasWorkoutDraft())) {
+            this.resetWorkoutForm(pending.suggestedPlanDayId);
+          }
+          this.draftReservationId = pending.reservationId;
         }
       },
       error: () => {
@@ -1416,6 +1463,7 @@ export class MemberPage {
         this.justSavedLog.set(log);
         this.editingSavedLog.set(false);
         this.showToast('Registro guardado.');
+        this.draftReservationId = null;
         this.loadPendingWorkout(true);
       },
       error: () => {
@@ -1619,10 +1667,12 @@ export class MemberPage {
   // pagar (Flow o transferencia) — el plan queda "guardado" en
   // paymentChoicePlan hasta que el socio confirma un método.
   protected choosePaymentMethod(plan: MembershipPlan): void {
+    this.transferNotified.set(false);
     this.paymentChoicePlan.set(plan);
   }
 
   protected cancelPaymentChoice(): void {
+    this.transferNotified.set(false);
     this.paymentChoicePlan.set(null);
   }
 
@@ -2116,6 +2166,8 @@ export class MemberPage {
       next: () => {
         this.savingProfile.set(false);
         this.profileIncomplete.set(false);
+        this.profileEditOpen.set(false);
+        this.memberProfile.set({ ...profile });
         this.showToast('Listo, tus datos quedaron guardados.');
       },
       error: (err: Error) => {
@@ -2163,8 +2215,11 @@ export class MemberPage {
       key = 'expiring';
       header = days === 1 ? 'Tu plan vence mañana' : `Tu plan vence en ${days} días`;
       message =
-        `Tu plan ${planName} vence el ${this.longDateLabel(periodEnd)}. Renuévalo antes para no quedarte sin poder reservar.` +
+        `Tu plan ${planName} vence el ${this.longDateLabel(periodEnd)}. Cuando venza, podrás renovarlo desde aquí mismo.` +
         (exhausted ? ' Además, ya usaste todas tus clases de este período.' : '');
+      // Pagar con el plan vigente pisa el período desde hoy y se pierden los días que quedan: solo se ofrece
+      // renovar cuando ya venció (ahí las tarjetas de plan están a la vista).
+      renew = false;
     } else if (exhausted) {
       // Con clases fijas el socio no "usó" nada: ya están reservadas por el gimnasio.
       const hasFixed = this.myReservations().some((r) => r.fixed && !this.isReservationPast(r));

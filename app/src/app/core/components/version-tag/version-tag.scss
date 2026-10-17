@@ -19,8 +19,8 @@
   padding: 0.6rem 1.2rem;
   border: 0;
   background: transparent;
-  font-size: 9px;
-  opacity: 0.4;
+  font-size: 0.7rem;
+  opacity: 0.6;
   cursor: default;
 
   &:focus-visible {
@@ -36,6 +36,6 @@
   left: 0.75rem;
   bottom: 0.4rem;
   font-size: 0.7rem;
-  opacity: 0.35;
+  opacity: 0.5;
   pointer-events: none;
 }

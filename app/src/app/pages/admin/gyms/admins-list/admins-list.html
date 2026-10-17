@@ -23,7 +23,10 @@
   @if (status() === 'loading') {
     <div class="admins-loading"><ion-spinner name="crescent"></ion-spinner></div>
   } @else if (status() === 'error') {
-    <ion-text color="danger"><p>No pudimos cargar los administradores. Intenta nuevamente.</p></ion-text>
+    <div class="admins-error">
+      <ion-text color="danger"><p role="alert">No pudimos cargar los administradores. Intenta nuevamente.</p></ion-text>
+      <ion-button fill="outline" size="small" (click)="load()">Reintentar</ion-button>
+    </div>
   } @else if (tab() === 'super') {
     @if (superAdmins().length === 0) {
       <div class="admins-empty">
@@ -37,7 +40,7 @@
             @if (admin.photoUrl) {
               <img [src]="admin.photoUrl" alt="" class="admin-card__avatar" />
             } @else {
-              <div class="admin-card__avatar admin-card__avatar--placeholder">{{ initials(admin.name) }}</div>
+              <div class="admin-card__avatar admin-card__avatar--placeholder" aria-hidden="true">{{ initials(admin.name) }}</div>
             }
             <div class="admin-card__info">
               <p class="admin-card__name">{{ admin.name }}</p>
@@ -61,7 +64,7 @@
             @if (admin.photoUrl) {
               <img [src]="admin.photoUrl" alt="" class="admin-card__avatar" />
             } @else {
-              <div class="admin-card__avatar admin-card__avatar--placeholder">{{ initials(admin.name) }}</div>
+              <div class="admin-card__avatar admin-card__avatar--placeholder" aria-hidden="true">{{ initials(admin.name) }}</div>
             }
             <div class="admin-card__info">
               <p class="admin-card__name">

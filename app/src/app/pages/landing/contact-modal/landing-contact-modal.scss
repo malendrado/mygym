@@ -25,6 +25,7 @@
 
     h3 {
       margin: 0 0 0.5rem;
+      padding-right: 2rem; // no pasa por debajo del botón de cerrar (44px)
       font-size: 1.3rem;
       letter-spacing: -0.01em;
     }
@@ -83,10 +84,10 @@
 
   &__close {
     position: absolute;
-    top: 1rem;
-    right: 1rem;
-    width: 32px;
-    height: 32px;
+    top: 0.75rem;
+    right: 0.75rem;
+    width: 44px;
+    height: 44px;
     display: inline-flex;
     align-items: center;
     justify-content: center;

@@ -2,21 +2,30 @@
   <div class="checkin">
     @switch (status()) {
       @case ('checking') {
-        <ion-spinner name="crescent"></ion-spinner>
-        <p class="checkin__title">Confirmando tu asistencia…</p>
+        <div role="status" aria-live="polite" class="checkin__live">
+          <ion-spinner name="crescent" aria-label="Cargando"></ion-spinner>
+          <p class="checkin__title">Confirmando tu asistencia…</p>
+        </div>
       }
       @case ('success') {
-        <ion-icon name="checkmark-circle-outline" class="checkin__icon checkin__icon--ok" aria-hidden="true"></ion-icon>
-        <p class="checkin__title">¡Asistencia confirmada!</p>
-        @if (classLabelText()) {
-          <p class="checkin__body">Quedaste marcado en {{ classLabelText() }}. Disfruta tu clase.</p>
-        }
+        <div role="status" aria-live="polite" class="checkin__live">
+          <ion-icon name="checkmark-circle-outline" class="checkin__icon checkin__icon--ok" aria-hidden="true"></ion-icon>
+          <p class="checkin__title">¡Asistencia confirmada!</p>
+          @if (classLabelText()) {
+            <p class="checkin__body">Quedaste marcado en {{ classLabelText() }}. Disfruta tu clase.</p>
+          }
+        </div>
         <ion-button (click)="goToMember()">Ir a mi cuenta</ion-button>
       }
       @case ('error') {
-        <ion-icon name="alert-circle-outline" class="checkin__icon checkin__icon--error" aria-hidden="true"></ion-icon>
-        <p class="checkin__title">No pudimos confirmarlo</p>
-        <p class="checkin__body">{{ errorMessage() }}</p>
+        <div role="alert" class="checkin__live">
+          <ion-icon name="alert-circle-outline" class="checkin__icon checkin__icon--error" aria-hidden="true"></ion-icon>
+          <p class="checkin__title">No pudimos confirmarlo</p>
+          <p class="checkin__body">{{ errorMessage() }}</p>
+        </div>
+        @if (canRetry) {
+          <ion-button (click)="confirm()">Reintentar</ion-button>
+        }
         <ion-button (click)="goToMember()" fill="outline">Ir a mi cuenta</ion-button>
       }
     }

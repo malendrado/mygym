@@ -24,7 +24,7 @@
               aria-valuemin="0"
               [attr.aria-valuemax]="row.usage.max"
             >
-              <span class="gl__fill" [style.width.%]="row.percent"></span>
+              <span class="gl__fill" [style.transform]="'scaleX(' + row.percent / 100 + ')'"></span>
             </div>
             <p class="gl__hint">{{ row.hint }}</p>
           </div>

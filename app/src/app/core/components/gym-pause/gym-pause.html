@@ -4,12 +4,12 @@
       <ion-icon class="gym-pause__icon" name="pause-circle-outline" aria-hidden="true"></ion-icon>
 
       @if (audience === 'staff') {
-        <h2 id="gym-pause-title" class="gym-pause__title">La cuenta de {{ status()?.gymName }} en mygym está en pausa</h2>
+        <h2 id="gym-pause-title" class="gym-pause__title" tabindex="-1">La cuenta de {{ status()?.gymName }} en mygym está en pausa</h2>
         <p id="gym-pause-text" class="gym-pause__text">
           Tus datos y los de tus socios están resguardados. Conversemos para reactivarla:
         </p>
       } @else {
-        <h2 id="gym-pause-title" class="gym-pause__title">{{ status()?.gymName }} está haciendo una pausa en mygym</h2>
+        <h2 id="gym-pause-title" class="gym-pause__title" tabindex="-1">{{ status()?.gymName }} está haciendo una pausa en mygym</h2>
         <p id="gym-pause-text" class="gym-pause__text">
           Tus datos y tu membresía están resguardados.
           @if (contacts().length > 0) {
