@@ -203,14 +203,22 @@
     min-width: 233px;
     border-color: transparent;
     box-shadow: none;
+  }
 
-    &::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      border-radius: 999px;
-      background: color-mix(in srgb, var(--brand-text-dim, #8a9ba8) 14%, transparent);
-    }
+  // Esqueleto neutro: se desvanece a la vez que entra el botón (antes desaparecía de golpe y quedaba un hueco vacío
+  // hasta que el botón terminaba su fundido).
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--brand-text-dim, #8a9ba8) 14%, transparent);
+    pointer-events: none;
+    transition: opacity 0.18s ease-out;
+  }
+
+  &.is-ready::before {
+    opacity: 0;
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -743,6 +751,7 @@ $ease-out: cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .google-auth__frame::before,
   .google-auth__frame asl-google-signin-button {
     transition: none;
   }
