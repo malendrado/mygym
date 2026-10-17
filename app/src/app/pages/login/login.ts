@@ -4,6 +4,7 @@ import { IonButton, IonContent, IonHeader, IonIcon, IonInput, IonItem, IonSpinne
 import { GoogleSigninButtonDirective, SocialAuthService } from '@abacritt/angularx-social-login';
 import { addIcons } from 'ionicons';
 import { alertCircleOutline, eyeOffOutline, eyeOutline, logoGoogle, mailOutline } from 'ionicons/icons';
+import { GoogleButtonFrameDirective } from '../../core/directives/google-button-frame.directive';
 import { AuthService } from '../../core/services/auth.service';
 import { homeRouteForRole } from '../../core/models/auth.model';
 
@@ -40,6 +41,7 @@ type LoginMode = 'google' | 'password' | 'forgot';
     IonButton,
     IonIcon,
     GoogleSigninButtonDirective,
+    GoogleButtonFrameDirective,
   ],
   templateUrl: './login.html',
   styleUrl: './login.scss',

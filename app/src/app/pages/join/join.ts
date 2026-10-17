@@ -27,6 +27,7 @@ import {
   logoWhatsapp,
   sparklesOutline,
 } from 'ionicons/icons';
+import { GoogleButtonFrameDirective } from '../../core/directives/google-button-frame.directive';
 import { AuthService } from '../../core/services/auth.service';
 import { GymService } from '../../core/services/gym.service';
 import { LoginResponse } from '../../core/models/auth.model';
@@ -83,6 +84,7 @@ export const PREFERRED_PLAN_KEY = 'mygym.preferredPlan';
     IonInput,
     IonButton,
     GoogleSigninButtonDirective,
+    GoogleButtonFrameDirective,
     RouterLink,
   ],
   templateUrl: './join.html',
