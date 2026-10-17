@@ -40,6 +40,12 @@ export interface MemberWorkoutLog {
   loggedByName: string | null;
 }
 
+/** Una ventana del historial (7 días): `nextBefore` es el cursor para pedir la anterior, null si no hay más. */
+export interface WorkoutLogPage {
+  logs: MemberWorkoutLog[];
+  nextBefore: string | null;
+}
+
 /** Exactamente uno de planDayId/freeTextLabel debe venir. */
 export interface SaveWorkoutLogRequest {
   planDayId: number | null;

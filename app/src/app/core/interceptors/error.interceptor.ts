@@ -5,6 +5,9 @@ import { EMPTY, catchError, throwError } from 'rxjs';
 import { AuthService } from '../services/auth.service';
 import { GymPauseService } from '../services/gym-pause.service';
 
+// Al abrir una pantalla salen varias peticiones a la vez: si todas vuelven con SESSION_REVOKED, el cierre de sesión corre una sola vez.
+let closingRevokedSession = false;
+
 export const errorInterceptor: HttpInterceptorFn = (req, next) => {
   const router = inject(Router);
   const authService = inject(AuthService);
@@ -21,6 +24,20 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
         void authService.logout().finally(() => {
           router.navigate(['/'], { queryParams: { contacto: 'demo-vencida' } });
         });
+        return EMPTY;
+      }
+      // 401 SESSION_REVOKED: el usuario ya no existe, fue desactivado o cambió de rol/gimnasio desde que se
+      // emitió su token (UserSessionFilter en el backend). Se cierra la sesión acá mismo y se manda al login,
+      // en vez de dejarlo viendo pantallas que fallan una por una. Solo con ese código: un 401 de un login
+      // con clave incorrecta no debe sacar a nadie de ninguna parte.
+      if (err.status === 401 && err.error?.code === 'SESSION_REVOKED') {
+        if (!closingRevokedSession) {
+          closingRevokedSession = true;
+          void authService.logout().finally(() => {
+            router.navigate(['/login']);
+            closingRevokedSession = false;
+          });
+        }
         return EMPTY;
       }
       // 403 GYM_PAUSED: el gimnasio de este usuario está en pausa. No es un error de la pantalla: se muestra el aviso amable

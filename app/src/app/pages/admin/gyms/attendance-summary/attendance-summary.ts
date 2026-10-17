@@ -27,6 +27,7 @@ import { AttendanceService } from '../../../../core/services/attendance.service'
 import { Period, RateTone, ratePct, rateTone, variationLabel } from '../../../../core/utils/attendance';
 import { errorText } from '../../../../core/utils/error-text';
 import { whatsappUrl } from '../../../../core/utils/member-profile';
+import { missedClassMessage } from '../../../../core/utils/whatsapp-messages';
 import { TIME_BAND_OPTIONS, TimeBand, timeBandOf } from '../../../../core/utils/time-band';
 
 addIcons({
@@ -303,7 +304,7 @@ export class AttendanceSummaryView {
     return ratePct(m.attended, m.booked);
   }
   protected whatsapp(m: MemberAttendanceRow): string | null {
-    return whatsappUrl(m.phone);
+    return whatsappUrl(m.phone, m.missed > 0 ? missedClassMessage(m.name) : null);
   }
   protected dateLabel(iso: string): string {
     const [y, mo, d] = iso.split('-').map(Number);

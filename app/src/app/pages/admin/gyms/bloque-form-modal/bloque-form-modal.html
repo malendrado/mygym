@@ -83,6 +83,18 @@
       <ion-input formControlName="category" placeholder="O escribe la tuya (ej: Crossfit Kids)" />
     </ion-item>
 
+    @if (isEditing()) {
+      <p class="section-label">Estado</p>
+      <ion-item lines="none">
+        <ion-toggle [checked]="active()" (ionChange)="active.set($event.detail.checked)">
+          {{ active() ? 'Activo' : 'Pausado' }}
+        </ion-toggle>
+      </ion-item>
+      <ion-note>
+        {{ active() ? 'Los socios pueden reservar este bloque.' : 'Pausado: no se ofrece a los socios y se avisa a quienes ya reservaron.' }}
+      </ion-note>
+    }
+
     <p class="section-label">Instructor (opcional)</p>
     <ion-item>
       <ion-input formControlName="instructorName" placeholder="Nombre del instructor" />

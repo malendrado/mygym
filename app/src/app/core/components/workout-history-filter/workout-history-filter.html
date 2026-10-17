@@ -1,0 +1,32 @@
+@if (visible()) {
+  <div class="whf">
+    <div class="whf__search">
+      <ion-icon name="search-outline" aria-hidden="true"></ion-icon>
+      <input
+        class="whf__input"
+        type="search"
+        placeholder="Buscar ejercicio o nota"
+        aria-label="Buscar ejercicio o nota"
+        autocomplete="off"
+        [value]="query()"
+        (input)="setQuery($any($event.target).value)"
+      />
+    </div>
+    <div class="whf__chips" role="group" aria-label="Filtrar por día de rutina">
+      <button type="button" class="whf__chip" [attr.aria-pressed]="allActive()" (click)="showAll()">Todos</button>
+      @for (d of days(); track d) {
+        <button type="button" class="whf__chip" [attr.aria-pressed]="day() === d" (click)="toggleDay(d)">{{ d }}</button>
+      }
+      @if (hasDeviation()) {
+        <button
+          type="button"
+          class="whf__chip whf__chip--warn"
+          [attr.aria-pressed]="onlyDeviated()"
+          (click)="toggleDeviated()"
+        >
+          Con desvío
+        </button>
+      }
+    </div>
+  </div>
+}

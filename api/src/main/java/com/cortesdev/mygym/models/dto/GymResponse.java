@@ -29,4 +29,14 @@ public record GymResponse(
         String bankHolderName,
         String bankConfirmationEmail,
         Instant createdAt,
-        Instant updatedAt) {}
+        Instant updatedAt) {
+
+    /** Misma ficha sin la cuenta bancaria del dueño: para quien opera el gimnasio pero no maneja el dinero (PROFESOR). */
+    public GymResponse withoutBankData() {
+        return new GymResponse(
+                id, publicId, name, slug, active, maxUsers, googleLoginEnabled, themeColor, themeMode, logoSvg, tagline,
+                description, instagramUrl, whatsappNumber, bookingWindowMinutes, cancellationWindowMinutes,
+                waitlistHeadStartMinutes, showAttendeesToMembers, fixedMembersCurrentWeekOnly, null, null, null, null,
+                null, null, createdAt, updatedAt);
+    }
+}

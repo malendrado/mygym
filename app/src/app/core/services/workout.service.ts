@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
@@ -7,6 +7,7 @@ import {
   MemberWorkoutLog,
   PendingWorkout,
   SaveWorkoutLogRequest,
+  WorkoutLogPage,
   WorkoutPlan,
 } from '../models/workout.model';
 
@@ -34,9 +35,14 @@ export class WorkoutService {
     return this.http.post<WorkoutPlan>(`${this.memberBase(memberId, gymId)}/plan`, payload);
   }
 
-  /** Historial de registros del socio (los últimos 30, el más reciente primero). */
-  getLogHistory(memberId: number, gymId: number | null = null): Observable<MemberWorkoutLog[]> {
-    return this.http.get<MemberWorkoutLog[]>(`${this.memberBase(memberId, gymId)}/logs`);
+  /** Una ventana del historial del socio (7 días, el más reciente primero). Para la anterior, pasar el `nextBefore`
+   *  de la respuesta como `before`. */
+  getLogHistory(memberId: number, gymId: number | null = null, before: string | null = null): Observable<WorkoutLogPage> {
+    return this.http.get<WorkoutLogPage>(`${this.memberBase(memberId, gymId)}/logs`, { params: this.beforeParam(before) });
+  }
+
+  private beforeParam(before: string | null): HttpParams {
+    return before ? new HttpParams().set('before', before) : new HttpParams();
   }
 
   /** El profesor/admin anota la rutina POR el alumno (reserva con asistencia). */
@@ -69,9 +75,9 @@ export class WorkoutService {
     return this.http.get<PendingWorkout>(`${this.meBase}/pending`);
   }
 
-  /** Mi historial: los últimos 30 registros. */
-  getMyHistory(): Observable<MemberWorkoutLog[]> {
-    return this.http.get<MemberWorkoutLog[]>(`${this.meBase}/history`);
+  /** Mi historial por ventanas de 7 días; ver getLogHistory. */
+  getMyHistory(before: string | null = null): Observable<WorkoutLogPage> {
+    return this.http.get<WorkoutLogPage>(`${this.meBase}/history`, { params: this.beforeParam(before) });
   }
 
   createLog(reservationId: number, payload: SaveWorkoutLogRequest): Observable<MemberWorkoutLog> {

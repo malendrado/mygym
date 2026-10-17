@@ -164,7 +164,7 @@ class ReservationServiceWindowsTest {
     void bookAsksTheFixedWeekRuleAndStopsIfItRefuses() {
         GymBlock block = blockStartingIn(60 * 24 * 10);
         when(gymRepository.findById(GYM_ID)).thenReturn(Optional.of(gym(30, 30)));
-        when(gymBlockRepository.findByIdAndGymId(BLOCK_ID, GYM_ID)).thenReturn(Optional.of(block));
+        when(gymBlockRepository.findLockedByIdAndGymId(BLOCK_ID, GYM_ID)).thenReturn(Optional.of(block));
         org.mockito.Mockito.doThrow(new BookingWindowClosedException("solo esta semana"))
                 .when(fixedWeekRule).assertAllowed(any(Gym.class), org.mockito.ArgumentMatchers.eq(MEMBER_ID), any(LocalDate.class), org.mockito.ArgumentMatchers.eq("reservar"));
 
@@ -181,7 +181,7 @@ class ReservationServiceWindowsTest {
     void bookFailsInsideTheBookingWindowWithItsOwnMessage() {
         GymBlock block = blockStartingIn(20);
         when(gymRepository.findById(GYM_ID)).thenReturn(Optional.of(gym(30, 5)));
-        when(gymBlockRepository.findByIdAndGymId(BLOCK_ID, GYM_ID)).thenReturn(Optional.of(block));
+        when(gymBlockRepository.findLockedByIdAndGymId(BLOCK_ID, GYM_ID)).thenReturn(Optional.of(block));
 
         assertThatThrownBy(() -> reservationService.book(
                         GYM_ID, MEMBER_ID, new ReservationCreateRequest(BLOCK_ID, classDateOf(20))))
@@ -196,7 +196,7 @@ class ReservationServiceWindowsTest {
         // nunca con el mensaje de ventana.
         GymBlock block = blockStartingIn(60);
         when(gymRepository.findById(GYM_ID)).thenReturn(Optional.of(gym(10, 300)));
-        when(gymBlockRepository.findByIdAndGymId(BLOCK_ID, GYM_ID)).thenReturn(Optional.of(block));
+        when(gymBlockRepository.findLockedByIdAndGymId(BLOCK_ID, GYM_ID)).thenReturn(Optional.of(block));
         when(gymClosureService.closedReasonFor(anyLong(), anyLong(), any(LocalDate.class))).thenReturn("Feriado");
 
         assertThatThrownBy(() -> reservationService.book(
@@ -208,8 +208,8 @@ class ReservationServiceWindowsTest {
 
     private void stubBookUpToTheProfileGate(com.cortesdev.mygym.models.AppUser member) {
         when(gymRepository.findById(GYM_ID)).thenReturn(Optional.of(gym(10, 10)));
-        when(gymBlockRepository.findByIdAndGymId(BLOCK_ID, GYM_ID)).thenReturn(Optional.of(blockStartingIn(60)));
-        when(appUserRepository.findByIdAndGymId(MEMBER_ID, GYM_ID)).thenReturn(Optional.of(member));
+        when(gymBlockRepository.findLockedByIdAndGymId(BLOCK_ID, GYM_ID)).thenReturn(Optional.of(blockStartingIn(60)));
+        when(appUserRepository.findLockedByIdAndGymId(MEMBER_ID, GYM_ID)).thenReturn(Optional.of(member));
         when(memberService.hasActiveMembership(member)).thenReturn(true);
         when(memberService.hasQuotaAvailable(member)).thenReturn(true);
     }
@@ -238,6 +238,113 @@ class ReservationServiceWindowsTest {
         reservationService.book(GYM_ID, MEMBER_ID, new ReservationCreateRequest(BLOCK_ID, classDateOf(60)));
 
         verify(reservationRepository).save(any(Reservation.class));
+    }
+
+    // --- reservar solo dentro del período pagado (auditoría 2026-10-17) ---
+
+    private com.cortesdev.mygym.models.AppUser paidMember(java.time.Instant paidAt) {
+        return com.cortesdev.mygym.models.AppUser.builder()
+                .id(MEMBER_ID).gymId(GYM_ID).rut("12.345.678-5").address("Av. Siempre Viva 742, Ñuñoa")
+                .phone("+56912345678").birthDate(LocalDate.of(1990, 5, 20))
+                .emergencyContactName("Marta Pérez").emergencyContactPhone("+56987654321")
+                .paidAt(paidAt).build();
+    }
+
+    @Test
+    void bookIsRefusedForADatePastTheEndOfThePaidPeriod() {
+        // Pagó hace 25 días: el período termina en ~5 días y la clase es dentro de 30.
+        com.cortesdev.mygym.models.AppUser member = paidMember(java.time.Instant.now().minus(25, java.time.temporal.ChronoUnit.DAYS));
+        stubBookUpToTheProfileGate(member);
+        when(gymBlockRepository.findLockedByIdAndGymId(BLOCK_ID, GYM_ID))
+                .thenReturn(Optional.of(blockStartingIn(60 * 24 * 30)));
+
+        assertThatThrownBy(() -> reservationService.book(
+                        GYM_ID, MEMBER_ID, new ReservationCreateRequest(BLOCK_ID, classDateOf(60 * 24 * 30))))
+                .isInstanceOf(BookingWindowClosedException.class)
+                .hasMessageStartingWith("Tu plan cubre hasta el ")
+                .hasMessageEndingWith("Renuévalo para reservar clases de fechas posteriores");
+        verify(reservationRepository, never()).save(any());
+    }
+
+    @Test
+    void bookStillWorksForADateInsideThePaidPeriod() {
+        com.cortesdev.mygym.models.AppUser member = paidMember(java.time.Instant.now());
+        stubBookUpToTheProfileGate(member);
+        when(reservationRepository.save(any(Reservation.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        reservationService.book(GYM_ID, MEMBER_ID, new ReservationCreateRequest(BLOCK_ID, classDateOf(60)));
+
+        verify(reservationRepository).save(any(Reservation.class));
+    }
+
+    @Test
+    void thePaidPeriodEndsTheDayBeforeTheSameDayNextMonth() {
+        java.time.Instant paidAt = java.time.ZonedDateTime.of(2026, 3, 15, 10, 0, 0, 0, ZONE).toInstant();
+        com.cortesdev.mygym.models.AppUser member = paidMember(paidAt);
+
+        assertThat(com.cortesdev.mygym.services.MemberService.paidUntil(member)).isEqualTo(LocalDate.of(2026, 4, 14));
+        assertThat(com.cortesdev.mygym.services.MemberService.isWithinPaidPeriod(member, LocalDate.of(2026, 4, 14))).isTrue();
+        assertThat(com.cortesdev.mygym.services.MemberService.isWithinPaidPeriod(member, LocalDate.of(2026, 4, 15))).isFalse();
+    }
+
+    @Test
+    void withoutARegisteredPaymentThereIsNoPeriodToValidateHere() {
+        // De eso se ocupa hasActiveMembership; esta regla no inventa un período.
+        com.cortesdev.mygym.models.AppUser member = paidMember(null);
+
+        assertThat(com.cortesdev.mygym.services.MemberService.isWithinPaidPeriod(member, LocalDate.of(2030, 1, 1))).isTrue();
+    }
+
+    // --- cancelar dos veces (auditoría 2026-10-17) ---
+
+    @Test
+    void cancellingAnAlreadyCancelledReservationDoesNothingAndNotifiesNobody() {
+        Reservation cancelled = Reservation.builder()
+                .id(RESERVATION_ID).gymBlockId(BLOCK_ID).memberId(MEMBER_ID)
+                .classDate(classDateOf(60 * 24 * 5)).status(ReservationStatus.CANCELLED).build();
+        when(reservationRepository.findByIdAndMemberId(RESERVATION_ID, MEMBER_ID)).thenReturn(Optional.of(cancelled));
+
+        reservationService.cancel(MEMBER_ID, RESERVATION_ID);
+
+        verify(reservationRepository, never()).save(any());
+        verify(waitlistService, never()).onSpotFreed(anyLong(), any(LocalDate.class));
+        verify(staffCancellationPush, never()).memberCancelled(any(), any(), any());
+    }
+
+    @Test
+    void anAdminCancellingAnAlreadyCancelledReservationDoesNothingAndFreesNoSpot() {
+        Reservation cancelled = Reservation.builder()
+                .id(RESERVATION_ID).gymBlockId(BLOCK_ID).memberId(MEMBER_ID)
+                .classDate(classDateOf(60 * 24 * 5)).status(ReservationStatus.CANCELLED).build();
+        when(reservationRepository.findById(RESERVATION_ID)).thenReturn(Optional.of(cancelled));
+        when(gymBlockRepository.findById(BLOCK_ID)).thenReturn(Optional.of(blockStartingIn(60 * 24 * 5)));
+
+        reservationService.cancelAsAdmin(GYM_ID, RESERVATION_ID);
+
+        verify(reservationRepository, never()).save(any());
+        verify(waitlistService, never()).onSpotFreed(anyLong(), any(LocalDate.class));
+    }
+
+    // --- rango de la lectura masiva de asistentes ---
+
+    @Test
+    void theBulkAttendeesReadRefusesAnUnboundedRange() {
+        assertThatThrownBy(() -> reservationService.getOccurrenceAttendeesForRange(
+                        GYM_ID, LocalDate.of(2000, 1, 1), LocalDate.of(2100, 1, 1)))
+                .isInstanceOf(com.cortesdev.mygym.services.exception.InvalidAttendanceException.class);
+        assertThatThrownBy(() -> reservationService.getOccurrenceAttendeesForRange(
+                        GYM_ID, LocalDate.of(2026, 10, 10), LocalDate.of(2026, 10, 1)))
+                .isInstanceOf(com.cortesdev.mygym.services.exception.InvalidAttendanceException.class);
+    }
+
+    @Test
+    void theBulkAttendeesReadStillAcceptsAWeekAndAMonth() {
+        when(gymBlockRepository.findByGymId(GYM_ID)).thenReturn(java.util.List.of());
+
+        assertThat(reservationService.getOccurrenceAttendeesForRange(
+                        GYM_ID, LocalDate.of(2026, 10, 12), LocalDate.of(2026, 10, 18))).isEmpty();
+        assertThat(reservationService.getOccurrenceAttendeesForRange(
+                        GYM_ID, LocalDate.of(2026, 10, 1), LocalDate.of(2026, 10, 31))).isEmpty();
     }
 
     // --- formato de minutos ---

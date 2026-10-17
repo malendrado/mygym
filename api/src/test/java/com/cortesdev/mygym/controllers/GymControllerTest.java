@@ -8,7 +8,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.cortesdev.mygym.models.AppUser;
 import com.cortesdev.mygym.models.Role;
+import com.cortesdev.mygym.repositories.AppUserRepository;
 import com.cortesdev.mygym.security.JwtService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -33,8 +35,18 @@ class GymControllerTest {
     @Autowired
     private JwtService jwtService;
 
+    @Autowired
+    private AppUserRepository appUserRepository;
+
     private String superAdminToken() {
-        return jwtService.issueToken(1L, "super-admin-" + System.nanoTime() + "@mygym.test", Role.SUPER_ADMIN, null);
+        // Un usuario real: el filtro de sesión rechaza (401) un token cuyo usuario no existe o está inactivo.
+        AppUser superAdmin = appUserRepository.save(AppUser.builder()
+                .email("super-admin-" + System.nanoTime() + "@mygym.test")
+                .name("Super Admin")
+                .role(Role.SUPER_ADMIN)
+                .active(true)
+                .build());
+        return jwtService.issueToken(superAdmin.getId(), superAdmin.getEmail(), Role.SUPER_ADMIN, null);
     }
 
     private String ownerEmail() {
@@ -85,7 +97,7 @@ class GymControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(duplicateSlugBody))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.title").value("Duplicate slug"));
+                .andExpect(jsonPath("$.title").value("Slug duplicado"));
     }
 
     @Test
@@ -109,14 +121,14 @@ class GymControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(secondBody))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.title").value("Duplicate owner email"));
+                .andExpect(jsonPath("$.title").value("Email duplicado"));
     }
 
     @Test
     void getGym_notFound_returns404() throws Exception {
         mockMvc.perform(get("/api/gyms/999999").header("Authorization", "Bearer " + superAdminToken()))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.title").value("Gym not found"));
+                .andExpect(jsonPath("$.title").value("Gimnasio no encontrado"));
     }
 
     @Test
@@ -129,7 +141,7 @@ class GymControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.title").value("Invalid request"));
+                .andExpect(jsonPath("$.title").value("Solicitud inválida"));
     }
 
     @Test
@@ -155,7 +167,7 @@ class GymControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(blockBody))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.title").value("Invalid block schedule"));
+                .andExpect(jsonPath("$.title").value("Horario de bloque inválido"));
     }
 
     @Test
@@ -234,7 +246,7 @@ class GymControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(adminBody))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.title").value("Duplicate owner email"));
+                .andExpect(jsonPath("$.title").value("Email duplicado"));
     }
 
     @Test
@@ -303,7 +315,7 @@ class GymControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new AdminStatusPayload(false))))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.title").value("Admin not found"));
+                .andExpect(jsonPath("$.title").value("Administrador no encontrado"));
     }
 
     private record CreateGymPayload(

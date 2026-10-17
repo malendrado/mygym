@@ -18,8 +18,10 @@ import com.cortesdev.mygym.models.Role;
 import com.cortesdev.mygym.models.WorkoutPlan;
 import com.cortesdev.mygym.models.dto.MemberWorkoutLogResponse;
 import com.cortesdev.mygym.models.dto.PendingWorkoutResponse;
+import com.cortesdev.mygym.models.dto.WorkoutLogPageResponse;
 import com.cortesdev.mygym.models.dto.WorkoutLogSaveRequest;
 import com.cortesdev.mygym.repositories.AppUserRepository;
+import com.cortesdev.mygym.repositories.LoggedClass;
 import com.cortesdev.mygym.repositories.MemberWorkoutLogRepository;
 import com.cortesdev.mygym.repositories.PlanDayRepository;
 import com.cortesdev.mygym.repositories.ReservationRepository;
@@ -29,7 +31,9 @@ import com.cortesdev.mygym.services.exception.WorkoutLogNotFoundException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
@@ -37,6 +41,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Pageable;
 
 /**
  * Unidades puras (Mockito, sin Spring context ni DB) para la lógica de ciclo de "Memoria Viva" —
@@ -103,8 +108,7 @@ class WorkoutServiceTest {
     void getPendingWorkout_sinReservasConCheckIn_devuelveNoPending() {
         when(workoutPlanRepository.findByMemberIdAndActiveTrue(MEMBER_ID)).thenReturn(Optional.of(plan));
         when(planDayRepository.findByWorkoutPlanIdOrderByOrderIndexAsc(PLAN_ID)).thenReturn(List.of(day1, day2, day3));
-        when(reservationRepository.findByMemberIdAndCheckedInAtIsNotNullOrderByClassDateDesc(MEMBER_ID))
-                .thenReturn(List.of());
+        when(reservationRepository.findPendingWorkoutCandidates(eq(MEMBER_ID), any(Pageable.class))).thenReturn(List.of());
 
         PendingWorkoutResponse response = workoutService.getPendingWorkout(MEMBER_ID);
 
@@ -115,13 +119,10 @@ class WorkoutServiceTest {
 
     @Test
     void getPendingWorkout_todasLasReservasConCheckInYaTienenLog_devuelveNoPending() {
-        Reservation res1 = reservation(201L, LocalDate.of(2026, 10, 1));
+        // La consulta ya excluye las reservas con log: si todas lo tienen, no devuelve candidatas.
         when(workoutPlanRepository.findByMemberIdAndActiveTrue(MEMBER_ID)).thenReturn(Optional.of(plan));
         when(planDayRepository.findByWorkoutPlanIdOrderByOrderIndexAsc(PLAN_ID)).thenReturn(List.of(day1, day2, day3));
-        when(reservationRepository.findByMemberIdAndCheckedInAtIsNotNullOrderByClassDateDesc(MEMBER_ID))
-                .thenReturn(List.of(res1));
-        when(memberWorkoutLogRepository.findByReservationIdIn(List.of(201L)))
-                .thenReturn(List.of(MemberWorkoutLog.builder().id(1L).reservationId(201L).suggestedPlanDayId(100L).build()));
+        when(reservationRepository.findPendingWorkoutCandidates(eq(MEMBER_ID), any(Pageable.class))).thenReturn(List.of());
 
         PendingWorkoutResponse response = workoutService.getPendingWorkout(MEMBER_ID);
 
@@ -133,10 +134,7 @@ class WorkoutServiceTest {
         Reservation res1 = reservation(201L, LocalDate.of(2026, 10, 1));
         when(workoutPlanRepository.findByMemberIdAndActiveTrue(MEMBER_ID)).thenReturn(Optional.of(plan));
         when(planDayRepository.findByWorkoutPlanIdOrderByOrderIndexAsc(PLAN_ID)).thenReturn(List.of(day1, day2, day3));
-        when(reservationRepository.findByMemberIdAndCheckedInAtIsNotNullOrderByClassDateDesc(MEMBER_ID))
-                .thenReturn(List.of(res1));
-        when(memberWorkoutLogRepository.findByReservationIdIn(List.of(201L))).thenReturn(List.of());
-        when(memberWorkoutLogRepository.findBySuggestedPlanDayIdIn(List.of(100L, 101L, 102L))).thenReturn(List.of());
+        when(reservationRepository.findPendingWorkoutCandidates(eq(MEMBER_ID), any(Pageable.class))).thenReturn(List.of(res1));
 
         PendingWorkoutResponse response = workoutService.getPendingWorkout(MEMBER_ID);
 
@@ -153,11 +151,8 @@ class WorkoutServiceTest {
         Reservation masVieja = reservation(201L, LocalDate.of(2026, 10, 1));
         when(workoutPlanRepository.findByMemberIdAndActiveTrue(MEMBER_ID)).thenReturn(Optional.of(plan));
         when(planDayRepository.findByWorkoutPlanIdOrderByOrderIndexAsc(PLAN_ID)).thenReturn(List.of(day1, day2, day3));
-        // El repo ya devuelve ordenado DESC por classDate, como hace la query real.
-        when(reservationRepository.findByMemberIdAndCheckedInAtIsNotNullOrderByClassDateDesc(MEMBER_ID))
-                .thenReturn(List.of(masNueva, masVieja));
-        when(memberWorkoutLogRepository.findByReservationIdIn(List.of(202L, 201L))).thenReturn(List.of());
-        when(memberWorkoutLogRepository.findBySuggestedPlanDayIdIn(anyList())).thenReturn(List.of());
+        // La query real ordena DESC por classDate: el servicio se queda con la primera candidata.
+        when(reservationRepository.findPendingWorkoutCandidates(eq(MEMBER_ID), any(Pageable.class))).thenReturn(List.of(masNueva, masVieja));
 
         PendingWorkoutResponse response = workoutService.getPendingWorkout(MEMBER_ID);
 
@@ -201,7 +196,6 @@ class WorkoutServiceTest {
         when(memberWorkoutLogRepository.findByReservationId(302L)).thenReturn(Optional.empty());
         when(workoutPlanRepository.findByMemberIdAndActiveTrue(MEMBER_ID)).thenReturn(Optional.of(plan));
         when(planDayRepository.findByWorkoutPlanIdOrderByOrderIndexAsc(PLAN_ID)).thenReturn(List.of(day1, day2, day3));
-        when(memberWorkoutLogRepository.findBySuggestedPlanDayIdIn(anyList())).thenReturn(List.of());
 
         assertThatThrownBy(() -> workoutService.createLog(MEMBER_ID, 302L, new WorkoutLogSaveRequest(null, "  ", List.of())))
                 .isInstanceOf(InvalidWorkoutLogException.class)
@@ -215,7 +209,6 @@ class WorkoutServiceTest {
         when(memberWorkoutLogRepository.findByReservationId(303L)).thenReturn(Optional.empty());
         when(workoutPlanRepository.findByMemberIdAndActiveTrue(MEMBER_ID)).thenReturn(Optional.of(plan));
         when(planDayRepository.findByWorkoutPlanIdOrderByOrderIndexAsc(PLAN_ID)).thenReturn(List.of(day1, day2, day3));
-        when(memberWorkoutLogRepository.findBySuggestedPlanDayIdIn(anyList())).thenReturn(List.of());
 
         assertThatThrownBy(() -> workoutService.createLog(MEMBER_ID, 303L, new WorkoutLogSaveRequest(999L, null, List.of())))
                 .isInstanceOf(InvalidWorkoutLogException.class)
@@ -238,9 +231,19 @@ class WorkoutServiceTest {
                 })
                 .when(memberWorkoutLogRepository)
                 .save(any());
+        // findNewestOfPlan: el registro más reciente por fecha de clase (la fecha vive en la reserva).
         lenient()
-                .when(memberWorkoutLogRepository.findBySuggestedPlanDayIdIn(anyList()))
-                .thenAnswer(inv -> new ArrayList<>(saved));
+                .when(memberWorkoutLogRepository.findNewestOfPlan(eq(MEMBER_ID), anyList(), any(Pageable.class)))
+                .thenAnswer(inv -> {
+                    Map<Long, LocalDate> dates = reservationRepository
+                            .findAllById(saved.stream().map(MemberWorkoutLog::getReservationId).toList())
+                            .stream()
+                            .collect(Collectors.toMap(Reservation::getId, Reservation::getClassDate));
+                    return saved.stream()
+                            .max(Comparator.comparing(l -> dates.get(l.getReservationId())))
+                            .map(List::of)
+                            .orElse(List.of());
+                });
         return saved;
     }
 
@@ -364,39 +367,95 @@ class WorkoutServiceTest {
         assertThat(updated.suggestedPlanDayId()).isEqualTo(day2.getId()); // no cambia, es histórico
     }
 
-    @Test
-    void historialDevuelveSoloLosUltimos30MasRecientesPrimeroConTitulos() {
-        List<Reservation> reservations = new ArrayList<>();
-        List<MemberWorkoutLog> logs = new ArrayList<>();
-        for (long i = 1; i <= 35; i++) {
-            reservations.add(reservation(i, LocalDate.of(2026, 9, 1).plusDays(i)));
-            logs.add(MemberWorkoutLog.builder()
-                    .id(1000 + i)
-                    .reservationId(i)
-                    .suggestedPlanDayId(100L)
-                    .planDayId(100L)
-                    .build());
-        }
-        reservations.sort((a, b) -> b.getClassDate().compareTo(a.getClassDate()));
-        when(reservationRepository.findByMemberIdAndCheckedInAtIsNotNullOrderByClassDateDesc(MEMBER_ID))
-                .thenReturn(reservations);
-        when(memberWorkoutLogRepository.findByReservationIdIn(anyList())).thenReturn(logs);
-        when(planDayRepository.findAllById(any())).thenReturn(List.of(day1));
+    // ---- historial por ventanas ----
 
-        List<MemberWorkoutLogResponse> history = workoutService.getMyLogHistory(MEMBER_ID);
-
-        assertThat(history).hasSize(30);
-        assertThat(history.get(0).classDate()).isEqualTo(LocalDate.of(2026, 9, 1).plusDays(35));
-        assertThat(history.get(29).classDate()).isEqualTo(LocalDate.of(2026, 9, 1).plusDays(6));
-        assertThat(history.get(0).planDayTitle()).isEqualTo("Día 1: Pecho");
+    private LoggedClass loggedClass(long id, LocalDate classDate) {
+        return new LoggedClass(
+                MemberWorkoutLog.builder()
+                        .id(1000 + id)
+                        .reservationId(id)
+                        .suggestedPlanDayId(100L)
+                        .planDayId(100L)
+                        .build(),
+                classDate);
     }
 
     @Test
-    void historialSinAsistenciasEstaVacio() {
-        when(reservationRepository.findByMemberIdAndCheckedInAtIsNotNullOrderByClassDateDesc(MEMBER_ID))
-                .thenReturn(List.of());
+    void historialDevuelveLaVentanaMasRecientePrimeroConTitulosYElCursorDeLaSiguiente() {
+        LocalDate top = LocalDate.of(2026, 10, 14);
+        LocalDate oldest = LocalDate.of(2026, 10, 9);
+        when(memberWorkoutLogRepository.newestClassDateBefore(eq(MEMBER_ID), any())).thenReturn(Optional.of(top));
+        when(memberWorkoutLogRepository.findWindow(MEMBER_ID, top, top.minusDays(7)))
+                .thenReturn(List.of(loggedClass(3, top), loggedClass(2, LocalDate.of(2026, 10, 12)), loggedClass(1, oldest)));
+        // Hay registros más antiguos que la fecha más vieja de la ventana: el cursor apunta a ella.
+        when(memberWorkoutLogRepository.newestClassDateBefore(MEMBER_ID, oldest))
+                .thenReturn(Optional.of(LocalDate.of(2026, 10, 2)));
+        when(planDayRepository.findAllById(any())).thenReturn(List.of(day1));
 
-        assertThat(workoutService.getMyLogHistory(MEMBER_ID)).isEmpty();
+        WorkoutLogPageResponse page = workoutService.getMyLogHistory(MEMBER_ID, null, null);
+
+        assertThat(page.logs()).hasSize(3);
+        assertThat(page.logs().get(0).classDate()).isEqualTo(top);
+        assertThat(page.logs().get(2).classDate()).isEqualTo(oldest);
+        assertThat(page.logs().get(0).planDayTitle()).isEqualTo("Día 1: Pecho");
+        assertThat(page.nextBefore()).isEqualTo(oldest);
+    }
+
+    @Test
+    void historialSinMasRegistrosAntiguosNoTraeCursor() {
+        LocalDate top = LocalDate.of(2026, 10, 14);
+        when(memberWorkoutLogRepository.newestClassDateBefore(eq(MEMBER_ID), any()))
+                .thenReturn(Optional.of(top))
+                .thenReturn(Optional.empty());
+        when(memberWorkoutLogRepository.findWindow(MEMBER_ID, top, top.minusDays(7)))
+                .thenReturn(List.of(loggedClass(1, top)));
+        when(planDayRepository.findAllById(any())).thenReturn(List.of(day1));
+
+        WorkoutLogPageResponse page = workoutService.getMyLogHistory(MEMBER_ID, null, null);
+
+        assertThat(page.logs()).hasSize(1);
+        assertThat(page.nextBefore()).isNull();
+    }
+
+    @Test
+    void historialSinRegistrosEstaVacioYNoConsultaLaVentana() {
+        when(memberWorkoutLogRepository.newestClassDateBefore(eq(MEMBER_ID), any())).thenReturn(Optional.empty());
+
+        WorkoutLogPageResponse page = workoutService.getMyLogHistory(MEMBER_ID, null, null);
+
+        assertThat(page.logs()).isEmpty();
+        assertThat(page.nextBefore()).isNull();
+        org.mockito.Mockito.verify(memberWorkoutLogRepository, org.mockito.Mockito.never())
+                .findWindow(any(), any(), any());
+    }
+
+    @Test
+    void elCursorBeforeSePasaTalCualYLaVentanaSeAcotaA93Dias() {
+        LocalDate before = LocalDate.of(2026, 10, 9);
+        LocalDate top = LocalDate.of(2026, 10, 2);
+        when(memberWorkoutLogRepository.newestClassDateBefore(MEMBER_ID, before)).thenReturn(Optional.of(top));
+        when(memberWorkoutLogRepository.findWindow(MEMBER_ID, top, top.minusDays(93)))
+                .thenReturn(List.of(loggedClass(1, top)));
+        when(memberWorkoutLogRepository.newestClassDateBefore(MEMBER_ID, top)).thenReturn(Optional.empty());
+        when(planDayRepository.findAllById(any())).thenReturn(List.of(day1));
+
+        WorkoutLogPageResponse page = workoutService.getMyLogHistory(MEMBER_ID, before, 5000);
+
+        assertThat(page.logs()).hasSize(1);
+        assertThat(page.nextBefore()).isNull();
+    }
+
+    @Test
+    void unTamanoDeVentanaMenorAUnoSeSubeAUnDia() {
+        LocalDate top = LocalDate.of(2026, 10, 14);
+        when(memberWorkoutLogRepository.newestClassDateBefore(eq(MEMBER_ID), any()))
+                .thenReturn(Optional.of(top))
+                .thenReturn(Optional.empty());
+        when(memberWorkoutLogRepository.findWindow(MEMBER_ID, top, top.minusDays(1)))
+                .thenReturn(List.of(loggedClass(1, top)));
+        when(planDayRepository.findAllById(any())).thenReturn(List.of(day1));
+
+        assertThat(workoutService.getMyLogHistory(MEMBER_ID, null, 0).logs()).hasSize(1);
     }
 
     // ---- el profesor/admin anota por el alumno ----
@@ -469,5 +528,14 @@ class WorkoutServiceTest {
 
         assertThat(updated.loggedByName()).isEqualTo("Profe Juan");
         assertThat(updated.planDayId()).isEqualTo(day2.getId());
+    }
+
+    @Test
+    void elCursorDelHistorialSeAcotaParaQueUnaFechaAbsurdaNoLleguePostgres() {
+        LocalDate maximo = LocalDate.now().plusYears(1);
+        assertThat(WorkoutService.clampCursor(null)).isEqualTo(maximo);
+        assertThat(WorkoutService.clampCursor(LocalDate.of(999_999_999, 12, 31))).isEqualTo(maximo);
+        assertThat(WorkoutService.clampCursor(LocalDate.of(1800, 1, 1))).isEqualTo(LocalDate.of(2000, 1, 1));
+        assertThat(WorkoutService.clampCursor(LocalDate.of(2026, 10, 9))).isEqualTo(LocalDate.of(2026, 10, 9));
     }
 }

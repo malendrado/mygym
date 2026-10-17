@@ -2,9 +2,11 @@ package com.cortesdev.mygym.repositories;
 
 import com.cortesdev.mygym.models.AppUser;
 import com.cortesdev.mygym.models.Role;
+import jakarta.persistence.LockModeType;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 
 public interface AppUserRepository extends JpaRepository<AppUser, Long> {
 
@@ -27,10 +29,26 @@ public interface AppUserRepository extends JpaRepository<AppUser, Long> {
 
     Optional<AppUser> findByIdAndGymId(Long id, Long gymId);
 
+    /** Con la fila bloqueada hasta el fin de la transacción: ver GymBlockRepository.findLockedByIdAndGymId. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    Optional<AppUser> findLockedByIdAndGymId(Long id, Long gymId);
+
     /** Usado por MembershipReminderJob — solo socios que alguna vez pagaron. */
     List<AppUser> findByRoleAndPaidAtIsNotNull(Role role);
 
     /** Para la vista "Administradores" del super-admin — super-admins (sin gym_id) y gym-admins
      *  de todos los gimnasios, cada una en su propia consulta por rol. */
     List<AppUser> findByRole(Role role);
+
+    /** Lo mínimo para revalidar una sesión (UserSessionGuard): una fila liviana, sin hidratar la entidad entera. */
+    interface SessionView {
+        Role getRole();
+
+        Long getGymId();
+
+        Boolean getActive();
+    }
+
+    /** Consulta derivada con proyección cerrada: trae solo esas tres columnas ("SessionView" en el nombre es texto libre). */
+    Optional<SessionView> findSessionViewById(Long id);
 }

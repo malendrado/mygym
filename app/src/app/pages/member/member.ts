@@ -15,7 +15,6 @@ import {
   IonSegmentButton,
   IonModal,
   IonSpinner,
-  IonText,
   IonTitle,
   IonToolbar,
   AlertController,
@@ -26,6 +25,7 @@ import { InstallBanner } from './install-banner/install-banner';
 import { GymPause } from '../../core/components/gym-pause/gym-pause';
 import { GymPauseService } from '../../core/services/gym-pause.service';
 import { PushBell } from '../../core/components/push-bell/push-bell';
+import { WorkoutHistoryFilter } from '../../core/components/workout-history-filter/workout-history-filter';
 import { PushPrompt } from '../../core/components/push-prompt/push-prompt';
 import { WelcomeMission } from './welcome-mission/welcome-mission';
 import { QrScanner } from '../../core/components/qr-scanner/qr-scanner';
@@ -68,6 +68,13 @@ import { GymBlockOccurrence, Reservation } from '../../core/models/reservation.m
 import { BankTransferInfo, GymClosureNotice, GymPhoto, MemberPlan, PublicGym } from '../../core/models/gym.model';
 import { AttendeeSummary, Member } from '../../core/models/member.model';
 import { ExerciseLogEntry, MemberWorkoutLog, PendingWorkout, SaveWorkoutLogRequest } from '../../core/models/workout.model';
+import {
+  NO_WORKOUT_FILTER,
+  WorkoutLogFilter,
+  filterWorkoutLogs,
+  highlightParts,
+  isFiltering,
+} from '../../core/utils/workout-history-filter';
 import { deriveSurfaceTint, ensureMinContrastColor, syncThemeOverrides } from '../../core/utils/gym-theme';
 import { registerClassCategoryIcons, resolveClassCategoryIcon } from '../../core/utils/class-category';
 import { MemberProfileModal } from '../../core/components/member-profile-modal/member-profile-modal';
@@ -78,6 +85,7 @@ import { santiagoNow } from '../../core/utils/attendance';
 import { formatIsoDate } from '../../core/utils/date-format';
 import { isOutsideCurrentWeek, nextWeekMonday } from '../../core/utils/fixed-week';
 import { VersionTag } from '../../core/components/version-tag/version-tag';
+import { ErrorState } from '../../core/components/error-state/error-state';
 
 registerClassCategoryIcons();
 
@@ -307,8 +315,10 @@ const OCCURRENCES_LOADING_MESSAGES = [
 @Component({
   selector: 'app-member',
   imports: [
+    WorkoutHistoryFilter,
     WelcomeMission,
     VersionTag,
+    ErrorState,
     MemberProfileModal,
     IonModal,
     IonHeader,
@@ -319,7 +329,6 @@ const OCCURRENCES_LOADING_MESSAGES = [
     IonContent,
     IonIcon,
     IonBadge,
-    IonText,
     IonSpinner,
     IonSegment,
     IonSegmentButton,
@@ -377,18 +386,18 @@ export class MemberPage {
   protected readonly cancelingId = signal<number | null>(null);
   protected readonly waitlistingId = signal<number | null>(null);
 
-  // "Hoy" se calcula en la zona horaria del gym (America/Santiago), no en la
-  // del navegador del socio — un `new Date().toISOString()` corta a UTC y
-  // puede quedar un día desalineado cerca de medianoche en Chile. Se computa
-  // una sola vez al abrir la página: no hace falta que la grilla se
-  // actualice sola si el socio la deja abierta pasando la medianoche.
-  private readonly todayIso = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Santiago' }).format(new Date());
-  // "Ahora" con hora incluida, misma zona — para separar reservas pasadas de
-  // próximas en "Mis reservas" comparando contra `classDate` + `endTime`.
-  private readonly nowChileIso = nowInGymZoneIso();
-  private readonly monthRange = this.currentMonthRange();
+  // "Ahora" con hora incluida, en la zona horaria del gym (America/Santiago), no en la del
+  // navegador del socio — un `new Date().toISOString()` corta a UTC y puede quedar un día
+  // desalineado cerca de medianoche en Chile. Es un signal que se refresca solo (ver startClock):
+  // cada 30 s y al volver a primer plano, así la pantalla abierta no queda con la hora congelada.
+  private readonly now = signal(nowInGymZoneIso());
+  // "Hoy" (YYYY-MM-DD) y "ahora" (YYYY-MM-DDTHH:mm:ss) derivan del mismo signal; se comparan
+  // lexicográficamente contra `classDate` + `endTime` para separar reservas pasadas de próximas.
+  private readonly todayIso = computed(() => this.now().slice(0, 10));
+  private readonly nowChileIso = computed(() => this.now());
+  private readonly monthRange = computed(() => this.currentMonthRange());
   protected readonly weekdayLabels = WEEKDAY_LABELS;
-  protected readonly selectedDate = signal(this.todayIso);
+  protected readonly selectedDate = signal(this.todayIso());
 
   protected readonly benefits = BENEFITS;
   // Cargar el mes completo puede tardar unos segundos en gyms con muchos
@@ -454,6 +463,11 @@ export class MemberPage {
   // segundo aunque ya tuviera uno. Gate explícito: mientras esto siga en false, el template
   // muestra un spinner neutro en vez de asumir "sin plan" (ver member.html, sección .membership).
   protected readonly membershipLoaded = signal(false);
+  // La carga de la membresía falló y aún no hay un dato real: en vez de inventar "sin plan" (y
+  // mostrarle los precios a un socio que sí tiene uno), la plantilla muestra un error con "Reintentar".
+  protected readonly membershipError = signal(false);
+  // true una vez que llegó al menos una vez la membresía real; un refresco posterior que falle no la pisa.
+  private membershipResolved = false;
   // true al volver de Flow.cl (?checkout=return) mientras esperamos que el
   // webhook confirme — la redirección del navegador siempre llega antes que
   // la confirmación server-to-server, así que no alcanza con un solo
@@ -523,7 +537,7 @@ export class MemberPage {
       return null;
     }
     const [ey, em, ed] = end.split('-').map(Number);
-    const [ty, tm, td] = this.todayIso.split('-').map(Number);
+    const [ty, tm, td] = this.todayIso().split('-').map(Number);
     const msPerDay = 24 * 60 * 60 * 1000;
     return Math.round((Date.UTC(ey, em - 1, ed) - Date.UTC(ty, tm - 1, td)) / msPerDay);
   });
@@ -628,13 +642,13 @@ export class MemberPage {
     const toCell = (iso: string, day: number): MonthDayCell => ({
       iso,
       dayNumber: day,
-      isToday: iso === this.todayIso,
-      isPast: iso < this.todayIso,
+      isToday: iso === this.todayIso(),
+      isPast: iso < this.todayIso(),
       hasClasses: occurrenceDates.has(iso),
     });
 
     if (!range) {
-      const { year, month, daysInMonth } = this.monthRange;
+      const { year, month, daysInMonth } = this.monthRange();
       const cells: (MonthDayCell | null)[] = Array(this.dayOfWeekMonFirst(year, month, 1)).fill(null);
       for (let day = 1; day <= daysInMonth; day++) {
         cells.push(toCell(`${year}-${pad2(month)}-${pad2(day)}`, day));
@@ -750,7 +764,7 @@ export class MemberPage {
   // el momento. Solo aplica a HOY (otro día del pasado no tiene "la que está en curso" que
   // proteger; un día futuro no tiene clases pasadas que colapsar). Colapsado por defecto,
   // `occurrence.past` ya lo calcula el backend — no hace falta duplicar esa lógica acá.
-  protected readonly isViewingToday = computed(() => this.selectedDate() === this.todayIso);
+  protected readonly isViewingToday = computed(() => this.selectedDate() === this.todayIso());
   protected readonly pastOccurrencesCollapsed = signal(true);
   protected readonly collapsedPastCount = computed(() =>
     this.isViewingToday() ? this.dayOccurrences().filter((o) => o.past).length : 0,
@@ -902,6 +916,7 @@ export class MemberPage {
     this.loadTodayRoutine();
     this.loadPastReservations(true);
     this.startBookingDemo();
+    this.startClock();
 
     // Modo claro necesita más que --member-bg/--member-card (bindeadas inline abajo) —
     // también los tokens base globales (--brand-ink, --ion-color-danger, el step-ramp de
@@ -953,6 +968,55 @@ export class MemberPage {
   }
 
   private checkoutPollTimer: ReturnType<typeof setTimeout> | undefined;
+
+  // ---- Reloj vivo: refresca `now` cada 30 s (solo con la pantalla visible) y al volver a primer plano ----
+  private static readonly CLOCK_TICK_MS = 30_000;
+  // Si pasó más que esto sin sincronizar (segundo plano, equipo dormido) los datos cargados ya no son confiables.
+  private static readonly STALE_AFTER_MS = 5 * 60_000;
+  private lastClockSyncAt = Date.now();
+
+  private startClock(): void {
+    const intervalId = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        this.syncClock();
+      }
+    }, MemberPage.CLOCK_TICK_MS);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        this.syncClock();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    this.destroyRef.onDestroy(() => {
+      clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    });
+  }
+
+  private syncClock(): void {
+    const nowMs = Date.now();
+    const idleMs = nowMs - this.lastClockSyncAt;
+    this.lastClockSyncAt = nowMs;
+    const previousToday = this.todayIso();
+    this.now.set(nowInGymZoneIso());
+    const today = this.todayIso();
+    const dayChanged = today !== previousToday;
+    if (dayChanged && this.selectedDate() === previousToday) {
+      this.selectedDate.set(today);
+    }
+    if (dayChanged || idleMs > MemberPage.STALE_AFTER_MS) {
+      this.refreshAll();
+    }
+  }
+
+  // Misma carga que al abrir la pantalla, para cuando cambió el día o la app estuvo mucho rato dormida.
+  private refreshAll(): void {
+    this.loadDashboard();
+    this.loadOccurrences();
+    this.loadMyReservations();
+    this.loadTodayRoutine();
+    this.loadPastReservations(true);
+  }
 
   protected categoryIcon(category: string | null): string {
     return resolveClassCategoryIcon(category);
@@ -1157,9 +1221,23 @@ export class MemberPage {
     this.useFreeText() ? this.freeTextLabel().trim().length > 0 : this.selectedPlanDayId() !== null,
   );
 
-  // Los últimos 30 registros del propio socio — antes no había dónde volver a ver lo anotado: el
-  // registro recién guardado se mostraba un instante y desaparecía al recargar.
+  // Los registros del propio socio, de a 7 días: arranca con la última semana y "Cargar semana anterior" trae más.
+  // Antes no había dónde volver a ver lo anotado: el registro recién guardado se mostraba un instante y desaparecía.
   protected readonly workoutHistory = signal<MemberWorkoutLog[]>([]);
+  protected readonly workoutHistoryNext = signal<string | null>(null);
+  // Buscador y chips de "Mis registros": actúan solo sobre lo ya cargado.
+  private readonly workoutFilter = signal<WorkoutLogFilter>(NO_WORKOUT_FILTER);
+  protected readonly workoutFiltering = computed(() => isFiltering(this.workoutFilter()));
+  protected readonly visibleWorkoutHistory = computed(() => filterWorkoutLogs(this.workoutHistory(), this.workoutFilter()));
+  protected setWorkoutFilter(filter: WorkoutLogFilter): void {
+    this.workoutFilter.set(filter);
+  }
+  protected workoutParts(text: string | null) {
+    return highlightParts(text ?? '', this.workoutFilter().query);
+  }
+  protected readonly loadingMoreWorkoutHistory = signal(false);
+  protected readonly workoutHistoryError = signal(false);
+  protected readonly pendingWorkoutError = signal(false);
 
   // Qué día de su rutina le toca hoy ("Día 3 · Piernas"), para mostrarlo en su reserva de hoy y que llegue a la clase
   // sabiendo qué va a hacer. null si no tiene rutina (o es la demo).
@@ -1179,16 +1257,58 @@ export class MemberPage {
   }
 
   protected isTodayDate(classDate: string): boolean {
-    return classDate === this.todayIso;
+    return classDate === this.todayIso();
   }
 
-  private loadWorkoutHistory(): void {
+  private workoutHistoryGeneration = 0;
+
+  protected loadWorkoutHistory(): void {
     if (this.isDemoPreview) {
       return;
     }
+    this.workoutHistoryError.set(false);
+    // Una recarga de la primera página invalida cualquier "Cargar semana anterior" que siga en vuelo.
+    const generation = ++this.workoutHistoryGeneration;
+    this.loadingMoreWorkoutHistory.set(false);
     this.workoutService.getMyHistory().subscribe({
-      next: (logs) => this.workoutHistory.set(logs),
-      error: () => undefined,
+      next: (page) => {
+        if (generation !== this.workoutHistoryGeneration) {
+          return;
+        }
+        this.workoutHistory.set(page.logs);
+        this.workoutHistoryNext.set(page.nextBefore);
+      },
+      error: () => this.workoutHistoryError.set(true),
+    });
+  }
+
+  protected loadMoreWorkoutHistory(): void {
+    const before = this.workoutHistoryNext();
+    if (!before || this.loadingMoreWorkoutHistory()) {
+      return;
+    }
+    this.loadingMoreWorkoutHistory.set(true);
+    const generation = this.workoutHistoryGeneration;
+    this.workoutService.getMyHistory(before).subscribe({
+      next: (page) => {
+        if (generation !== this.workoutHistoryGeneration) {
+          return;
+        }
+        // Sin ids repetidos, por si la primera página se solapó con la ventana pedida.
+        this.workoutHistory.update((logs) => {
+          const seen = new Set(logs.map((l) => l.id));
+          return [...logs, ...page.logs.filter((l) => !seen.has(l.id))];
+        });
+        this.workoutHistoryNext.set(page.nextBefore);
+        this.loadingMoreWorkoutHistory.set(false);
+      },
+      error: () => {
+        if (generation !== this.workoutHistoryGeneration) {
+          return;
+        }
+        this.loadingMoreWorkoutHistory.set(false);
+        this.showToast('No pudimos cargar la semana anterior. Intenta nuevamente.', 'danger');
+      },
     });
   }
 
@@ -1196,8 +1316,9 @@ export class MemberPage {
     return log.planDayId === null || log.planDayId !== log.suggestedPlanDayId;
   }
 
-  private loadPendingWorkout(keepSavedLog = false): void {
+  protected loadPendingWorkout(keepSavedLog = false): void {
     this.loadingWorkout.set(true);
+    this.pendingWorkoutError.set(false);
     if (!keepSavedLog) {
       this.justSavedLog.set(null);
     }
@@ -1210,7 +1331,10 @@ export class MemberPage {
           this.resetWorkoutForm(pending.suggestedPlanDayId);
         }
       },
-      error: () => this.loadingWorkout.set(false),
+      error: () => {
+        this.loadingWorkout.set(false);
+        this.pendingWorkoutError.set(true);
+      },
     });
   }
 
@@ -1330,10 +1454,21 @@ export class MemberPage {
     this.reservationService
       .book({ gymBlockId: occurrence.gymBlockId, classDate: occurrence.classDate })
       .subscribe({
-        next: () => {
+        next: (reservation) => {
           this.bookingId.set(null);
           this.missionBooked.set(true);
           this.membership.update((m) => ({ ...m, classesUsed: m.classesUsed + 1 }));
+          // Tarjeta al instante; loadOccurrences() reconcilia en silencio con el servidor.
+          this.patchOccurrences(
+            (o) => o.gymBlockId === reservation.gymBlockId && o.classDate === reservation.classDate,
+            (o) => ({
+              ...o,
+              myReservationId: reservation.id,
+              myReservationFixed: reservation.fixed,
+              waitlisted: false,
+              taken: o.taken + 1,
+            }),
+          );
           this.loadOccurrences();
           this.loadMyReservations();
           this.showToast('¡Reserva confirmada! Te esperamos en la clase.');
@@ -1345,7 +1480,44 @@ export class MemberPage {
       });
   }
 
-  protected cancel(reservationId: number, fixed = false): void {
+  // Pide confirmación antes de cancelar: el botón rojo estaba a un toque de perder el cupo.
+  protected async confirmCancel(
+    reservationId: number,
+    label: string,
+    classDate: string,
+    startTime: string,
+    fixed = false,
+  ): Promise<void> {
+    if (this.blockedInDemo() || this.cancelingId() !== null) {
+      return;
+    }
+    const today = this.todayIso();
+    const day =
+      classDate === today
+        ? 'hoy'
+        : classDate === addDaysIso(today, 1)
+          ? 'mañana'
+          : formatShortDate(classDate);
+    const alert = await this.alertController.create({
+      header: '¿Cancelar tu reserva?',
+      message:
+        `${label} · ${day} ${shortTime(startTime)}.` +
+        (fixed ? ' Es una clase fija: solo se cancela esta fecha, las próximas semanas siguen reservadas.' : ''),
+      buttons: [
+        { text: 'Volver', role: 'cancel' },
+        {
+          text: 'Cancelar clase',
+          role: 'destructive',
+          handler: () => {
+            this.cancel(reservationId, fixed);
+          },
+        },
+      ],
+    });
+    await alert.present();
+  }
+
+  private cancel(reservationId: number, fixed = false): void {
     if (this.blockedInDemo()) {
       return;
     }
@@ -1354,6 +1526,12 @@ export class MemberPage {
       next: () => {
         this.cancelingId.set(null);
         this.membership.update((m) => ({ ...m, classesUsed: Math.max(m.classesUsed - 1, 0) }));
+        // Cupo liberado y reserva fuera de la lista al instante; los loads de abajo reconcilian en silencio.
+        this.patchOccurrences(
+          (o) => o.myReservationId === reservationId,
+          (o) => ({ ...o, myReservationId: null, myReservationFixed: false, myCheckedInAt: null, taken: Math.max(o.taken - 1, 0) }),
+        );
+        this.myReservations.update((list) => list.filter((r) => r.id !== reservationId));
         this.loadOccurrences();
         this.loadMyReservations();
         this.showToast(
@@ -1382,6 +1560,10 @@ export class MemberPage {
       .subscribe({
         next: () => {
           this.waitlistingId.set(null);
+          this.patchOccurrences(
+            (o) => o.gymBlockId === occurrence.gymBlockId && o.classDate === occurrence.classDate,
+            (o) => ({ ...o, waitlisted: true }),
+          );
           this.loadOccurrences();
           this.showToast('Listo, te avisamos por mail si se libera un cupo.');
         },
@@ -1400,6 +1582,10 @@ export class MemberPage {
     this.reservationService.leaveWaitlist(occurrence.gymBlockId, occurrence.classDate).subscribe({
       next: () => {
         this.waitlistingId.set(null);
+        this.patchOccurrences(
+          (o) => o.gymBlockId === occurrence.gymBlockId && o.classDate === occurrence.classDate,
+          (o) => ({ ...o, waitlisted: false }),
+        );
         this.loadOccurrences();
         this.showToast('Te sacamos de la lista de espera.');
       },
@@ -1583,12 +1769,22 @@ export class MemberPage {
   // siempre en "none", mostrando "Elige tu plan" a un socio que un admin ya
   // había marcado como Activo. Reportado por el usuario probando con una
   // cuenta real.
+  // "Reintentar" del error de membresía: vuelve al spinner neutro y repite la carga inicial.
+  protected retryDashboard(): void {
+    this.membershipError.set(false);
+    this.membershipLoaded.set(false);
+    this.loadDashboard();
+  }
+
   private loadMembership(): void {
     (this.isDemoPreview ? this.demoPreviewService.getMembership() : this.gymService.getMyMembership()).subscribe({
       next: (member) => this.applyMembership(member),
       error: () => {
-        // Best-effort: sin datos reales, se queda en "none" (el estado por
-        // defecto) — el socio puede seguir viendo la pantalla de elegir plan.
+        // Sin dato real NO se asume "sin plan": se avisa con un error y "Reintentar". Si ya habíamos
+        // cargado la membresía antes, se conserva (un refresco fallido no la borra).
+        if (!this.membershipResolved) {
+          this.membershipError.set(true);
+        }
         this.membershipLoaded.set(true);
       },
     });
@@ -1597,6 +1793,8 @@ export class MemberPage {
   // Compartido por loadMembership() (demo preview, y el re-poll tras volver de Flow.cl) y
   // loadDashboard() (carga inicial real) — mismo procesamiento, solo cambia de dónde sale el dato.
   private applyMembership(member: Member): void {
+    this.membershipResolved = true;
+    this.membershipError.set(false);
     this.hasFixedClasses.set(!!member.fixedClassesSummary);
     if (this.isDemoPreview) {
       this.demoMemberName.set(member.name);
@@ -1704,24 +1902,59 @@ export class MemberPage {
       error: () => {
         this.gymLoaded.set(true);
         this.plansLoaded.set(true);
+        // Mismo criterio que loadMembership(): sin dato real, error con "Reintentar" en vez de "Elige tu plan".
+        if (!this.membershipResolved) {
+          this.membershipError.set(true);
+        }
         this.membershipLoaded.set(true);
       },
     });
   }
 
-  private loadOccurrences(): void {
-    this.status.set('loading');
-    const range = this.bookableRange() ?? { from: this.monthRange.from, to: this.monthRange.to };
+  // Spinner solo en la primera carga (o al reintentar tras un error sin datos). Si ya hay datos, refresca
+  // en silencio: la grilla, la altura y el scroll se quedan como están y solo cambian los números.
+  protected loadOccurrences(): void {
+    if (!this.occurrencesLoaded) {
+      this.status.set('loading');
+    }
+    const request = ++this.occurrencesRequest;
+    const monthRange = this.monthRange();
+    const range = this.bookableRange() ?? { from: monthRange.from, to: monthRange.to };
     (this.isDemoPreview
       ? this.demoPreviewService.listOccurrences(range.from, range.to)
       : this.reservationService.listOccurrences(range.from, range.to)
     ).subscribe({
       next: (occurrences) => {
+        if (request !== this.occurrencesRequest) {
+          return; // llegó una respuesta más nueva, esta quedó vieja
+        }
+        this.occurrencesLoaded = true;
         this.occurrences.set(occurrences);
         this.status.set('idle');
       },
-      error: () => this.status.set('error'),
+      error: () => {
+        if (request !== this.occurrencesRequest) {
+          return;
+        }
+        if (!this.occurrencesLoaded) {
+          this.status.set('error');
+          return;
+        }
+        // Con datos ya cargados no se borran: se deja lo anterior y se avisa discretamente.
+        this.showToast('No pudimos actualizar las clases. Estás viendo la última información cargada.', 'danger');
+      },
     });
+  }
+
+  private occurrencesLoaded = false;
+  private occurrencesRequest = 0;
+
+  // Cambia solo las ocurrencias que cumplen `match`, sin vaciar la lista (actualización optimista).
+  private patchOccurrences(
+    match: (o: GymBlockOccurrence) => boolean,
+    patch: (o: GymBlockOccurrence) => GymBlockOccurrence,
+  ): void {
+    this.occurrences.update((list) => list.map((o) => (match(o) ? patch(o) : o)));
   }
 
   /** Primera página del historial (reset) o la siguiente ("Cargar más"). */
@@ -1753,18 +1986,21 @@ export class MemberPage {
     });
   }
 
-  private loadMyReservations(): void {
+  protected readonly reservationsError = signal(false);
+
+  protected loadMyReservations(): void {
     (this.isDemoPreview
       ? this.demoPreviewService.listReservations()
       : this.reservationService.myReservations()
     ).subscribe({
       next: (reservations) => {
         this.myReservations.set(reservations);
+        this.reservationsError.set(false);
         this.reservationsLoaded.set(true);
       },
       error: () => {
         this.reservationsLoaded.set(true);
-        this.status.set('error');
+        this.reservationsError.set(true);
       },
     });
   }
@@ -1780,7 +2016,7 @@ export class MemberPage {
   }
 
   private currentMonthRange(): { year: number; month: number; from: string; to: string; daysInMonth: number } {
-    const [y, m] = this.todayIso.split('-').map(Number);
+    const [y, m] = this.todayIso().split('-').map(Number);
     // new Date(year, month, 0) da el último día del mes `month` (1-indexado) —
     // es puro cálculo de calendario, no de instante, así que da lo mismo la
     // zona horaria del navegador.
@@ -1801,7 +2037,7 @@ export class MemberPage {
   }
 
   private isReservationPast(reservation: Reservation): boolean {
-    return `${reservation.classDate}T${reservation.endTime}` < this.nowChileIso;
+    return `${reservation.classDate}T${reservation.endTime}` < this.nowChileIso();
   }
 
   // Resalta la clase que está pasando AHORA — pedido explícito del usuario para que se note (y
@@ -1811,15 +2047,18 @@ export class MemberPage {
   private isLiveNow(classDate: string, startTime: string, endTime: string): boolean {
     const start = `${classDate}T${startTime}`;
     const end = `${classDate}T${endTime}`;
-    return start <= this.nowChileIso && this.nowChileIso <= end;
+    const now = this.nowChileIso();
+    return start <= now && now <= end;
   }
 
   // Misma regla que ReservationService.cancel: solo se puede cancelar si faltan MÁS de
   // `cancellationWindowMinutes` minutos para el inicio (el admin del gym la define, y es un dato
   // DISTINTO al límite para reservar). Antes el botón salía siempre y el backend rechazaba
   // después con un error. Se calcula con "ahora" fresco (no el snapshot de la página) porque
-  // ésta puede quedar abierta horas.
+  // ésta puede quedar abierta horas. La lectura de `now` es solo para que la plantilla reevalúe
+  // el botón en cada refresco del reloj.
   protected canCancel(classDate: string, startTime: string): boolean {
+    void this.now();
     const windowMinutes = this.gym()?.cancellationWindowMinutes ?? 0;
     const toMs = (iso: string) => {
       const [date, time = '00:00:00'] = iso.split('T');
@@ -1927,10 +2166,10 @@ export class MemberPage {
     // Una vez por día por situación y período: si lo cierra, no se le insiste hasta mañana.
     const storageKey = `mygym.alert.${key}.${periodEnd}`;
     try {
-      if (localStorage.getItem(storageKey) === this.todayIso) {
+      if (localStorage.getItem(storageKey) === this.todayIso()) {
         return;
       }
-      localStorage.setItem(storageKey, this.todayIso);
+      localStorage.setItem(storageKey, this.todayIso());
     } catch {
       // Sin almacenamiento (modo privado): se muestra, y vuelve a salir en la próxima apertura.
     }
@@ -1957,9 +2196,8 @@ export class MemberPage {
     return !!occurrence.myReservationId && this.isLiveNow(occurrence.classDate, occurrence.startTime, occurrence.endTime);
   }
 
-  // Barra ESTÁTICA (pedido explícito): calculada una sola vez contra el mismo snapshot de "ahora"
-  // que el resto de esta pantalla, no un timer en vivo — evita tener que mantener un intervalo
-  // corriendo mientras la página esté abierta por un dato que ya se ve en texto (el horario).
+  // Barra calculada contra el signal `now` de esta pantalla: avanza con cada refresco del reloj
+  // (30 s), sin timer propio.
   protected liveProgressPercent(startTime: string, endTime: string): number {
     const toMinutes = (hms: string) => {
       const [h, m] = hms.split(':').map(Number);
@@ -1969,7 +2207,7 @@ export class MemberPage {
     if (total <= 0) {
       return 0;
     }
-    const nowTime = this.nowChileIso.split('T')[1];
+    const nowTime = this.nowChileIso().split('T')[1];
     const elapsed = toMinutes(nowTime) - toMinutes(startTime);
     return Math.min(100, Math.max(0, Math.round((elapsed / total) * 100)));
   }

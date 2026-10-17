@@ -15,7 +15,15 @@ import {
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { addCircleOutline, barbellOutline, closeCircleOutline, informationCircleOutline } from 'ionicons/icons';
+import { WorkoutHistoryFilter } from '../../../../core/components/workout-history-filter/workout-history-filter';
 import { CreateWorkoutPlanRequest, MemberWorkoutLog, WorkoutPlan } from '../../../../core/models/workout.model';
+import {
+  NO_WORKOUT_FILTER,
+  WorkoutLogFilter,
+  filterWorkoutLogs,
+  highlightParts,
+  isFiltering,
+} from '../../../../core/utils/workout-history-filter';
 
 addIcons({
   'barbell-outline': barbellOutline,
@@ -44,6 +52,7 @@ addIcons({
     IonItem,
     IonLabel,
     IonInput,
+    WorkoutHistoryFilter,
   ],
   templateUrl: './workout-plan-modal.html',
   styleUrl: './workout-plan-modal.scss',
@@ -56,10 +65,15 @@ export class WorkoutPlanModal {
     this._dayTitles.set(value && value.days.length > 0 ? value.days.map((d) => d.title) : ['']);
   }
 
-  /** Registros del socio, el más reciente primero (máx. 30). */
+  /** Registros ya cargados del socio, el más reciente primero (se pide de a 7 días). */
   @Input() set history(value: MemberWorkoutLog[]) {
     this._history.set(value);
   }
+
+  /** Hay registros más antiguos por cargar (el backend entregó un cursor). */
+  @Input() hasMoreHistory = false;
+  @Input() loadingMoreHistory = false;
+  @Output() loadMoreHistory = new EventEmitter<void>();
 
   @Input() set saving(value: boolean) {
     this._saving.set(value);
@@ -76,6 +90,20 @@ export class WorkoutPlanModal {
 
   private readonly _history = signal<MemberWorkoutLog[]>([]);
   protected readonly historyValue = this._history.asReadonly();
+
+  // Buscador y chips: actúan solo sobre los registros ya cargados.
+  private readonly _filter = signal<WorkoutLogFilter>(NO_WORKOUT_FILTER);
+  protected readonly filtering = computed(() => isFiltering(this._filter()));
+  protected readonly visibleHistory = computed(() => filterWorkoutLogs(this._history(), this._filter()));
+  protected readonly latestId = computed(() => this._history()[0]?.id ?? null);
+
+  protected setFilter(filter: WorkoutLogFilter): void {
+    this._filter.set(filter);
+  }
+
+  protected parts(text: string | null) {
+    return highlightParts(text ?? '', this._filter().query);
+  }
 
   private readonly _saving = signal(false);
   protected readonly isSaving = this._saving.asReadonly();

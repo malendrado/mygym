@@ -46,6 +46,7 @@ import com.cortesdev.mygym.models.dto.MemberAttendanceDetail;
 import com.cortesdev.mygym.models.dto.MemberAttendanceRow;
 import com.cortesdev.mygym.models.dto.ClassBoardResponse;
 import com.cortesdev.mygym.models.dto.MemberWorkoutLogResponse;
+import com.cortesdev.mygym.models.dto.WorkoutLogPageResponse;
 import com.cortesdev.mygym.models.dto.WorkoutLogSaveRequest;
 import com.cortesdev.mygym.models.dto.PageResponse;
 import com.cortesdev.mygym.models.dto.PaymentPreviewResponse;
@@ -294,8 +295,12 @@ public class GymController {
     }
 
     @GetMapping("/{id}/members/{memberId}/workout/logs")
-    public List<MemberWorkoutLogResponse> workoutLogs(@PathVariable Long id, @PathVariable Long memberId) {
-        return workoutService.getLogHistory(id, memberId);
+    public WorkoutLogPageResponse workoutLogs(
+            @PathVariable Long id,
+            @PathVariable Long memberId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate before,
+            @RequestParam(required = false) Integer days) {
+        return workoutService.getLogHistory(id, memberId, before, days);
     }
 
     // Contrapartes SUPER_ADMIN de AttendanceController — mismo backend, gymId por path.

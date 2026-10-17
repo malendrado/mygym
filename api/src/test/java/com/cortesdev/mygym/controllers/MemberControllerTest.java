@@ -85,7 +85,15 @@ class MemberControllerTest {
                 .active(true)
                 .googleLoginEnabled(true)
                 .build());
-        String token = jwtService.issueToken(1L, "socio-" + System.nanoTime() + "@test.com", Role.MEMBER, gym.getId());
+        // Un socio real: el filtro de sesión rechaza (401) un token cuyo usuario no existe o está inactivo.
+        AppUser socio = appUserRepository.save(AppUser.builder()
+                .email("socio-" + System.nanoTime() + "@test.com")
+                .name("Socio")
+                .role(Role.MEMBER)
+                .gymId(gym.getId())
+                .active(true)
+                .build());
+        String token = jwtService.issueToken(socio.getId(), socio.getEmail(), Role.MEMBER, gym.getId());
         String body = objectMapper.writeValueAsString(new MemberPayload("X", "x-" + System.nanoTime() + "@test.com"));
 
         mockMvc.perform(post("/api/gym-admin/members")

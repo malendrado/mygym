@@ -62,6 +62,35 @@ describe('errorInterceptor', () => {
     expect(captured?.status).toBe(404);
   });
 
+  it('sends a revoked session to /login without emitting an error', async () => {
+    const navigateSpy = spyOn(router, 'navigate').and.resolveTo(true);
+    let sawError = false;
+    http.get('/api/me/reservations').subscribe({ error: () => (sawError = true) });
+
+    httpMock.expectOne('/api/me/reservations').flush(
+      { title: 'Sesión cerrada', detail: 'Tu sesión ya no es válida.', code: 'SESSION_REVOKED' },
+      { status: 401, statusText: 'Unauthorized' },
+    );
+    await new Promise((resolve) => setTimeout(resolve));
+
+    expect(navigateSpy).toHaveBeenCalledWith(['/login']);
+    expect(sawError).toBe(false);
+  });
+
+  it('does not treat an ordinary 401 (for example a wrong password) as a revoked session', () => {
+    const navigateSpy = spyOn(router, 'navigate').and.resolveTo(true);
+    let captured: Error | undefined;
+    http.post('/api/public/auth/login', {}).subscribe({ error: (err) => (captured = err) });
+
+    httpMock.expectOne('/api/public/auth/login').flush(
+      { title: 'Credenciales inválidas', detail: 'Correo o contraseña incorrectos.' },
+      { status: 401, statusText: 'Unauthorized' },
+    );
+
+    expect(navigateSpy).not.toHaveBeenCalled();
+    expect(captured?.message).toBe('Correo o contraseña incorrectos.');
+  });
+
   it('redirects to the contact form on a 403 from the login endpoint, without emitting an error', () => {
     // Bug real encontrado en la práctica: antes caía en la regla genérica de 403+no-GET de abajo
     // y mostraba "esta es una demo de solo lectura" a alguien que nunca tuvo nada que ver con

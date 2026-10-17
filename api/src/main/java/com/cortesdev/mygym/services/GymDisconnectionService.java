@@ -124,10 +124,16 @@ public class GymDisconnectionService {
                 .executedAt(Instant.now())
                 .build();
 
-        // Los emails a los admins van ANTES de guardar auditoría o borrar nada: no podemos
-        // borrar unilateralmente la cartera de clientes de un gym sin garantizar que su dueño
-        // se quedó con una copia (socios.csv/pagos.csv) — si Resend falla para cualquier admin,
-        // se aborta todo (ninguna fila queda escrita, @Transactional hace rollback) y el
+        // El borrado se EJECUTA primero (dentro de la transacción, todavía sin confirmar) para que, si la base lo
+        // rechaza (una clave foránea, un dato inesperado), falle ACÁ y no se mande ningún correo de "tus datos
+        // fueron eliminados" por algo que no ocurrió (auditoría 2026-10-17). Los CSV ya se armaron arriba.
+        GymDeletionAudit audit = gymDeletionAuditRepository.save(provisionalAudit);
+        gymRepository.delete(gym);
+        gymRepository.flush();
+
+        // Los emails a los admins van ANTES de confirmar: no podemos borrar unilateralmente la cartera de clientes
+        // de un gym sin garantizar que su dueño se quedó con una copia (socios.csv/pagos.csv) — si Resend falla para
+        // cualquier admin, se aborta todo (la auditoría y el borrado hacen rollback junto con la transacción) y el
         // super-admin ni se entera, porque en los hechos la desvinculación no ocurrió.
         for (AppUser admin : admins) {
             boolean sent = emailService.sendToGymAdmin(admin.getEmail(), gym, provisionalAudit, membersCsv, paymentsCsv);
@@ -136,13 +142,9 @@ public class GymDisconnectionService {
             }
         }
 
-        GymDeletionAudit audit = gymDeletionAuditRepository.save(provisionalAudit);
-
         // Best-effort: es solo la notificación interna de mygym, no implica pérdida de datos
         // para nadie — no aborta la desvinculación si Resend falla acá.
         emailService.sendSummaryToSuperAdmin(MYGYM_CONTACT_EMAIL, gym, audit);
-
-        gymRepository.delete(gym);
 
         return toResponse(audit);
     }

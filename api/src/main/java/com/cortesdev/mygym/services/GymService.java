@@ -48,6 +48,7 @@ import com.cortesdev.mygym.repositories.GymRepository;
 import com.cortesdev.mygym.repositories.ManualPaymentRepository;
 import com.cortesdev.mygym.repositories.ReservationRepository;
 import com.cortesdev.mygym.services.exception.AdminNotFoundException;
+import com.cortesdev.mygym.services.exception.AdminRemovalNotAllowedException;
 import com.cortesdev.mygym.services.exception.DuplicateOwnerEmailException;
 import com.cortesdev.mygym.services.exception.DuplicateSlugException;
 import com.cortesdev.mygym.services.exception.GymBlockNotFoundException;
@@ -534,6 +535,15 @@ public class GymService {
         appUserRepository.delete(admin);
     }
 
+    /** Un administrador quita a otro desde su propio panel (el super-admin usa removeAdmin a secas). Nunca a sí
+     *  mismo: un administrador comprometido (o un descuido) no puede dejar al gimnasio sin nadie que lo administre. */
+    public void removeAdminAsPeer(Long gymId, Long userId, Long actorUserId) {
+        if (userId.equals(actorUserId)) {
+            throw new AdminRemovalNotAllowedException("No puedes quitar tu propio acceso. Pídele a otro administrador que lo haga.");
+        }
+        removeAdmin(gymId, userId);
+    }
+
     // ---- Profesores de "Memoria Viva" (ver WorkoutService) — a diferencia de addAdmin (solo
     // SUPER_ADMIN, bajo /api/gyms/**), esto lo llama el propio GYM_ADMIN bajo /api/gym-admin/**,
     // mismo patrón que MemberService.createMember para invitar socios. Sin email de invitación
@@ -824,6 +834,7 @@ public class GymService {
         GymPlan plan = findPlanOrThrow(gymId, planId);
         AppUser member = appUserRepository
                 .findByIdAndGymId(memberId, gymId)
+                .filter(u -> u.getRole() == Role.MEMBER)
                 .orElseThrow(() -> new MemberNotFoundException(memberId));
         Instant now = Instant.now();
         Instant periodStartInstant = resolvePeriodStart(startDate, now);
@@ -905,6 +916,7 @@ public class GymService {
         GymPlan plan = findPlanOrThrow(gymId, planId);
         appUserRepository
                 .findByIdAndGymId(memberId, gymId)
+                .filter(u -> u.getRole() == Role.MEMBER)
                 .orElseThrow(() -> new MemberNotFoundException(memberId));
         Instant now = Instant.now();
         ZonedDateTime start = resolvePeriodStart(startDate, now).atZone(GYM_ZONE);
@@ -943,6 +955,7 @@ public class GymService {
         assertGymExists(gymId);
         AppUser member = appUserRepository
                 .findByIdAndGymId(memberId, gymId)
+                .filter(u -> u.getRole() == Role.MEMBER)
                 .orElseThrow(() -> new MemberNotFoundException(memberId));
         boolean hadPlan = member.getPlanId() != null;
         member.setPlanId(null);

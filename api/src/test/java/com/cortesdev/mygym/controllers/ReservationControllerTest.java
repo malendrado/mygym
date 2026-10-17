@@ -104,7 +104,7 @@ class ReservationControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.title").value("Capacity exceeded"));
+                .andExpect(jsonPath("$.title").value("Cupo excedido"));
     }
 
     @Test
@@ -123,7 +123,7 @@ class ReservationControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.title").value("Booking window closed"));
+                .andExpect(jsonPath("$.title").value("Ventana de reserva cerrada"));
     }
 
     @Test
@@ -148,7 +148,7 @@ class ReservationControllerTest {
         mockMvc.perform(
                         delete("/api/me/reservations/" + reservation.getId()).header("Authorization", "Bearer " + token))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.title").value("Booking window closed"));
+                .andExpect(jsonPath("$.title").value("Ventana de reserva cerrada"));
     }
 
     private Gym createGym() {
@@ -158,6 +158,9 @@ class ReservationControllerTest {
                 .maxUsers(50)
                 .active(true)
                 .googleLoginEnabled(true)
+                // Las ventanas son por gimnasio y en minutos: los casos "menos de 2 horas" necesitan 120 explícitos.
+                .bookingWindowMinutes(120)
+                .cancellationWindowMinutes(120)
                 .build());
     }
 
@@ -173,6 +176,8 @@ class ReservationControllerTest {
                 .build());
     }
 
+    // Reservar exige plan pagado vigente y datos de contacto completos (ReservationService.book): sin ellos
+    // responde 402/422 antes de llegar a lo que estas pruebas quieren verificar.
     private AppUser createMember(Long gymId) {
         return appUserRepository.save(AppUser.builder()
                 .email("member-" + System.nanoTime() + "@test.com")
@@ -180,6 +185,13 @@ class ReservationControllerTest {
                 .role(Role.MEMBER)
                 .gymId(gymId)
                 .active(true)
+                .paidAt(java.time.Instant.now())
+                .rut("12.345.678-5")
+                .address("Av. Siempre Viva 742, Ñuñoa")
+                .phone("+56912345678")
+                .birthDate(LocalDate.of(1990, 5, 20))
+                .emergencyContactName("Marta Pérez")
+                .emergencyContactPhone("+56987654321")
                 .build());
     }
 

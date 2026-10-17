@@ -92,8 +92,10 @@ public class FlowPaymentService {
         if (isBlank(gym.getFlowApiKey()) || isBlank(gym.getFlowSecretKey())) {
             throw new FlowNotConfiguredException(gymId);
         }
+        // Solo planes activos: uno archivado o desactivado (quizá más barato) no se puede pagar llamando a la API por id.
         GymPlan plan = gymPlanRepository
                 .findByIdAndGymId(planId, gymId)
+                .filter(GymPlan::isActive)
                 .orElseThrow(() -> new GymPlanNotFoundException(gymId, planId));
         AppUser member = appUserRepository
                 .findByIdAndGymId(memberId, gymId)
@@ -140,7 +142,9 @@ public class FlowPaymentService {
         if (token == null || token.isBlank()) {
             return;
         }
-        Payment payment = paymentRepository.findByFlowToken(token).orElse(null);
+        // Fila del pago bloqueada hasta el commit: un segundo webhook simultáneo del mismo pago espera y recién ahí ve PAID
+        // (antes ambos pasaban la revisión de abajo y acreditaban dos veces, con correos duplicados).
+        Payment payment = paymentRepository.findLockedByFlowToken(token).orElse(null);
         if (payment == null) {
             log.warn("Webhook de Flow con un token desconocido (no coincide con ningún pago local)");
             return;
@@ -175,6 +179,23 @@ public class FlowPaymentService {
         // Flow documenta status numérico: 1=pendiente, 2=pagada, 3=rechazada, 4=anulada.
         String statusCode = stringOf(status.get("status"));
         boolean paid = "2".equals(statusCode) || "paid".equalsIgnoreCase(statusCode);
+        // Aún pendiente (el socio sigue en el checkout): no es un rechazo, se deja como está hasta el próximo aviso.
+        if ("1".equals(statusCode) || "pending".equalsIgnoreCase(statusCode)) {
+            return;
+        }
+        // La orden la inventamos nosotros ("mygym-<id>") y Flow la devuelve tal cual: si no coincide, no es este pago.
+        if (paid && !orderMatches(payment, status)) {
+            log.error("Flow confirmó como pagado un cobro de otra orden que el pago local {}: no se acredita", payment.getId());
+            return;
+        }
+        // El monto solo AVISA: nunca se verificó contra el formato real que devuelve Flow, y bloquear un pago legítimo
+        // por una diferencia de formato (o de comisión) es peor que dejar pasar el aviso. Si en los registros no aparece
+        // nunca, se puede volver estricto con datos en la mano.
+        if (paid && !amountMatches(payment, status)) {
+            log.warn(
+                    "Flow informa un monto distinto al pedido en el pago local {} (pedido: {}, Flow: {}); se acredita igual",
+                    payment.getId(), payment.getAmountClp(), stringOf(status.get("amount")));
+        }
 
         payment.setStatus(paid ? "PAID" : "REJECTED");
         payment.setPaidAt(paid ? Instant.now() : null);
@@ -204,6 +225,25 @@ public class FlowPaymentService {
         memberLifecycleEmailService.sendPaymentConfirmedAdmin(gym, member, plan, adminEmails);
         // Reserva sus clases fijas del período nuevo, después del commit (ver FixedClassService).
         eventPublisher.publishEvent(new MembershipPaidEvent(member.getId()));
+    }
+
+    /** Solo se compara si la respuesta trae la orden (si no viene, no se inventa una diferencia). */
+    private static boolean orderMatches(Payment payment, Map<String, Object> flowStatus) {
+        String order = stringOf(flowStatus.get("commerceOrder"));
+        return order == null || payment.getCommerceOrder() == null || order.equals(payment.getCommerceOrder());
+    }
+
+    /** Acepta "25700", 25700 y "25700.00"; si la respuesta no trae monto no se inventa una diferencia. */
+    private static boolean amountMatches(Payment payment, Map<String, Object> flowStatus) {
+        String amount = stringOf(flowStatus.get("amount"));
+        if (amount != null && payment.getAmountClp() != null) {
+            try {
+                return new java.math.BigDecimal(amount).compareTo(java.math.BigDecimal.valueOf(payment.getAmountClp())) == 0;
+            } catch (NumberFormatException e) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static boolean isBlank(String value) {

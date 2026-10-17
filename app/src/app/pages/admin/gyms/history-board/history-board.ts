@@ -42,6 +42,7 @@ import {
 } from '../../../../core/utils/attendance';
 import { errorText } from '../../../../core/utils/error-text';
 import { whatsappUrl } from '../../../../core/utils/member-profile';
+import { missedClassMessage } from '../../../../core/utils/whatsapp-messages';
 import { TIME_BAND_ALL_HINT, TIME_BAND_OPTIONS, TimeBand, timeBandOf } from '../../../../core/utils/time-band';
 
 addIcons({
@@ -290,7 +291,7 @@ export class HistoryBoard {
       const started = occurrenceStarted(date, block.startTime, now);
       const attendees = this.attendeesOf(block.id, date).map<AttendeeRow>((attendee) => {
         const attended = this.effectiveAttended(attendee);
-        return { attendee, attended, stamp: attended ? this.stampOf(attendee) : '', whatsapp: whatsappUrl(attendee.phone) };
+        return { attendee, attended, stamp: attended ? this.stampOf(attendee) : '', whatsapp: whatsappUrl(attendee.phone, missedClassMessage(attendee.name, block.label)) };
       });
       // Lo accionable primero: los que no vinieron (o siguen sin marcar), después los que vinieron.
       attendees.sort((a, b) => Number(a.attended) - Number(b.attended) || a.attendee.name.localeCompare(b.attendee.name));

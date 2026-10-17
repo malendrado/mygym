@@ -1,0 +1,83 @@
+// Buscador y chips del historial de rutina. Objetivos táctiles de 44 px; los chips pasan a la línea siguiente
+// (nunca una fila recortada) y cambiar un filtro NO se anima: se usa decenas de veces.
+.whf {
+  margin: 0 0 0.75rem;
+}
+
+.whf__search {
+  position: relative;
+
+  ion-icon {
+    position: absolute;
+    left: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--brand-text-dim);
+    pointer-events: none;
+  }
+}
+
+.whf__input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 0.9rem 0 2.4rem;
+  border: 1px solid var(--brand-ink-surface-2);
+  border-radius: 12px;
+  background: var(--brand-ink-surface);
+  color: var(--brand-text);
+  font: inherit;
+  font-size: 0.9rem;
+
+  &::placeholder {
+    color: var(--brand-text-dim);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--brand-accent);
+    outline-offset: 2px;
+  }
+}
+
+.whf__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+}
+
+.whf__chip {
+  min-height: 44px;
+  padding: 0 0.9rem;
+  border: 1px solid var(--brand-ink-surface-2);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--brand-text-dim);
+  font-family: var(--brand-font-display);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background-color 0.12s ease-out, color 0.12s ease-out;
+
+  &:focus-visible {
+    outline: 2px solid var(--brand-accent);
+    outline-offset: 2px;
+  }
+
+  &[aria-pressed='true'] {
+    border-color: var(--brand-accent);
+    background: var(--brand-accent);
+    color: var(--brand-accent-contrast);
+    font-weight: 600;
+  }
+
+  &--warn[aria-pressed='true'] {
+    border-color: var(--ion-color-warning, #f0ad4e);
+    background: var(--ion-color-warning, #f0ad4e);
+    color: #2b1d00;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .whf__chip {
+    transition: none;
+  }
+}

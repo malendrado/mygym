@@ -1,5 +1,6 @@
 package com.cortesdev.mygym.controllers;
 
+import com.cortesdev.mygym.models.Role;
 import com.cortesdev.mygym.models.dto.AdminCreateRequest;
 import com.cortesdev.mygym.models.dto.AdminResponse;
 import com.cortesdev.mygym.models.dto.AgendaOccurrence;
@@ -82,7 +83,10 @@ public class GymAdminController {
 
     @GetMapping
     public GymResponse getMyGym(@AuthenticationPrincipal Jwt jwt) {
-        return gymService.getGym(AuthenticatedUser.from(jwt).gymId());
+        AuthenticatedUser user = AuthenticatedUser.from(jwt);
+        GymResponse gym = gymService.getGym(user.gymId());
+        // El profesor necesita la ficha (nombre, tema, reglas) pero no la cuenta bancaria del dueño.
+        return user.role() == Role.PROFESOR ? gym.withoutBankData() : gym;
     }
 
     @GetMapping("/blocks/{blockId}/occurrences/{classDate}/attendees")
@@ -250,7 +254,8 @@ public class GymAdminController {
 
     @DeleteMapping("/admins/{userId}")
     public ResponseEntity<Void> removeMyAdmin(@AuthenticationPrincipal Jwt jwt, @PathVariable Long userId) {
-        gymService.removeAdmin(AuthenticatedUser.from(jwt).gymId(), userId);
+        AuthenticatedUser user = AuthenticatedUser.from(jwt);
+        gymService.removeAdminAsPeer(user.gymId(), userId, user.userId());
         return ResponseEntity.noContent().build();
     }
 

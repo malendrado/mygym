@@ -32,10 +32,16 @@ export function formatMobile(value: string | null | undefined): string {
   return `+56 ${d[0]} ${d.slice(1, 5)} ${d.slice(5)}`;
 }
 
-/** Link de WhatsApp (wa.me) al celular del socio, o null si no tiene uno válido. */
-export function whatsappUrl(phone: string | null | undefined): string | null {
+/** Link de WhatsApp (wa.me) al celular del socio, o null si no tiene uno válido. Con `message`
+ *  (opcional) el chat se abre con ese texto ya escrito. */
+export function whatsappUrl(phone: string | null | undefined, message?: string | null): string | null {
   const normalized = normalizeMobile(phone);
-  return normalized ? `https://wa.me/${normalized.slice(1)}` : null;
+  if (!normalized) {
+    return null;
+  }
+  const base = `https://wa.me/${normalized.slice(1)}`;
+  const text = message?.trim();
+  return text ? `${base}?text=${encodeURIComponent(text)}` : base;
 }
 
 function todayIso(): string {

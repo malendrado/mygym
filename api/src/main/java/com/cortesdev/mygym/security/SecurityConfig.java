@@ -23,18 +23,21 @@ public class SecurityConfig {
     private final DemoAccessExpiryFilter demoAccessExpiryFilter;
     private final AuthRateLimitFilter authRateLimitFilter;
     private final GymPauseFilter gymPauseFilter;
+    private final UserSessionFilter userSessionFilter;
 
     public SecurityConfig(
             JwtService jwtService,
             @Value("${app.cors.allowed-origins}") List<String> allowedOrigins,
             DemoAccessExpiryFilter demoAccessExpiryFilter,
             AuthRateLimitFilter authRateLimitFilter,
-            GymPauseFilter gymPauseFilter) {
+            GymPauseFilter gymPauseFilter,
+            UserSessionFilter userSessionFilter) {
         this.jwtService = jwtService;
         this.allowedOrigins = allowedOrigins;
         this.demoAccessExpiryFilter = demoAccessExpiryFilter;
         this.authRateLimitFilter = authRateLimitFilter;
         this.gymPauseFilter = gymPauseFilter;
+        this.userSessionFilter = userSessionFilter;
     }
 
     @Bean
@@ -61,6 +64,22 @@ public class SecurityConfig {
                         // un DEMO_ADMIN que intente POST/PUT/DELETE cae al matcher genérico
                         // siguiente (solo GYM_ADMIN) y recibe 403 real, no solo un botón
                         // deshabilitado en el frontend.
+                        // Lecturas que el PROFESOR no necesita (auditoría 2026-10-17): quién administra el gimnasio,
+                        // los datos de la empresa y de la cuenta Flow, el listado de correos y el precio de un plan
+                        // para un socio. El resto de los GET sigue abierto al profesor porque su panel los usa (agenda,
+                        // socios, rutinas); la ficha del gimnasio (/gym) se le entrega sin la cuenta bancaria.
+                        // "Ver como socio" de la demo solo es para el DEMO_ADMIN: ni un administrador real
+                        // ni un profesor tienen por qué leer al "socio de muestra" del gimnasio.
+                        .requestMatchers(HttpMethod.GET, "/api/gym-admin/demo-preview/**")
+                        .hasRole("DEMO_ADMIN")
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/gym-admin/gym/flow-account",
+                                "/api/gym-admin/gym/admins",
+                                "/api/gym-admin/profesores",
+                                "/api/gym-admin/members/emails",
+                                "/api/gym-admin/members/*/payment-preview")
+                        .hasAnyRole("GYM_ADMIN", "DEMO_ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/gym-admin/**")
                         .hasAnyRole("GYM_ADMIN", "DEMO_ADMIN", "PROFESOR")
                         // PROFESOR escribe SOLO acá (rutina/bitácora de "Memoria Viva") — nunca en
@@ -105,6 +124,10 @@ public class SecurityConfig {
                 // — el JWT en sí sigue siendo válido por 30 días, este filtro es el único lugar
                 // que de verdad hace cumplir el límite de 7 días en una sesión ya logueada).
                 .addFilterBefore(demoAccessExpiryFilter, AuthorizationFilter.class)
+                // El JWT dura 30 días y trae rol y gymId firmados: sin esta revisión, quitar o desactivar a
+                // alguien no le cortaba el acceso (ver UserSessionGuard). Después del filtro demo para que
+                // una demo vencida siga respondiendo su 410.
+                .addFilterBefore(userSessionFilter, AuthorizationFilter.class)
                 // Gimnasio en pausa: sin esto un token de 30 dias seguiria operando aunque el gimnasio se haya pausado.
                 .addFilterBefore(gymPauseFilter, AuthorizationFilter.class)
                 .addFilterBefore(authRateLimitFilter, AuthorizationFilter.class);

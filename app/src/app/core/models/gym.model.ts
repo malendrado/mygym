@@ -367,6 +367,21 @@ export interface UpdateGymBlockRequest extends CreateGymBlockRequest {
   active: boolean;
 }
 
+/** Misma clase con otro estado (Pausar / Activar): el PUT pide el bloque completo, no solo `active`. */
+export function blockWithActive(block: GymBlock, active: boolean): UpdateGymBlockRequest {
+  return {
+    label: block.label,
+    dayOfWeek: block.dayOfWeek,
+    startTime: block.startTime.slice(0, 5),
+    endTime: block.endTime.slice(0, 5),
+    capacity: block.capacity,
+    category: block.category,
+    instructorName: block.instructorName,
+    instructorPhoto: block.instructorPhoto,
+    active,
+  };
+}
+
 /** Resultado de un bloque procesado por POST .../blocks/batch — un lote entero en un solo
  *  request (reemplaza el fan-out de un POST por bloque que hacía la creación de series antes).
  *  Cada bloque es independiente: un horario inválido en uno no tumba el resto del lote, por eso
@@ -400,6 +415,18 @@ export interface CreateGymPlanRequest {
 
 export interface UpdateGymPlanRequest extends CreateGymPlanRequest {
   active: boolean;
+}
+
+/** Mismo plan con otro estado (Pausar / Activar): el PUT pide el plan completo, no solo `active`. */
+export function planWithActive(plan: GymPlan, active: boolean): UpdateGymPlanRequest {
+  return {
+    name: plan.name,
+    description: plan.description,
+    category: plan.category,
+    priceClp: plan.priceClp,
+    monthlyClasses: plan.monthlyClasses,
+    active,
+  };
 }
 
 /** Vista del socio de un plan activo de su gym — sin gymId ni active (GET /api/me/plans). */

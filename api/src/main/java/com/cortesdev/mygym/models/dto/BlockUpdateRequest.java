@@ -15,5 +15,5 @@ public record BlockUpdateRequest(
         @NotNull @Positive Integer capacity,
         @Size(max = 40) String category,
         @Size(max = 80) String instructorName,
-        String instructorPhoto,
+        @Size(max = 400_000) String instructorPhoto,
         @NotNull Boolean active) {}

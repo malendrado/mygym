@@ -11,6 +11,7 @@ import {
   IonItem,
   IonNote,
   IonTextarea,
+  IonToggle,
   IonTitle,
   IonToolbar,
 } from '@ionic/angular';
@@ -99,6 +100,7 @@ export const PLAN_TEMPLATES: PlanTemplate[] = [
     IonInput,
     IonTextarea,
     IonNote,
+    IonToggle,
     QuantityStepper,
   ],
   templateUrl: './plan-form-modal.html',
@@ -109,6 +111,7 @@ export class PlanFormModal {
 
   @Input() set plan(value: GymPlan | null) {
     this._plan.set(value);
+    this.active.set(value?.active ?? true);
     if (value) {
       this.form.patchValue({
         name: value.name,
@@ -134,6 +137,9 @@ export class PlanFormModal {
 
   @Output() saved = new EventEmitter<CreateGymPlanRequest | UpdateGymPlanRequest>();
   @Output() dismiss = new EventEmitter<void>();
+
+  // Activo / Pausado (solo al editar; un plan nuevo nace activo).
+  protected readonly active = signal(true);
 
   private readonly _plan = signal<GymPlan | null>(null);
   protected readonly isEditing = computed(() => this._plan() !== null);
@@ -201,7 +207,7 @@ export class PlanFormModal {
     };
     const current = this._plan();
     if (current) {
-      this.saved.emit({ ...payload, active: current.active });
+      this.saved.emit({ ...payload, active: this.active() });
     } else {
       this.saved.emit(payload);
     }

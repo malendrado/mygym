@@ -22,6 +22,13 @@ import { santiagoNow } from '../../../../core/utils/attendance';
 import { errorText } from '../../../../core/utils/error-text';
 import { minStartDate, periodEndOf, periodText, remainingText, startDateShortcuts } from '../../../../core/utils/payment-dates';
 
+type PaymentMethod = 'transfer' | 'cash' | 'other';
+const PAYMENT_METHODS: { value: PaymentMethod; label: string }[] = [
+  { value: 'transfer', label: 'Transferencia' },
+  { value: 'cash', label: 'Efectivo' },
+  { value: 'other', label: 'Otro' },
+];
+
 addIcons({ 'card-outline': cardOutline, 'checkmark-circle': checkmarkCircle });
 
 @Component({
@@ -53,15 +60,29 @@ export class MarkPaidModal {
     this._plans.set(value);
     const current = this._selectedPlanId();
     if (current === null || !value.some((plan) => plan.id === current)) {
-      this._selectedPlanId.set(value[0]?.id ?? null);
+      const preferred = this._preferredPlanId !== null && value.some((plan) => plan.id === this._preferredPlanId);
+      this._selectedPlanId.set(preferred ? this._preferredPlanId : (value[0]?.id ?? null));
     }
   }
+
+  // Plan actual del socio (al renovar): queda preseleccionado si está entre los planes ofrecidos.
+  // Se puede pasar antes o después de `plans`; solo manda mientras el usuario no haya elegido otro.
+  private _preferredPlanId: number | null = null;
+  @Input() set currentPlanId(value: number | null | undefined) {
+    this._preferredPlanId = value ?? null;
+    if (this._preferredPlanId !== null && !this.userPickedPlan && this._plans().some((p) => p.id === this._preferredPlanId)) {
+      this._selectedPlanId.set(this._preferredPlanId);
+    }
+  }
+  private userPickedPlan = false;
+  /** Título del modal: "Marcar pago" o "Renovar plan". */
+  @Input() renewing = false;
 
   @Input() set saving(value: boolean) {
     this._saving.set(value);
   }
 
-  // planId + banco con el que el socio transfirió (queda guardado para informes, ver ManualPayment).
+  // planId + medio de pago (el banco si fue transferencia, o "Efectivo" / "Otro medio"; queda guardado para informes, ver ManualPayment).
   // startDate null = hoy (el servidor arranca el plan ahora, como siempre); usedClasses 0 = ninguna.
   @Output() confirmed = new EventEmitter<{ planId: number; bank: string; startDate: string | null; usedClasses: number }>();
 
@@ -158,17 +179,29 @@ export class MarkPaidModal {
   private readonly _saving = signal(false);
   protected readonly isSaving = this._saving.asReadonly();
 
+  // Medio de pago: el banco solo se pide si fue transferencia. El servidor guarda un texto en `bank`
+  // (obligatorio), así que efectivo y otro medio mandan su propio nombre.
+  protected readonly methods = PAYMENT_METHODS;
+  protected readonly method = signal<PaymentMethod>('transfer');
+
   // Misma lista y mismo patrón que los datos bancarios del gym: "Otro" abre texto libre.
   protected readonly banks = CHILE_BANKS;
   protected readonly bank = signal('');
   protected readonly bankOther = signal('');
 
-  // El banco que efectivamente se guarda: el elegido o, con "Otro", el texto libre.
-  private readonly resolvedBank = computed(() =>
-    this.bank() === 'Otro' ? this.bankOther().trim() : this.bank(),
-  );
+  // Lo que efectivamente se guarda: el banco (o el texto libre de "Otro") si es transferencia; si no, el medio.
+  private readonly resolvedBank = computed(() => {
+    switch (this.method()) {
+      case 'cash':
+        return 'Efectivo';
+      case 'other':
+        return 'Otro medio';
+      default:
+        return this.bank() === 'Otro' ? this.bankOther().trim() : this.bank();
+    }
+  });
 
-  // Sin banco no se puede confirmar (decisión del usuario: el dato es obligatorio para informes).
+  // Con transferencia sin banco no se puede confirmar (el dato es obligatorio para informes).
   // Tampoco se confirma con una fecha o clases que el servidor rechazó (previewError trae su motivo).
   protected readonly canConfirm = computed(
     () => this._selectedPlanId() !== null && this.resolvedBank() !== '' && !this._saving() && !this.previewError(),
@@ -186,6 +219,7 @@ export class MarkPaidModal {
   }
 
   protected selectPlan(plan: GymPlan): void {
+    this.userPickedPlan = true;
     this._selectedPlanId.set(plan.id);
     // Al cambiar de plan, las clases ya usadas no pueden pasar del cupo nuevo (ni existir en un plan libre).
     const max = plan.monthlyClasses ?? 0;

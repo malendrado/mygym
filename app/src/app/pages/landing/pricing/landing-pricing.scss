@@ -2,6 +2,7 @@
 
 @include landing-host;
 @include landing-base;
+@include button;
 
 .states {
   @extend %section-container;
@@ -103,6 +104,15 @@
     h3 {
       margin: 0 0 0.4rem;
       font-size: 1.2rem;
+    }
+
+    .pricing__cta {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      margin-top: 1.5rem;
+      width: 100%;
     }
 
     ul {

@@ -64,6 +64,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Service
 @RequiredArgsConstructor
@@ -100,6 +102,7 @@ public class ReservationService {
 
     // Tope del rango que puede pedir la Agenda del admin (la UI pide de a 7 días).
     static final int MAX_AGENDA_DAYS = 31;
+    static final int MAX_HISTORY_RANGE_DAYS = 93;
 
     private final GymBlockRepository gymBlockRepository;
     private final ReservationRepository reservationRepository;
@@ -239,6 +242,10 @@ public class ReservationService {
     // Solo devuelve ocurrencias con al menos 1 asistente (las vacías no le sirven a Historial).
     @Transactional(readOnly = true)
     public List<OccurrenceAttendees> getOccurrenceAttendeesForRange(Long gymId, LocalDate from, LocalDate to) {
+        // Sin tope, from=2000-01-01&to=2100-01-01 cargaba en memoria todas las reservas del gimnasio.
+        if (to.isBefore(from) || ChronoUnit.DAYS.between(from, to) >= MAX_HISTORY_RANGE_DAYS) {
+            throw new InvalidAttendanceException("El rango debe ser de 1 a " + MAX_HISTORY_RANGE_DAYS + " días");
+        }
         List<GymBlock> blocks =
                 gymBlockRepository.findByGymId(gymId).stream().filter(GymBlock::isActive).toList();
         List<Long> blockIds = blocks.stream().map(GymBlock::getId).toList();
@@ -367,8 +374,10 @@ public class ReservationService {
     public ReservationResponse book(Long gymId, Long memberId, ReservationCreateRequest request) {
         Gym gym = findGymOrThrow(gymId);
         int bookingWindowMinutes = gym.getBookingWindowMinutes();
+        // Se bloquea la fila del bloque hasta el commit: dos reservas simultáneas de la misma clase se ponen en fila y
+        // la segunda ve el cupo ya ocupado (antes ambas contaban "queda 1" y las dos entraban, pasando la capacidad).
         GymBlock block = gymBlockRepository
-                .findByIdAndGymId(request.gymBlockId(), gymId)
+                .findLockedByIdAndGymId(request.gymBlockId(), gymId)
                 .filter(GymBlock::isActive)
                 .orElseThrow(() -> new GymBlockNotFoundException(gymId, request.gymBlockId()));
 
@@ -402,14 +411,21 @@ public class ReservationService {
         // Gate real de suscripción — hasta esta validación, cualquier socio con rol MEMBER
         // podía reservar gratis sin importar si había pagado o no (el estado Activo/Vencido
         // era puramente decorativo en la UI). Ver MemberService.hasActiveMembership.
+        // También se bloquea la fila del socio: sus reservas simultáneas a clases DISTINTAS se ponen en fila y la cuota
+        // mensual se cuenta de verdad (sin esto, N llamadas en paralelo pasaban el tope de su plan).
         AppUser member = appUserRepository
-                .findByIdAndGymId(memberId, gymId)
+                .findLockedByIdAndGymId(memberId, gymId)
                 .orElseThrow(() -> new MemberNotFoundException(memberId));
         if (!memberService.hasActiveMembership(member)) {
             throw new SubscriptionRequiredException("Necesitas un plan activo para reservar clases");
         }
         if (!memberService.hasQuotaAvailable(member)) {
             throw new MonthlyQuotaExceededException();
+        }
+        // El cupo mensual solo cuenta las clases del período pagado: sin este límite, una fecha posterior
+        // al vencimiento no gastaba cupo y quedaba reservada aunque el plan ya hubiera vencido.
+        if (!MemberService.isWithinPaidPeriod(member, request.classDate())) {
+            throw new BookingWindowClosedException(paidPeriodMessage(member));
         }
         // RUT, dirección, fecha de nacimiento y celular son obligatorios (pantalla de datos de /member);
         // el servidor lo hace cumplir igual para quien llame a la API directo.
@@ -418,11 +434,35 @@ public class ReservationService {
         }
 
         ReservationResponse response = toResponse(createBooked(block.getId(), memberId, request.classDate(), null), block);
-        notifyIfClassesExhausted(gymId, member);
+        // Después del commit: el aviso manda un correo (HTTP a Resend) y, dentro de la transacción, mantendría
+        // bloqueadas las filas del bloque y del socio mientras tanto, poniendo en fila a todas las reservas de esa clase.
+        afterCommit(() -> notifyIfClassesExhausted(gymId, member));
         // Si venía de la lista de espera (o simplemente estaba anotado y consiguió cupo por su
         // cuenta), ya no tiene sentido que siga esperando esta misma clase.
         waitlistService.clearOnBooked(block.getId(), request.classDate(), memberId);
         return response;
+    }
+
+    /** Ejecuta la tarea cuando la transacción en curso se confirma; sin transacción (pruebas unitarias) la corre al tiro. */
+    private static void afterCommit(Runnable task) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    task.run();
+                }
+            });
+        } else {
+            task.run();
+        }
+    }
+
+    /** Texto para un socio que intenta reservar (o anotarse a la espera) después de que vence su plan. */
+    static String paidPeriodMessage(AppUser member) {
+        LocalDate until = MemberService.paidUntil(member);
+        return String.format(
+                "Tu plan cubre hasta el %02d/%02d. Renuévalo para reservar clases de fechas posteriores",
+                until.getDayOfMonth(), until.getMonthValue());
     }
 
     /** Crea y guarda la reserva BOOKED — sin validar nada (el llamador ya validó lo que le toca):
@@ -463,6 +503,11 @@ public class ReservationService {
         Reservation reservation = reservationRepository
                 .findByIdAndMemberId(reservationId, memberId)
                 .orElseThrow(() -> new ReservationNotFoundException(reservationId));
+        // Cancelar algo ya cancelado (doble toque, o repetir la llamada a mano) no hace nada: sin esto cada repetición
+        // volvía a avisar "se liberó un cupo" a la lista de espera y mandaba otro push al equipo del gimnasio.
+        if (reservation.getStatus() != ReservationStatus.BOOKED) {
+            return;
+        }
         GymBlock block = gymBlockRepository
                 .findById(reservation.getGymBlockId())
                 .orElseThrow(() -> new ReservationNotFoundException(reservationId));
@@ -503,10 +548,13 @@ public class ReservationService {
         if (!block.getGymId().equals(gymId)) {
             throw new ReservationNotFoundException(reservationId);
         }
+        if (reservation.getStatus() != ReservationStatus.BOOKED) {
+            return; // ya estaba cancelada: nada que liberar ni avisar (ver cancel)
+        }
         if (reservation.getClassDate().isBefore(LocalDate.now(GYM_ZONE))) {
             throw new BookingWindowClosedException("No puedes cancelar una clase que ya pasó");
         }
-        boolean wasBooked = reservation.getStatus() == ReservationStatus.BOOKED;
+        boolean wasBooked = true;
         reservation.setStatus(ReservationStatus.CANCELLED);
         reservationRepository.save(reservation);
         waitlistService.onSpotFreed(block.getId(), reservation.getClassDate());

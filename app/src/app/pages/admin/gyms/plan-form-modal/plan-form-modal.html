@@ -89,6 +89,18 @@
         <ion-note color="danger">Debe ser mayor a 0.</ion-note>
       }
     }
+
+    @if (isEditing()) {
+      <p class="section-label">Estado</p>
+      <ion-item lines="none">
+        <ion-toggle [checked]="active()" (ionChange)="active.set($event.detail.checked)">
+          {{ active() ? 'Activo' : 'Pausado' }}
+        </ion-toggle>
+      </ion-item>
+      <ion-note>
+        {{ active() ? 'Los socios nuevos pueden elegir este plan.' : 'Pausado: no se ofrece a socios nuevos. Quienes ya lo tienen lo conservan.' }}
+      </ion-note>
+    }
   </form>
 </ion-content>
 

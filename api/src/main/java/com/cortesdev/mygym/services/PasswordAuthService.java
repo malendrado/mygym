@@ -59,15 +59,18 @@ public class PasswordAuthService {
     private final MemberLifecycleEmailService memberLifecycleEmailService;
     private final SecureRandom secureRandom = new SecureRandom();
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    // Hash de una clave que nadie conoce, calculado una sola vez: ver login().
+    private static final String DUMMY_PASSWORD_HASH = new BCryptPasswordEncoder().encode("no-es-la-clave-de-nadie");
 
     public LoginResponse login(String email, String rawPassword) {
-        AppUser user = appUserRepository
-                .findByEmail(AppUser.normalizeEmail(email))
-                .orElseThrow(InvalidCredentialsException::new);
-        if (user.getPasswordHash() == null || !passwordEncoder.matches(rawPassword, user.getPasswordHash())) {
-            throw new InvalidCredentialsException();
-        }
-        if (!user.isActive()) {
+        AppUser user = appUserRepository.findByEmail(AppUser.normalizeEmail(email)).orElse(null);
+        // bcrypt se ejecuta SIEMPRE (contra un hash de relleno si el correo no existe o la cuenta nunca tuvo clave):
+        // sin esto, un correo inexistente respondía al instante y uno real tardaba ~100 ms, y esa diferencia de tiempo
+        // permitía averiguar qué correos tienen cuenta aunque el mensaje de error fuera idéntico.
+        boolean hasPassword = user != null && user.getPasswordHash() != null;
+        boolean passwordMatches =
+                passwordEncoder.matches(rawPassword, hasPassword ? user.getPasswordHash() : DUMMY_PASSWORD_HASH);
+        if (!hasPassword || !passwordMatches || !user.isActive()) {
             throw new InvalidCredentialsException();
         }
         return issueLoginResponse(user, false);
@@ -133,6 +136,9 @@ public class PasswordAuthService {
             return new TokenInfoResponse(token.getPurpose(), token.getPendingName(), token.getPendingEmail());
         }
         AppUser user = appUserRepository.findById(token.getAppUserId()).orElseThrow(InvalidOrExpiredTokenException::new);
+        if (!user.isActive()) {
+            throw new InvalidOrExpiredTokenException();
+        }
         return new TokenInfoResponse(token.getPurpose(), user.getName(), user.getEmail());
     }
 
@@ -169,6 +175,12 @@ public class PasswordAuthService {
             memberLifecycleEmailService.sendNewMemberNotice(gym, user, adminEmails);
         } else {
             user = appUserRepository.findById(token.getAppUserId()).orElseThrow(InvalidOrExpiredTokenException::new);
+            // La invitación dura 48 h y el reseteo 1 h: entre que se emitió el enlace y se usa, el admin pudo
+            // desactivar la cuenta. login() ya la rechaza; sin esto, el enlace entregaba igual una sesión nueva.
+            // Mismo error de siempre, sin revelar que la cuenta existe.
+            if (!user.isActive()) {
+                throw new InvalidOrExpiredTokenException();
+            }
             user.setPasswordHash(hash);
             appUserRepository.save(user);
         }

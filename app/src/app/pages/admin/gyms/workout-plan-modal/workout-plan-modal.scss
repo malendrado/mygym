@@ -38,3 +38,31 @@
   padding-left: 1.1rem;
   font-size: 0.85rem;
 }
+
+// La clase más reciente va marcada para que el profesor la vea de inmediato.
+.workout-plan-modal__memory--latest {
+  background: color-mix(in srgb, var(--brand-accent) 7%, transparent);
+}
+
+.workout-plan-modal__latest-tag {
+  margin-left: 0.4rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 6px;
+  background: var(--brand-accent);
+  color: var(--brand-accent-contrast);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.workout-plan-modal__more {
+  margin: 0.75rem 0 1rem;
+}
+
+.workout-plan-modal__match {
+  padding: 0 0.15rem;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--brand-accent) 28%, transparent);
+  color: var(--brand-text);
+}

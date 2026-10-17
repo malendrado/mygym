@@ -20,6 +20,7 @@ import {
   IonSelect,
   IonSelectOption,
   IonTitle,
+  IonToggle,
   IonToolbar,
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
@@ -71,6 +72,7 @@ function endAfterStartValidator(control: AbstractControl): ValidationErrors | nu
     IonSelect,
     IonSelectOption,
     IonNote,
+    IonToggle,
     QuantityStepper,
   ],
   templateUrl: './bloque-form-modal.html',
@@ -87,6 +89,7 @@ export class BloqueFormModal {
 
   @Input() set block(value: GymBlock | null) {
     this._block.set(value);
+    this.active.set(value?.active ?? true);
     this._instructorPhoto.set(value?.instructorPhoto ?? null);
     if (value) {
       this.form.patchValue({
@@ -128,6 +131,9 @@ export class BloqueFormModal {
 
   @Output() saved = new EventEmitter<CreateGymBlockRequest | UpdateGymBlockRequest>();
   @Output() dismiss = new EventEmitter<void>();
+
+  // Activo / Pausado (solo al editar; un bloque nuevo nace activo).
+  protected readonly active = signal(true);
 
   private readonly _block = signal<GymBlock | null>(null);
   protected readonly isEditing = computed(() => this._block() !== null);
@@ -231,7 +237,7 @@ export class BloqueFormModal {
     };
     const current = this._block();
     if (current) {
-      this.saved.emit({ ...value, active: current.active });
+      this.saved.emit({ ...value, active: this.active() });
     } else {
       this.saved.emit(value);
     }

@@ -1087,6 +1087,11 @@ ion-segment-button.segment-button-checked {
     }
   }
 
+  // Cancelar es secundario (botón plano en rojo, sin relleno), pero conserva el piso táctil de 44px.
+  &__cancel {
+    height: 44px;
+  }
+
   &__link {
     background: none;
     border: none;
@@ -1336,7 +1341,7 @@ ion-segment-button.segment-button-checked {
 }
 
 
-// Historial de registros de rutina del propio socio (últimos 30).
+// Historial de registros de rutina del propio socio (de a 7 días).
 .workout-history__title {
   margin: 0 0 0.6rem;
   font-size: 0.95rem;
@@ -1370,4 +1375,11 @@ ion-segment-button.segment-button-checked {
 
 .fixed-week-notice {
   margin: 0 0 0.75rem;
+}
+
+.workout-history__match {
+  padding: 0 0.15rem;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--brand-accent) 28%, transparent);
+  color: var(--brand-text);
 }

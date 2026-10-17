@@ -78,6 +78,13 @@ public class WaitlistService {
                 .findByIdAndGymId(gymBlockId, gymId)
                 .filter(GymBlock::isActive)
                 .orElseThrow(() -> new GymBlockNotFoundException(gymId, gymBlockId));
+        // Misma regla que reservar: esperar una clase posterior al vencimiento del plan no tiene sentido,
+        // el aviso de cupo liberado llevaría a una reserva que después no se podría hacer.
+        appUserRepository.findByIdAndGymId(memberId, gymId).ifPresent(member -> {
+            if (!MemberService.isWithinPaidPeriod(member, classDate)) {
+                throw new BookingWindowClosedException(ReservationService.paidPeriodMessage(member));
+            }
+        });
 
         int taken = reservationRepository.countByGymBlockIdAndClassDateAndStatus(
                 gymBlockId, classDate, ReservationStatus.BOOKED);

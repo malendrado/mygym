@@ -702,6 +702,15 @@
                   <ion-button fill="clear" [attr.aria-label]="'Editar ' + block.label" [attr.title]="'Editar ' + block.label" (click)="openEditBlock(block)">
                     <ion-icon name="create-outline" slot="icon-only" aria-hidden="true"></ion-icon>
                   </ion-button>
+                  <ion-button
+                    fill="clear"
+                    [attr.aria-label]="(block.active ? 'Pausar ' : 'Activar ') + block.label"
+                    [attr.title]="(block.active ? 'Pausar ' : 'Activar ') + block.label"
+                    [disabled]="togglingKey() === 'b' + block.id"
+                    (click)="toggleBlockActive(block)"
+                  >
+                    <ion-icon [name]="block.active ? 'pause-outline' : 'play-outline'" slot="icon-only" aria-hidden="true"></ion-icon>
+                  </ion-button>
                   <ion-button fill="clear" color="danger" [attr.aria-label]="'Eliminar ' + block.label" [attr.title]="'Eliminar ' + block.label" (click)="removeBlock(block)">
                     <ion-icon name="trash-outline" slot="icon-only" aria-hidden="true"></ion-icon>
                   </ion-button>
@@ -791,6 +800,15 @@
                 <ion-buttons>
                   <ion-button fill="clear" [attr.aria-label]="'Editar ' + plan.name" (click)="openEditPlan(plan)">
                     <ion-icon name="create-outline" slot="icon-only" aria-hidden="true"></ion-icon>
+                  </ion-button>
+                  <ion-button
+                    fill="clear"
+                    [attr.aria-label]="(plan.active ? 'Pausar ' : 'Activar ') + plan.name"
+                    [attr.title]="(plan.active ? 'Pausar ' : 'Activar ') + plan.name"
+                    [disabled]="togglingKey() === 'p' + plan.id"
+                    (click)="togglePlanActive(plan)"
+                  >
+                    <ion-icon [name]="plan.active ? 'pause-outline' : 'play-outline'" slot="icon-only" aria-hidden="true"></ion-icon>
                   </ion-button>
                   <ion-button fill="clear" color="danger" [attr.aria-label]="'Eliminar ' + plan.name" (click)="removePlan(plan)">
                     <ion-icon name="trash-outline" slot="icon-only" aria-hidden="true"></ion-icon>
@@ -1148,8 +1166,7 @@
                 <ion-badge [color]="statusColor(member.membershipStatus)">
                   {{ statusLabel(member.membershipStatus) }}
                 </ion-badge>
-                @if (!member.planId) {
-                  <ion-button
+                <ion-button
                     [attr.data-tour]="member.id === firstUnpaidMemberId() ? 'members-mark-paid' : null"
                     fill="outline"
                     size="small"
@@ -1161,14 +1178,14 @@
                     @if (markingPaidId() === member.id) {
                       <ion-spinner name="crescent" slot="start"></ion-spinner>
                     } @else {
-                      <ion-icon name="checkmark-circle-outline" slot="start" aria-hidden="true"></ion-icon>
+                      <ion-icon [name]="member.planId ? 'refresh-outline' : 'checkmark-circle-outline'" slot="start" aria-hidden="true"></ion-icon>
                     }
-                    Marcar pago
+                    {{ member.planId ? 'Renovar' : 'Marcar pago' }}
                   </ion-button>
-                } @else if (!isProfesor()) {
+                @if (member.planId && !isProfesor()) {
                   <ion-button
                     [attr.data-tour]="member.id === firstMemberWithPlanId() ? 'members-revoke-plan' : null"
-                    fill="outline"
+                    fill="clear"
                     size="small"
                     color="danger"
                     class="member-action-btn member-action-btn--secondary"
@@ -1208,7 +1225,7 @@
                   }
                   Clases fijas
                 </ion-button>
-                @if (whatsappUrl(member.phone); as wa) {
+                @if (memberWhatsapp(member); as wa) {
                   <ion-button
                     fill="outline"
                     size="small"
@@ -1308,6 +1325,8 @@
       <ng-template>
         <app-mark-paid-modal
           [memberName]="markPaidMember()?.name ?? ''"
+          [renewing]="!!markPaidMember()?.planId"
+          [currentPlanId]="markPaidMember()?.planId"
           [plans]="plans()"
           [previewLoader]="paymentPreviewLoader"
           [saving]="markingPaidId() === markPaidMember()?.id"
@@ -1332,6 +1351,9 @@
           [memberName]="workoutPlanMember()?.name ?? ''"
           [plan]="workoutPlan()"
           [history]="workoutHistory()"
+          [hasMoreHistory]="workoutHistoryNext() !== null"
+          [loadingMoreHistory]="loadingMoreWorkoutHistory()"
+          (loadMoreHistory)="loadMoreWorkoutHistory()"
           [saving]="savingWorkoutPlan()"
           (saved)="confirmWorkoutPlan($event)"
           (dismiss)="closeWorkoutPlanModal()"

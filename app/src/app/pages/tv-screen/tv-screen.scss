@@ -82,6 +82,22 @@
   color: var(--brand-text-dim);
 }
 
+.tv-offline__title {
+  margin: 0;
+  font-family: var(--brand-font-heading);
+  font-weight: 700;
+  font-size: 3rem;
+  line-height: 1.15;
+  color: var(--brand-text);
+}
+
+.tv-offline__time {
+  margin: 0;
+  font-family: var(--brand-font-mono);
+  font-size: 1.6rem;
+  color: var(--brand-text-dim);
+}
+
 .tv-loading {
   flex: 1;
   display: flex;

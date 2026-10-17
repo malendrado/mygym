@@ -28,6 +28,7 @@ import {
 import { formatIsoDate } from '../../../../core/utils/date-format';
 import { errorText } from '../../../../core/utils/error-text';
 import { whatsappUrl } from '../../../../core/utils/member-profile';
+import { missedClassMessage } from '../../../../core/utils/whatsapp-messages';
 import { shortTime } from '../../../../core/utils/time-format';
 
 addIcons({
@@ -200,7 +201,10 @@ export class ClassBoardView {
     return shortTime(t);
   }
   protected whatsapp(a: BoardAttendee): string | null {
-    return whatsappUrl(a.phone);
+    // Con la clase en curso y sin haber llegado, el mensaje lo invita; en otro caso, chat sin texto.
+    const current = this.selected();
+    const missing = !a.checkedInAt && current?.status === 'LIVE';
+    return whatsappUrl(a.phone, missing ? missedClassMessage(a.name, current?.label) : null);
   }
   protected deviation(a: BoardAttendee): string | null {
     return deviationText(a.lastLog);
@@ -249,7 +253,7 @@ export class ClassBoardView {
       error: () => this.planLoading.set(false),
     });
     this.workoutService.getLogHistory(a.memberId, this.gymId).subscribe({
-      next: (logs) => this.history.set(logs.slice(0, 5)),
+      next: (page) => this.history.set(page.logs.slice(0, 5)),
       error: () => undefined,
     });
   }

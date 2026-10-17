@@ -42,6 +42,9 @@ const STALE_CURRENT_GRACE_SECONDS = 60;
 // Si pasa mucho más que un poll normal sin éxito, mostrar un aviso sutil de que la pantalla no
 // se pudo actualizar — mejor decirlo que dejar todo congelado en silencio indefinidamente.
 const RECONNECTING_THRESHOLD_MS = SCHEDULE_POLL_MS * 3;
+// Si al arrancar (pantalla ya vinculada) pasan estos ms sin una primera respuesta buena del sondeo,
+// se reemplaza el spinner por "Sin conexión con mygym" — un círculo girando para siempre no dice nada.
+const OFFLINE_AFTER_MS = 20_000;
 // Fotos mínimas por vuelta de la tira (≈ 210px c/u): suficiente para cubrir la columna izquierda
 // de una TV de 1920px sin hueco antes de que empiece la copia del loop.
 const PHOTO_STRIP_MIN_ITEMS = 8;
@@ -206,6 +209,10 @@ export class TvScreenPage implements OnDestroy {
   private readonly allNextBlocks = computed<TvBlockOccurrence[]>(() => this.schedule()?.next ?? []);
 
   private readonly lastSuccessfulPollAt = signal<number>(Date.now());
+  // Sin red desde el arranque: true pasados OFFLINE_AFTER_MS sin primera respuesta. Vuelve a false sola
+  // cuando llega una respuesta buena (el sondeo nunca se detiene).
+  protected readonly offline = signal(false);
+  protected readonly lastAttemptLabel = signal('');
   // Aviso sutil de que el sondeo lleva rato sin poder actualizar — mejor decirlo que dejar la
   // pantalla congelada en silencio (ver STALE_CURRENT_GRACE_SECONDS / RECONNECTING_THRESHOLD_MS).
   protected readonly isReconnecting = computed(() => {
@@ -338,6 +345,7 @@ export class TvScreenPage implements OnDestroy {
   private clockTimer: ReturnType<typeof setInterval> | null = null;
   private pollTimer: ReturnType<typeof setTimeout> | null = null;
   private kioskReloadTimer: ReturnType<typeof setTimeout> | null = null;
+  private offlineTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
     // Escala fluida: 1rem = 16px a 1536x864 (20px a 1080p) y proporcional al lado que limite (ancho o alto).
@@ -386,7 +394,25 @@ export class TvScreenPage implements OnDestroy {
     if (this.clockTimer) clearInterval(this.clockTimer);
     if (this.pollTimer) clearTimeout(this.pollTimer);
     if (this.kioskReloadTimer) clearTimeout(this.kioskReloadTimer);
+    this.clearOfflineTimer();
     clearThemeOverrides();
+  }
+
+  private clearOfflineTimer(): void {
+    if (this.offlineTimer) clearTimeout(this.offlineTimer);
+    this.offlineTimer = null;
+  }
+
+  // HH:MM (hora de Chile) del último intento de conexión, para el aviso de "sin conexión".
+  private markAttempt(): void {
+    this.lastAttemptLabel.set(
+      new Intl.DateTimeFormat('es-CL', {
+        timeZone: 'America/Santiago',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      }).format(new Date()),
+    );
   }
 
   private startPairing(): void {
@@ -442,10 +468,20 @@ export class TvScreenPage implements OnDestroy {
   }
 
   private startSchedulePolling(token: string): void {
+    // Un solo temporizador por arranque (no por reintento): si el sondeo no responde a tiempo, se avisa.
+    this.clearOfflineTimer();
+    this.offline.set(false);
+    this.markAttempt();
+    this.offlineTimer = setTimeout(() => {
+      this.offlineTimer = null;
+      if (this.stage() === 'loading') this.offline.set(true);
+    }, OFFLINE_AFTER_MS);
     const poll = () => {
       this.tvScreenService.schedule(token).subscribe({
         next: (data) => {
           this.clockOffsetMs = new Date(data.serverTime).getTime() - Date.now();
+          this.clearOfflineTimer();
+          this.offline.set(false);
           this.lastSuccessfulPollAt.set(Date.now());
           this.schedule.set(data);
           this.stage.set('display');
@@ -464,12 +500,15 @@ export class TvScreenPage implements OnDestroy {
           if (err?.status === 404) {
             // La pantalla se desvinculó o pasó 90 días sin conectarse — hay que emparejar de nuevo.
             localStorage.removeItem(TV_TOKEN_KEY);
+            this.clearOfflineTimer();
+            this.offline.set(false);
             this.schedule.set(null);
             clearThemeOverrides();
             this.startPairing();
             return;
           }
           // Error transitorio de red: reintenta sin romper lo que ya está en pantalla.
+          this.markAttempt();
           this.pollTimer = setTimeout(poll, SCHEDULE_POLL_MS);
         },
       });

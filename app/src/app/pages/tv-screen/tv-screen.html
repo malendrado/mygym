@@ -138,9 +138,17 @@
         </div>
       }
       @case ('loading') {
-        <div class="tv-loading">
-          <div class="tv-loading__spinner"></div>
-        </div>
+        @if (offline()) {
+          <div class="tv-pairing tv-offline" role="status">
+            <p class="tv-offline__title">Sin conexión con mygym</p>
+            <p class="tv-pairing__hint">Reintentando…</p>
+            <p class="tv-offline__time">Último intento: {{ lastAttemptLabel() }}</p>
+          </div>
+        } @else {
+          <div class="tv-loading">
+            <div class="tv-loading__spinner"></div>
+          </div>
+        }
       }
       @case ('error') {
         <div class="tv-pairing">

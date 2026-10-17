@@ -98,6 +98,16 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
      *  acotadas por socio. */
     List<Reservation> findByMemberIdAndCheckedInAtIsNotNullOrderByClassDateDesc(Long memberId);
 
+    /** La clase más reciente con asistencia que todavía no tiene registro de rutina: pasar `PageRequest.of(0, 1)`.
+     *  Una sola consulta que se detiene en la primera, en vez de traer todas las asistencias del socio. */
+    @Query("""
+            select r from Reservation r
+            where r.memberId = :memberId and r.checkedInAt is not null
+              and not exists (select 1 from MemberWorkoutLog l where l.reservationId = r.id)
+            order by r.classDate desc, r.id desc
+            """)
+    List<Reservation> findPendingWorkoutCandidates(@Param("memberId") Long memberId, Pageable pageable);
+
     /** Tablero "En clase": reservas con asistencia de varios socios desde una fecha — una sola consulta para toda
      *  la clase, acotada por `from` (los últimos días), nunca todo el historial. */
     List<Reservation> findByMemberIdInAndCheckedInAtIsNotNullAndClassDateGreaterThanEqual(

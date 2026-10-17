@@ -1,5 +1,6 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { Reveal } from '../shared/reveal';
+import { ContactModalService } from '../shared/contact-modal.service';
 
 interface PricingTier {
   name: string;
@@ -31,6 +32,13 @@ interface FeatureGroup {
   styleUrl: './landing-pricing.scss',
 })
 export class LandingPricing {
+  protected readonly contact = inject(ContactModalService);
+
+  // Abre el formulario de contacto con el plan elegido ya escrito en el mensaje.
+  protected askDemo(tier: PricingTier): void {
+    this.contact.open(`Hola, quiero una demo de mygym. Me interesa el plan ${tier.name} (${tier.clients.toLowerCase()}).`);
+  }
+
   protected readonly membershipStates: MembershipState[] = [
     { label: 'Activo', tone: 'active', body: 'Plan pagado y al día: reserva sin restricciones.' },
     { label: 'Por vencer', tone: 'trial', body: 'Vence en los próximos días; le llega un recordatorio por email y al celular antes.' },

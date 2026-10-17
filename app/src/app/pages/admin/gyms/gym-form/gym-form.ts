@@ -64,6 +64,8 @@ import {
   peopleOutline,
   personCircleOutline,
   personOutline,
+  pauseOutline,
+  playOutline,
   pricetagOutline,
   refreshOutline,
   removeCircleOutline,
@@ -109,6 +111,8 @@ import {
   GymPhoto,
   GymPlan,
   UpdateGymBlockRequest,
+  blockWithActive,
+  planWithActive,
   UpdateGymPlanRequest,
   sortBlocksBySchedule,
 } from '../../../../core/models/gym.model';
@@ -132,6 +136,7 @@ import { CreateWorkoutPlanRequest, MemberWorkoutLog, WorkoutPlan } from '../../.
 import { MemberProfile } from '../../../../core/models/member.model';
 import { MemberProfileService } from '../../../../core/services/member-profile.service';
 import { formatMobile, whatsappUrl } from '../../../../core/utils/member-profile';
+import { membershipMessage } from '../../../../core/utils/whatsapp-messages';
 import { FixedClassesModal } from '../fixed-classes-modal/fixed-classes-modal';
 import { ImportFixedClassesModal } from '../import-fixed-classes-modal/import-fixed-classes-modal';
 import { FixedClass } from '../../../../core/models/fixed-class.model';
@@ -197,6 +202,8 @@ addIcons({
   'color-palette-outline': colorPaletteOutline,
   'card-outline': cardOutline,
   'refresh-outline': refreshOutline,
+  'pause-outline': pauseOutline,
+  'play-outline': playOutline,
   'remove-circle-outline': removeCircleOutline,
   'search-outline': searchOutline,
   'cloud-upload-outline': cloudUploadOutline,
@@ -1348,8 +1355,56 @@ export class GymForm implements OnDestroy {
         this.status.set('idle');
         this.isModalOpen.set(false);
         this.loadBlocks(id);
+        this.showToast(editing ? 'Bloque guardado.' : 'Bloque creado.');
       },
-      error: () => this.status.set('error'),
+      error: (err: Error) => {
+        this.status.set('idle');
+        this.showToast(errorText(err, 'No pudimos guardar el bloque. Intenta nuevamente.'), 'danger');
+      },
+    });
+  }
+
+  // Pausar / Activar desde la tarjeta: reenvía el bloque con `active` invertido (avisa a los reservantes al pausar).
+  // Bloque o plan cuyo Pausar/Activar está en vuelo ("b12" / "p3"): evita que un doble toque mande dos cambios.
+  protected readonly togglingKey = signal<string | null>(null);
+
+  protected toggleBlockActive(block: GymBlock): void {
+    const id = this.gymId();
+    if (id === null || this.togglingKey() !== null) {
+      return;
+    }
+    this.togglingKey.set('b' + block.id);
+    const next = !block.active;
+    this.gymService.updateBlock(id, block.id, blockWithActive(block, next)).subscribe({
+      next: () => {
+        this.togglingKey.set(null);
+        this.loadBlocks(id);
+        this.showToast(next ? 'Bloque activado.' : 'Bloque pausado.');
+      },
+      error: (err: Error) => {
+        this.togglingKey.set(null);
+        this.showToast(errorText(err, 'No pudimos cambiar el estado del bloque.'), 'danger');
+      },
+    });
+  }
+
+  protected togglePlanActive(plan: GymPlan): void {
+    const id = this.gymId();
+    if (id === null || this.togglingKey() !== null) {
+      return;
+    }
+    this.togglingKey.set('p' + plan.id);
+    const next = !plan.active;
+    this.gymService.updatePlan(id, plan.id, planWithActive(plan, next)).subscribe({
+      next: () => {
+        this.togglingKey.set(null);
+        this.loadPlans(id);
+        this.showToast(next ? 'Plan activado.' : 'Plan pausado.');
+      },
+      error: (err: Error) => {
+        this.togglingKey.set(null);
+        this.showToast(errorText(err, 'No pudimos cambiar el estado del plan.'), 'danger');
+      },
     });
   }
 
@@ -1360,14 +1415,17 @@ export class GymForm implements OnDestroy {
     }
     const confirmed = await this.confirmAction(
       'Eliminar bloque',
-      `¿Eliminar "${block.label}"? Esta acción no se puede deshacer.`,
+      `¿Eliminar "${block.label}"? Se borrarán también sus reservas y la asistencia registrada. Si solo quieres dejar de ofrecerla, usa Pausar.`,
     );
     if (!confirmed) {
       return;
     }
     this.gymService.deleteBlock(id, block.id).subscribe({
-      next: () => this.loadBlocks(id),
-      error: () => this.status.set('error'),
+      next: () => {
+        this.loadBlocks(id);
+        this.showToast('Bloque eliminado.');
+      },
+      error: (err: Error) => this.showToast(errorText(err, 'No pudimos eliminar el bloque.'), 'danger'),
     });
   }
 
@@ -1430,8 +1488,12 @@ export class GymForm implements OnDestroy {
         this.status.set('idle');
         this.isPlanModalOpen.set(false);
         this.loadPlans(id);
+        this.showToast(editing ? 'Plan guardado.' : 'Plan creado.');
       },
-      error: () => this.status.set('error'),
+      error: (err: Error) => {
+        this.status.set('idle');
+        this.showToast(errorText(err, 'No pudimos guardar el plan. Intenta nuevamente.'), 'danger');
+      },
     });
   }
 
@@ -1440,13 +1502,19 @@ export class GymForm implements OnDestroy {
     if (id === null) {
       return;
     }
-    const confirmed = await this.confirmAction('Eliminar plan', `¿Eliminar "${plan.name}"? Esta acción no se puede deshacer.`);
+    const confirmed = await this.confirmAction(
+      'Eliminar plan',
+      `¿Eliminar "${plan.name}"? No se puede deshacer, y si algún socio lo tiene contratado no podrás eliminarlo. Si solo quieres dejar de ofrecerlo, usa Pausar: los socios que ya lo tienen lo conservan.`,
+    );
     if (!confirmed) {
       return;
     }
     this.gymService.deletePlan(id, plan.id).subscribe({
-      next: () => this.loadPlans(id),
-      error: () => this.status.set('error'),
+      next: () => {
+        this.loadPlans(id);
+        this.showToast('Plan eliminado.');
+      },
+      error: (err: Error) => this.showToast(errorText(err, 'No pudimos eliminar el plan.'), 'danger'),
     });
   }
 
@@ -1659,10 +1727,11 @@ export class GymForm implements OnDestroy {
 
   protected onCustomColorInput(event: Event): void {
     const hex = (event.target as HTMLInputElement).value;
-    this.selectColor(hex, 'DARK');
+    // Mientras se arrastra el selector llegan muchos `input` seguidos: se guarda cada uno, pero sin un toast por guardado.
+    this.selectColor(hex, 'DARK', false);
   }
 
-  private selectColor(hex: string, mode: ThemeMode): void {
+  private selectColor(hex: string, mode: ThemeMode, announce = true): void {
     const id = this.gymId();
     if (id === null || this.themeSaving()) {
       return;
@@ -1673,7 +1742,12 @@ export class GymForm implements OnDestroy {
     this.themeMode.set(mode);
     this.themeSaving.set(true);
     this.gymService.updateTheme(id, { themeColor: hex, themeMode: mode }).subscribe({
-      next: () => this.themeSaving.set(false),
+      next: () => {
+        this.themeSaving.set(false);
+        if (announce) {
+          this.showToast('Color guardado.');
+        }
+      },
       error: (err: Error) => {
         this.themeColor.set(previousColor);
         this.themeMode.set(previousMode);
@@ -1956,6 +2030,7 @@ export class GymForm implements OnDestroy {
       const payload: CreateGymPhotoRequest = { data, caption: null };
       const photo = await firstValueFrom(this.gymService.createPhoto(id, payload));
       this.photos.update((list) => [...list, photo]);
+      this.showToast('Foto subida.');
     } catch {
       this.showToast('No pudimos subir esa foto. Intenta con otra.', 'danger');
     } finally {
@@ -1973,7 +2048,10 @@ export class GymForm implements OnDestroy {
       return;
     }
     this.gymService.deletePhoto(id, photo.id).subscribe({
-      next: () => this.photos.update((list) => list.filter((p) => p.id !== photo.id)),
+      next: () => {
+        this.photos.update((list) => list.filter((p) => p.id !== photo.id));
+        this.showToast('Foto eliminada.');
+      },
       error: () => this.showToast('No pudimos eliminar esa foto.', 'danger'),
     });
   }
@@ -2073,6 +2151,14 @@ export class GymForm implements OnDestroy {
   protected readonly savingMemberProfile = signal(false);
   protected readonly memberProfileError = signal<string | null>(null);
   protected readonly whatsappUrl = whatsappUrl;
+
+  // WhatsApp del socio: con plan vencido o por vencer abre el chat con el mensaje de renovación ya escrito.
+  protected memberWhatsapp(member: Member): string | null {
+    return whatsappUrl(
+      member.phone,
+      membershipMessage(member.membershipStatus, member.name, this.gymName(), member.planEndDate),
+    );
+  }
   protected readonly formatMobile = formatMobile;
 
   protected openMemberProfile(member: Member): void {
@@ -2084,6 +2170,9 @@ export class GymForm implements OnDestroy {
   protected readonly workoutPlanMember = signal<Member | null>(null);
   protected readonly workoutPlan = signal<WorkoutPlan | null>(null);
   protected readonly workoutHistory = signal<MemberWorkoutLog[]>([]);
+  // Cursor de la ventana anterior del historial (null = no hay más) y estado del botón "Cargar semana anterior".
+  protected readonly workoutHistoryNext = signal<string | null>(null);
+  protected readonly loadingMoreWorkoutHistory = signal(false);
   protected readonly savingWorkoutPlan = signal(false);
 
   protected openWorkoutPlanModal(member: Member): void {
@@ -2094,13 +2183,48 @@ export class GymForm implements OnDestroy {
     this.workoutPlanMember.set(member);
     this.workoutPlan.set(null);
     this.workoutHistory.set([]);
+    this.workoutHistoryNext.set(null);
+    this.loadingMoreWorkoutHistory.set(false);
     this.workoutService.getActivePlan(member.id, gymId).subscribe({
       next: (plan) => this.workoutPlan.set(plan),
       error: () => this.showToast('No pudimos cargar la rutina. Intenta nuevamente.', 'danger'),
     });
     this.workoutService.getLogHistory(member.id, gymId).subscribe({
-      next: (logs) => this.workoutHistory.set(logs),
+      next: (page) => {
+        this.workoutHistory.set(page.logs);
+        this.workoutHistoryNext.set(page.nextBefore);
+      },
       error: () => undefined,
+    });
+  }
+
+  /** "Cargar semana anterior": pide la ventana siguiente con el cursor y la agrega al final. */
+  protected loadMoreWorkoutHistory(): void {
+    const member = this.workoutPlanMember();
+    const gymId = this.gymId();
+    const before = this.workoutHistoryNext();
+    if (!member || !gymId || !before || this.loadingMoreWorkoutHistory()) {
+      return;
+    }
+    this.loadingMoreWorkoutHistory.set(true);
+    const memberId = member.id;
+    this.workoutService.getLogHistory(memberId, gymId, before).subscribe({
+      next: (page) => {
+        // Si mientras tanto se cerró el modal o se abrió otro socio, esta respuesta ya no le corresponde.
+        if (this.workoutPlanMember()?.id !== memberId) {
+          return;
+        }
+        this.workoutHistory.update((logs) => [...logs, ...page.logs]);
+        this.workoutHistoryNext.set(page.nextBefore);
+        this.loadingMoreWorkoutHistory.set(false);
+      },
+      error: () => {
+        if (this.workoutPlanMember()?.id !== memberId) {
+          return;
+        }
+        this.loadingMoreWorkoutHistory.set(false);
+        this.showToast('No pudimos cargar los registros anteriores. Intenta nuevamente.', 'danger');
+      },
     });
   }
 

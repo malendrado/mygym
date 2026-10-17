@@ -9,10 +9,12 @@ import com.cortesdev.mygym.models.WorkoutPlan;
 import com.cortesdev.mygym.models.dto.MemberWorkoutLogResponse;
 import com.cortesdev.mygym.models.dto.PendingWorkoutResponse;
 import com.cortesdev.mygym.models.dto.PlanDayResponse;
+import com.cortesdev.mygym.models.dto.WorkoutLogPageResponse;
 import com.cortesdev.mygym.models.dto.WorkoutLogSaveRequest;
 import com.cortesdev.mygym.models.dto.WorkoutPlanCreateRequest;
 import com.cortesdev.mygym.models.dto.WorkoutPlanResponse;
 import com.cortesdev.mygym.repositories.AppUserRepository;
+import com.cortesdev.mygym.repositories.LoggedClass;
 import com.cortesdev.mygym.repositories.MemberWorkoutLogRepository;
 import com.cortesdev.mygym.repositories.PlanDayRepository;
 import com.cortesdev.mygym.repositories.ReservationRepository;
@@ -24,12 +26,12 @@ import com.cortesdev.mygym.services.exception.WorkoutLogNotFoundException;
 import com.cortesdev.mygym.services.exception.WorkoutPlanNotFoundException;
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -92,37 +94,54 @@ public class WorkoutService {
             return null;
         }
         List<PlanDay> days = planDayRepository.findByWorkoutPlanIdOrderByOrderIndexAsc(plan.getId());
-        MemberWorkoutLog latest = latestLog(memberWorkoutLogRepository.findBySuggestedPlanDayIdIn(planDayIds(days)));
+        MemberWorkoutLog latest = latestLog(memberId, days);
         return latest == null ? null : toLogResponse(latest, days);
     }
 
-    /** Historial de registros de rutina del socio, para el profesor/admin (los más recientes primero). */
+    /** Una ventana del historial de rutina del socio para el profesor/admin (los más recientes primero). */
     @Transactional(readOnly = true)
-    public List<MemberWorkoutLogResponse> getLogHistory(Long gymId, Long memberId) {
+    public WorkoutLogPageResponse getLogHistory(Long gymId, Long memberId, LocalDate before, Integer days) {
         requireMember(gymId, memberId);
-        return logHistory(memberId);
+        return logHistory(memberId, before, days);
     }
 
-    /** Tope de registros que se devuelven en el historial — pedido del usuario (2026-10-12). */
-    static final int MAX_HISTORY = 30;
-
-    /** Todos los registros del socio sin importar a qué plan pertenecían (el plan puede haber cambiado):
-     *  se ordenan por fecha de la clase, se cortan en MAX_HISTORY y los títulos de los días se
-     *  resuelven con UNA consulta de días, no una por registro. */
-    private List<MemberWorkoutLogResponse> logHistory(Long memberId) {
-        List<Reservation> attended =
-                reservationRepository.findByMemberIdAndCheckedInAtIsNotNullOrderByClassDateDesc(memberId);
-        if (attended.isEmpty()) {
-            return List.of();
+    /** `before` lo manda el cliente: se acota a un rango razonable para que una fecha absurda (año 999999999) no llegue a
+     *  Postgres y termine en un 500. Sin `before`, empieza desde lo más reciente. */
+    static LocalDate clampCursor(LocalDate before) {
+        LocalDate max = LocalDate.now().plusYears(1);
+        if (before == null || before.isAfter(max)) {
+            return max;
         }
-        Map<Long, LocalDate> classDateByReservation =
-                attended.stream().collect(Collectors.toMap(Reservation::getId, Reservation::getClassDate));
-        List<MemberWorkoutLog> logs = memberWorkoutLogRepository.findByReservationIdIn(List.copyOf(classDateByReservation.keySet()))
-                .stream()
-                .sorted(Comparator.comparing((MemberWorkoutLog l) -> classDateByReservation.get(l.getReservationId()))
-                        .reversed())
-                .limit(MAX_HISTORY)
-                .toList();
+        LocalDate min = LocalDate.of(2000, 1, 1);
+        return before.isBefore(min) ? min : before;
+    }
+
+    /** Ventana por defecto del historial: los 7 días contados desde la clase más reciente con registro. */
+    static final int DEFAULT_WINDOW_DAYS = 7;
+    /** Tope de la ventana que puede pedir un cliente (mismo criterio que el rango del historial de asistencia). */
+    static final int MAX_WINDOW_DAYS = 93;
+
+    /** El historial se entrega por ventanas, nunca completo: la ventana termina en la clase más reciente con registro
+     *  anterior a `before` (sin `before`, la más reciente de todas) y abarca `days` días hacia atrás, así nunca viene
+     *  vacía aunque el socio lleve semanas sin entrenar. Son 3 consultas acotadas por índice (ancla, ventana, "¿hay
+     *  más antiguas?") más una de días de plan y una de nombres, todas en lote. `nextBefore` es el cursor de la
+     *  ventana siguiente (la fecha más antigua de esta) o null si no quedan registros. */
+    private WorkoutLogPageResponse logHistory(Long memberId, LocalDate before, Integer days) {
+        LocalDate cursor = clampCursor(before);
+        int window = days == null ? DEFAULT_WINDOW_DAYS : Math.min(Math.max(days, 1), MAX_WINDOW_DAYS);
+        LocalDate top = memberWorkoutLogRepository.newestClassDateBefore(memberId, cursor).orElse(null);
+        if (top == null) {
+            return new WorkoutLogPageResponse(List.of(), null);
+        }
+        List<LoggedClass> rows = memberWorkoutLogRepository.findWindow(memberId, top, top.minusDays(window));
+        if (rows.isEmpty()) {
+            return new WorkoutLogPageResponse(List.of(), null);
+        }
+        LocalDate oldest = rows.get(rows.size() - 1).classDate();
+        LocalDate nextBefore =
+                memberWorkoutLogRepository.newestClassDateBefore(memberId, oldest).isPresent() ? oldest : null;
+
+        List<MemberWorkoutLog> logs = rows.stream().map(LoggedClass::log).toList();
         Set<Long> dayIds = new java.util.HashSet<>();
         for (MemberWorkoutLog l : logs) {
             dayIds.add(l.getSuggestedPlanDayId());
@@ -130,18 +149,18 @@ public class WorkoutService {
                 dayIds.add(l.getPlanDayId());
             }
         }
-        List<PlanDay> days = planDayRepository.findAllById(dayIds);
+        List<PlanDay> planDays = planDayRepository.findAllById(dayIds);
         Map<Long, String> staffNames = staffNamesOf(logs);
-        return logs.stream()
-                .map(l -> toLogResponse(l, days, classDateByReservation.get(l.getReservationId()), staffNames))
-                .toList();
+        return new WorkoutLogPageResponse(
+                rows.stream().map(r -> toLogResponse(r.log(), planDays, r.classDate(), staffNames)).toList(),
+                nextBefore);
     }
 
     // ---- Lado socio (self-service, /api/me) ----
 
     @Transactional(readOnly = true)
-    public List<MemberWorkoutLogResponse> getMyLogHistory(Long memberId) {
-        return logHistory(memberId);
+    public WorkoutLogPageResponse getMyLogHistory(Long memberId, LocalDate before, Integer days) {
+        return logHistory(memberId, before, days);
     }
 
 
@@ -153,7 +172,7 @@ public class WorkoutService {
         }
         List<PlanDay> days = planDayRepository.findByWorkoutPlanIdOrderByOrderIndexAsc(plan.getId());
         Reservation pending = findPendingReservation(memberId);
-        PlanDay suggested = getNextPlanDay(days);
+        PlanDay suggested = getNextPlanDay(memberId, days);
         if (pending == null) {
             // Sin clase por anotar igual se informa qué día le toca: la app del socio lo muestra en su reserva de
             // hoy ("Hoy te toca: Día 3") antes de que entrene.
@@ -199,7 +218,7 @@ public class WorkoutService {
                 .findByMemberIdAndActiveTrue(memberId)
                 .orElseThrow(() -> new WorkoutPlanNotFoundException(memberId));
         List<PlanDay> days = planDayRepository.findByWorkoutPlanIdOrderByOrderIndexAsc(plan.getId());
-        PlanDay suggested = getNextPlanDay(days);
+        PlanDay suggested = getNextPlanDay(memberId, days);
         PlanDay confirmed = resolveConfirmedDay(request, days);
 
         MemberWorkoutLog log = memberWorkoutLogRepository.save(MemberWorkoutLog.builder()
@@ -261,26 +280,17 @@ public class WorkoutService {
     /** La reserva más reciente con check-in real que todavía no tiene log — las más viejas sin
      *  log simplemente quedan sin anotar, no bloquean nada (decisión explícita del diseño). */
     private Reservation findPendingReservation(Long memberId) {
-        List<Reservation> checkedIn =
-                reservationRepository.findByMemberIdAndCheckedInAtIsNotNullOrderByClassDateDesc(memberId);
-        if (checkedIn.isEmpty()) {
-            return null;
-        }
-        Set<Long> alreadyLogged = memberWorkoutLogRepository
-                .findByReservationIdIn(checkedIn.stream().map(Reservation::getId).toList())
-                .stream()
-                .map(MemberWorkoutLog::getReservationId)
-                .collect(Collectors.toSet());
-        return checkedIn.stream().filter(r -> !alreadyLogged.contains(r.getId())).findFirst().orElse(null);
+        return reservationRepository.findPendingWorkoutCandidates(memberId, PageRequest.of(0, 1)).stream()
+                .findFirst()
+                .orElse(null);
     }
 
     /** getNextPlanDay del diseño: sin logs del plan -> día 1; el último log aceptó la sugerencia
      *  -> el siguiente (con wraparound); el último fue texto libre (desvío) -> reinicia a día 1.
      *  "Último" es por fecha de la clase de la reserva, no por id/createdAt (el socio puede
      *  registrar tarde una clase vieja). */
-    private PlanDay getNextPlanDay(List<PlanDay> days) {
-        MemberWorkoutLog last = latestLog(memberWorkoutLogRepository.findBySuggestedPlanDayIdIn(planDayIds(days)));
-        return nextDayAfter(days, last);
+    private PlanDay getNextPlanDay(Long memberId, List<PlanDay> days) {
+        return nextDayAfter(days, latestLog(memberId, days));
     }
 
     /** La regla del ciclo, sin tocar la base: la comparte el tablero "En clase" (ClassBoardService) para
@@ -301,16 +311,12 @@ public class WorkoutService {
         return days.get(nextIndex);
     }
 
-    private MemberWorkoutLog latestLog(List<MemberWorkoutLog> logs) {
-        if (logs.isEmpty()) {
-            return null;
-        }
-        Map<Long, LocalDate> classDateByReservationId = reservationRepository
-                .findAllById(logs.stream().map(MemberWorkoutLog::getReservationId).toList())
+    /** El último registro del socio en los días de ESTE plan, por fecha de la clase, con UNA consulta de una fila. */
+    private MemberWorkoutLog latestLog(Long memberId, List<PlanDay> days) {
+        return memberWorkoutLogRepository
+                .findNewestOfPlan(memberId, planDayIds(days), PageRequest.of(0, 1))
                 .stream()
-                .collect(Collectors.toMap(Reservation::getId, Reservation::getClassDate));
-        return logs.stream()
-                .max(Comparator.comparing(l -> classDateByReservationId.get(l.getReservationId())))
+                .findFirst()
                 .orElse(null);
     }
 

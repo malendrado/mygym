@@ -2,11 +2,14 @@ package com.cortesdev.mygym.controllers;
 
 import com.cortesdev.mygym.models.dto.MemberWorkoutLogResponse;
 import com.cortesdev.mygym.models.dto.PendingWorkoutResponse;
+import com.cortesdev.mygym.models.dto.WorkoutLogPageResponse;
 import com.cortesdev.mygym.models.dto.WorkoutLogSaveRequest;
 import com.cortesdev.mygym.security.AuthenticatedUser;
 import com.cortesdev.mygym.services.WorkoutService;
 import jakarta.validation.Valid;
+import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -15,6 +18,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /** Autoservicio del socio en la pestaña "Rutina" de /member — ver WorkoutService. */
@@ -30,10 +34,13 @@ public class WorkoutLogController {
         return workoutService.getPendingWorkout(AuthenticatedUser.from(jwt).userId());
     }
 
-    /** Historial propio: los últimos 30 registros. */
+    /** Historial propio por ventanas (7 días por defecto); ver WorkoutPlanController.getLogHistory. */
     @GetMapping("/history")
-    public java.util.List<MemberWorkoutLogResponse> history(@AuthenticationPrincipal Jwt jwt) {
-        return workoutService.getMyLogHistory(AuthenticatedUser.from(jwt).userId());
+    public WorkoutLogPageResponse history(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate before,
+            @RequestParam(required = false) Integer days) {
+        return workoutService.getMyLogHistory(AuthenticatedUser.from(jwt).userId(), before, days);
     }
 
     @PostMapping("/logs/{reservationId}")

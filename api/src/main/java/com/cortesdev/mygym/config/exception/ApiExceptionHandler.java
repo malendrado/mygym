@@ -12,6 +12,7 @@ import com.cortesdev.mygym.services.exception.DemoAccessExpiredException;
 import com.cortesdev.mygym.services.exception.DemoSampleMemberMissingException;
 import com.cortesdev.mygym.services.exception.GymDisconnectionEmailFailedException;
 import com.cortesdev.mygym.services.exception.GymNameMismatchException;
+import com.cortesdev.mygym.services.exception.AdminRemovalNotAllowedException;
 import com.cortesdev.mygym.services.exception.DuplicateOwnerEmailException;
 import com.cortesdev.mygym.services.exception.DuplicateSlugException;
 import com.cortesdev.mygym.services.exception.FlowNotConfiguredException;
@@ -255,6 +256,14 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     public ResponseEntity<ProblemDetail> handleDuplicateOwnerEmail(DuplicateOwnerEmailException ex) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
         problem.setTitle("Email duplicado");
+        problem.setProperty("timestamp", Instant.now());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(problem);
+    }
+
+    @ExceptionHandler(AdminRemovalNotAllowedException.class)
+    public ResponseEntity<ProblemDetail> handleAdminRemovalNotAllowed(AdminRemovalNotAllowedException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+        problem.setTitle("No se puede quitar al administrador");
         problem.setProperty("timestamp", Instant.now());
         return ResponseEntity.status(HttpStatus.CONFLICT).body(problem);
     }

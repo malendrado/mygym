@@ -36,13 +36,17 @@
         type="button"
         class="nav__help-toggle"
         [attr.aria-expanded]="helpMenuOpen()"
-        aria-label="Más enlaces: FAQ y Privacidad"
+        aria-label="Más enlaces: Producto, Tus socios, Precios, FAQ y Privacidad"
         (click)="toggleHelpMenu()"
       >
         <ion-icon name="ellipsis-horizontal-outline" aria-hidden="true"></ion-icon>
       </button>
       @if (helpMenuOpen()) {
         <div class="nav__help-menu">
+          <!-- Anclas de sección: solo en móvil (desde 768px ya están en la barra). -->
+          <a class="nav__help-anchor" href="#producto" (click)="closeHelpMenu()">Producto</a>
+          <a class="nav__help-anchor" href="#socios" (click)="closeHelpMenu()">Tus socios</a>
+          <a class="nav__help-anchor" href="#precios" (click)="closeHelpMenu()">Precios</a>
           <a routerLink="/faq" (click)="closeHelpMenu()">
             <ion-icon name="help-circle-outline" aria-hidden="true"></ion-icon> FAQ
           </a>

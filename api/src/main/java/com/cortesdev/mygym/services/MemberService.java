@@ -314,11 +314,33 @@ public class MemberService {
 
     /** null si nunca pagó. Única cuenta del período, nunca duplicarla (ver remainingClasses). */
     public PeriodRange currentPeriod(AppUser user) {
+        return periodOf(user);
+    }
+
+    private static PeriodRange periodOf(AppUser user) {
         if (user.getPaidAt() == null) {
             return null;
         }
         ZonedDateTime start = user.getPaidAt().atZone(GYM_ZONE);
         return new PeriodRange(start.toLocalDate(), start.plusMonths(1).toLocalDate().minusDays(1));
+    }
+
+    /** Último día cubierto por el pago del socio, o null si nunca pagó. */
+    public static LocalDate paidUntil(AppUser user) {
+        PeriodRange period = periodOf(user);
+        return period != null ? period.endInclusive() : null;
+    }
+
+    /**
+     * ¿Cae esa clase dentro del período que el socio pagó? Reservar fechas posteriores al vencimiento
+     * se saltaba el cupo mensual (la cuenta solo mira el período actual) y dejaba reservas vivas
+     * después de que el plan venciera (auditoría 2026-10-17). Sin pago registrado no hay período que
+     * validar: de eso se encarga hasActiveMembership. Estático a propósito: lo comparten la reserva y la
+     * lista de espera sin acoplarse entre servicios.
+     */
+    public static boolean isWithinPaidPeriod(AppUser user, LocalDate classDate) {
+        LocalDate until = paidUntil(user);
+        return until == null || !classDate.isAfter(until);
     }
 
     private String membershipStatus(AppUser user) {
