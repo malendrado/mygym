@@ -432,11 +432,28 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
             fixed.setProperty("timestamp", Instant.now());
             return ResponseEntity.status(HttpStatus.CONFLICT).body(fixed);
         }
-        ProblemDetail problem =
-                ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, "Ya tienes una reserva para esta clase");
-        problem.setTitle("Reserva duplicada");
-        problem.setProperty("timestamp", Instant.now());
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(problem);
+        // Dos altas simultáneas con el mismo email: la segunda cae en uk_app_user_email. Mensaje genérico a propósito
+        // (no dice de qué gimnasio ni de qué rol es la cuenta existente).
+        if (root != null && root.contains("uk_app_user_email")) {
+            ProblemDetail email = ProblemDetail.forStatusAndDetail(
+                    HttpStatus.CONFLICT, "Ese email ya tiene una cuenta en mygym. Usa otro email.");
+            email.setTitle("Email duplicado");
+            email.setProperty("timestamp", Instant.now());
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(email);
+        }
+        if (root != null && root.contains("uk_reservation_slot")) {
+            ProblemDetail problem =
+                    ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, "Ya tienes una reserva para esta clase");
+            problem.setTitle("Reserva duplicada");
+            problem.setProperty("timestamp", Instant.now());
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(problem);
+        }
+        // Cualquier otra restricción única (o una carrera que no conocemos): no se afirma nada falso sobre reservas.
+        ProblemDetail other = ProblemDetail.forStatusAndDetail(
+                HttpStatus.CONFLICT, "Ese registro ya existe o alguien lo acaba de crear. Actualiza e inténtalo de nuevo.");
+        other.setTitle("Registro duplicado");
+        other.setProperty("timestamp", Instant.now());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(other);
     }
 
     @ExceptionHandler(GymClosureNotFoundException.class)

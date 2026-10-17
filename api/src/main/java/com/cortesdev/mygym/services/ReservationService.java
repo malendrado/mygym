@@ -103,6 +103,9 @@ public class ReservationService {
     // Tope del rango que puede pedir la Agenda del admin (la UI pide de a 7 días).
     static final int MAX_AGENDA_DAYS = 31;
     static final int MAX_HISTORY_RANGE_DAYS = 93;
+    // Calendario del socio: el período pagado dura siempre 1 mes (≈31 días) y, sin pago, se muestra el mes calendario (≤31);
+    // 62 deja margen de sobra para pedir dos meses seguidos sin abrir la puerta a rangos absurdos.
+    static final int MAX_OCCURRENCES_RANGE_DAYS = 62;
 
     private final GymBlockRepository gymBlockRepository;
     private final ReservationRepository reservationRepository;
@@ -121,6 +124,11 @@ public class ReservationService {
 
     @Transactional(readOnly = true)
     public List<GymBlockOccurrenceResponse> listOccurrences(Long gymId, Long memberId, LocalDate from, LocalDate to) {
+        // Sin tope, from=0001-01-01&to=9999-12-31 hacía un bucle de millones de días por bloque y dejaba sin memoria a la
+        // única instancia (la puede pedir cualquier socio). El calendario real pide el mes o el período pagado.
+        if (to.isBefore(from) || ChronoUnit.DAYS.between(from, to) >= MAX_OCCURRENCES_RANGE_DAYS) {
+            throw new InvalidAttendanceException("El rango del calendario debe ser de 1 a " + MAX_OCCURRENCES_RANGE_DAYS + " días");
+        }
         int bookingWindowMinutes = findGymOrThrow(gymId).getBookingWindowMinutes();
         List<GymBlock> blocks =
                 gymBlockRepository.findByGymId(gymId).stream().filter(GymBlock::isActive).toList();

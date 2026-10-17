@@ -155,6 +155,11 @@
       </div>
     </div>
 
+    @if (status() === 'error') {
+      <ion-text color="danger"><p>Ocurrió un error. Intenta nuevamente.</p></ion-text>
+    }
+
+    @if (section() === 'general') {
     <div class="gym-detail-stats">
       <div class="gym-detail-stat">
         <ion-icon name="people-outline" aria-hidden="true"></ion-icon>
@@ -180,11 +185,6 @@
 
     <app-gym-limits [limits]="limits()" audience="super" />
 
-    @if (status() === 'error') {
-      <ion-text color="danger"><p>Ocurrió un error. Intenta nuevamente.</p></ion-text>
-    }
-
-    @if (section() === 'general') {
     <p class="member-stats-heading">
       <ion-icon name="people-outline" aria-hidden="true"></ion-icon>
       Estado de los socios del gimnasio
@@ -985,6 +985,7 @@
         </ion-card-title>
       </ion-card-header>
       <ion-card-content>
+        <app-gym-limits [limits]="limits()" audience="super" [compact]="true" />
         <form [formGroup]="memberForm" (ngSubmit)="submitMember()">
           <ion-item>
             <ion-input label="Nombre *" formControlName="name" placeholder="Ej: Javiera Pulgar" />

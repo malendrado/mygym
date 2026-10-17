@@ -1040,6 +1040,7 @@
         [saving]="savingProfile()"
         [serverError]="profileError()"
         (saved)="saveProfile($event)"
+        (dismiss)="profileIncomplete.set(false); logout()"
       />
     </ng-template>
   </ion-modal>

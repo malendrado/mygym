@@ -498,8 +498,14 @@ public class GymService {
     public AdminResponse addAdmin(Long gymId, AdminCreateRequest request) {
         Gym gym = findGymOrThrow(gymId);
         gymCapacityService.assertAdminCapacity(gymId);
-        if (appUserRepository.existsByEmail(AppUser.normalizeEmail(request.email()))) {
-            throw new DuplicateOwnerEmailException(request.email());
+        String normalizedEmail = AppUser.normalizeEmail(request.email());
+        AppUser existing = appUserRepository.findByEmail(normalizedEmail).orElse(null);
+        if (existing != null) {
+            // Solo se explica el caso de ESTE gimnasio: de otro gimnasio no se revela nada más que "ya tiene una cuenta".
+            boolean profesorHere = existing.getRole() == Role.PROFESOR && gymId.equals(existing.getGymId());
+            throw profesorHere
+                    ? DuplicateOwnerEmailException.alreadyProfesorOfThisGym(request.email())
+                    : new DuplicateOwnerEmailException(request.email());
         }
         AppUser admin = AppUser.builder()
                 .email(request.email())
@@ -555,8 +561,13 @@ public class GymService {
         // llegaba hasta la FK y salía como 500 en vez de un 404 claro.
         assertGymExists(gymId);
         gymCapacityService.assertProfesorCapacity(gymId);
-        if (appUserRepository.existsByEmail(AppUser.normalizeEmail(request.email()))) {
-            throw new DuplicateOwnerEmailException(request.email());
+        AppUser existing = appUserRepository.findByEmail(AppUser.normalizeEmail(request.email())).orElse(null);
+        if (existing != null) {
+            // Solo se explica el caso de ESTE gimnasio: de otro gimnasio no se revela nada más que "ya tiene una cuenta".
+            boolean adminHere = existing.getRole() == Role.GYM_ADMIN && gymId.equals(existing.getGymId());
+            throw adminHere
+                    ? DuplicateOwnerEmailException.alreadyAdminOfThisGym(request.email())
+                    : new DuplicateOwnerEmailException(request.email());
         }
         AppUser profesor = AppUser.builder()
                 .email(request.email())

@@ -73,6 +73,16 @@ class ReservationServiceAgendaTest {
         return AppUser.builder().id(id).name(name).email(name.toLowerCase() + "@test.cl").build();
     }
 
+    @Test
+    void theMemberCalendarRejectsAnAbsurdRangeBeforeTouchingTheDatabase() {
+        assertThatThrownBy(() -> reservationService.listOccurrences(
+                        GYM_ID, 9L, LocalDate.of(1, 1, 1), LocalDate.of(9999, 12, 31)))
+                .isInstanceOf(InvalidAttendanceException.class);
+        assertThatThrownBy(() -> reservationService.listOccurrences(GYM_ID, 9L, TO, FROM))
+                .isInstanceOf(InvalidAttendanceException.class);
+        org.mockito.Mockito.verifyNoInteractions(gymBlockRepository, reservationRepository);
+    }
+
     private void givenNoClosuresNoWaiting() {
         when(gymClosureService.scheduleFor(eq(GYM_ID), any(), any()))
                 .thenReturn(new GymClosureService.ClosureSchedule(Set.of(), Set.of()));

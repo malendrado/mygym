@@ -55,9 +55,35 @@ public class GymStatusController {
     @Value("${app.contact.email:contacto@mygym.cl}")
     private String mygymEmail;
 
+    /**
+     * La respuesta depende solo del gimnasio (no de quien pregunta) y cada app abierta la consulta cada ~45 s: con cientos de
+     * socios eran decenas de consultas por segundo (gimnasio completo con logo, cierres y marca de reservas) contra un pool de 5
+     * conexiones. Se guarda por gimnasio unos segundos; la pausa y los cierres se siguen enterando en menos de ~10 s.
+     */
+    @Value("${app.gym-status.cache-seconds:10}")
+    private long cacheSeconds;
+
+    private record Cached(GymStatusResponse response, long expiresAtNanos) {}
+
+    private final java.util.concurrent.ConcurrentHashMap<Long, Cached> cache = new java.util.concurrent.ConcurrentHashMap<>();
+
     @GetMapping
     public GymStatusResponse status(@AuthenticationPrincipal Jwt jwt) {
         Long gymId = AuthenticatedUser.from(jwt).gymId();
+        if (cacheSeconds <= 0) {
+            return compute(gymId);
+        }
+        long now = System.nanoTime();
+        Cached cached = cache.get(gymId);
+        if (cached != null && now - cached.expiresAtNanos() < 0) {
+            return cached.response();
+        }
+        GymStatusResponse fresh = compute(gymId);
+        cache.put(gymId, new Cached(fresh, now + java.util.concurrent.TimeUnit.SECONDS.toNanos(cacheSeconds)));
+        return fresh;
+    }
+
+    private GymStatusResponse compute(Long gymId) {
         Gym gym = gymRepository.findById(gymId).orElseThrow(() -> new GymNotFoundException(gymId));
         if (gym.isActive()) {
             return new GymStatusResponse(false, gym.getName(), null, null, bestEffort(() -> closuresStamp(gymId)), bestEffort(() -> reservationsStamp(gymId)));

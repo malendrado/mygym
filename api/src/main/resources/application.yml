@@ -9,6 +9,15 @@ spring:
     hikari:
       maximum-pool-size: 5
       minimum-idle: 2
+      # Con 25 hilos de Tomcat y 5 conexiones, quien espera una conexión no debe colgarse 30 s (el valor por defecto).
+      connection-timeout: 5000
+  # Todas las llamadas salientes que usan RestClient.Builder (Resend, Flow, Gemini) tienen tope de espera: antes un
+  # servicio externo colgado dejaba las requests (y sus conexiones de BD) esperando sin límite.
+  http:
+    client:
+      connect-timeout: 3s
+      # 20 s: la sugerencia de logo con Gemini puede tardar más de 10 s; Resend y Flow responden en pocos segundos.
+      read-timeout: 20s
   jpa:
     hibernate:
       ddl-auto: validate

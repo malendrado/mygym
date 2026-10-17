@@ -5,11 +5,14 @@
       <ion-icon name="id-card-outline" aria-hidden="true"></ion-icon>
       {{ title }}
     </ion-title>
-    @if (!required) {
-      <ion-buttons slot="end">
+    <ion-buttons slot="end">
+      @if (required) {
+        <!-- Los datos son obligatorios para reservar, pero el socio no puede quedar atrapado: puede salir de su sesión. -->
+        <ion-button (click)="cancel()" aria-label="Salir de mi cuenta">Salir</ion-button>
+      } @else {
         <ion-button (click)="cancel()">Cerrar</ion-button>
-      </ion-buttons>
-    }
+      }
+    </ion-buttons>
   </ion-toolbar>
 </ion-header>
 

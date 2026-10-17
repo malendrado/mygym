@@ -35,10 +35,14 @@ public class AdminInviteEmailService {
     private final String ownerTemplate;
     private final String demoTemplate;
 
+    private final java.util.concurrent.Executor emailExecutor;
+
     public AdminInviteEmailService(
             RestClient.Builder restClientBuilder,
+            @org.springframework.beans.factory.annotation.Qualifier("emailExecutor") java.util.concurrent.Executor emailExecutor,
             @Value("${app.resend.api-key}") String apiKey,
             @Value("${app.resend.from}") String from) {
+        this.emailExecutor = emailExecutor;
         this.restClient = restClientBuilder.baseUrl("https://api.resend.com").build();
         this.apiKey = apiKey;
         this.from = from;
@@ -69,25 +73,30 @@ public class AdminInviteEmailService {
             log.warn("RESEND_API_KEY no configurada — se omite el email de invitación para {}", admin.getEmail());
             return;
         }
-        try {
-            String html = renderHtml(htmlTemplate, gym, admin);
-            Map<String, Object> body = Map.of(
-                    "from", from,
-                    "to", java.util.List.of(admin.getEmail()),
-                    "subject", subject,
-                    "html", html);
-            restClient
-                    .post()
-                    .uri("/emails")
-                    .header("Authorization", "Bearer " + apiKey)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(body)
-                    .retrieve()
-                    .toBodilessEntity();
-            log.info("Email de invitación enviado a {} para el gimnasio {}", admin.getEmail(), gym.getName());
-        } catch (RestClientException e) {
-            log.error("Falló el envío del email de invitación a {}: {}", admin.getEmail(), e.getMessage());
-        }
+        String html = renderHtml(htmlTemplate, gym, admin);
+        String to = admin.getEmail();
+        String gymName = gym.getName();
+        Map<String, Object> body = Map.of(
+                "from", from,
+                "to", java.util.List.of(to),
+                "subject", subject,
+                "html", html);
+        // La llamada a Resend sale del hilo de la request (puede estar dentro de una transacción con conexión de la BD).
+        emailExecutor.execute(() -> {
+            try {
+                restClient
+                        .post()
+                        .uri("/emails")
+                        .header("Authorization", "Bearer " + apiKey)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body(body)
+                        .retrieve()
+                        .toBodilessEntity();
+                log.info("Email de invitación enviado a {} para el gimnasio {}", to, gymName);
+            } catch (RestClientException e) {
+                log.error("Falló el envío del email de invitación a {}: {}", to, e.getMessage());
+            }
+        });
     }
 
     private String renderHtml(String htmlTemplate, Gym gym, AppUser admin) {

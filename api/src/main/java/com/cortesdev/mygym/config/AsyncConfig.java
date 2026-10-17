@@ -24,6 +24,24 @@ public class AsyncConfig {
         executor.initialize();
         return executor;
     }
+    // Correos transaccionales (bienvenida, avisos de plan, invitaciones, clave): la llamada HTTP a Resend sale de este pool y no
+    // del hilo de la request, que puede estar dentro de una transacción con una de las 5 conexiones de Hikari. Si la cola se
+    // llena, el correo se envía en el hilo que lo pidió (CallerRuns): se frena la request en vez de perder el correo.
+    @Bean(name = "emailExecutor")
+    public Executor emailExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(2);
+        executor.setMaxPoolSize(4);
+        executor.setQueueCapacity(200);
+        executor.setRejectedExecutionHandler(new java.util.concurrent.ThreadPoolExecutor.CallerRunsPolicy());
+        // Un deploy (reinicio) no debe perder los correos que están en cola en ese instante.
+        executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setAwaitTerminationSeconds(10);
+        executor.setThreadNamePrefix("email-");
+        executor.initialize();
+        return executor;
+    }
+
     // Avisos push (ver PushDispatcher): llamadas HTTP salientes a los servicios de push de los navegadores. Pool chico y
     // dedicado, igual que el de emails, para que un push lento nunca ocupe hilos de requests ni conexiones de Hikari.
     @Bean(name = "pushExecutor")

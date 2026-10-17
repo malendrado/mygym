@@ -27,7 +27,7 @@ function todayIsoDate(): string {
 /**
  * Datos del socio: RUT, dirección, fecha de nacimiento, celular y contacto de emergencia. Lo usan:
  *  - el propio socio, como pantalla OBLIGATORIA al entrar a /member si le faltan datos
- *    (`required`: sin botón de cerrar, no se puede saltar);
+ *    (`required`: no se puede saltar ni cerrar; solo hay un botón "Salir" que emite `dismiss` y el socio cierra sesión);
  *  - el admin del gym y el super-admin, para cargar o corregir los datos de un socio.
  * Solo emite el perfil ya validado; nunca llama a la API (mismo patrón que ClosureModal).
  * El servidor revalida todo igual.
@@ -42,7 +42,7 @@ export class MemberProfileModal {
   @Input() title = 'Tus datos';
   @Input() intro = '';
   @Input() submitLabel = 'Guardar mis datos';
-  /** true = pantalla obligatoria (sin botón para cerrar). */
+  /** true = pantalla obligatoria (en vez de "Cerrar" muestra "Salir"). */
   @Input() required = false;
 
   @Input() set initial(

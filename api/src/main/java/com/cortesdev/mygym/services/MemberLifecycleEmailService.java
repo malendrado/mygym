@@ -16,8 +16,10 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.Executor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.MediaType;
@@ -54,10 +56,12 @@ public class MemberLifecycleEmailService {
     private final String from;
     private final String template;
     private final JwtService jwtService;
+    private final Executor emailExecutor;
 
     public MemberLifecycleEmailService(
             RestClient.Builder restClientBuilder,
             JwtService jwtService,
+            @Qualifier("emailExecutor") Executor emailExecutor,
             @Value("${app.resend.api-key}") String apiKey,
             @Value("${app.resend.from}") String from) {
         this.restClient = restClientBuilder.baseUrl("https://api.resend.com").build();
@@ -65,6 +69,7 @@ public class MemberLifecycleEmailService {
         this.from = from;
         this.template = loadTemplate();
         this.jwtService = jwtService;
+        this.emailExecutor = emailExecutor;
     }
 
     public void sendMemberWelcome(Gym gym, AppUser member) {
@@ -652,25 +657,28 @@ public class MemberLifecycleEmailService {
             log.warn("RESEND_API_KEY no configurada — se omite el email '{}' para {}", subject, to);
             return;
         }
-        try {
-            String html = renderHtml(gym, badgeLabel, headline, bodyHtml, ctaText, ctaUrl, footerText);
-            Map<String, Object> requestBody = Map.of(
-                    "from", from,
-                    "to", List.of(to),
-                    "subject", subject,
-                    "html", html);
-            restClient
-                    .post()
-                    .uri("/emails")
-                    .header("Authorization", "Bearer " + apiKey)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(requestBody)
-                    .retrieve()
-                    .toBodilessEntity();
-            log.info("Email '{}' enviado a {}", subject, to);
-        } catch (RestClientException e) {
-            log.error("Falló el envío del email '{}' a {}: {}", subject, to, e.getMessage());
-        }
+        String html = renderHtml(gym, badgeLabel, headline, bodyHtml, ctaText, ctaUrl, footerText);
+        Map<String, Object> requestBody = Map.of(
+                "from", from,
+                "to", List.of(to),
+                "subject", subject,
+                "html", html);
+        // La llamada a Resend sale del hilo de la request (puede estar dentro de una transacción con conexión de la BD).
+        emailExecutor.execute(() -> {
+            try {
+                restClient
+                        .post()
+                        .uri("/emails")
+                        .header("Authorization", "Bearer " + apiKey)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body(requestBody)
+                        .retrieve()
+                        .toBodilessEntity();
+                log.info("Email '{}' enviado a {}", subject, to);
+            } catch (RestClientException e) {
+                log.error("Falló el envío del email '{}' a {}: {}", subject, to, e.getMessage());
+            }
+        });
     }
 
     private String renderHtml(

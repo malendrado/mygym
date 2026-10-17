@@ -193,4 +193,31 @@ class GymStatusControllerTest {
         assertNull(status.closuresStamp());
         assertNull(status.reservationsStamp());
     }
+
+    @Test
+    void withTheCacheOnTheSameGymIsOnlyCalculatedOnceAndEachGymHasItsOwnEntry() {
+        ReflectionTestUtils.setField(controller, "cacheSeconds", 10L);
+        when(gymRepository.findById(GYM_ID)).thenReturn(Optional.of(Gym.builder().id(GYM_ID).name("XaloGym").active(true).build()));
+        when(gymRepository.findById(6L)).thenReturn(Optional.of(Gym.builder().id(6L).name("Otro").active(true).build()));
+        when(reservationRepository.bookedStamp(any(), any())).thenReturn(booked(0, null));
+        Jwt otherGym = Jwt.withTokenValue("t2")
+                .header("alg", "none")
+                .subject("socio@y.cl")
+                .claim("userId", 10L)
+                .claim("role", "MEMBER")
+                .claim("gymId", 6L)
+                .issuedAt(Instant.now())
+                .expiresAt(Instant.now().plusSeconds(60))
+                .build();
+
+        GymStatusResponse first = controller.status(jwt);
+        GymStatusResponse second = controller.status(jwt);
+        GymStatusResponse other = controller.status(otherGym);
+
+        assertEquals(first, second);
+        assertEquals("XaloGym", second.gymName());
+        assertEquals("Otro", other.gymName());
+        org.mockito.Mockito.verify(gymRepository, org.mockito.Mockito.times(1)).findById(GYM_ID);
+        org.mockito.Mockito.verify(gymRepository, org.mockito.Mockito.times(1)).findById(6L);
+    }
 }
