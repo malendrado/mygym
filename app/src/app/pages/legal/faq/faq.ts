@@ -110,11 +110,17 @@ export class LegalFaq {
         {
           question: '¿Puedo arrepentirme y cancelar antes de los 6 meses?',
           answer:
-            'No — el contrato no tiene derecho a retracto. Si necesitas dejar de usar mygym, puedes hacerlo al cumplirse el plazo mínimo simplemente no renovando el contrato.',
+            'El contrato no contempla derecho a retracto, y antes de firmar puedes probar mygym con la demo de 7 días. Lo que corresponde pagar si necesitas salir antes del plazo mínimo, y las causas por las que puedes terminar el contrato sin costo (por ejemplo, un incumplimiento de mygym), están en el contrato que firmas.',
         },
         {
           question: '¿Qué pasa si quiero dejar de usar mygym después de los 6 meses?',
-          answer: 'Cierras tu gimnasio dentro de la plataforma y el contrato no se renueva. No hay ningún trámite de cancelación adicional de tu parte.',
+          answer:
+            'Cumplido el plazo mínimo, el contrato sigue mes a mes y puedes terminarlo cuando quieras, sin costo: cierras tu gimnasio dentro de la plataforma o nos avisas a contacto@mygym.cl. El término rige al final del mes ya pagado.',
+        },
+        {
+          question: '¿Dónde quedan las condiciones completas del servicio?',
+          answer:
+            'En el contrato de prestación de servicios que firmas al contratar, y en la política de privacidad del sitio. El contrato incluye un anexo que regula cómo mygym trata los datos de tus socios por encargo tuyo. Esta página de preguntas frecuentes es solo informativa: si algo difiere, prevalece el contrato.',
         },
       ],
     },
@@ -124,12 +130,12 @@ export class LegalFaq {
         {
           question: 'Si dejo mygym, ¿qué pasa con toda la información de mis socios?',
           answer:
-            'Antes de cerrar tu gimnasio definitivamente, te enviamos por correo dos archivos descargables: uno con tus socios (nombre, email, plan, RUT, dirección, fecha de nacimiento, teléfono y cantidad de reservas de cada uno) y otro con el historial de pagos, para que conserves tu propia cartera de clientes. Es tu única copia — mygym no se queda con ninguna. Recién después de que ese correo se envía correctamente se eliminan todos los datos de tu gimnasio de nuestros sistemas de forma permanente e irreversible.',
+            'Antes de cerrar tu gimnasio definitivamente, te enviamos por correo dos archivos descargables: uno con tus socios (nombre, email, plan, RUT, dirección, fecha de nacimiento, teléfono y cantidad de reservas de cada uno) y otro con el historial de pagos, para que conserves tu propia cartera de clientes. Es la copia que te entregamos: tú eres quien conserva la cartera de tus socios. Una vez confirmado el envío, eliminamos los datos de tu gimnasio de nuestros sistemas dentro de los plazos que fija el contrato; las copias de respaldo se eliminan después, al rotar según su ciclo normal.',
         },
         {
           question: '¿mygym guarda una copia de mis socios después de que me voy?',
           answer:
-            'No. Solo queda un registro interno con conteos (cuántos socios, pagos, reservas, etc.) como prueba de que el borrado ocurrió — sin ningún dato personal de tus socios.',
+            'No para operar ni para otros fines. Solo conservamos un registro interno de la eliminación, con conteos (cuántos socios, pagos, reservas, etc.), y la información de tu propia empresa que la ley nos obliga a guardar, como la de facturación. Los detalles y plazos están en el contrato y en la política de privacidad.',
         },
         {
           question: '¿Qué guarda mygym cuando activo los avisos en mi teléfono?',
