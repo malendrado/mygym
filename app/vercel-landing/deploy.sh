@@ -7,12 +7,16 @@ set -e
 cd "$(dirname "$0")/.."
 
 # 0) Número de versión visible en la app (src/environments/build-info.ts): fecha de Chile + commit
-# corto actual. "dirty" = hay cambios sin commitear (sin contar este mismo archivo, que se
-# reescribe acá, ni logos/). Se restaura al final para que git no lo vea modificado.
+# corto actual. "dirty" = el código que se despliega tiene cambios sin commitear: archivos VERSIONADOS
+# modificados (sin contar este mismo archivo, que se reescribe acá, ni logos/) o archivos NUEVOS sin
+# versionar dentro de app/src o api/src. Los archivos sueltos de otras carpetas (docs/, .angular/, etc.,
+# p. ej. de otra sesión de trabajo) no entran en el build y ya no marcan "dirty".
+# Se restaura al final para que git no lo vea modificado.
 BUILD_FILE="$(pwd)/src/environments/build-info.ts"
 BUILD_COMMIT="$(git rev-parse --short HEAD)"
 BUILD_DATE="$(TZ=America/Santiago date +%Y.%m.%d)"
-if [ -n "$(git status --porcelain -- ':(top)' ':(exclude,top)app/src/environments/build-info.ts' ':(exclude,top)logos' | head -1)" ]; then
+if [ -n "$(git status --porcelain --untracked-files=no -- ':(top)' ':(exclude,top)app/src/environments/build-info.ts' ':(exclude,top)logos' | head -1)" ] \
+  || [ -n "$(git ls-files --others --exclude-standard -- ':(top)app/src' ':(top)api/src' | head -1)" ]; then
   BUILD_DIRTY="true"
 else
   BUILD_DIRTY="false"
