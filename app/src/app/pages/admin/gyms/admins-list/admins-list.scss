@@ -115,3 +115,13 @@
     padding: 0.1rem 0.5rem;
   }
 }
+
+// Error de carga con "Reintentar": centrado y con aire, igual que los estados vacios.
+.admins-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 2rem 1rem;
+  text-align: center;
+}

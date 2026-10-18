@@ -72,22 +72,31 @@
 
   @if (draft().length > 0) {
     <div class="draft-summary">
-      <p>Se van a crear <strong>{{ draft().length }}</strong> bloques:</p>
+      <p>
+        Se van a crear <strong>{{ selectedCount() }}</strong> de {{ draft().length }} bloques.
+        @if (existsCount() > 0) {
+          <span class="draft-summary__hint">
+            {{ existsCount() === 1 ? 'Hay 1 que ya existe y quedó desmarcado' : 'Hay ' + existsCount() + ' que ya existen y quedaron desmarcados' }};
+            márcalos si de todos modos los quieres.
+          </span>
+        }
+      </p>
       <ion-list lines="full">
         @for (entry of draft(); track entry.dayLabel + entry.startTime) {
-          <ion-item>
+          <ion-item [class.draft-entry--exists]="entry.exists">
+            <ion-checkbox
+              slot="start"
+              [checked]="entry.selected"
+              [attr.aria-label]="'Crear ' + entry.dayLabel + ' ' + entry.startTime"
+              (ionChange)="setEntrySelected(entry, $event.detail.checked)"
+            ></ion-checkbox>
             <ion-label>
               {{ entry.dayLabel }} — {{ entry.startTime }} a {{ entry.endTime }}
+              @if (entry.exists) {
+                <span class="draft-entry__badge">Ya existe</span>
+              }
               <p>{{ entry.label }} · Cupo {{ entry.capacity }}</p>
             </ion-label>
-            <ion-button
-              fill="clear"
-              color="danger"
-              [attr.aria-label]="'Quitar ' + entry.dayLabel + ' ' + entry.startTime + ' de la vista previa'"
-              (click)="removeDraftEntry(entry)"
-            >
-              <ion-icon name="close-circle-outline" slot="icon-only" aria-hidden="true"></ion-icon>
-            </ion-button>
           </ion-item>
         }
       </ion-list>
@@ -107,8 +116,8 @@
   <ion-toolbar>
     <div class="modal-actions">
       <ion-button type="button" fill="clear" (click)="cancel()">Cancelar</ion-button>
-      <ion-button type="button" expand="block" [disabled]="draft().length === 0" (click)="confirm()">
-        Confirmar y crear todos
+      <ion-button type="button" expand="block" [disabled]="selectedCount() === 0" (click)="confirm()">
+        {{ selectedCount() === 1 ? 'Crear 1 bloque' : 'Crear ' + selectedCount() + ' bloques' }}
       </ion-button>
     </div>
   </ion-toolbar>

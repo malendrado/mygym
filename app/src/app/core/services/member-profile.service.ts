@@ -11,7 +11,7 @@ export class MemberProfileService {
   private readonly api = environment.apiUrl;
 
   /** El propio socio (pantalla obligatoria de /member). */
-  updateOwn(profile: MemberProfile): Observable<Member> {
+  updateOwn(profile: Partial<MemberProfile>): Observable<Member> {
     return this.http.put<Member>(`${this.api}/api/me/profile`, profile);
   }
 

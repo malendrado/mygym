@@ -13,6 +13,7 @@ import {
   IonLabel,
   IonSegment,
   IonSegmentButton,
+  IonSkeletonText,
   IonModal,
   IonSpinner,
   IonTitle,
@@ -37,12 +38,18 @@ import { toLogoImgSrc } from '../../core/utils/logo-src';
 import {
   addCircleOutline,
   alertCircleOutline,
+  checkmarkCircleOutline,
   banOutline,
   barbellOutline,
   calendarOutline,
   checkmarkDoneOutline,
   checkmarkOutline,
   chevronBackOutline,
+  cloudOfflineOutline,
+  idCardOutline,
+  radioButtonOnOutline,
+  refreshOutline,
+  timeOutline,
   chevronForwardOutline,
   closeCircleOutline,
   createOutline,
@@ -66,6 +73,7 @@ import { GymService } from '../../core/services/gym.service';
 import { ReservationService } from '../../core/services/reservation.service';
 import { WorkoutService } from '../../core/services/workout.service';
 import { GymBlockOccurrence, Reservation } from '../../core/models/reservation.model';
+import { WaitlistEntry } from '../../core/models/waitlist.model';
 import { BankTransferInfo, GymClosureNotice, GymPhoto, MemberPlan, PublicGym } from '../../core/models/gym.model';
 import { AttendeeSummary, Member } from '../../core/models/member.model';
 import { ExerciseLogEntry, MemberWorkoutLog, PendingWorkout, SaveWorkoutLogRequest } from '../../core/models/workout.model';
@@ -100,6 +108,7 @@ const FALLBACK_HERO_PHOTO = 'https://images.unsplash.com/photo-1637430308606-865
 const GATEWAY_COMMISSION_RATE = 0.0289 * 1.19;
 
 addIcons({
+  'checkmark-circle-outline': checkmarkCircleOutline,
   'eye-outline': eyeOutline,
   'flash-outline': flashOutline,
   'calendar-outline': calendarOutline,
@@ -124,6 +133,11 @@ addIcons({
   'camera-outline': cameraOutline,
   'ban-outline': banOutline,
   'play-outline': playOutline,
+  'time-outline': timeOutline,
+  'radio-button-on-outline': radioButtonOnOutline,
+  'cloud-offline-outline': cloudOfflineOutline,
+  'refresh-outline': refreshOutline,
+  'id-card-outline': idCardOutline,
 });
 
 type Status = 'idle' | 'loading' | 'error';
@@ -156,6 +170,17 @@ interface Membership {
   // exactamente 1 mes desde acá (pagó el 3 de enero → vence el 3 de
   // febrero, haya usado o no todas sus clases). null = nunca pagó.
   paidAt: string | null;
+  // Renovación anticipada (todas YYYY-MM-DD, hora de Chile; opcionales: la copia sin conexión las omite).
+  /** Fin del período en curso (si falta, paidAt + 1 mes). */
+  currentPeriodEnd?: string | null;
+  /** Vencimiento FINAL cuando ya pagó por adelantado; null = sin cola. */
+  queuedPeriodEnd?: string | null;
+  /** Clases que le quedan en el período ya pagado por adelantado; null = plan libre o sin cola. */
+  queuedSessionsRemaining?: number | null;
+  /** Plan vigente y sin cola: puede renovar por adelantado. */
+  canRenewEarly?: boolean;
+  /** Primer día del período nuevo (= vencimiento actual). */
+  earlyRenewalStartsOn?: string | null;
 }
 
 /** El plan de precio intermedio se marca "Recomendado" — heurística visual, no una señal del admin.
@@ -315,6 +340,29 @@ const OCCURRENCES_LOADING_MESSAGES = [
   'Armando tu calendario de entrenamiento...',
 ];
 
+// Copia mínima para mostrar algo sin conexión: solo plan, vencimiento, clases usadas y reservas próximas
+// (clase, fecha, hora). Nada de RUT, dirección ni tokens.
+interface MemberSnapshot {
+  savedAt: number;
+  membership: {
+    status: 'active' | 'past_due';
+    planName: string;
+    monthlyClasses: number | null;
+    classesUsed: number;
+    paidAt: string;
+  };
+  reservations: { id: number; gymBlockId: number; blockLabel: string; classDate: string; startTime: string; endTime: string }[];
+}
+
+const SNAPSHOT_KEY_PREFIX = 'mygym.snapshot.v1.';
+
+/** "HH:mm" en hora de Chile de un instante en milisegundos. */
+function clockLabel(ms: number): string {
+  return new Intl.DateTimeFormat('es-CL', { timeZone: 'America/Santiago', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(
+    new Date(ms),
+  );
+}
+
 @Component({
   selector: 'app-member',
   imports: [
@@ -335,6 +383,7 @@ const OCCURRENCES_LOADING_MESSAGES = [
     IonSpinner,
     IonSegment,
     IonSegmentButton,
+    IonSkeletonText,
     IonLabel,
     IonInput,
     IonItem,
@@ -388,6 +437,11 @@ export class MemberPage {
   protected readonly bookingId = signal<number | null>(null);
   protected readonly cancelingId = signal<number | null>(null);
   protected readonly waitlistingId = signal<number | null>(null);
+  // Mis listas de espera (GET /api/me/waitlist). Si el endpoint falla o aún no existe, queda vacío y la sección no se muestra.
+  protected readonly myWaitlist = signal<WaitlistEntry[]>([]);
+  // Esqueleto único de la pestaña "Reserva tu clase" (respeta reduced-motion).
+  protected readonly skeletonAnimated = !(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false);
+  protected readonly skeletonCells = [0, 1, 2, 3, 4, 5, 6];
 
   // "Ahora" con hora incluida, en la zona horaria del gym (America/Santiago), no en la del
   // navegador del socio — un `new Date().toISOString()` corta a UTC y puede quedar un día
@@ -452,6 +506,12 @@ export class MemberPage {
 
   protected openProfileEdit(): void {
     this.profileError.set(null);
+    if (this.profileIncomplete()) {
+      // Faltan datos: se abre el formulario completo (todo obligatorio), no el de "cambiar solo lo que quiero".
+      this.pendingBooking.set(null);
+      this.profileModalOpen.set(true);
+      return;
+    }
     this.profileEditOpen.set(true);
   }
 
@@ -554,18 +614,26 @@ export class MemberPage {
   // Vencimiento del período pagado: exactamente 1 mes desde `paidAt`, sin
   // importar cuántas clases haya usado — las que no reservó dentro de ese
   // mes se pierden, no se acumulan al período siguiente.
+  // Con renovación anticipada, `paidAt` es el pago real (puede caer a mitad del período), así que el
+  // fin del período en curso lo manda el servidor (currentPeriodEnd); paidAt + 1 mes es solo el respaldo.
   protected readonly membershipPeriodEnd = computed(() => {
-    const paidAt = this.membership().paidAt;
+    const m = this.membership();
+    if (m.currentPeriodEnd) {
+      return m.currentPeriodEnd;
+    }
+    const paidAt = m.paidAt;
     if (!paidAt) {
       return null;
     }
-    const [y, m, d] = paidAt.split('-').map(Number);
-    const end = new Date(y, m - 1, d);
+    const [y, mo, d] = paidAt.split('-').map(Number);
+    const end = new Date(y, mo - 1, d);
     end.setMonth(end.getMonth() + 1);
     return `${end.getFullYear()}-${pad2(end.getMonth() + 1)}-${pad2(end.getDate())}`;
   });
-  protected readonly daysRemaining = computed(() => {
-    const end = this.membershipPeriodEnd();
+  // Vencimiento FINAL: con un período ya pagado por adelantado es el de la cola; si no, el del período en curso.
+  protected readonly membershipFinalEnd = computed(() => this.membership().queuedPeriodEnd ?? this.membershipPeriodEnd());
+  protected readonly hasQueuedPeriod = computed(() => !!this.membership().queuedPeriodEnd);
+  private daysUntil(end: string | null): number | null {
     if (!end) {
       return null;
     }
@@ -573,16 +641,21 @@ export class MemberPage {
     const [ty, tm, td] = this.todayIso().split('-').map(Number);
     const msPerDay = 24 * 60 * 60 * 1000;
     return Math.round((Date.UTC(ey, em - 1, ed) - Date.UTC(ty, tm - 1, td)) / msPerDay);
-  });
+  }
+  // Días hasta el vencimiento final (lo que decide "por vencer" y "vencido").
+  protected readonly daysRemaining = computed(() => this.daysUntil(this.membershipFinalEnd()));
+  // Días que le quedan del período en curso: son los que conserva si renueva el mismo plan por adelantado.
+  protected readonly currentPeriodDaysRemaining = computed(() => this.daysUntil(this.membershipPeriodEnd()));
   protected readonly membershipExpired = computed(() => {
     const days = this.daysRemaining();
     return days !== null && days <= 0;
   });
   // Debajo de este umbral se avisa con texto explícito además del color —
   // "no transmitir información solo con color" (auditoría UX de la skill).
+  // Con un período ya pagado por adelantado no corresponde alertar "por vencer" (aunque el vencimiento final esté cerca).
   protected readonly expirySoon = computed(() => {
     const days = this.daysRemaining();
-    return days !== null && days > 0 && days <= 3;
+    return days !== null && days > 0 && days <= 3 && !this.hasQueuedPeriod();
   });
   protected readonly expiryLabel = computed(() => {
     const days = this.daysRemaining();
@@ -598,13 +671,38 @@ export class MemberPage {
     return `Vence el ${this.renewsOnLabel()} (en ${days} días)`;
   });
   protected readonly renewsOnLabel = computed(() => {
-    const end = this.membershipPeriodEnd();
+    const end = this.membershipFinalEnd();
     if (!end) {
       return '';
     }
     const [y, m, d] = end.split('-').map(Number);
     return new Intl.DateTimeFormat('es-CL', { day: 'numeric', month: 'long' }).format(new Date(y, m - 1, d));
   });
+
+  // Renovación por adelantado: el socio con plan vigente despliega las tarjetas de plan dentro de su tarjeta de membresía.
+  protected readonly renewingEarly = signal(false);
+  protected readonly earlyRenewalAvailable = computed(() => {
+    const m = this.membership();
+    return m.status === 'active' && m.canRenewEarly === true && !m.queuedPeriodEnd && !this.expiredOrNoPlan();
+  });
+  private readonly expiredOrNoPlan = computed(() => this.membershipExpired() || !this.membership().plan);
+  protected readonly earlyStartLabel = computed(() => {
+    const start = this.membership().earlyRenewalStartsOn ?? this.membershipPeriodEnd();
+    return start ? dayMonthLabel(start) : '';
+  });
+  protected readonly queuedEndLabel = computed(() => {
+    const end = this.membership().queuedPeriodEnd;
+    return end ? dayMonthLabel(end) : '';
+  });
+  // Mostrar las tarjetas de plan como renovación por adelantado (plan vigente) y no como alta/vencido.
+  protected readonly earlyMode = computed(() => this.earlyRenewalAvailable() && this.renewingEarly());
+  protected isCurrentPlan(plan: MembershipPlan): boolean {
+    return plan.id === this.membership().plan?.id;
+  }
+  protected toggleEarlyRenewal(): void {
+    this.cancelPaymentChoice();
+    this.renewingEarly.update((open) => !open);
+  }
   // 'none' (nunca eligió plan) y 'past_due' (venció, sin renovar) bloquean
   // por igual el calendario — mismo candado borroso para los dos casos.
   // checkoutPending también bloquea: recién volviendo de Flow, loadMembership()
@@ -656,8 +754,14 @@ export class MemberPage {
     if (m.status !== 'active' || !m.paidAt) {
       return null;
     }
-    const to = this.membershipPeriodEnd();
-    return to ? { from: m.paidAt, to } : null;
+    // Con un período ya pagado por adelantado se puede reservar hasta el vencimiento FINAL. El servidor
+    // acepta rangos de hasta 62 días (listOccurrences), así que el rango nunca pasa de 61 días desde `from`.
+    const end = this.membershipFinalEnd();
+    if (!end) {
+      return null;
+    }
+    const cap = addDaysIso(m.paidAt, 61);
+    return { from: m.paidAt, to: end < cap ? end : cap };
   });
 
   // Grilla de días a mostrar — rectangular (7 columnas, Lun a Dom), con celdas `null` para
@@ -861,6 +965,32 @@ export class MemberPage {
   protected readonly upcomingReservations = computed(() =>
     this.myReservations().filter((r) => !this.isReservationPast(r)),
   );
+  // Tira "Próxima: hoy 19:00 · Funcional" arriba de la pestaña Reservar: la reserva en curso o la más cercana.
+  // Solo con plan activo (sin plan o vencido, la tarjeta de membresía ya ocupa ese lugar).
+  protected readonly nextStrip = computed<Reservation | null>(() => {
+    if (this.membership().status !== 'active' || !this.membershipLoaded() || this.membershipError() || this.checkoutPending()) {
+      return null;
+    }
+    const sorted = [...this.upcomingReservations()].sort((a, b) =>
+      `${a.classDate}T${a.startTime}`.localeCompare(`${b.classDate}T${b.startTime}`),
+    );
+    return sorted[0] ?? null;
+  });
+
+  // Un solo esqueleto mientras llegan la membresía y las clases (antes: un spinner por bloque y la página saltaba).
+  protected readonly reservarLoading = computed(
+    () => (!this.membershipLoaded() || this.status() === 'loading') && !this.checkoutPending(),
+  );
+
+  /** "hoy", "mañana" o "mié 23 sep". */
+  protected relativeDayLabel(classDate: string): string {
+    const today = this.todayIso();
+    if (classDate === today) {
+      return 'hoy';
+    }
+    return classDate === addDaysIso(today, 1) ? 'mañana' : formatShortDate(classDate).toLowerCase();
+  }
+
   // Pasadas = las de HOY que ya terminaron (vienen en myReservations, que es de hoy en adelante)
   // + las de días anteriores, que el backend entrega paginadas (loadPastReservations) — el
   // historial crece sin límite, así que nunca se pide completo. Los dos grupos no se solapan
@@ -1093,6 +1223,9 @@ export class MemberPage {
 
   protected setSection(section: 'reservar' | 'reservas' | 'rutina'): void {
     this.section.set(section);
+    if (section === 'reservas') {
+      this.loadWaitlist();
+    }
     if (section === 'rutina') {
       // Volver a la pestaña no debe borrar lo que el socio ya estaba anotando (ver loadPendingWorkout).
       this.loadPendingWorkout(false, true);
@@ -1517,6 +1650,11 @@ export class MemberPage {
     if (this.blockedInDemo()) {
       return;
     }
+    // Sin datos de contacto el servidor no deja reservar: se piden ahora (no al entrar) y se sigue con esta reserva al guardar.
+    if (this.profileIncomplete()) {
+      this.askProfileToBook(occurrence);
+      return;
+    }
     this.bookingId.set(occurrence.gymBlockId);
     this.reservationService
       .book({ gymBlockId: occurrence.gymBlockId, classDate: occurrence.classDate })
@@ -1540,8 +1678,15 @@ export class MemberPage {
           this.loadMyReservations();
           this.showToast('¡Reserva confirmada! Te esperamos en la clase.');
         },
-        error: (err: Error) => {
+        error: (err: Error & { status?: number; code?: string }) => {
           this.bookingId.set(null);
+          // 409 "Perfil incompleto": el servidor sabe algo que esta pantalla aún no (datos borrados o sesión vieja).
+          // El código PROFILE_INCOMPLETE es lo seguro; el texto queda solo como respaldo por si el código no llegara.
+          if (err.code === 'PROFILE_INCOMPLETE' || (err.status === 409 && /datos/i.test(err.message))) {
+            this.profileIncomplete.set(true);
+            this.askProfileToBook(occurrence);
+            return;
+          }
           this.showToast(err.message || 'No pudimos reservar esa clase. Intenta nuevamente.', 'danger');
         },
       });
@@ -1556,6 +1701,10 @@ export class MemberPage {
     fixed = false,
   ): Promise<void> {
     if (this.blockedInDemo() || this.cancelingId() !== null) {
+      return;
+    }
+    if (this.offline()) {
+      this.showToast('Sin conexión: no se puede cancelar ahora. Reintenta cuando vuelva internet.', 'danger');
       return;
     }
     const today = this.todayIso();
@@ -1632,6 +1781,7 @@ export class MemberPage {
             (o) => ({ ...o, waitlisted: true }),
           );
           this.loadOccurrences();
+          this.loadWaitlist();
           this.showToast('Listo, te avisamos por mail si se libera un cupo.');
         },
         error: (err: Error) => {
@@ -1641,7 +1791,7 @@ export class MemberPage {
       });
   }
 
-  protected leaveWaitlist(occurrence: GymBlockOccurrence): void {
+  protected leaveWaitlist(occurrence: Pick<GymBlockOccurrence, 'gymBlockId' | 'classDate'>): void {
     if (this.blockedInDemo()) {
       return;
     }
@@ -1654,12 +1804,42 @@ export class MemberPage {
           (o) => ({ ...o, waitlisted: false }),
         );
         this.loadOccurrences();
+        this.loadWaitlist();
         this.showToast('Te sacamos de la lista de espera.');
       },
       error: (err: Error) => {
         this.waitlistingId.set(null);
         this.showToast(err.message || 'No pudimos sacarte de la lista de espera.', 'danger');
       },
+    });
+  }
+
+  // "Salir de la lista": pide confirmación desde Mis Reservas y desde el calendario (el puesto en la fila no se recupera).
+  protected async confirmLeaveWaitlist(
+    entry: Pick<WaitlistEntry, 'gymBlockId' | 'classDate' | 'label' | 'startTime'>,
+  ): Promise<void> {
+    if (this.blockedInDemo() || this.waitlistingId() !== null) {
+      return;
+    }
+    const alert = await this.alertController.create({
+      header: '¿Salir de la lista de espera?',
+      message: `${entry.label} · ${this.relativeDayLabel(entry.classDate)} ${shortTime(entry.startTime)}. Perderás tu puesto en la fila.`,
+      buttons: [
+        { text: 'Volver', role: 'cancel' },
+        { text: 'Salir de la lista', role: 'destructive', handler: () => this.leaveWaitlist(entry) },
+      ],
+    });
+    await alert.present();
+  }
+
+  protected loadWaitlist(): void {
+    if (this.isDemoPreview) {
+      return;
+    }
+    this.reservationService.myWaitlist().subscribe({
+      next: (entries) => this.myWaitlist.set(entries),
+      // Sin toast: mientras el endpoint no esté desplegado (404) la sección simplemente no aparece.
+      error: () => this.myWaitlist.set([]),
     });
   }
 
@@ -1696,13 +1876,15 @@ export class MemberPage {
     if (this.blockedInDemo()) {
       return;
     }
+    // En renovación por adelantado el plan sigue vigente: si falla, vuelve a 'active', no a las tarjetas de alta.
+    const previousStatus: MembershipStatus = this.earlyMode() ? 'active' : 'none';
     this.membership.update((m) => ({ ...m, status: 'pending' }));
     this.gymService.startCheckout(plan.id).subscribe({
       next: (res) => {
         window.location.href = res.redirectUrl;
       },
       error: (err: Error) => {
-        this.membership.update((m) => ({ ...m, status: 'none' }));
+        this.membership.update((m) => ({ ...m, status: previousStatus }));
         this.showToast(errorText(err, 'No pudimos iniciar el pago. Intenta nuevamente.'), 'danger');
       },
     });
@@ -1712,6 +1894,18 @@ export class MemberPage {
   // de plan (mismo estado que un socio que nunca pagó) para "renovar".
   protected renewPlan(): void {
     this.membership.update((m) => ({ ...m, status: 'none' }));
+  }
+
+  // Desde el aviso "Tu plan vence en N días": abre las tarjetas de renovación por adelantado y baja hasta
+  // ellas. Si ya no aplica (venció, o ya renovó), cae al comportamiento de siempre.
+  protected startEarlyRenewal(): void {
+    if (this.earlyRenewalAvailable()) {
+      this.cancelPaymentChoice();
+      this.renewingEarly.set(true);
+      this.goToPlans();
+    } else {
+      this.scrollToPlans();
+    }
   }
 
   protected scrollToPlans(): void {
@@ -1749,6 +1943,7 @@ export class MemberPage {
       this.router.navigate(['/gym-admin']);
       return;
     }
+    this.clearSnapshot();
     await this.authService.logout();
     const slug = this.gym()?.slug;
     this.router.navigate([slug ? `/j/${slug}` : '/login']);
@@ -1864,12 +2059,13 @@ export class MemberPage {
   private applyMembership(member: Member): void {
     this.membershipResolved = true;
     this.membershipError.set(false);
+    this.offline.set(null);
     this.hasFixedClasses.set(!!member.fixedClassesSummary);
     if (this.isDemoPreview) {
       this.demoMemberName.set(member.name);
     } else {
-      // RUT, dirección, fecha de nacimiento y celular son obligatorios: si faltan, pantalla de datos
-      // (no se puede cerrar) — el servidor además no deja reservar hasta que estén completos.
+      // RUT, dirección, fecha de nacimiento y celular son obligatorios solo para RESERVAR: si faltan, se piden al
+      // intentar reservar (ver book) y se deja un aviso discreto — el servidor no deja reservar hasta que estén.
       this.profileIncomplete.set(!member.profileComplete);
       this.memberProfile.set({
         rut: member.rut ?? '',
@@ -1897,7 +2093,15 @@ export class MemberPage {
       },
       classesUsed,
       paidAt: toChileIsoDate(member.paidAt),
+      currentPeriodEnd: member.currentPeriodEnd ? toChileIsoDate(member.currentPeriodEnd) : null,
+      queuedPeriodEnd: member.queuedPeriodEnd ? toChileIsoDate(member.queuedPeriodEnd) : null,
+      queuedSessionsRemaining: member.queuedSessionsRemaining ?? null,
+      canRenewEarly: member.canRenewEarly === true && status === 'active',
+      earlyRenewalStartsOn: member.earlyRenewalStartsOn ?? null,
     });
+    if (!member.canRenewEarly) {
+      this.renewingEarly.set(false);
+    }
     this.expiryNotified = false;
     this.stopBookingDemo();
     // El fetch inicial de ocurrencias (constructor) salió con el mes calendario de
@@ -1908,6 +2112,7 @@ export class MemberPage {
       this.loadOccurrences();
     }
     this.membershipLoaded.set(true);
+    this.saveSnapshot();
   }
 
   private loadBankTransfer(): void {
@@ -1968,9 +2173,13 @@ export class MemberPage {
         this.missionReady.set(true);
         this.applyMembership(dashboard.membership);
       },
-      error: () => {
+      error: (err: unknown) => {
         this.gymLoaded.set(true);
         this.plansLoaded.set(true);
+        // Sin red: si hay una copia guardada, se muestra con su hora en vez del error.
+        if (!this.membershipResolved && this.restoreSnapshot(err)) {
+          return;
+        }
         // Mismo criterio que loadMembership(): sin dato real, error con "Reintentar" en vez de "Elige tu plan".
         if (!this.membershipResolved) {
           this.membershipError.set(true);
@@ -2056,6 +2265,117 @@ export class MemberPage {
   }
 
   protected readonly reservationsError = signal(false);
+  private reservationsFetched = false;
+
+  // ---- Sin conexión: copia mínima en localStorage (ver MemberSnapshot) ----
+  // Instante (ms) de la copia que se está mostrando por falta de red; null = datos en vivo.
+  protected readonly offline = signal<number | null>(null);
+  protected readonly offlineLabel = computed(() => {
+    const at = this.offline();
+    return at === null ? '' : `Última actualización ${clockLabel(at)} · sin conexión`;
+  });
+
+  private snapshotKey(): string | null {
+    const userId = this.authService.currentUser()?.userId;
+    return userId == null ? null : `${SNAPSHOT_KEY_PREFIX}${userId}`;
+  }
+
+  private saveSnapshot(): void {
+    const key = this.snapshotKey();
+    const membership = this.membership();
+    if (
+      !key ||
+      this.isDemoPreview ||
+      this.offline() !== null ||
+      !this.membershipResolved ||
+      !this.reservationsFetched ||
+      !membership.plan ||
+      !membership.paidAt ||
+      (membership.status !== 'active' && membership.status !== 'past_due')
+    ) {
+      return;
+    }
+    const snapshot: MemberSnapshot = {
+      savedAt: Date.now(),
+      membership: {
+        status: membership.status,
+        planName: membership.plan.name,
+        monthlyClasses: membership.plan.monthlyClasses,
+        classesUsed: membership.classesUsed,
+        paidAt: membership.paidAt,
+      },
+      reservations: this.upcomingReservations()
+        .slice(0, 20)
+        .map((r) => ({
+          id: r.id,
+          gymBlockId: r.gymBlockId,
+          blockLabel: r.blockLabel,
+          classDate: r.classDate,
+          startTime: r.startTime,
+          endTime: r.endTime,
+        })),
+    };
+    try {
+      localStorage.setItem(key, JSON.stringify(snapshot));
+    } catch {
+      // Sin almacenamiento (modo privado, cuota llena): simplemente no hay copia sin conexión.
+    }
+  }
+
+  private clearSnapshot(): void {
+    const key = this.snapshotKey();
+    try {
+      if (key) {
+        localStorage.removeItem(key);
+      }
+    } catch {
+      // Nada que limpiar.
+    }
+  }
+
+  private readSnapshot(): MemberSnapshot | null {
+    const key = this.snapshotKey();
+    try {
+      const raw = key ? localStorage.getItem(key) : null;
+      const parsed = raw ? (JSON.parse(raw) as MemberSnapshot) : null;
+      return parsed && typeof parsed.savedAt === 'number' && parsed.membership && Array.isArray(parsed.reservations) ? parsed : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** Falla por red (status 0) y hay copia: la muestra con su hora. Devuelve true si la usó. */
+  private restoreSnapshot(err: unknown): boolean {
+    if (this.isDemoPreview || (err as { status?: number } | null)?.status !== 0) {
+      return false;
+    }
+    const snapshot = this.readSnapshot();
+    if (!snapshot) {
+      return false;
+    }
+    const m = snapshot.membership;
+    this.membership.set({
+      status: m.status,
+      plan: { id: 0, name: m.planName, priceClp: 0, monthlyClasses: m.monthlyClasses },
+      classesUsed: m.classesUsed,
+      paidAt: m.paidAt,
+    });
+    this.myReservations.set(
+      snapshot.reservations.map((r) => ({ ...r, status: 'BOOKED', createdAt: '', checkedInAt: null, fixed: false })),
+    );
+    this.membershipError.set(false);
+    this.membershipLoaded.set(true);
+    this.reservationsError.set(false);
+    this.reservationsLoaded.set(true);
+    this.offline.set(snapshot.savedAt);
+    return true;
+  }
+
+  protected retryOffline(): void {
+    this.loadDashboard();
+    this.loadMyReservations();
+    this.loadOccurrences();
+  }
 
   protected loadMyReservations(): void {
     (this.isDemoPreview
@@ -2066,9 +2386,14 @@ export class MemberPage {
         this.myReservations.set(reservations);
         this.reservationsError.set(false);
         this.reservationsLoaded.set(true);
+        this.reservationsFetched = true;
+        this.saveSnapshot();
       },
-      error: () => {
+      error: (err: unknown) => {
         this.reservationsLoaded.set(true);
+        if (!this.reservationsFetched && this.restoreSnapshot(err)) {
+          return;
+        }
         this.reservationsError.set(true);
       },
     });
@@ -2154,7 +2479,23 @@ export class MemberPage {
   private membershipAlertChecked = false;
 
   // ---- Datos de contacto obligatorios (RUT, dirección, fecha de nacimiento, celular) ----
+  // `profileIncomplete` = al servidor le faltan datos (no reserva). El formulario ya NO se abre al entrar:
+  // se abre al intentar reservar (askProfileToBook) o desde el aviso "Completa tus datos para reservar".
   protected readonly profileIncomplete = signal(false);
+  protected readonly profileModalOpen = signal(false);
+  // Reserva que el socio intentaba cuando le pedimos los datos: se retoma al guardar.
+  protected readonly pendingBooking = signal<GymBlockOccurrence | null>(null);
+
+  private askProfileToBook(occurrence: GymBlockOccurrence): void {
+    this.profileError.set(null);
+    this.pendingBooking.set(occurrence);
+    this.profileModalOpen.set(true);
+  }
+
+  protected closeProfileModal(): void {
+    this.profileModalOpen.set(false);
+    this.pendingBooking.set(null);
+  }
   protected readonly memberProfile = signal<Partial<MemberProfile> | null>(null);
   protected readonly savingProfile = signal(false);
   protected readonly profileError = signal<string | null>(null);
@@ -2162,13 +2503,27 @@ export class MemberPage {
   protected saveProfile(profile: MemberProfile): void {
     this.savingProfile.set(true);
     this.profileError.set(null);
-    this.memberProfileService.updateOwn(profile).subscribe({
-      next: () => {
+    // "Mis datos" parcial: solo se envía lo que tiene valor (el servidor deja igual lo que no llega).
+    const payload: Partial<MemberProfile> = Object.fromEntries(
+      Object.entries(profile).filter(([, value]) => typeof value === 'string' && value.trim() !== ''),
+    );
+    this.memberProfileService.updateOwn(payload).subscribe({
+      next: (member) => {
         this.savingProfile.set(false);
-        this.profileIncomplete.set(false);
+        this.profileIncomplete.set(member.profileComplete === false);
         this.profileEditOpen.set(false);
-        this.memberProfile.set({ ...profile });
-        this.showToast('Listo, tus datos quedaron guardados.');
+        const pending = this.pendingBooking();
+        this.profileModalOpen.set(false);
+        this.pendingBooking.set(null);
+        this.memberProfile.set({ ...this.memberProfile(), ...payload });
+        if (pending && !this.profileIncomplete()) {
+          // Tras cerrar el modal, sigue con la reserva que intentaba (con el cupo al día si cambió).
+          const fresh = this.occurrences().find((o) => o.gymBlockId === pending.gymBlockId && o.classDate === pending.classDate);
+          setTimeout(() => this.book(fresh ?? pending), 250);
+          this.showToast('Listo, guardamos tus datos. Reservando tu clase…');
+        } else {
+          this.showToast('Listo, tus datos quedaron guardados.');
+        }
       },
       error: (err: Error) => {
         this.savingProfile.set(false);
@@ -2188,13 +2543,14 @@ export class MemberPage {
 
   private async showMembershipAlert(): Promise<void> {
     // Nunca en la vista demo del admin ("Ver como socio") ni mientras corre el tour guiado.
-    // Mientras la pantalla de datos obligatoria está abierta no se apila otro aviso encima.
-    if (this.isDemoPreview || this.tourService.isOpen() || this.profileIncomplete()) {
+    // Mientras el formulario de datos está abierto (o sin conexión, con datos viejos) no se apila otro aviso.
+    if (this.isDemoPreview || this.tourService.isOpen() || this.profileModalOpen() || this.offline()) {
       return;
     }
     const membership = this.membership();
     const planName = membership.plan?.name;
-    const periodEnd = this.membershipPeriodEnd();
+    // Vencimiento FINAL: con un período ya pagado por adelantado no hay aviso de "por vencer".
+    const periodEnd = this.membershipFinalEnd();
     const days = this.daysRemaining();
     if (!planName || !periodEnd || days === null) {
       return; // sin plan pagado nunca hubo nada que avisar
@@ -2208,29 +2564,34 @@ export class MemberPage {
     let message: string;
     let renew = true;
     if (expired) {
+      // sin cambios: el caso vencido no se toca
       key = 'expired';
       header = 'Tu plan venció';
       message = `Tu plan ${planName} se cumplió. Mientras no lo renueves no podrás reservar clases nuevas.`;
     } else if (expiring) {
       key = 'expiring';
       header = days === 1 ? 'Tu plan vence mañana' : `Tu plan vence en ${days} días`;
-      message =
-        `Tu plan ${planName} vence el ${this.longDateLabel(periodEnd)}. Cuando venza, podrás renovarlo desde aquí mismo.` +
-        (exhausted ? ' Además, ya usaste todas tus clases de este período.' : '');
-      // Pagar con el plan vigente pisa el período desde hoy y se pierden los días que quedan: solo se ofrece
-      // renovar cuando ya venció (ahí las tarjetas de plan están a la vista).
-      renew = false;
+      // Renovar el mismo plan por adelantado conserva los días: se ofrece solo si el servidor lo permite.
+      renew = this.earlyRenewalAvailable();
+      message = renew
+        ? `Tu plan ${planName} vence el ${this.longDateLabel(periodEnd)}. Si lo renuevas antes, conservas los días que te quedan.`
+        : `Tu plan ${planName} vence el ${this.longDateLabel(periodEnd)}.`;
+      message += exhausted ? ' Además, ya usaste todas tus clases de este período.' : '';
     } else if (exhausted) {
       // Con clases fijas el socio no "usó" nada: ya están reservadas por el gimnasio.
       const hasFixed = this.myReservations().some((r) => r.fixed && !this.isReservationPast(r));
       if (hasFixed) {
         key = 'exhausted-fixed';
         header = 'Tus clases ya están reservadas';
-        message = `Las clases de tu plan ${planName} de este período ya están reservadas como clases fijas. Tu plan sigue vigente hasta el ${this.longDateLabel(periodEnd)}; si cancelas una a tiempo, esa clase vuelve a tu cupo.`;
+        message = this.hasQueuedPeriod()
+          ? `Las clases de tu plan ${planName} de este período ya están reservadas como clases fijas. El período termina el ${this.longDateLabel(this.membershipPeriodEnd() ?? periodEnd)} y desde ahí tienes el cupo completo del período que ya pagaste.`
+          : `Las clases de tu plan ${planName} de este período ya están reservadas como clases fijas. Tu plan sigue vigente hasta el ${this.longDateLabel(periodEnd)}; si cancelas una a tiempo, esa clase vuelve a tu cupo.`;
       } else {
         key = 'exhausted';
         header = 'Usaste todas tus clases';
-        message = `Ya reservaste las clases de tu plan ${planName} de este período. Tu plan sigue vigente hasta el ${this.longDateLabel(periodEnd)}; si cancelas una reserva a tiempo, esa clase se libera.`;
+        message = this.hasQueuedPeriod()
+          ? `Ya reservaste las clases de tu plan ${planName} de este período, que termina el ${this.longDateLabel(this.membershipPeriodEnd() ?? periodEnd)}. Desde esa fecha tienes el cupo completo del período que ya pagaste; si cancelas una reserva a tiempo, esa clase se libera.`
+          : `Ya reservaste las clases de tu plan ${planName} de este período. Tu plan sigue vigente hasta el ${this.longDateLabel(periodEnd)}; si cancelas una reserva a tiempo, esa clase se libera.`;
       }
       renew = false;
     } else {
@@ -2255,7 +2616,7 @@ export class MemberPage {
       buttons: renew
         ? [
             { text: 'Después', role: 'cancel' },
-            { text: 'Renovar plan', role: 'confirm', handler: () => setTimeout(() => this.scrollToPlans(), 150) },
+            { text: 'Renovar plan', role: 'confirm', handler: () => setTimeout(() => this.startEarlyRenewal(), 150) },
           ]
         : [{ text: 'Entendido', role: 'cancel' }],
     });

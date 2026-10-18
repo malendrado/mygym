@@ -69,7 +69,7 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
       // pantalla se desvinculó, gym-admin.ts para un código de emparejamiento vencido, gym-form.ts
       // para el 409/502 de desvincular un gimnasio) nunca podía distinguir el caso específico y
       // caía siempre en su mensaje genérico — bug real encontrado en la práctica, no solo teórico.
-      const wrapped = Object.assign(new Error(message), { status: err.status });
+      const wrapped = Object.assign(new Error(message), { status: err.status, code: err.error?.code as string | undefined });
       return throwError(() => wrapped);
     }),
   );

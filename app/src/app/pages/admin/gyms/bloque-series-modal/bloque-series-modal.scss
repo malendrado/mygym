@@ -75,3 +75,25 @@
     flex: 1;
   }
 }
+
+.draft-summary__hint {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.8rem;
+  color: var(--brand-text-dim);
+}
+
+.draft-entry__badge {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  background: var(--brand-ink-surface-2);
+  color: var(--brand-text-dim);
+}
+
+.draft-entry--exists ion-label {
+  opacity: 0.75;
+}

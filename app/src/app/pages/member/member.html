@@ -1,10 +1,36 @@
 <app-gym-pause audience="member" />
+<!-- Esqueleto único: misma altura aproximada que la tarjeta de membresía + la semana del calendario + 2 clases,
+     para que no haya salto de layout cuando llegan los datos. -->
+<ng-template #loadingSkeleton>
+  <div class="member-skeleton" role="status" aria-busy="true" aria-live="polite">
+    <span class="visually-hidden">Cargando</span>
+    <div class="member-skeleton__card" aria-hidden="true">
+      <ion-skeleton-text class="member-skeleton__line member-skeleton__line--eyebrow" [animated]="skeletonAnimated"></ion-skeleton-text>
+      <ion-skeleton-text class="member-skeleton__line member-skeleton__line--title" [animated]="skeletonAnimated"></ion-skeleton-text>
+      <ion-skeleton-text class="member-skeleton__line member-skeleton__line--dots" [animated]="skeletonAnimated"></ion-skeleton-text>
+    </div>
+    <div class="member-skeleton__calendar" aria-hidden="true">
+      <ion-skeleton-text class="member-skeleton__line member-skeleton__line--month" [animated]="skeletonAnimated"></ion-skeleton-text>
+      <div class="member-skeleton__week">
+        @for (cell of skeletonCells; track cell) {
+          <ion-skeleton-text class="member-skeleton__cell" [animated]="skeletonAnimated"></ion-skeleton-text>
+        }
+      </div>
+      <div class="member-skeleton__tiles">
+        <ion-skeleton-text class="member-skeleton__tile" [animated]="skeletonAnimated"></ion-skeleton-text>
+        <ion-skeleton-text class="member-skeleton__tile" [animated]="skeletonAnimated"></ion-skeleton-text>
+      </div>
+    </div>
+  </div>
+</ng-template>
 @if (!gymLoaded()) {
   <ion-header>
     <ion-toolbar><ion-title>mygym</ion-title></ion-toolbar>
   </ion-header>
-  <ion-content class="ion-padding member-loading">
-    <span role="status" aria-live="polite"><ion-spinner name="crescent" aria-label="Cargando"></ion-spinner></span>
+  <ion-content class="ion-padding member-content">
+    <div class="member-page">
+      <ng-container *ngTemplateOutlet="loadingSkeleton"></ng-container>
+    </div>
   </ion-content>
 } @else {
   <ion-header
@@ -113,7 +139,59 @@
       </div>
     </div>
 
+    @if (offline() !== null) {
+      <div class="offline-banner" role="status">
+        <ion-icon name="cloud-offline-outline" aria-hidden="true"></ion-icon>
+        <span class="offline-banner__text">{{ offlineLabel() }}</span>
+        <button type="button" class="offline-banner__retry" (click)="retryOffline()">
+          <ion-icon name="refresh-outline" aria-hidden="true"></ion-icon>
+          Reintentar
+        </button>
+      </div>
+    }
+    @if (profileIncomplete() && !isDemoPreview && section() !== 'rutina') {
+      <div class="profile-reminder">
+        <ion-icon name="id-card-outline" aria-hidden="true"></ion-icon>
+        <p class="profile-reminder__text">Completa tus datos para reservar</p>
+        <button type="button" class="profile-reminder__action" (click)="openProfileEdit()">Completar</button>
+      </div>
+    }
+
     @if (section() === 'reservar') {
+    @if (nextStrip(); as next) {
+      <div class="next-strip" [class.next-strip--live]="isReservationLive(next)">
+        <ion-icon [name]="isReservationLive(next) ? 'radio-button-on-outline' : 'time-outline'" aria-hidden="true"></ion-icon>
+        <p class="next-strip__text">
+          @if (isReservationLive(next)) {
+            <strong class="next-strip__when">En curso:</strong> {{ next.blockLabel }} · hasta {{ shortTime(next.endTime) }}
+          } @else {
+            <strong class="next-strip__when">Próxima:</strong> {{ relativeDayLabel(next.classDate) }} {{ shortTime(next.startTime) }} · {{ next.blockLabel }}
+          }
+        </p>
+        @if (isReservationLive(next)) {
+          @if (next.checkedInAt) {
+            <span class="next-strip__done">
+              <ion-icon name="checkmark-outline" aria-hidden="true"></ion-icon>
+              Asistencia marcada
+            </span>
+          } @else {
+            <button type="button" class="next-strip__action next-strip__action--primary" [disabled]="checkinBusy()" (click)="openQrScanner()">
+              <ion-icon name="qr-code-outline" aria-hidden="true"></ion-icon>
+              Escanear QR
+            </button>
+          }
+        } @else if (!fixedWeekLocked(next.classDate) && canCancel(next.classDate, next.startTime)) {
+          <button
+            type="button"
+            class="next-strip__action"
+            [disabled]="cancelingId() === next.id"
+            (click)="confirmCancel(next.id, next.blockLabel, next.classDate, next.startTime, next.fixed)"
+          >
+            {{ cancelingId() === next.id ? 'Cancelando…' : 'Cancelar' }}
+          </button>
+        }
+      </div>
+    }
     @if (!isDemoPreview) {
       <app-welcome-mission
         [ready]="missionReady()"
@@ -132,23 +210,10 @@
       </p>
     }
 
-    <section class="membership">
-      @if (!membershipLoaded() && !checkoutPending()) {
-        <div class="membership-status membership-status--pending" role="status" aria-live="polite">
-          <ion-spinner name="crescent" aria-label="Cargando"></ion-spinner>
-        </div>
-      } @else if (checkoutPending()) {
-        <div class="membership-status membership-status--pending" role="status" aria-live="polite">
-          <ion-spinner name="crescent" aria-label="Cargando"></ion-spinner>
-          <p>Confirmando tu pago con Flow.cl...</p>
-        </div>
-      } @else if (membershipError()) {
-        <app-error-state
-          title="No pudimos cargar tu membresía"
-          message="No alcanzamos a revisar tu plan. Revisa tu conexión e inténtalo de nuevo."
-          (retry)="retryDashboard()"
-        />
-      } @else if (membership().status === 'none') {
+    @if (reservarLoading()) {
+      <ng-container *ngTemplateOutlet="loadingSkeleton"></ng-container>
+    } @else {
+    <ng-template #planPicker>
         @if (paymentChoicePlan(); as choicePlan) {
           <div class="payment-choice">
             <button type="button" class="payment-choice__back" (click)="cancelPaymentChoice()">
@@ -157,6 +222,19 @@
             </button>
             <h2>¿Cómo quieres pagar?</h2>
             <p class="item-hint">{{ choicePlan.name }} — ${{ formatClp(choicePlan.priceClp) }} / mes</p>
+            @if (earlyMode()) {
+              @if (isCurrentPlan(choicePlan)) {
+                <p class="plan-card__early plan-card__early--keep">
+                  <ion-icon name="checkmark-circle-outline" aria-hidden="true"></ion-icon>
+                  Conservas tus {{ currentPeriodDaysRemaining() }} días: el nuevo período parte el {{ earlyStartLabel() }}.
+                </p>
+              } @else {
+                <p class="plan-card__early plan-card__early--warn">
+                  <ion-icon name="alert-circle-outline" aria-hidden="true"></ion-icon>
+                  Cambiar de plan hoy parte un período nuevo desde hoy y se pierden los días que te quedan.
+                </p>
+              }
+            }
 
             @if (gym()?.flowConfigured) {
               <article class="payment-option">
@@ -225,7 +303,13 @@
             }
           </div>
         } @else {
-          <h2>Elige tu plan</h2>
+          <h2>{{ earlyMode() ? 'Elige el plan a renovar' : 'Elige tu plan' }}</h2>
+          @if (earlyMode()) {
+            <p class="early-renew__help">
+              Tu plan actual vence el {{ renewsOnLabel() }}. Si renuevas el mismo plan ahora, conservas tus
+              {{ currentPeriodDaysRemaining() }} días y el nuevo mes parte el {{ earlyStartLabel() }}.
+            </p>
+          }
           @if (plansLoaded() && plans().length === 0) {
             <p class="item-hint">Tu gimnasio todavía no tiene planes configurados. Pregúntale al equipo cuándo estarán disponibles.</p>
           }
@@ -243,20 +327,55 @@
                 <p class="plan-card__quota">
                   {{ plan.monthlyClasses === null ? 'Clases ilimitadas' : plan.monthlyClasses + ' clases al mes' }}
                 </p>
+                @if (earlyMode()) {
+                  @if (isCurrentPlan(plan)) {
+                    <p class="plan-card__early plan-card__early--keep">
+                      <ion-icon name="checkmark-circle-outline" aria-hidden="true"></ion-icon>
+                      Tu plan actual: conservas tus días
+                    </p>
+                  } @else {
+                    <p class="plan-card__early plan-card__early--warn">
+                      <ion-icon name="alert-circle-outline" aria-hidden="true"></ion-icon>
+                      Cambiar de plan hoy parte un período nuevo desde hoy y se pierden los días que te quedan
+                    </p>
+                  }
+                }
                 <ion-button expand="block" [fill]="plan.highlight ? 'solid' : 'outline'" (click)="choosePaymentMethod(plan)">
-                  Elegir plan
+                  {{ earlyMode() && isCurrentPlan(plan) ? 'Renovar este plan' : 'Elegir plan' }}
                 </ion-button>
               </article>
             }
           </div>
+          @if (earlyMode()) {
+            <button type="button" class="early-renew__cancel" (click)="toggleEarlyRenewal()">Cancelar</button>
+          }
         }
+    </ng-template>
+    <section class="membership">
+      @if (checkoutPending()) {
+        <div class="membership-status membership-status--pending" role="status" aria-live="polite">
+          <ion-spinner name="crescent" aria-label="Cargando"></ion-spinner>
+          <p>Confirmando tu pago con Flow.cl...</p>
+        </div>
+      } @else if (membershipError()) {
+        <app-error-state
+          title="No pudimos cargar tu membresía"
+          message="No alcanzamos a revisar tu plan. Revisa tu conexión e inténtalo de nuevo."
+          (retry)="retryDashboard()"
+        />
+      } @else if (membership().status === 'none') {
+        <ng-container *ngTemplateOutlet="planPicker"></ng-container>
       } @else if (membership().status === 'pending') {
         <div class="membership-status membership-status--pending" role="status" aria-live="polite">
           <ion-spinner name="crescent" aria-label="Cargando"></ion-spinner>
           <p>Confirmando tu pago con Flow.cl...</p>
         </div>
       } @else {
-        <div class="membership-status" [class.membership-status--warn]="membership().status === 'past_due'">
+        <div
+          class="membership-status"
+          [class.membership-status--warn]="membership().status === 'past_due'"
+          [class.membership-status--compact]="membership().status === 'active'"
+        >
           <div class="membership-status__info">
             <p class="membership-status__eyebrow">Tu membresía</p>
             <h2>{{ membership().plan?.name }}</h2>
@@ -272,6 +391,17 @@
                 }
                 {{ expiryLabel() }}
               </p>
+              @if (hasQueuedPeriod()) {
+                <p class="membership-status__queued">
+                  <ion-icon name="checkmark-circle-outline" aria-hidden="true"></ion-icon>
+                  Ya renovaste: tu plan queda vigente hasta el {{ queuedEndLabel() }}
+                </p>
+                @if (membership().queuedSessionsRemaining != null) {
+                  <p class="membership-status__queued-sub">
+                    Tienes {{ membership().queuedSessionsRemaining }} clases del próximo período
+                  </p>
+                }
+              }
             }
           </div>
           @if (membership().status === 'active') {
@@ -296,6 +426,19 @@
                 <span>Clases ilimitadas</span>
               </div>
             }
+          }
+          @if (earlyRenewalAvailable()) {
+            <div class="early-renew">
+              @if (!renewingEarly()) {
+                <p class="early-renew__help">
+                  Tu plan actual vence el {{ renewsOnLabel() }}. Si renuevas el mismo plan ahora, conservas tus
+                  {{ currentPeriodDaysRemaining() }} días y el nuevo mes parte el {{ earlyStartLabel() }}.
+                </p>
+                <button type="button" class="early-renew__btn" (click)="toggleEarlyRenewal()">Renovar por adelantado</button>
+              } @else {
+                <ng-container *ngTemplateOutlet="planPicker"></ng-container>
+              }
+            </div>
           }
         </div>
       }
@@ -524,7 +667,7 @@
                         color="danger"
                         size="small"
                         [disabled]="waitlistingId() === occurrence.gymBlockId"
-                        (click)="leaveWaitlist(occurrence)"
+                        (click)="confirmLeaveWaitlist(occurrence)"
                       >
                         {{ waitlistingId() === occurrence.gymBlockId ? 'Sacando...' : 'Salir de la lista' }}
                       </ion-button>
@@ -588,14 +731,6 @@
           </span>
         </span>
       </span>
-    } @else if (!membershipLoaded()) {
-      <!-- Mismo criterio que arriba (.membership): mientras no sepamos si ya tiene un plan
-           activo, nunca asumir "sin plan" — evita el mismo parpadeo aquí abajo. -->
-      <span class="booking-teaser__cta booking-teaser__cta--static">
-        <span class="booking-teaser__cta-card" role="status" aria-live="polite">
-          <ion-spinner name="crescent" aria-label="Cargando"></ion-spinner>
-        </span>
-      </span>
     } @else if (membershipError()) {
       <span class="booking-teaser__cta booking-teaser__cta--static">
         <span class="booking-teaser__cta-card">
@@ -623,6 +758,7 @@
       </button>
     }
     </div>
+    }
 
     <section class="member-about">
       <img
@@ -777,6 +913,39 @@
         }
       </div>
     </section>
+
+    @if (myWaitlist().length > 0) {
+      <section class="member-section" data-tour="reservas-waitlist">
+        <h2>En lista de espera</h2>
+        <p class="item-hint waitlist-hint">Te avisamos apenas se libere un cupo.</p>
+        <div class="class-grid">
+          @for (entry of myWaitlist(); track entry.gymBlockId + entry.classDate) {
+            <article class="class-tile">
+              <p class="class-tile__title" [attr.title]="entry.label">{{ entry.label }}</p>
+              <p class="class-tile__datetime">
+                {{ formatShortDate(entry.classDate) }} · {{ shortTime(entry.startTime) }}-{{ shortTime(entry.endTime) }}
+              </p>
+              @if (entry.position > 0) {
+                <p class="class-tile__position">Puesto {{ entry.position }} en la fila</p>
+              }
+              <div class="class-tile__action">
+                <ion-badge color="medium">En lista de espera</ion-badge>
+                <ion-button
+                  expand="block"
+                  fill="outline"
+                  color="danger"
+                  size="small"
+                  [disabled]="waitlistingId() === entry.gymBlockId"
+                  (click)="confirmLeaveWaitlist(entry)"
+                >
+                  {{ waitlistingId() === entry.gymBlockId ? 'Sacando...' : 'Salir de la lista' }}
+                </ion-button>
+              </div>
+            </article>
+          }
+        </div>
+      </section>
+    }
 
     @if (pastReservations().length > 0) {
       <section class="member-section" data-tour="reservas-past">
@@ -1073,9 +1242,8 @@
   </ion-content>
   <app-tour-overlay />
   <ion-modal
-    [isOpen]="profileIncomplete()"
-    [backdropDismiss]="false"
-    [keyboardClose]="false"
+    [isOpen]="profileModalOpen()"
+    (didDismiss)="closeProfileModal()"
     [style.--ion-color-primary]="gym()?.themeColor ?? '#c6ff3d'"
     [style.--ion-color-primary-contrast]="gym()?.themeContrast ?? '#1a2b00'"
     [style.--brand-accent]="gym()?.themeColor ?? '#c6ff3d'"
@@ -1084,13 +1252,19 @@
     <ng-template>
       <app-member-profile-modal
         title="Completa tus datos"
-        intro="Para reservar clases necesitamos tu RUT, dirección, fecha de nacimiento, un celular de contacto y un contacto de emergencia. Es solo una vez."
+        [intro]="
+          pendingBooking()
+            ? 'Para reservar esta clase necesitamos tu RUT, dirección, fecha de nacimiento, un celular de contacto y un contacto de emergencia. Es solo una vez: al guardar, reservamos tu clase.'
+            : 'Para reservar clases necesitamos tu RUT, dirección, fecha de nacimiento, un celular de contacto y un contacto de emergencia. Es solo una vez.'
+        "
+        [submitLabel]="pendingBooking() ? 'Guardar y reservar' : 'Guardar mis datos'"
+        dismissLabel="Después"
         [required]="true"
         [initial]="memberProfile()"
         [saving]="savingProfile()"
         [serverError]="profileError()"
         (saved)="saveProfile($event)"
-        (dismiss)="profileIncomplete.set(false); logout()"
+        (dismiss)="closeProfileModal()"
       />
     </ng-template>
   </ion-modal>
@@ -1105,8 +1279,9 @@
     <ng-template>
       <app-member-profile-modal
         title="Mis datos"
-        intro="Revisa o actualiza tus datos de contacto. Los cambios quedan guardados para el gimnasio."
+        intro="Cambia solo lo que quieras: lo que dejes vacío queda como está."
         submitLabel="Guardar cambios"
+        [partial]="true"
         [required]="false"
         [initial]="memberProfile()"
         [saving]="savingProfile()"

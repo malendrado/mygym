@@ -91,6 +91,8 @@ export class ClassBoardView {
   protected readonly planLoading = signal(false);
   protected readonly history = signal<MemberWorkoutLog[]>([]);
   protected readonly marking = signal(false);
+  /** Reservas cuya llegada se está guardando desde el botón de la tarjeta (varias a la vez). */
+  private readonly quickMarkingIds = signal<ReadonlySet<number>>(new Set());
 
   // ---- formulario "Anotar por él" ----
   protected readonly formOpen = signal(false);
@@ -287,6 +289,61 @@ export class ClassBoardView {
     });
   }
 
+  protected isQuickMarking(a: BoardAttendee): boolean {
+    return this.quickMarkingIds().has(a.reservationId);
+  }
+
+  private setQuickMarking(reservationId: number, on: boolean): void {
+    this.quickMarkingIds.update((ids) => {
+      const next = new Set(ids);
+      if (on) {
+        next.add(reservationId);
+      } else {
+        next.delete(reservationId);
+      }
+      return next;
+    });
+  }
+
+  /** Marca la llegada desde la tarjeta (1 toque): mismo endpoint que el detalle, con opción de deshacer en el aviso. */
+  protected quickMark(a: BoardAttendee): void {
+    if (this.demo) {
+      this.toast('Estás en una cuenta demo — esta acción está deshabilitada a propósito.', 'warning');
+      return;
+    }
+    if (this.isQuickMarking(a)) {
+      return;
+    }
+    this.setQuickMarking(a.reservationId, true);
+    this.attendanceService.setAttendance(a.reservationId, true, this.gymId).subscribe({
+      next: (mark) => {
+        this.setQuickMarking(a.reservationId, false);
+        this.patchAttendee(a.memberId, { checkedInAt: mark.checkedInAt, checkinMethod: mark.checkinMethod });
+        this.toastWithUndo(`${a.name}: marcado como que llegó.`, () => this.undoArrived(a));
+      },
+      error: (err) => {
+        this.setQuickMarking(a.reservationId, false);
+        this.toast(errorText(err, 'No pudimos marcar la asistencia. Intenta nuevamente.'), 'danger');
+      },
+    });
+  }
+
+  /** Deshace la marca de llegada (el backend ya acepta attended = false). */
+  private undoArrived(a: BoardAttendee): void {
+    this.setQuickMarking(a.reservationId, true);
+    this.attendanceService.setAttendance(a.reservationId, false, this.gymId).subscribe({
+      next: () => {
+        this.setQuickMarking(a.reservationId, false);
+        this.patchAttendee(a.memberId, { checkedInAt: null, checkinMethod: null });
+        this.toast(`${a.name}: marca de llegada deshecha.`);
+      },
+      error: (err) => {
+        this.setQuickMarking(a.reservationId, false);
+        this.toast(errorText(err, 'No pudimos deshacer la marca. Intenta nuevamente.'), 'danger');
+      },
+    });
+  }
+
   private patchAttendee(memberId: number, patch: Partial<BoardAttendee>): void {
     this.board.update((b) =>
       b
@@ -385,6 +442,17 @@ export class ClassBoardView {
 
   protected exercisesOf(log: MemberWorkoutLog): string {
     return exercisesLine(log.exercises);
+  }
+
+  private async toastWithUndo(message: string, onUndo: () => void): Promise<void> {
+    const toast = await this.toastController.create({
+      message,
+      duration: 5000,
+      position: 'bottom',
+      color: 'success',
+      buttons: [{ text: 'Deshacer', role: 'cancel', handler: onUndo }],
+    });
+    await toast.present();
   }
 
   private async toast(message: string, color: 'success' | 'warning' | 'danger' = 'success'): Promise<void> {

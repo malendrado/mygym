@@ -794,6 +794,17 @@ export class GymForm implements OnDestroy {
 
   // Socios tiene dos subsecciones: "Mis socios" (todo lo de siempre) y "En clase" (tablero de la clase de ahora).
   protected readonly memberSub = signal<'members' | 'board' | 'team'>('members');
+
+  // Alta de socio plegada dentro de la tarjeta de la lista: cerrada por defecto, se cierra sola al agregar con éxito.
+  protected readonly memberAddOpen = signal(false);
+
+  protected toggleMemberAdd(): void {
+    const open = !this.memberAddOpen();
+    this.memberAddOpen.set(open);
+    if (open) {
+      setTimeout(() => (document.querySelector('#member-add-panel ion-input') as HTMLIonInputElement | null)?.setFocus(), 60);
+    }
+  }
   // Sube cuando cambió una rutina, para que el tablero refresque "Sin rutina" al instante.
   protected readonly boardRefresh = signal(0);
 
@@ -1425,8 +1436,13 @@ export class GymForm implements OnDestroy {
       const results = await firstValueFrom(this.gymService.createBlocksBatch(id, drafts));
       const created = results.filter((r) => r.success).length;
       const failed = results.length - created;
+      const firstError = results.find((r) => !r.success)?.error?.trim();
+      const createdText = created === 1 ? 'Se creó 1 bloque.' : `Se crearon ${created} bloques.`;
       this.showToast(
-        failed === 0 ? `Se crearon ${created} bloques.` : `Se crearon ${created} bloques. ${failed} fallaron.`,
+        failed === 0
+          ? createdText
+          : `${createdText} ${failed === 1 ? 'Falló 1' : `Fallaron ${failed}`}${firstError ? `: ${firstError}` : '.'}`,
+        failed === 0 ? undefined : 'danger',
       );
     } catch {
       this.showToast('No pudimos crear los bloques. Intenta nuevamente.', 'danger');
@@ -1525,7 +1541,7 @@ export class GymForm implements OnDestroy {
     });
   }
 
-  private async showToast(message: string, color: 'success' | 'danger' = 'success'): Promise<void> {
+  private async showToast(message: string, color: 'success' | 'danger' | 'warning' = 'success'): Promise<void> {
     const toast = await this.toastController.create({
       message,
       duration: 4000,
@@ -1642,6 +1658,7 @@ export class GymForm implements OnDestroy {
       next: (member) => {
         this.memberForm.reset({ name: '', email: '' });
         this.status.set('idle');
+        this.memberAddOpen.set(false);
         // El nuevo socio queda a la vista: la búsqueda pasa a su email y se baja a la lista.
         this.memberList.showNewMember(member.email);
         this.loadLimits(id);
@@ -1700,16 +1717,20 @@ export class GymForm implements OnDestroy {
   // admite HTML/ion-badge dentro de sus inputs, así que se usa un ion-modal con
   // app-mark-paid-modal (mismo componente compartido que gym-admin.ts).
   protected readonly markPaidMember = signal<Member | null>(null);
+  // El servidor pidió confirmar que se descartan meses ya pagados (409 LOSE_QUEUED_MONTHS): el modal muestra la casilla.
+  protected readonly markPaidLoseConfirm = signal(false);
 
   protected markMemberPaid(member: Member): void {
     if (this.plans().length === 0) {
       this.showToast('Primero crea un plan en la pestaña Planes.', 'danger');
       return;
     }
+    this.markPaidLoseConfirm.set(false);
     this.markPaidMember.set(member);
   }
 
   protected closeMarkPaidModal(): void {
+    this.markPaidLoseConfirm.set(false);
     this.markPaidMember.set(null);
   }
 
@@ -1722,11 +1743,13 @@ export class GymForm implements OnDestroy {
     bank,
     startDate,
     usedClasses,
+    confirmLoseQueuedMonths,
   }: {
     planId: number;
     bank: string;
     startDate: string | null;
     usedClasses: number;
+    confirmLoseQueuedMonths?: boolean;
   }): void {
     const id = this.gymId();
     const member = this.markPaidMember();
@@ -1740,16 +1763,33 @@ export class GymForm implements OnDestroy {
         bank,
         ...(startDate ? { startDate } : {}),
         ...(usedClasses > 0 ? { usedClasses } : {}),
+        ...(confirmLoseQueuedMonths ? { confirmLoseQueuedMonths: true } : {}),
       })
       .subscribe({
       next: () => {
         this.markingPaidId.set(null);
+        this.markPaidLoseConfirm.set(false);
         this.markPaidMember.set(null);
         this.showToast(`Pago registrado para ${member.name}.`);
         this.memberList.reload();
       },
       error: (err: Error) => {
         this.markingPaidId.set(null);
+        const code = (err as { code?: string }).code;
+        if (code === 'LOSE_QUEUED_MONTHS') {
+          // El modal sigue abierto con lo que el admin escribió: ahora pide la casilla de confirmación.
+          this.markPaidLoseConfirm.set(true);
+          this.showToast('Confirma que quieres descartar los meses ya pagados.', 'warning');
+          return;
+        }
+        if (code === 'DUPLICATE_PAYMENT') {
+          // Ya se acreditó hace un momento: se cierra el modal y se recarga la lista, sin acreditar de nuevo.
+          this.markPaidLoseConfirm.set(false);
+          this.markPaidMember.set(null);
+          this.showToast(errorText(err, 'Ya registraste este pago hace un momento.'), 'warning');
+          this.memberList.reload();
+          return;
+        }
         this.showToast(errorText(err, 'No pudimos registrar el pago. Intenta nuevamente.'), 'danger');
       },
     });
@@ -2628,7 +2668,15 @@ export class GymForm implements OnDestroy {
   }
 
   protected closeEditClosureModal(): void {
+    this.modalDirty.set(false);
     this.editingClosure.set(null);
+  }
+
+  // Botón "Cancelar" del modal: pregunta antes de cerrar solo si hay cambios sin guardar.
+  protected async cancelEditClosureModal(): Promise<void> {
+    if (await this.confirmDiscard()) {
+      this.closeEditClosureModal();
+    }
   }
 
   protected requestEditClosurePreview(request: GymClosureUpdateRequest): void {
@@ -2662,6 +2710,7 @@ export class GymForm implements OnDestroy {
     this.gymService.updateClosure(id, closure.id, request).subscribe({
       next: (updated) => {
         this.editClosureSaving.set(false);
+        this.modalDirty.set(false);
         this.editingClosure.set(null);
         this.closures.update((list) => list.map((c) => (c.id === updated.id ? updated : c)));
         this.showToast('Cierre actualizado.');

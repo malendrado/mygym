@@ -1,5 +1,6 @@
 import { formatIsoDate } from '../../../../core/utils/date-format';
 import { Component, EventEmitter, Input, Output, computed, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import {
   IonButton,
@@ -17,6 +18,7 @@ import {
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { alertCircleOutline, createOutline } from 'ionicons/icons';
+import { trackDirty } from '../../../../core/utils/dirty-tracker';
 import { GymClosure, GymClosurePreview, GymClosureUpdateRequest } from '../../../../core/models/gym.model';
 
 addIcons({ 'create-outline': createOutline, 'alert-circle-outline': alertCircleOutline });
@@ -58,6 +60,8 @@ export class EditClosureModal {
     this._closure.set(value);
     if (value) {
       this.form.setValue({ endDate: value.endDate, reason: value.reason });
+      // Lo recién cargado es el estado base: no cuenta como borrador.
+      this.dirtyTracker.markClean();
     }
   }
 
@@ -80,6 +84,8 @@ export class EditClosureModal {
   @Output() preview = new EventEmitter<GymClosureUpdateRequest>();
   @Output() confirmed = new EventEmitter<GymClosureUpdateRequest>();
   @Output() dismiss = new EventEmitter<void>();
+  /** Hay cambios sin guardar (el padre lo usa para no cerrar el modal sin avisar). */
+  @Output() dirtyChange = new EventEmitter<boolean>();
 
   private readonly _closure = signal<GymClosure | null>(null);
   protected readonly closureValue = this._closure.asReadonly();
@@ -115,6 +121,16 @@ export class EditClosureModal {
     reason: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.maxLength(500)] }),
   });
 
+  private readonly formValue = toSignal(this.form.valueChanges, { initialValue: null });
+  // Fecha de término y motivo: si hay algo distinto a lo cargado, hay borrador.
+  private readonly dirtyTracker = trackDirty(
+    () => {
+      this.formValue();
+      return this.form.getRawValue();
+    },
+    (dirty) => this.dirtyChange.emit(dirty),
+  );
+
   // Método plano, NO computed() — el FormGroup reactivo no es un signal (mismo bug real ya
   // encontrado y corregido en ClosureModal: un computed() que solo lee form.invalid queda
   // cacheado para siempre tras la primera lectura).
@@ -149,6 +165,8 @@ export class EditClosureModal {
   }
 
   protected confirm(): void {
+    // Al guardar ya no hay borrador: el padre cierra el modal sin pedir confirmación.
+    this.dirtyTracker.markClean();
     this.confirmed.emit(this.buildRequest());
   }
 

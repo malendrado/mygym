@@ -3,7 +3,7 @@
     @if (members(); as m) {
       <p class="gl-compact" [class.gl-compact--near]="m.state === 'near'" [class.gl-compact--full]="m.state === 'full'">
         <span class="gl-compact__dot" aria-hidden="true"></span>
-        <span><strong>{{ m.usage.used }} de {{ m.usage.max }} socios</strong> · {{ m.hint }}</span>
+        <span><strong>{{ m.usage.used }} de {{ m.usage.max }} {{ m.name.toLowerCase() }}</strong> · {{ m.hint }}</span>
       </p>
     }
   } @else {

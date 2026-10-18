@@ -921,6 +921,12 @@ ion-segment-button.segment-button-checked {
   color: var(--ion-color-warning);
 }
 
+// "Renovado por adelantado": ya pagó el período siguiente (queuedPeriodEnd).
+.member-plan-info__item--queued {
+  color: var(--ion-color-success);
+  font-weight: 600;
+}
+
 // Sub-pestañas de Clases (Agenda | Asistencia | Horarios) y de Socios (Mis socios | En clase).
 .history-mode {
   display: grid;
@@ -1055,5 +1061,45 @@ ion-segment-button.segment-button-checked {
   .theme-card:active,
   .member-stat:active {
     transform: none;
+  }
+}
+
+// Socios: el alta vive plegada dentro de la tarjeta de la lista (botón "Agregar socio" + línea de cupo).
+.member-quota {
+  font-size: 0.82rem;
+  color: var(--brand-text-dim);
+  white-space: nowrap;
+
+  &--full {
+    color: var(--ion-color-danger);
+    font-weight: 600;
+  }
+}
+
+.member-add-panel {
+  margin-bottom: 1rem;
+  padding: 0.75rem 0.9rem 0.5rem;
+  border: 1px solid var(--brand-ink-surface-2);
+  border-radius: 12px;
+  animation: member-add-in 180ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+@keyframes member-add-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+// General: línea resumen en vez de calugas pasivas.
+.general-summary {
+  margin: 0 0 1rem;
+  font-size: 0.8rem;
+  color: var(--brand-text-dim);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .member-add-panel {
+    animation: none;
   }
 }

@@ -1,9 +1,10 @@
-import { Component, EventEmitter, Output, computed, signal } from '@angular/core';
+import { Component, EventEmitter, Input, Output, computed, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import {
   IonButton,
   IonButtons,
+  IonCheckbox,
   IonContent,
   IonFooter,
   IonHeader,
@@ -21,7 +22,7 @@ import {
 import { addIcons } from 'ionicons';
 import { closeCircleOutline, sparklesOutline, timeOutline } from 'ionicons/icons';
 import { trackDirty } from '../../../../core/utils/dirty-tracker';
-import { CreateGymBlockRequest, DayOfWeek } from '../../../../core/models/gym.model';
+import { CreateGymBlockRequest, DayOfWeek, GymBlock } from '../../../../core/models/gym.model';
 import { DAYS } from '../bloque-form-modal/bloque-form-modal';
 import { QuantityStepper } from '../../../../core/components/quantity-stepper/quantity-stepper';
 import { TIME_OPTIONS_15MIN } from '../../../../core/utils/time-options';
@@ -32,6 +33,17 @@ const DURATIONS_MIN = [30, 45, 60, 90, 120];
 
 interface DraftBlock extends CreateGymBlockRequest {
   dayLabel: string;
+  /** Ya hay un bloque igual (mismo día, horario y nombre): queda desmarcado para no duplicarlo. */
+  exists: boolean;
+  selected: boolean;
+}
+
+function hhmm(time: string): string {
+  return time.slice(0, 5);
+}
+
+function normalizeLabel(label: string | null | undefined): string {
+  return (label ?? '').trim().toLowerCase();
 }
 
 function toMinutes(time: string): number {
@@ -57,6 +69,7 @@ function toTimeString(totalMinutes: number): string {
     IonTitle,
     IonButtons,
     IonButton,
+    IonCheckbox,
     IonContent,
     IonIcon,
     IonItem,
@@ -75,6 +88,12 @@ export class BloqueSeriesModal {
   protected readonly days = DAYS;
   protected readonly durations = DURATIONS_MIN;
   protected readonly timeOptions = TIME_OPTIONS_15MIN;
+
+  /** Bloques que ya tiene el gimnasio: la vista previa marca (y desmarca) los que coinciden para no duplicarlos. */
+  @Input() set existing(value: GymBlock[] | null | undefined) {
+    this.existingKeys.set(new Set((value ?? []).map((b) => this.blockKey(b.dayOfWeek, b.startTime, b.endTime, b.label))));
+  }
+  private readonly existingKeys = signal<Set<string>>(new Set());
 
   @Output() confirmed = new EventEmitter<CreateGymBlockRequest[]>();
   @Output() dismiss = new EventEmitter<void>();
@@ -96,6 +115,8 @@ export class BloqueSeriesModal {
   });
 
   protected readonly draft = signal<DraftBlock[]>([]);
+  protected readonly selectedCount = computed(() => this.draft().filter((d) => d.selected).length);
+  protected readonly existsCount = computed(() => this.draft().filter((d) => d.exists).length);
   protected readonly hasGenerated = computed(() => this.draft().length > 0 || this.generatedOnce());
   private readonly generatedOnce = signal(false);
 
@@ -136,20 +157,26 @@ export class BloqueSeriesModal {
     const openMin = toMinutes(openTime);
     const closeMin = toMinutes(closeTime);
     const drafts: DraftBlock[] = [];
+    const existingKeys = this.existingKeys();
     for (const day of days) {
       const dayLabel = this.days.find((d) => d.value === day)?.label ?? day;
       let cursor = openMin;
       while (cursor + durationMin <= closeMin) {
+        const startTime = toTimeString(cursor);
+        const endTime = toTimeString(cursor + durationMin);
+        const exists = existingKeys.has(this.blockKey(day, startTime, endTime, label));
         drafts.push({
           label,
           dayOfWeek: day,
-          startTime: toTimeString(cursor),
-          endTime: toTimeString(cursor + durationMin),
+          startTime,
+          endTime,
           capacity,
           category: null,
           instructorName: null,
           instructorPhoto: null,
           dayLabel,
+          exists,
+          selected: !exists,
         });
         cursor += durationMin;
       }
@@ -157,15 +184,20 @@ export class BloqueSeriesModal {
     this.draft.set(drafts);
   }
 
-  protected removeDraftEntry(entry: DraftBlock): void {
-    this.draft.set(this.draft().filter((d) => d !== entry));
+  protected setEntrySelected(entry: DraftBlock, selected: boolean): void {
+    this.draft.set(this.draft().map((d) => (d === entry ? { ...d, selected } : d)));
+  }
+
+  private blockKey(day: string, start: string, end: string, label: string | null | undefined): string {
+    return `${day}|${hhmm(start)}|${hhmm(end)}|${normalizeLabel(label)}`;
   }
 
   protected confirm(): void {
-    if (this.draft().length === 0) {
+    const chosen = this.draft().filter((d) => d.selected);
+    if (chosen.length === 0) {
       return;
     }
-    this.confirmed.emit(this.draft().map(({ dayLabel, ...rest }) => rest));
+    this.confirmed.emit(chosen.map(({ dayLabel, exists, selected, ...rest }) => rest));
   }
 
   protected cancel(): void {

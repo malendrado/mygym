@@ -58,6 +58,11 @@
     Si el socio ya pagó antes (transferencia, efectivo o un trato directo), pon la fecha en que empezó. Hasta un mes
     atrás.
   </p>
+  @if (showRestartHint()) {
+    <p class="item-hint mark-paid-restart-hint">
+      Con una fecha distinta de hoy, el período se reinicia desde esa fecha y no se conservan los días que le quedaban.
+    </p>
+  }
 
   @if (quota() !== null) {
     <p class="mark-paid-plans__label">¿Cuántas clases ya usó?</p>
@@ -74,6 +79,12 @@
     @if (previewError(); as err) {
       <p class="mark-paid-summary__error">{{ err }}</p>
     } @else {
+      @if (earlyRenewal()) {
+        <p class="mark-paid-summary__early">
+          <ion-icon name="time-outline" aria-hidden="true"></ion-icon>
+          Renovación por adelantado: conserva los días que le quedan; el período nuevo parte el {{ earlyStartLabel() }}
+        </p>
+      }
       <p class="mark-paid-summary__period">{{ periodLine() }}</p>
       @if (preview(); as p) {
         @if (remainingLine(); as line) {
@@ -85,9 +96,30 @@
         @if (p.expiringSoon) {
           <p class="mark-paid-summary__warn">Vence pronto: el socio recibirá el aviso de vencimiento.</p>
         }
+        @if (lostDays() > 0 && lostMonths() === 0) {
+          <p class="mark-paid-summary__warn">
+            Se {{ lostDays() === 1 ? 'pierde 1 día que le quedaba' : 'pierden ' + lostDays() + ' días que le quedaban' }} del período actual.
+          </p>
+        }
       }
     }
   </div>
+
+  @if (mustAckLoss()) {
+    <div class="mark-paid-loss" role="alert">
+      <p class="mark-paid-loss__text">
+        @if (lostMonths() > 0) {
+          Este cambio descarta {{ lostMonths() }} {{ lostMonths() === 1 ? 'mes ya pagado' : 'meses ya pagados' }} por adelantado.
+        } @else {
+          Este cambio descarta meses ya pagados por adelantado.
+        }
+      </p>
+      <label class="mark-paid-loss__check">
+        <input type="checkbox" [checked]="loseAck()" [disabled]="isSaving()" (change)="onLoseAckChange($event)" />
+        <span>Entiendo, descartar esos meses</span>
+      </label>
+    </div>
+  }
 
   <p class="mark-paid-plans__label">Medio de pago</p>
   <div class="mark-paid-shortcuts" role="group" aria-label="Medio de pago">

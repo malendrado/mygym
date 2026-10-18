@@ -119,23 +119,36 @@
   }
 
   @if (section() === 'general') {
-    <div class="gym-detail-stats">
-      <div class="gym-detail-stat">
-        <ion-icon name="time-outline" aria-hidden="true"></ion-icon>
-        <p class="gym-detail-stat__value">{{ blocks().length }}</p>
-        <p class="gym-detail-stat__label">Bloques configurados</p>
+    @if (!isProfesor()) {
+    @if (setupPending().length > 0) {
+      <div class="setup-checklist">
+        <p class="setup-checklist__title">
+          <ion-icon name="rocket-outline" aria-hidden="true"></ion-icon>
+          Completa la configuración de tu gimnasio
+        </p>
+        <ul class="setup-checklist__list">
+          @for (item of setupPending(); track item.key) {
+            <li>
+              <button type="button" (click)="openSetupItem(item)">
+                <ion-icon name="ellipse-outline" aria-hidden="true"></ion-icon>
+                {{ item.label }}
+              </button>
+            </li>
+          }
+        </ul>
       </div>
-      <div class="gym-detail-stat">
-        <ion-icon name="person-outline" aria-hidden="true"></ion-icon>
-        <p class="gym-detail-stat__value">{{ gym()?.maxUsers ?? '—' }}</p>
-        <p class="gym-detail-stat__label">Cupo máximo de socios</p>
-      </div>
-      <div class="gym-detail-stat">
-        <ion-icon name="logo-google" aria-hidden="true"></ion-icon>
-        <p class="gym-detail-stat__value">{{ gym()?.googleLoginEnabled ? 'Sí' : 'No' }}</p>
-        <p class="gym-detail-stat__label">Login con Google</p>
-      </div>
-    </div>
+    } @else if (flowAccount() !== null) {
+      <p class="setup-done" role="status">
+        <ion-icon name="checkmark-circle-outline" aria-hidden="true"></ion-icon>
+        Todo listo: tu gimnasio ya está configurado.
+      </p>
+    }
+    }
+
+    <p class="general-summary">
+      {{ blocks().length }} {{ blocks().length === 1 ? 'bloque configurado' : 'bloques configurados' }}
+      · Login con Google: {{ gym()?.googleLoginEnabled ? 'sí' : 'no' }}
+    </p>
 
     <div data-tour="gym-limits">
       <app-gym-limits [limits]="limits()" audience="admin" />
@@ -241,25 +254,6 @@
       </div>
     </div>
 
-    @if (setupPending().length > 0) {
-      <div class="setup-checklist">
-        <p class="setup-checklist__title">
-          <ion-icon name="rocket-outline" aria-hidden="true"></ion-icon>
-          Completa la configuración de tu gimnasio
-        </p>
-        <ul class="setup-checklist__list">
-          @for (item of setupPending(); track item.key) {
-            <li>
-              <button type="button" (click)="setSection(item.section)">
-                <ion-icon name="ellipse-outline" aria-hidden="true"></ion-icon>
-                {{ item.label }}
-              </button>
-            </li>
-          }
-        </ul>
-      </div>
-    }
-
     @if (!isProfesor()) {
     <ion-card>
       <ion-card-header data-tour="admin-add">
@@ -332,11 +326,24 @@
       </ion-card-content>
     </ion-card>
 
-    <ion-card>
-      <ion-card-header data-tour="flow-account">
-        <ion-card-title>Cuenta Pago Online</ion-card-title>
-      </ion-card-header>
-      <ion-card-content>
+    <ion-card id="flow-card" class="collapsible-card">
+      <button
+        type="button"
+        class="collapsible-card__head"
+        data-tour="flow-account"
+        aria-controls="flow-panel"
+        [attr.aria-expanded]="flowExpanded()"
+        (click)="toggleFlow()"
+      >
+        <span class="collapsible-card__title">Cuenta Pago Online</span>
+        <span class="collapsible-card__status" [class.collapsible-card__status--ok]="flowStatus().ok">
+          <ion-icon [name]="flowStatus().ok ? 'checkmark-circle-outline' : 'ellipse-outline'" aria-hidden="true"></ion-icon>
+          {{ flowStatus().label }}
+        </span>
+        <ion-icon name="chevron-down-outline" class="collapsible-card__chevron" aria-hidden="true"></ion-icon>
+      </button>
+      @if (flowExpanded()) {
+      <ion-card-content id="flow-panel">
         <p class="item-hint">
           Completa estos datos para que mygym pueda armar tu propia cuenta de Flow — así tus socios te pagan directo
           a ti, no a una cuenta compartida. La cuenta bancaria de destino es la que cargues abajo, en "Transferencia
@@ -444,13 +451,27 @@
           </ion-button>
         </form>
       </ion-card-content>
+      }
     </ion-card>
 
-    <ion-card>
-      <ion-card-header data-tour="bank-transfer">
-        <ion-card-title>Transferencia bancaria</ion-card-title>
-      </ion-card-header>
-      <ion-card-content>
+    <ion-card id="bank-card" class="collapsible-card">
+      <button
+        type="button"
+        class="collapsible-card__head"
+        data-tour="bank-transfer"
+        aria-controls="bank-panel"
+        [attr.aria-expanded]="bankExpanded()"
+        (click)="toggleBank()"
+      >
+        <span class="collapsible-card__title">Transferencia bancaria</span>
+        <span class="collapsible-card__status" [class.collapsible-card__status--ok]="hasBankTransfer()">
+          <ion-icon [name]="hasBankTransfer() ? 'checkmark-circle-outline' : 'ellipse-outline'" aria-hidden="true"></ion-icon>
+          {{ hasBankTransfer() ? 'Configurado ✓' : 'Sin configurar' }}
+        </span>
+        <ion-icon name="chevron-down-outline" class="collapsible-card__chevron" aria-hidden="true"></ion-icon>
+      </button>
+      @if (bankExpanded()) {
+      <ion-card-content id="bank-panel">
         <p class="item-hint">
           Si los completas, tus socios podrán pagar transfiriendo directo a esta cuenta en vez de usar Flow. Tú
           confirmas el pago a mano desde la pestaña Socios, igual que hoy.
@@ -519,6 +540,7 @@
           </ion-button>
         </form>
       </ion-card-content>
+      }
     </ion-card>
     }
   } @else if (section() === 'classes') {
@@ -779,7 +801,7 @@
       [style.--gym-panel-card]="themeSurface().card"
     >
       <ng-template>
-        <app-bloque-series-modal (confirmed)="confirmSeries($event)" (dismiss)="cancelSeriesModal()" (dirtyChange)="modalDirty.set($event)" />
+        <app-bloque-series-modal [existing]="blocks()" (confirmed)="confirmSeries($event)" (dismiss)="cancelSeriesModal()" (dirtyChange)="modalDirty.set($event)" />
       </ng-template>
     </ion-modal>
     }
@@ -1052,50 +1074,33 @@
       </div>
     </div>
 
-    <ion-card>
-      <ion-card-header data-tour="members-add">
-        <ion-card-title>
-          <ion-icon name="person-add-outline" aria-hidden="true"></ion-icon>
-          Agregar socio
-        </ion-card-title>
-      </ion-card-header>
-      <ion-card-content>
-        <app-gym-limits [limits]="limits()" audience="admin" [compact]="true" />
-        <form [formGroup]="memberForm" (ngSubmit)="submitMember()">
-          <ion-item>
-            <ion-input label="Nombre *" formControlName="name" placeholder="Ej: Javiera Pulgar" />
-          </ion-item>
-          @if (memberForm.controls.name.invalid && (memberForm.controls.name.dirty || memberForm.controls.name.touched)) {
-            <ion-note color="danger" role="alert">Escribe el nombre (mínimo 2 letras).</ion-note>
-          }
-          <ion-item lines="none">
-            <ion-input label="Email *" type="email" autocomplete="email" formControlName="email" placeholder="Ej: javiera@mail.com" />
-          </ion-item>
-          @if (memberForm.controls.email.invalid && (memberForm.controls.email.dirty || memberForm.controls.email.touched)) {
-            <ion-note color="danger" role="alert">Ingresa un email válido.</ion-note>
-          }
-          <ion-button type="submit" fill="outline" [disabled]="memberForm.invalid || status() === 'saving' || limits()?.members?.free === 0" class="ion-margin-top">
-            Agregar socio
-          </ion-button>
-        </form>
-        <ion-button data-tour="members-import" expand="block" fill="clear" (click)="openImportModal()">
-          <ion-icon name="cloud-upload-outline" slot="start" aria-hidden="true"></ion-icon>
-          Importar varios socios desde Excel
-        </ion-button>
-        <ion-button data-tour="members-import-fixed" expand="block" fill="clear" (click)="openImportFixedClasses()">
-          <ion-icon name="repeat-outline" slot="start" aria-hidden="true"></ion-icon>
-          Importar clases fijas desde Excel
-        </ion-button>
-      </ion-card-content>
-    </ion-card>
-
     <ion-card id="members-list-card">
       <ion-card-header>
-        <ion-card-title>
-          <ion-icon name="people-outline" aria-hidden="true"></ion-icon>
-          Socios
-          <ion-badge color="dark">{{ memberList.totalElements() }}</ion-badge>
-        </ion-card-title>
+        <div class="card-header-row">
+          <ion-card-title>
+            <ion-icon name="people-outline" aria-hidden="true"></ion-icon>
+            Socios
+            <ion-badge color="dark">{{ memberList.totalElements() }}</ion-badge>
+          </ion-card-title>
+          <div class="card-header-row__actions">
+            @if (limits(); as lim) {
+              <span class="member-quota" [class.member-quota--full]="lim.members.free === 0">
+                {{ lim.members.used }} de {{ lim.members.max }} socios
+              </span>
+            }
+            <ion-button
+              data-tour="members-add"
+              size="small"
+              fill="outline"
+              aria-controls="member-add-panel"
+              [attr.aria-expanded]="memberAddOpen()"
+              (click)="toggleMemberAdd()"
+            >
+              <ion-icon [name]="memberAddOpen() ? 'close-outline' : 'person-add-outline'" slot="start" aria-hidden="true"></ion-icon>
+              {{ memberAddOpen() ? 'Cerrar' : 'Agregar socio' }}
+            </ion-button>
+          </div>
+        </div>
         @if (memberStatusFilter()) {
           <button type="button" class="filter-chip" [attr.aria-label]="'Quitar filtro ' + statusLabel(memberStatusFilter()!)" (click)="clearMemberStatusFilter()">
             Filtro: {{ statusLabel(memberStatusFilter()!) }}
@@ -1110,6 +1115,36 @@
         }
       </ion-card-header>
       <ion-card-content>
+        @if (memberAddOpen()) {
+          <div id="member-add-panel" class="member-add-panel">
+            <app-gym-limits [limits]="limits()" audience="admin" [compact]="true" />
+            <form [formGroup]="memberForm" (ngSubmit)="submitMember()">
+              <ion-item>
+                <ion-input label="Nombre *" formControlName="name" placeholder="Ej: Javiera Pulgar" />
+              </ion-item>
+              @if (memberForm.controls.name.invalid && (memberForm.controls.name.dirty || memberForm.controls.name.touched)) {
+                <ion-note color="danger" role="alert">Escribe el nombre (mínimo 2 letras).</ion-note>
+              }
+              <ion-item lines="none">
+                <ion-input label="Email *" type="email" autocomplete="email" formControlName="email" placeholder="Ej: javiera@mail.com" />
+              </ion-item>
+              @if (memberForm.controls.email.invalid && (memberForm.controls.email.dirty || memberForm.controls.email.touched)) {
+                <ion-note color="danger" role="alert">Ingresa un email válido.</ion-note>
+              }
+              <ion-button type="submit" fill="outline" [disabled]="memberForm.invalid || status() === 'saving' || limits()?.members?.free === 0" class="ion-margin-top">
+                Agregar socio
+              </ion-button>
+            </form>
+            <ion-button data-tour="members-import" expand="block" fill="clear" (click)="openImportModal()">
+              <ion-icon name="cloud-upload-outline" slot="start" aria-hidden="true"></ion-icon>
+              Importar varios socios desde Excel
+            </ion-button>
+            <ion-button data-tour="members-import-fixed" expand="block" fill="clear" (click)="openImportFixedClasses()">
+              <ion-icon name="repeat-outline" slot="start" aria-hidden="true"></ion-icon>
+              Importar clases fijas desde Excel
+            </ion-button>
+          </div>
+        }
         <ion-searchbar
           data-tour="members-search"
           placeholder="Buscar por nombre, email, RUT o celular"
@@ -1171,6 +1206,12 @@
                       <ion-icon name="calendar-outline" aria-hidden="true"></ion-icon>
                       {{ formatDate(member.paidAt) }} → {{ formatDate(member.planEndDate) }}
                     </span>
+                    @if (member.queuedPeriodEnd) {
+                      <span class="member-plan-info__item member-plan-info__item--queued">
+                        <ion-icon name="checkmark-circle-outline" aria-hidden="true"></ion-icon>
+                        Renovado por adelantado
+                      </span>
+                    }
                   }
                   @if (member.phone) {
                     <span class="member-plan-info__item">
@@ -1284,10 +1325,11 @@
       <ng-template>
         <app-mark-paid-modal
           [memberName]="markPaidMember()?.name ?? ''"
-          [renewing]="!!markPaidMember()?.planId"
+          [renewing]="!!markPaidMember()?.planId && markPaidMember()?.membershipStatus !== 'EXPIRED'"
           [currentPlanId]="markPaidMember()?.planId"
           [plans]="plans()"
           [previewLoader]="paymentPreviewLoader"
+          [requireLoseConfirm]="markPaidLoseConfirm()"
           [saving]="markingPaidId() === markPaidMember()?.id"
           (confirmed)="confirmMarkPaid($event)"
           (dismiss)="closeMarkPaidModal()"
@@ -1801,6 +1843,7 @@
     <ion-modal
       class="wide-modal"
       [isOpen]="editingClosure() !== null"
+      [canDismiss]="confirmDiscard"
       (didDismiss)="closeEditClosureModal()"
       [style.--ion-color-primary]="themeColor()"
       [style.--ion-color-primary-contrast]="themeContrast()"
@@ -1816,7 +1859,8 @@
           [saving]="editClosureSaving()"
           (preview)="requestEditClosurePreview($event)"
           (confirmed)="confirmEditClosure($event)"
-          (dismiss)="closeEditClosureModal()"
+          (dismiss)="cancelEditClosureModal()"
+          (dirtyChange)="modalDirty.set($event)"
         />
       </ng-template>
     </ion-modal>

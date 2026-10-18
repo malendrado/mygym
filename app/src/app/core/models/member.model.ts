@@ -41,6 +41,17 @@ export interface Member {
   emergencyContactPhone: string | null;
   /** false = todavía no completa sus datos: no puede reservar (el servidor lo hace cumplir). */
   profileComplete: boolean;
+  /** Renovación anticipada. planEndDate es el vencimiento FINAL (incluye el período ya pagado por adelantado). */
+  /** Fin exclusivo del período en curso (ISO). */
+  currentPeriodEnd?: string | null;
+  /** Vencimiento final cuando ya pagó por adelantado; null = sin cola. */
+  queuedPeriodEnd?: string | null;
+  /** Clases que le quedan en el período ya pagado por adelantado; null = sin cola o plan libre. */
+  queuedSessionsRemaining?: number | null;
+  /** true = plan vigente y sin cola: puede renovar por adelantado (conserva los días solo si elige SU MISMO plan). */
+  canRenewEarly?: boolean;
+  /** "YYYY-MM-DD": primer día del período nuevo (= vencimiento actual); null si canRenewEarly es false. */
+  earlyRenewalStartsOn?: string | null;
 }
 
 /** Los datos de contacto y el contacto de emergencia juntos — PUT /api/me/profile y los de admin/super-admin. */
@@ -70,6 +81,8 @@ export interface MarkPaidRequest {
   startDate?: string;
   /** Clases que el socio ya usó fuera de la app en ese período (solo planes con cupo). */
   usedClasses?: number;
+  /** true = el admin confirmó que el pago descarta meses ya pagados por adelantado (si no, el servidor responde 409 LOSE_QUEUED_MONTHS). */
+  confirmLoseQueuedMonths?: boolean;
 }
 
 /** Vista previa de activar un plan con esa fecha y esas clases (ver GymService.previewPlanPayment). */
@@ -82,6 +95,12 @@ export interface PaymentPreview {
   /** null = plan sin tope de clases. */
   remaining: number | null;
   expiringSoon: boolean;
+  /** true = renovación por adelantado: periodStart/periodEnd son los del período NUEVO. */
+  earlyRenewal?: boolean;
+  /** Meses ya pagados por adelantado que este pago descartaría (0 = ninguno). */
+  lostPaidMonths?: number;
+  /** Días que le quedaban del período actual y se pierden si el pago reinicia la cadena (0 = ninguno). */
+  lostDays?: number;
 }
 
 /**

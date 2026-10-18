@@ -15,11 +15,12 @@ import {
   IonToolbar,
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { cardOutline, checkmarkCircle } from 'ionicons/icons';
+import { cardOutline, checkmarkCircle, timeOutline } from 'ionicons/icons';
 import { CHILE_BANKS, GymPlan } from '../../../../core/models/gym.model';
 import { PaymentPreview } from '../../../../core/models/member.model';
 import { santiagoNow } from '../../../../core/utils/attendance';
 import { errorText } from '../../../../core/utils/error-text';
+import { formatIsoDate } from '../../../../core/utils/date-format';
 import { minStartDate, periodEndOf, periodText, remainingText, startDateShortcuts } from '../../../../core/utils/payment-dates';
 
 type PaymentMethod = 'transfer' | 'cash' | 'other';
@@ -29,7 +30,7 @@ const PAYMENT_METHODS: { value: PaymentMethod; label: string }[] = [
   { value: 'other', label: 'Otro' },
 ];
 
-addIcons({ 'card-outline': cardOutline, 'checkmark-circle': checkmarkCircle });
+addIcons({ 'card-outline': cardOutline, 'checkmark-circle': checkmarkCircle, 'time-outline': timeOutline });
 
 @Component({
   selector: 'app-mark-paid-modal',
@@ -84,7 +85,19 @@ export class MarkPaidModal {
 
   // planId + medio de pago (el banco si fue transferencia, o "Efectivo" / "Otro medio"; queda guardado para informes, ver ManualPayment).
   // startDate null = hoy (el servidor arranca el plan ahora, como siempre); usedClasses 0 = ninguna.
-  @Output() confirmed = new EventEmitter<{ planId: number; bank: string; startDate: string | null; usedClasses: number }>();
+  @Output() confirmed = new EventEmitter<{
+    planId: number;
+    bank: string;
+    startDate: string | null;
+    usedClasses: number;
+    confirmLoseQueuedMonths?: boolean;
+  }>();
+
+  // El servidor respondió 409 LOSE_QUEUED_MONTHS (la vista previa no alcanzó a avisarlo): fuerza el aviso y la casilla.
+  @Input() set requireLoseConfirm(value: boolean) {
+    this._requireLoseConfirm.set(value);
+  }
+  private readonly _requireLoseConfirm = signal(false);
 
   /** Pide al servidor la vista previa (período y clases que le quedarían) — la pasa el panel con su propio servicio. */
   @Input() previewLoader: ((planId: number, startDate: string, usedClasses: number) => Observable<PaymentPreview>) | null = null;
@@ -113,14 +126,32 @@ export class MarkPaidModal {
   protected readonly quota = computed(() => this.selectedPlan()?.monthlyClasses ?? null);
   // El período se muestra siempre, calculado acá; lo que pone el servidor (clases que le quedan) es un extra: si la
   // vista previa falla por algo ajeno al usuario, el resumen sigue mostrando las fechas y no se bloquea nada.
-  protected readonly periodLine = computed(() =>
-    periodText({ periodStart: this.startDate(), periodEnd: periodEndOf(this.startDate()) }),
-  );
+  // Con renovación por adelantado, la vista previa trae el período NUEVO (parte en el vencimiento actual).
+  protected readonly earlyRenewal = computed(() => this.preview()?.earlyRenewal === true);
+  protected readonly earlyStartLabel = computed(() => {
+    const p = this.preview();
+    return p?.earlyRenewal ? formatIsoDate(p.periodStart) : '';
+  });
+  protected readonly periodLine = computed(() => {
+    const p = this.preview();
+    if (p?.earlyRenewal) {
+      return `Período nuevo: del ${formatIsoDate(p.periodStart)} al ${formatIsoDate(p.periodEnd)}`;
+    }
+    return periodText({ periodStart: this.startDate(), periodEnd: periodEndOf(this.startDate()) });
+  });
   protected readonly remainingLine = computed(() => (this.preview() ? remainingText(this.preview()!) : null));
   protected readonly outOfClasses = computed(() => {
     const p = this.preview();
     return !!p && p.remaining !== null && p.remaining <= 0;
   });
+
+  // Meses ya pagados por adelantado que se descartarían: exige marcar la casilla antes de confirmar.
+  protected readonly lostMonths = computed(() => this.preview()?.lostPaidMonths ?? 0);
+  protected readonly lostDays = computed(() => this.preview()?.lostDays ?? 0);
+  protected readonly mustAckLoss = computed(() => this.lostMonths() > 0 || this._requireLoseConfirm());
+  protected readonly loseAck = signal(false);
+  // Aclaración bajo el selector de fecha: con otra fecha el período se reinicia (solo si el socio ya tiene plan).
+  protected readonly showRestartHint = computed(() => this.renewing && this.startDate() !== this.today);
 
   private previewTimer?: ReturnType<typeof setTimeout>;
 
@@ -130,7 +161,11 @@ export class MarkPaidModal {
       const planId = this._selectedPlanId();
       const start = this.startDate();
       const used = this.usedClasses();
-      untracked(() => this.schedulePreview(planId, start, used));
+      untracked(() => {
+        // Cambió algo que recalcula la vista previa: la confirmación anterior ya no vale.
+        this.loseAck.set(false);
+        this.schedulePreview(planId, start, used);
+      });
     });
     this.destroyRef.onDestroy(() => clearTimeout(this.previewTimer));
   }
@@ -204,7 +239,7 @@ export class MarkPaidModal {
   // Con transferencia sin banco no se puede confirmar (el dato es obligatorio para informes).
   // Tampoco se confirma con una fecha o clases que el servidor rechazó (previewError trae su motivo).
   protected readonly canConfirm = computed(
-    () => this._selectedPlanId() !== null && this.resolvedBank() !== '' && !this._saving() && !this.previewError(),
+    () => this._selectedPlanId() !== null && this.resolvedBank() !== '' && !this._saving() && !this.previewError() && (!this.mustAckLoss() || this.loseAck()),
   );
 
   // Mismo texto/formato exacto que join.ts (página pública de alta) — el usuario pidió que
@@ -229,7 +264,7 @@ export class MarkPaidModal {
   protected confirm(): void {
     const planId = this._selectedPlanId();
     const bank = this.resolvedBank();
-    if (planId === null || bank === '') {
+    if (planId === null || bank === '' || this._saving() || (this.mustAckLoss() && !this.loseAck())) {
       return;
     }
     this.confirmed.emit({
@@ -237,7 +272,12 @@ export class MarkPaidModal {
       bank,
       startDate: this.startDate() === this.today ? null : this.startDate(),
       usedClasses: this.quota() === null ? 0 : this.usedClasses(),
+      ...(this.mustAckLoss() ? { confirmLoseQueuedMonths: true } : {}),
     });
+  }
+
+  protected onLoseAckChange(event: Event): void {
+    this.loseAck.set((event.target as HTMLInputElement).checked);
   }
 
   protected cancel(): void {

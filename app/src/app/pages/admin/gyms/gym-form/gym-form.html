@@ -160,28 +160,11 @@
     }
 
     @if (section() === 'general') {
-    <div class="gym-detail-stats">
-      <div class="gym-detail-stat">
-        <ion-icon name="people-outline" aria-hidden="true"></ion-icon>
-        <p class="gym-detail-stat__value">{{ admins().length }}</p>
-        <p class="gym-detail-stat__label">Administradores</p>
-      </div>
-      <div class="gym-detail-stat">
-        <ion-icon name="time-outline" aria-hidden="true"></ion-icon>
-        <p class="gym-detail-stat__value">{{ blocks().length }}</p>
-        <p class="gym-detail-stat__label">Bloques configurados</p>
-      </div>
-      <div class="gym-detail-stat">
-        <ion-icon name="person-outline" aria-hidden="true"></ion-icon>
-        <p class="gym-detail-stat__value">{{ gym()?.maxUsers ?? '—' }}</p>
-        <p class="gym-detail-stat__label">Cupo máximo de socios</p>
-      </div>
-      <div class="gym-detail-stat">
-        <ion-icon name="logo-google" aria-hidden="true"></ion-icon>
-        <p class="gym-detail-stat__value">{{ gym()?.googleLoginEnabled ? 'Sí' : 'No' }}</p>
-        <p class="gym-detail-stat__label">Login con Google</p>
-      </div>
-    </div>
+    <p class="general-summary">
+      {{ admins().length }} {{ admins().length === 1 ? 'administrador' : 'administradores' }}
+      · {{ blocks().length }} {{ blocks().length === 1 ? 'bloque configurado' : 'bloques configurados' }}
+      · Login con Google: {{ gym()?.googleLoginEnabled ? 'sí' : 'no' }}
+    </p>
 
     <app-gym-limits [limits]="limits()" audience="super" />
 
@@ -824,7 +807,7 @@
     <ion-modal class="wide-modal" [isOpen]="isSeriesModalOpen()" [canDismiss]="confirmDiscard"
       (didDismiss)="closeSeriesModal()">
       <ng-template>
-        <app-bloque-series-modal (confirmed)="confirmSeries($event)" (dismiss)="cancelSeriesModal()" (dirtyChange)="modalDirty.set($event)" />
+        <app-bloque-series-modal [existing]="blocks()" (confirmed)="confirmSeries($event)" (dismiss)="cancelSeriesModal()" (dirtyChange)="modalDirty.set($event)" />
       </ng-template>
     </ion-modal>
     }
@@ -1091,46 +1074,32 @@
       </div>
     </div>
 
-    <ion-card>
-      <ion-card-header>
-        <ion-card-title>
-          <ion-icon name="people-outline" aria-hidden="true"></ion-icon>
-          Agregar socio
-        </ion-card-title>
-      </ion-card-header>
-      <ion-card-content>
-        <app-gym-limits [limits]="limits()" audience="super" [compact]="true" />
-        <form [formGroup]="memberForm" (ngSubmit)="submitMember()">
-          <ion-item>
-            <ion-input label="Nombre *" formControlName="name" placeholder="Ej: Javiera Pulgar" />
-          </ion-item>
-          @if (memberForm.controls.name.invalid && (memberForm.controls.name.dirty || memberForm.controls.name.touched)) {
-            <ion-note color="danger" role="alert">Escribe el nombre (mínimo 2 letras).</ion-note>
-          }
-          <ion-item lines="none">
-            <ion-input label="Email *" type="email" autocomplete="email" formControlName="email" placeholder="Ej: javiera@mail.com" />
-          </ion-item>
-          @if (memberForm.controls.email.invalid && (memberForm.controls.email.dirty || memberForm.controls.email.touched)) {
-            <ion-note color="danger" role="alert">Ingresa un email válido.</ion-note>
-          }
-          <ion-button type="submit" fill="outline" [disabled]="memberForm.invalid || status() === 'saving'" class="ion-margin-top">
-            Agregar socio
-          </ion-button>
-        </form>
-        <ion-button expand="block" fill="clear" (click)="openImportFixedClasses()">
-          <ion-icon name="repeat-outline" slot="start" aria-hidden="true"></ion-icon>
-          Importar clases fijas desde Excel
-        </ion-button>
-      </ion-card-content>
-    </ion-card>
-
     <ion-card id="members-list-card">
       <ion-card-header>
-        <ion-card-title>
-          <ion-icon name="people-outline" aria-hidden="true"></ion-icon>
-          Socios
-          <ion-badge color="dark">{{ memberList.totalElements() }}</ion-badge>
-        </ion-card-title>
+        <div class="card-header-row">
+          <ion-card-title>
+            <ion-icon name="people-outline" aria-hidden="true"></ion-icon>
+            Socios
+            <ion-badge color="dark">{{ memberList.totalElements() }}</ion-badge>
+          </ion-card-title>
+          <div class="card-header-row__actions">
+            @if (limits(); as lim) {
+              <span class="member-quota" [class.member-quota--full]="lim.members.free === 0">
+                {{ lim.members.used }} de {{ lim.members.max }} socios
+              </span>
+            }
+            <ion-button
+              size="small"
+              fill="outline"
+              aria-controls="member-add-panel"
+              [attr.aria-expanded]="memberAddOpen()"
+              (click)="toggleMemberAdd()"
+            >
+              <ion-icon [name]="memberAddOpen() ? 'close-outline' : 'person-add-outline'" slot="start" aria-hidden="true"></ion-icon>
+              {{ memberAddOpen() ? 'Cerrar' : 'Agregar socio' }}
+            </ion-button>
+          </div>
+        </div>
         @if (memberStatusFilter()) {
           <button type="button" class="filter-chip" [attr.aria-label]="'Quitar filtro ' + statusLabel(memberStatusFilter()!)" (click)="clearMemberStatusFilter()">
             Filtro: {{ statusLabel(memberStatusFilter()!) }}
@@ -1145,6 +1114,32 @@
         }
       </ion-card-header>
       <ion-card-content>
+        @if (memberAddOpen()) {
+          <div id="member-add-panel" class="member-add-panel">
+            <app-gym-limits [limits]="limits()" audience="super" [compact]="true" />
+            <form [formGroup]="memberForm" (ngSubmit)="submitMember()">
+              <ion-item>
+                <ion-input label="Nombre *" formControlName="name" placeholder="Ej: Javiera Pulgar" />
+              </ion-item>
+              @if (memberForm.controls.name.invalid && (memberForm.controls.name.dirty || memberForm.controls.name.touched)) {
+                <ion-note color="danger" role="alert">Escribe el nombre (mínimo 2 letras).</ion-note>
+              }
+              <ion-item lines="none">
+                <ion-input label="Email *" type="email" autocomplete="email" formControlName="email" placeholder="Ej: javiera@mail.com" />
+              </ion-item>
+              @if (memberForm.controls.email.invalid && (memberForm.controls.email.dirty || memberForm.controls.email.touched)) {
+                <ion-note color="danger" role="alert">Ingresa un email válido.</ion-note>
+              }
+              <ion-button type="submit" fill="outline" [disabled]="memberForm.invalid || status() === 'saving'" class="ion-margin-top">
+                Agregar socio
+              </ion-button>
+            </form>
+            <ion-button expand="block" fill="clear" (click)="openImportFixedClasses()">
+              <ion-icon name="repeat-outline" slot="start" aria-hidden="true"></ion-icon>
+              Importar clases fijas desde Excel
+            </ion-button>
+          </div>
+        }
         <ion-item lines="none" class="history-search-item">
           <ion-icon name="search-outline" slot="start" aria-hidden="true"></ion-icon>
           <ion-input
@@ -1207,6 +1202,12 @@
                       <ion-icon name="calendar-outline" aria-hidden="true"></ion-icon>
                       {{ formatDate(member.paidAt) }} → {{ formatDate(member.planEndDate) }}
                     </span>
+                    @if (member.queuedPeriodEnd) {
+                      <span class="member-plan-info__item member-plan-info__item--queued">
+                        <ion-icon name="checkmark-circle-outline" aria-hidden="true"></ion-icon>
+                        Renovado por adelantado
+                      </span>
+                    }
                   }
                   @if (member.phone) {
                     <span class="member-plan-info__item">
@@ -1316,10 +1317,11 @@
       <ng-template>
         <app-mark-paid-modal
           [memberName]="markPaidMember()?.name ?? ''"
-          [renewing]="!!markPaidMember()?.planId"
+          [renewing]="!!markPaidMember()?.planId && markPaidMember()?.membershipStatus !== 'EXPIRED'"
           [currentPlanId]="markPaidMember()?.planId"
           [plans]="plans()"
           [previewLoader]="paymentPreviewLoader"
+          [requireLoseConfirm]="markPaidLoseConfirm()"
           [saving]="markingPaidId() === markPaidMember()?.id"
           (confirmed)="confirmMarkPaid($event)"
           (dismiss)="closeMarkPaidModal()"
@@ -1960,6 +1962,7 @@
     <ion-modal
       class="wide-modal"
       [isOpen]="editingClosure() !== null"
+      [canDismiss]="confirmDiscard"
       (didDismiss)="closeEditClosureModal()"
       [style.--ion-color-primary]="themeColor()"
       [style.--ion-color-primary-contrast]="themeContrast()"
@@ -1975,7 +1978,8 @@
           [saving]="editClosureSaving()"
           (preview)="requestEditClosurePreview($event)"
           (confirmed)="confirmEditClosure($event)"
-          (dismiss)="closeEditClosureModal()"
+          (dismiss)="cancelEditClosureModal()"
+          (dirtyChange)="modalDirty.set($event)"
         />
       </ng-template>
     </ion-modal>

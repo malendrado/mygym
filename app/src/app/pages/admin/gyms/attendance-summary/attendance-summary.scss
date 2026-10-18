@@ -6,19 +6,30 @@
   --as-good: var(--ion-color-success, #2dd36f);
   --as-warn: var(--ion-color-warning, #ffc409);
   --as-bad: var(--ion-color-danger, #eb445a);
+  // Versiones para TEXTO e íconos informativos: en tema claro (color-scheme: light) los tonos vivos no llegan a 4.5:1.
+  --as-good-text: #2dd36f;
+  --as-good-text: light-dark(#0f6b34, #2dd36f);
+  --as-warn-text: #ffc409;
+  --as-warn-text: light-dark(#8a5a00, #ffc409);
+  --as-bad-text: #eb445a;
+  --as-bad-text: light-dark(#b4233a, #eb445a);
 }
 
 [data-tone='good'] {
   --as-tone: var(--as-good);
+  --as-tone-text: var(--as-good-text);
 }
 [data-tone='warn'] {
   --as-tone: var(--as-warn);
+  --as-tone-text: var(--as-warn-text);
 }
 [data-tone='bad'] {
   --as-tone: var(--as-bad);
+  --as-tone-text: var(--as-bad-text);
 }
 [data-tone='none'] {
   --as-tone: var(--brand-ink-surface-2);
+  --as-tone-text: inherit;
 }
 
 .as-num,
@@ -31,7 +42,7 @@
 
 .as-rate {
   font-weight: 700;
-  color: var(--as-tone, inherit);
+  color: var(--as-tone-text, inherit);
 }
 
 .as-center {
@@ -240,10 +251,10 @@
   color: var(--brand-text-dim);
 
   &--ok {
-    color: var(--as-good);
+    color: var(--as-good-text);
   }
   &--no {
-    color: var(--as-bad);
+    color: var(--as-bad-text);
   }
 }
 
@@ -523,7 +534,7 @@
 
 .as-bar__alert {
   font-size: 1.1rem;
-  color: var(--as-bad);
+  color: var(--as-bad-text);
 }
 
 .as-bar__track {
@@ -727,7 +738,7 @@
   }
 
   &--danger {
-    color: var(--as-bad);
+    color: var(--as-bad-text);
   }
 
   @media (pointer: fine) {

@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { Page } from '../models/page.model';
 import { CreateReservationRequest, GymBlockOccurrence, Reservation } from '../models/reservation.model';
+import { WaitlistEntry } from '../models/waitlist.model';
 
 @Injectable({ providedIn: 'root' })
 export class ReservationService {
@@ -39,6 +40,11 @@ export class ReservationService {
   /** Lista de espera de una clase llena — avisa por mail si se libera un cupo. */
   joinWaitlist(payload: CreateReservationRequest): Observable<void> {
     return this.http.post<void>(`${this.base}/waitlist`, payload);
+  }
+
+  /** Mis entradas futuras en listas de espera, con mi puesto en la fila. */
+  myWaitlist(): Observable<WaitlistEntry[]> {
+    return this.http.get<WaitlistEntry[]>(`${this.base}/waitlist`);
   }
 
   leaveWaitlist(gymBlockId: number, classDate: string): Observable<void> {

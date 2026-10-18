@@ -6,19 +6,30 @@
   --hb-good: var(--ion-color-success, #2dd36f);
   --hb-warn: var(--ion-color-warning, #ffc409);
   --hb-bad: var(--ion-color-danger, #eb445a);
+  // Versiones para TEXTO e íconos informativos: en tema claro (color-scheme: light) los tonos vivos no llegan a 4.5:1.
+  --hb-good-text: #2dd36f;
+  --hb-good-text: light-dark(#0f6b34, #2dd36f);
+  --hb-warn-text: #ffc409;
+  --hb-warn-text: light-dark(#8a5a00, #ffc409);
+  --hb-bad-text: #eb445a;
+  --hb-bad-text: light-dark(#b4233a, #eb445a);
 }
 
 [data-tone='good'] {
   --hb-tone: var(--hb-good);
+  --hb-tone-text: var(--hb-good-text);
 }
 [data-tone='warn'] {
   --hb-tone: var(--hb-warn);
+  --hb-tone-text: var(--hb-warn-text);
 }
 [data-tone='bad'] {
   --hb-tone: var(--hb-bad);
+  --hb-tone-text: var(--hb-bad-text);
 }
 [data-tone='none'] {
   --hb-tone: var(--brand-ink-surface-2);
+  --hb-tone-text: inherit;
 }
 
 .hb-num,
@@ -30,7 +41,7 @@
 
 .hb-rate {
   font-weight: 700;
-  color: var(--hb-tone, inherit);
+  color: var(--hb-tone-text, inherit);
 }
 
 .hb-center {
@@ -520,10 +531,10 @@
   white-space: nowrap;
 
   &--ok {
-    color: var(--hb-good);
+    color: var(--hb-good-text);
   }
   &--no {
-    color: var(--hb-bad);
+    color: var(--hb-bad-text);
   }
 }
 
@@ -581,7 +592,7 @@
   }
 
   &--danger {
-    color: var(--hb-bad);
+    color: var(--hb-bad-text);
   }
 
   @media (pointer: fine) {

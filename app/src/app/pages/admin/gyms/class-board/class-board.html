@@ -125,6 +125,22 @@
               </span>
               <ion-icon name="chevron-forward-outline" aria-hidden="true" class="cb-card__chevron"></ion-icon>
             </button>
+            @if (selected()?.status === 'LIVE' && !a.checkedInAt) {
+              <button
+                type="button"
+                class="cb-icon-btn cb-check-btn"
+                [disabled]="isQuickMarking(a)"
+                [attr.aria-busy]="isQuickMarking(a)"
+                [attr.aria-label]="'Marcar llegada de ' + a.name"
+                (click)="quickMark(a)"
+              >
+                @if (isQuickMarking(a)) {
+                  <ion-spinner name="crescent" aria-hidden="true"></ion-spinner>
+                } @else {
+                  <ion-icon name="checkmark-circle-outline" aria-hidden="true"></ion-icon>
+                }
+              </button>
+            }
             @if (whatsapp(a); as wa) {
               <a
                 class="cb-icon-btn"

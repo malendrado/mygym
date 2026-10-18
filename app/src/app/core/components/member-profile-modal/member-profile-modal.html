@@ -6,12 +6,8 @@
       {{ title }}
     </ion-title>
     <ion-buttons slot="end">
-      @if (required) {
-        <!-- Los datos son obligatorios para reservar, pero el socio no puede quedar atrapado: puede salir de su sesión. -->
-        <ion-button (click)="cancel()" aria-label="Salir de mi cuenta">Salir</ion-button>
-      } @else {
-        <ion-button (click)="cancel()">Cerrar</ion-button>
-      }
+      <!-- Nunca atrapa al socio: "Salir" (cierra sesión, si el padre lo decide), "Después" o "Cerrar". -->
+      <ion-button (click)="cancel()" [attr.aria-label]="dismissText === 'Salir' ? 'Salir de mi cuenta' : null">{{ dismissText }}</ion-button>
     </ion-buttons>
   </ion-toolbar>
 </ion-header>
@@ -24,10 +20,10 @@
   <form [formGroup]="form" (ngSubmit)="save()" novalidate>
     <ion-item lines="none">
       <ion-input
-        label="RUT *"
+        [label]="'RUT' + star"
         labelPlacement="stacked"
         formControlName="rut"
-        aria-required="true"
+        [attr.aria-required]="requiredAttr"
         [class.ion-invalid]="showError('rut')"
         [class.ion-touched]="showError('rut')"
         [attr.aria-invalid]="showError('rut') ? 'true' : null"
@@ -45,10 +41,10 @@
 
     <ion-item lines="none">
       <ion-input
-        label="Dirección *"
+        [label]="'Dirección' + star"
         labelPlacement="stacked"
         formControlName="address"
-        aria-required="true"
+        [attr.aria-required]="requiredAttr"
         [class.ion-invalid]="showError('address')"
         [class.ion-touched]="showError('address')"
         [attr.aria-invalid]="showError('address') ? 'true' : null"
@@ -63,7 +59,7 @@
     }
 
     <div class="mp-date">
-      <label for="mp-birth">Fecha de nacimiento *</label>
+      <label for="mp-birth">Fecha de nacimiento{{ star }}</label>
       <input
         id="mp-birth"
         type="date"
@@ -72,7 +68,7 @@
         formControlName="birthDate"
         [max]="maxBirthDate"
         autocomplete="bday"
-        aria-required="true"
+        [attr.aria-required]="requiredAttr"
         [attr.aria-invalid]="showError('birthDate') ? 'true' : null"
         [attr.aria-describedby]="showError('birthDate') ? 'mp-err-birthDate' : null"
       />
@@ -83,11 +79,11 @@
 
     <ion-item lines="none">
       <ion-input
-        label="Celular de contacto *"
+        [label]="'Celular de contacto' + star"
         labelPlacement="stacked"
         type="tel"
         formControlName="phone"
-        aria-required="true"
+        [attr.aria-required]="requiredAttr"
         [class.ion-invalid]="showError('phone')"
         [class.ion-touched]="showError('phone')"
         [attr.aria-invalid]="showError('phone') ? 'true' : null"
@@ -105,10 +101,10 @@
     <p class="mp-section">Contacto de emergencia</p>
     <ion-item lines="none">
       <ion-input
-        label="Nombre del contacto *"
+        [label]="'Nombre del contacto' + star"
         labelPlacement="stacked"
         formControlName="emergencyContactName"
-        aria-required="true"
+        [attr.aria-required]="requiredAttr"
         [class.ion-invalid]="showError('emergencyContactName')"
         [class.ion-touched]="showError('emergencyContactName')"
         [attr.aria-invalid]="showError('emergencyContactName') ? 'true' : null"
@@ -124,11 +120,11 @@
 
     <ion-item lines="none">
       <ion-input
-        label="Celular del contacto *"
+        [label]="'Celular del contacto' + star"
         labelPlacement="stacked"
         type="tel"
         formControlName="emergencyContactPhone"
-        aria-required="true"
+        [attr.aria-required]="requiredAttr"
         [class.ion-invalid]="showError('emergencyContactPhone')"
         [class.ion-touched]="showError('emergencyContactPhone')"
         [attr.aria-invalid]="showError('emergencyContactPhone') ? 'true' : null"
@@ -159,6 +155,9 @@
         {{ submitLabel }}
       }
     </ion-button>
+    @if (dismissLabel) {
+      <ion-button type="button" expand="block" fill="clear" [disabled]="isSaving()" (click)="cancel()">{{ dismissLabel }}</ion-button>
+    }
   </ion-toolbar>
 </ion-footer>
 </div>

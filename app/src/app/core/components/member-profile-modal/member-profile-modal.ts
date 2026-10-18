@@ -44,8 +44,18 @@ export class MemberProfileModal {
   @Input() title = 'Tus datos';
   @Input() intro = '';
   @Input() submitLabel = 'Guardar mis datos';
-  /** true = pantalla obligatoria (en vez de "Cerrar" muestra "Salir"). */
+  /** true = todos los campos obligatorios (primera vez; en vez de "Cerrar" muestra "Salir" si no hay `dismissLabel`). */
   @Input() required = false;
+  /** Texto del botón para cerrar sin guardar (ej. "Después"). Si viene, también aparece como botón secundario abajo. */
+  @Input() dismissLabel: string | null = null;
+  /**
+   * Edición parcial (el socio ya tenía el perfil completo): ningún campo es obligatorio, pero lo que se escriba
+   * se valida igual (RUT, celular +56, fecha). Lo vacío se emite vacío y el padre decide no enviarlo.
+   */
+  @Input() set partial(value: boolean) {
+    this.isPartial = value;
+    this.applyValidators();
+  }
 
   @Input() set initial(
     value: {
@@ -82,6 +92,7 @@ export class MemberProfileModal {
   /** Hay cambios sin guardar (el padre admin lo usa para no cerrar el modal sin avisar). */
   @Output() dirtyChange = new EventEmitter<boolean>();
 
+  protected isPartial = false;
   protected readonly maxBirthDate = todayIsoDate();
   protected readonly maxAddress = MAX_ADDRESS_LENGTH;
   protected readonly maxEmergencyName = MAX_EMERGENCY_NAME_LENGTH;
@@ -104,6 +115,31 @@ export class MemberProfileModal {
       validators: [Validators.required, mobileValidator()],
     }),
   });
+
+  /** Marca " *" de los labels: solo cuando el campo es obligatorio. */
+  protected get star(): string {
+    return this.isPartial ? '' : ' *';
+  }
+
+  protected get requiredAttr(): string | null {
+    return this.isPartial ? null : 'true';
+  }
+
+  protected get dismissText(): string {
+    return this.dismissLabel ?? (this.required ? 'Salir' : 'Cerrar');
+  }
+
+  private applyValidators(): void {
+    const req = this.isPartial ? [] : [Validators.required];
+    const c = this.form.controls;
+    c.rut.setValidators([...req, rutFormatValidator()]);
+    c.address.setValidators([...req, addressValidator()]);
+    c.birthDate.setValidators([...req, birthDateValidator()]);
+    c.phone.setValidators([...req, mobileValidator()]);
+    c.emergencyContactName.setValidators([...req, emergencyNameValidator()]);
+    c.emergencyContactPhone.setValidators([...req, mobileValidator()]);
+    Object.values(c).forEach((control) => control.updateValueAndValidity({ emitEvent: false }));
+  }
 
   private readonly formValue = toSignal(this.form.valueChanges, { initialValue: null });
   private readonly dirtyTracker = trackDirty(
@@ -167,6 +203,11 @@ export class MemberProfileModal {
       return;
     }
     const raw = this.form.getRawValue();
+    if (this.isPartial && Object.values(raw).every((value) => !String(value).trim())) {
+      // Nada que guardar: se cierra en vez de mandar un envío vacío.
+      this.dismiss.emit();
+      return;
+    }
     this.saved.emit({
       rut: raw.rut.trim(),
       address: raw.address.trim().replace(/\s+/g, ' '),

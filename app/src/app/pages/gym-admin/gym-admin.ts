@@ -963,13 +963,18 @@ export class GymAdmin implements OnDestroy {
         },
         {
           title: 'Agrega socios uno por uno...',
-          body: 'O migra tu base completa de otro sistema de una sola vez con "Importar varios socios desde Excel" — ideal si ya tienes cientos de socios.',
+          body: 'Con "Agregar socio" se despliega el formulario. Ahí mismo puedes migrar tu base completa de otro sistema con "Importar varios socios desde Excel" — ideal si ya tienes cientos de socios.',
           targetSelector: '[data-tour="members-add"]',
+          beforeShow: () => {
+            this.memberSub.set('members');
+            this.memberAddOpen.set(true);
+          },
         },
         {
           title: 'Encuentra a cualquier socio al instante',
           body: 'Busca por nombre, email, RUT o celular en toda tu lista, sin scrollear.',
           targetSelector: '[data-tour="members-search"]',
+          beforeShow: () => this.memberAddOpen.set(false),
         },
         {
           title: 'Marca un pago en segundos',
@@ -977,34 +982,14 @@ export class GymAdmin implements OnDestroy {
           targetSelector: '[data-tour="members-mark-paid"]',
         },
         {
-          title: 'Quita un plan si hace falta',
-          body: 'En "Acciones" de cada socio con plan: por impago, conflicto o cualquier motivo, el socio vuelve a "Sin pago" sin perder su cuenta; sus reservas futuras se cancelan y se le avisa. Antes te pide confirmar.',
-          targetSelector: '[data-tour="members-actions"]',
-        },
-        {
-          title: 'Coaching real, no solo reservas',
-          body: 'En "Acciones" abres la rutina de cualquier socio, ves qué anotó en su última clase y armas su plan de entrenamiento.',
-          targetSelector: '[data-tour="members-actions"]',
-        },
-        {
-          title: 'Clases fijas para tus socios de siempre',
-          body: 'En "Acciones", deja precargada la clase a la que va cada socio (por ejemplo lunes y miércoles a las 19:00): se le reserva sola cada semana, se le descuenta de su plan y se renueva cuando paga. También puedes subirlas desde un Excel.',
-          targetSelector: '[data-tour="members-actions"]',
-        },
-        {
-          title: 'Datos de cada socio, y WhatsApp directo',
-          body: 'RUT, dirección, fecha de nacimiento, celular y contacto de emergencia, todos validados: el socio los completa al entrar y tú puedes cargarlos o corregirlos desde "Acciones" > "Datos de contacto". Con su celular, un botón verde te abre WhatsApp para escribirle al instante.',
+          title: 'Todo lo de un socio, en "Acciones"',
+          body: 'Su rutina (qué anotó en su última clase y su plan de entrenamiento), sus clases fijas (se le reservan solas cada semana, también desde un Excel) y sus datos de contacto. Con su celular, el botón verde abre WhatsApp. Ahí mismo puedes quitarle el plan (vuelve a "Sin pago", se avisa y se cancelan sus reservas futuras) o eliminarlo del gimnasio: ambas piden confirmar.',
           targetSelector: '[data-tour="members-actions"]',
         },
         {
           title: 'Tu clase de ahora, con la memoria de cada alumno',
           body: 'Toca "En clase" para ver las clases en curso y la siguiente: por cada alumno, qué le toca hoy y qué hizo la última vez, con su rutina a un toque. Si no escaneó el QR, márcalo y anota por él lo que hizo.',
           targetSelector: '[data-tour="members-board"]',
-        },
-        {
-          title: 'Gestiona bajas reales',
-          body: 'En "Acciones", elimina a un socio permanentemente cuando deja el gimnasio (te pide confirmar) — no solo altas, control completo del ciclo de vida.',
-          targetSelector: '[data-tour="members-actions"]',
         },
         {
           title: 'Suma profesores a tu equipo',
@@ -1022,11 +1007,13 @@ export class GymAdmin implements OnDestroy {
           title: 'Cobra con tarjeta, directo a tu cuenta',
           body: 'Completa estos datos y mygym activa Flow en tu propia cuenta — tus socios pagan online y el dinero cae directo a ti, no a una cuenta compartida.',
           targetSelector: '[data-tour="flow-account"]',
+          beforeShow: () => this.flowOpen.set(true),
         },
         {
           title: 'O por transferencia, sin comisión',
           body: 'Carga tus datos bancarios una sola vez — tus socios los ven al pagar, y tú confirmas el pago a mano cuando llega.',
           targetSelector: '[data-tour="bank-transfer"]',
+          beforeShow: () => this.bankOpen.set(true),
         },
         {
           title: 'Tu link de alta: tus socios se inscriben solos',
@@ -1200,6 +1187,66 @@ export class GymAdmin implements OnDestroy {
   protected readonly memberSub = signal<'members' | 'board' | 'team'>('members');
   // Sube cuando cambió una rutina, para que el tablero refresque "Sin rutina" al instante.
   protected readonly boardRefresh = signal(0);
+
+  // Alta de socio plegada dentro de la tarjeta de la lista: cerrada por defecto, se cierra sola al agregar con éxito.
+  protected readonly memberAddOpen = signal(false);
+
+  protected toggleMemberAdd(): void {
+    const open = !this.memberAddOpen();
+    this.memberAddOpen.set(open);
+    if (open) {
+      setTimeout(() => (document.querySelector('#member-add-panel ion-input') as HTMLIonInputElement | null)?.setFocus(), 60);
+    }
+  }
+
+  // General: Pago Online y Transferencia bancaria plegadas. null = sin elección del usuario: abiertas solo si falta configurar
+  // (y recién cuando ya cargaron los datos, para que no se abran y cierren solas).
+  protected readonly flowOpen = signal<boolean | null>(null);
+  protected readonly bankOpen = signal<boolean | null>(null);
+  protected readonly flowExpanded = computed(
+    () => this.flowOpen() ?? (this.flowAccount() !== null && !this.hasFlowAccountDetails()),
+  );
+  protected readonly bankExpanded = computed(() => this.bankOpen() ?? !this.hasBankTransfer());
+  protected readonly flowStatus = computed(() => {
+    const account = this.flowAccount();
+    if (account === null) {
+      return { ok: false, label: 'Cargando…' };
+    }
+    if (account.configured) {
+      return { ok: true, label: 'Configurado ✓' };
+    }
+    return this.hasFlowAccountDetails()
+      ? { ok: false, label: 'Datos enviados, falta activar' }
+      : { ok: false, label: 'Sin configurar' };
+  });
+
+  protected toggleFlow(): void {
+    this.flowOpen.set(!this.flowExpanded());
+  }
+
+  protected toggleBank(): void {
+    this.bankOpen.set(!this.bankExpanded());
+  }
+
+  // Los pendientes de banco y Pago Online abren su tarjeta y bajan hasta ella; el resto cambia de pestaña.
+  protected openSetupItem(item: { key: string; section: Section }): void {
+    if (item.key === 'flow' || item.key === 'bank') {
+      (item.key === 'flow' ? this.flowOpen : this.bankOpen).set(true);
+      setTimeout(async () => {
+        // scrollIntoView falla en iOS dentro de ion-content (ver scrollToMembersList): se usa la API de Ionic.
+        const card = document.getElementById(item.key === 'flow' ? 'flow-card' : 'bank-card');
+        const content = card?.closest('ion-content') as HTMLIonContentElement | null;
+        if (!card || !content) {
+          return;
+        }
+        const scrollEl = await content.getScrollElement();
+        const top = card.getBoundingClientRect().top - scrollEl.getBoundingClientRect().top + scrollEl.scrollTop - 8;
+        await content.scrollToPoint(0, Math.max(top, 0), 300);
+      }, 50);
+      return;
+    }
+    this.setSection(item.section);
+  }
 
   private readonly boardTick = signal(Date.now());
 
@@ -1760,8 +1807,12 @@ export class GymAdmin implements OnDestroy {
       const results = await firstValueFrom(this.gymService.createMyBlocksBatch(drafts));
       const created = results.filter((r) => r.success).length;
       const failed = results.length - created;
+      const firstError = results.find((r) => !r.success)?.error?.trim();
+      const createdText = created === 1 ? 'Se creó 1 bloque.' : `Se crearon ${created} bloques.`;
       this.showToast(
-        failed === 0 ? `Se crearon ${created} bloques.` : `Se crearon ${created} bloques. ${failed} fallaron.`,
+        failed === 0
+          ? createdText
+          : `${createdText} ${failed === 1 ? 'Falló 1' : `Fallaron ${failed}`}${firstError ? `: ${firstError}` : '.'}`,
         failed === 0 ? 'success' : 'danger',
       );
     } catch {
@@ -1956,6 +2007,7 @@ export class GymAdmin implements OnDestroy {
       next: (member) => {
         this.memberForm.reset({ name: '', email: '' });
         this.status.set('idle');
+        this.memberAddOpen.set(false);
         // El nuevo socio queda a la vista: la búsqueda pasa a su email (el buscador muestra el texto, y su
         // "x" la quita) y se baja a la lista.
         this.loadLimits();
@@ -2179,16 +2231,20 @@ export class GymAdmin implements OnDestroy {
   // cupo (las "calugas") que el socio ve antes de pagar en /member — un ion-alert no admite
   // HTML/ion-badge dentro de sus inputs, así que se usa un ion-modal con app-mark-paid-modal.
   protected readonly markPaidMember = signal<Member | null>(null);
+  // El servidor pidió confirmar que se descartan meses ya pagados (409 LOSE_QUEUED_MONTHS): el modal muestra la casilla.
+  protected readonly markPaidLoseConfirm = signal(false);
 
   protected markMemberPaid(member: Member): void {
     if (this.plans().length === 0) {
       this.showToast('Primero crea un plan en la pestaña Planes.', 'danger');
       return;
     }
+    this.markPaidLoseConfirm.set(false);
     this.markPaidMember.set(member);
   }
 
   protected closeMarkPaidModal(): void {
+    this.markPaidLoseConfirm.set(false);
     this.markPaidMember.set(null);
   }
 
@@ -2201,11 +2257,13 @@ export class GymAdmin implements OnDestroy {
     bank,
     startDate,
     usedClasses,
+    confirmLoseQueuedMonths,
   }: {
     planId: number;
     bank: string;
     startDate: string | null;
     usedClasses: number;
+    confirmLoseQueuedMonths?: boolean;
   }): void {
     const member = this.markPaidMember();
     if (!member) {
@@ -2218,16 +2276,33 @@ export class GymAdmin implements OnDestroy {
         bank,
         ...(startDate ? { startDate } : {}),
         ...(usedClasses > 0 ? { usedClasses } : {}),
+        ...(confirmLoseQueuedMonths ? { confirmLoseQueuedMonths: true } : {}),
       })
       .subscribe({
       next: () => {
         this.markingPaidId.set(null);
+        this.markPaidLoseConfirm.set(false);
         this.markPaidMember.set(null);
         this.showToast(`Pago registrado para ${member.name}.`);
         this.loadMembers();
       },
       error: (err: Error) => {
         this.markingPaidId.set(null);
+        const code = (err as { code?: string }).code;
+        if (code === 'LOSE_QUEUED_MONTHS') {
+          // El modal sigue abierto con lo que el admin escribió: ahora pide la casilla de confirmación.
+          this.markPaidLoseConfirm.set(true);
+          this.showToast('Confirma que quieres descartar los meses ya pagados.', 'warning');
+          return;
+        }
+        if (code === 'DUPLICATE_PAYMENT') {
+          // Ya se acreditó hace un momento: se cierra el modal y se recarga la lista, sin acreditar de nuevo.
+          this.markPaidLoseConfirm.set(false);
+          this.markPaidMember.set(null);
+          this.showToast(errorText(err, 'Ya registraste este pago hace un momento.'), 'warning');
+          this.loadMembers();
+          return;
+        }
         this.handleWriteError(() =>
           this.showToast(errorText(err, 'No pudimos registrar el pago. Intenta nuevamente.'), 'danger'),
         );
@@ -2839,7 +2914,15 @@ export class GymAdmin implements OnDestroy {
   }
 
   protected closeEditClosureModal(): void {
+    this.modalDirty.set(false);
     this.editingClosure.set(null);
+  }
+
+  // Botón "Cancelar" del modal: pregunta antes de cerrar solo si hay cambios sin guardar.
+  protected async cancelEditClosureModal(): Promise<void> {
+    if (await this.confirmDiscard()) {
+      this.closeEditClosureModal();
+    }
   }
 
   protected requestEditClosurePreview(request: GymClosureUpdateRequest): void {
@@ -2875,6 +2958,7 @@ export class GymAdmin implements OnDestroy {
     this.gymService.updateMyClosure(closure.id, request).subscribe({
       next: (updated) => {
         this.editClosureSaving.set(false);
+        this.modalDirty.set(false);
         this.editingClosure.set(null);
         this.closures.update((list) => list.map((c) => (c.id === updated.id ? updated : c)));
         this.showToast('Cierre actualizado.');

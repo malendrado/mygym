@@ -288,6 +288,17 @@
   .hdr-btn ion-icon {
     margin-inline: 0;
   }
+
+  // Área táctil de 44x44 (antes ~35 px de ancho): sin relleno lateral, el ancho lo da min-width.
+  // 3 × 44 = 132 px: el título "mygym" sigue cabiendo a 360 px.
+  .hdr-btn {
+    --padding-start: 0;
+    --padding-end: 0;
+    min-width: 44px;
+    min-height: 44px;
+    height: 44px;
+    margin-inline: 0;
+  }
 }
 
 // Esqueleto de carga: mismas alturas que las tarjetas finales para que no salte el layout.
