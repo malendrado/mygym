@@ -67,7 +67,7 @@
   }
 
   &__date {
-    font-size: 0.78rem;
+    font-size: 0.8125rem;
     color: var(--brand-text-dim);
     font-family: var(--brand-font-mono);
   }
@@ -114,4 +114,20 @@
   gap: 0.5rem;
   padding: 2rem 1rem;
   text-align: center;
+}
+
+// Buscador y contador: mismo patrón que la lista de gimnasios.
+.audits-search {
+  padding: 0 0 0.25rem;
+}
+
+.list-count {
+  margin: 0 0 0.75rem;
+  font-size: 0.8125rem;
+  color: var(--brand-text-dim);
+}
+
+.list-more {
+  margin-top: 0.75rem;
+  min-height: 44px;
 }

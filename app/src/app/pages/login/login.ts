@@ -63,6 +63,9 @@ export class Login {
   protected readonly gymContext = signal<{ slug: string; name: string } | null>(null);
 
   protected readonly errorMessage = signal<string | null>(null);
+  // Ancho del botón de Google (Google lo acepta entre 200 y 400 px): el botón de Google, el separador "o" y el botón de
+  // email comparten el mismo ancho; en celulares angostos se achica para no desbordar la tarjeta (mismo criterio que join.ts).
+  protected readonly googleBtnWidth = Math.min(280, Math.max(200, (typeof window === "undefined" ? 400 : window.innerWidth) - 104));
   protected readonly signingIn = signal(false);
   protected readonly showWelcome = signal(false);
   private loggedIn = false;

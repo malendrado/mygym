@@ -28,7 +28,7 @@
         <span class="hero__widget-time">{{ classTime }}</span>
         <span class="hero__widget-capacity">{{ classCapacity.taken }}/{{ classCapacity.total }} cupos</span>
       </header>
-      <ul class="hero__widget-avatars">
+      <ul class="hero__widget-avatars" aria-hidden="true">
         @for (attendee of attendees; track attendee.name) {
           <li>{{ attendee.initials }}</li>
         }

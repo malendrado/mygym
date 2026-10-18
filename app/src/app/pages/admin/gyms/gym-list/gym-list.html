@@ -44,16 +44,54 @@
       </div>
     </div>
   } @else {
-    <div class="gyms-stats">
-      <div class="gyms-stat">
+    <div class="gyms-stats gyms-stats--filters" [attr.aria-busy]="statsStatus() === 'loading'">
+      <div
+        class="gyms-stat gyms-stat--filter"
+        [class.gyms-stat--selected]="statusFilter() === 'ALL'"
+        [attr.aria-pressed]="statusFilter() === 'ALL'"
+        role="button"
+        tabindex="0"
+        aria-label="Ver todos los gimnasios"
+        (click)="setStatusFilter('ALL')"
+        (keydown.enter)="setStatusFilter('ALL')"
+        (keydown.space)="$event.preventDefault(); setStatusFilter('ALL')"
+      >
         <ion-icon name="business-outline" aria-hidden="true"></ion-icon>
         <p class="gyms-stat__value">{{ totalGyms() }}</p>
         <p class="gyms-stat__label">Gimnasios totales</p>
+        <span class="gyms-stat__check" aria-hidden="true">✓</span>
       </div>
-      <div class="gyms-stat">
+      <div
+        class="gyms-stat gyms-stat--filter"
+        [class.gyms-stat--selected]="statusFilter() === 'ACTIVE'"
+        [attr.aria-pressed]="statusFilter() === 'ACTIVE'"
+        role="button"
+        tabindex="0"
+        aria-label="Ver gimnasios activos"
+        (click)="setStatusFilter('ACTIVE')"
+        (keydown.enter)="setStatusFilter('ACTIVE')"
+        (keydown.space)="$event.preventDefault(); setStatusFilter('ACTIVE')"
+      >
         <ion-icon name="checkmark-circle-outline" aria-hidden="true"></ion-icon>
         <p class="gyms-stat__value">{{ activeCount() }}</p>
         <p class="gyms-stat__label">Activos</p>
+        <span class="gyms-stat__check" aria-hidden="true">✓</span>
+      </div>
+      <div
+        class="gyms-stat gyms-stat--filter"
+        [class.gyms-stat--selected]="statusFilter() === 'INACTIVE'"
+        [attr.aria-pressed]="statusFilter() === 'INACTIVE'"
+        role="button"
+        tabindex="0"
+        aria-label="Ver gimnasios inactivos"
+        (click)="setStatusFilter('INACTIVE')"
+        (keydown.enter)="setStatusFilter('INACTIVE')"
+        (keydown.space)="$event.preventDefault(); setStatusFilter('INACTIVE')"
+      >
+        <ion-icon name="close-circle-outline" aria-hidden="true"></ion-icon>
+        <p class="gyms-stat__value">{{ inactiveCount() }}</p>
+        <p class="gyms-stat__label">Inactivos</p>
+        <span class="gyms-stat__check" aria-hidden="true">✓</span>
       </div>
       <div class="gyms-stat">
         <ion-icon name="people-outline" aria-hidden="true"></ion-icon>
@@ -66,6 +104,12 @@
         <p class="gyms-stat__label">Con marca propia</p>
       </div>
     </div>
+    <div class="gyms-stats-note" role="status">
+      @if (statsStatus() === 'error') {
+        <span>No se pudieron cargar los totales ·</span>
+        <button type="button" class="gyms-retry" (click)="loadStats()">Reintentar</button>
+      }
+    </div>
 
     <h2 class="gyms-section-title">Gimnasios registrados</h2>
 
@@ -75,6 +119,16 @@
       (ionInput)="gymList.setSearch($any($event.detail.value) ?? '')"
       (ionClear)="gymList.setSearch('')"
     ></ion-searchbar>
+
+    @if (statusFilterLabel(); as filterLabel) {
+      <div class="gyms-filter-bar" role="status">
+        <span>Mostrando: <strong>{{ filterLabel }}</strong></span>
+        <button type="button" class="gyms-filter-bar__clear" [attr.aria-label]="'Quitar filtro ' + filterLabel" (click)="clearStatusFilter()">
+          Quitar
+          <ion-icon name="close-circle-outline" aria-hidden="true"></ion-icon>
+        </button>
+      </div>
+    }
 
     @if (gymList.error()) {
       <div class="gyms-error">
@@ -118,7 +172,11 @@
         />
       }
     } @else if (gymList.searchQuery().trim() !== '') {
-      <p class="item-hint">No encontramos gimnasios que coincidan con "{{ gymList.searchQuery() }}".</p>
+      <p class="item-hint">
+        No encontramos gimnasios que coincidan con "{{ gymList.searchQuery() }}"{{ statusFilterLabel() ? ' entre los ' + statusFilterLabel()!.toLowerCase() : '' }}.
+      </p>
+    } @else if (statusFilter() !== 'ALL') {
+      <p class="item-hint">No hay gimnasios {{ statusFilter() === 'ACTIVE' ? 'activos' : 'inactivos' }} por ahora.</p>
     } @else {
       <div class="gyms-empty">
         <ion-icon name="business-outline" aria-hidden="true"></ion-icon>
@@ -133,10 +191,20 @@
 
     <h2 class="gyms-section-title">Visitas</h2>
 
-    @if (analyticsStatus() === 'loading') {
-      <p class="item-hint">Cargando visitas…</p>
+    @if (analyticsStatus() === 'loading' || analyticsStatus() === 'idle') {
+      <div class="visit-skeleton" role="status" aria-busy="true">
+        <span class="gyms-skeleton__sr">Cargando visitas…</span>
+        <div class="visit-list" aria-hidden="true">
+          @for (i of visitSkeletonRows; track i) {
+            <div class="visit-row gyms-skel gyms-skel--visit"></div>
+          }
+        </div>
+      </div>
     } @else if (analyticsStatus() === 'error') {
-      <ion-text color="danger"><p>No se pudieron cargar las visitas. Intenta nuevamente.</p></ion-text>
+      <div class="gyms-error" role="alert">
+        <ion-text color="danger"><p>No se pudieron cargar las visitas. Intenta nuevamente.</p></ion-text>
+        <button type="button" class="gyms-retry gyms-retry--btn" (click)="loadAnalytics()">Reintentar</button>
+      </div>
     } @else if (analytics(); as stats) {
       <div class="gyms-stats">
         <div class="gyms-stat">
@@ -158,7 +226,7 @@
 
       @if (stats.byGym.length > 0) {
         <div class="visit-list">
-          @for (row of stats.byGym; track row.gymId ?? row.gymName) {
+          @for (row of visibleByGym(); track row.gymId ?? row.gymName) {
             <div class="visit-row" [class.visit-row--unresolved]="row.gymId === null">
               <div class="visit-row__bar" [style.transform]="'scaleX(' + row.total / maxByGymVisits() + ')'"></div>
               <span class="visit-row__name">{{ row.gymName }}</span>
@@ -167,6 +235,11 @@
             </div>
           }
         </div>
+        @if (stats.byGym.length > visitsPreview) {
+          <button type="button" class="gyms-retry gyms-retry--btn" [attr.aria-expanded]="showAllVisits()" (click)="toggleAllVisits()">
+            {{ showAllVisits() ? 'Ver menos' : 'Ver todas (' + stats.byGym.length + ')' }}
+          </button>
+        }
       } @else {
         <p class="item-hint">Todavía nadie visitó la página de alta de un gimnasio.</p>
       }

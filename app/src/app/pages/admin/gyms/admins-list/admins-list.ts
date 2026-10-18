@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import {
   IonBackButton,
   IonButton,
@@ -7,6 +7,7 @@ import {
   IonHeader,
   IonIcon,
   IonLabel,
+  IonSearchbar,
   IonSegment,
   IonSegmentButton,
   IonSpinner,
@@ -15,17 +16,25 @@ import {
   IonToolbar,
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { peopleOutline, shieldCheckmarkOutline } from 'ionicons/icons';
+import { peopleOutline, searchOutline, shieldCheckmarkOutline } from 'ionicons/icons';
 import { GymService } from '../../../../core/services/gym.service';
 import { Admin, GymAdminListItem } from '../../../../core/models/gym.model';
 
 addIcons({
   'shield-checkmark-outline': shieldCheckmarkOutline,
   'people-outline': peopleOutline,
+  'search-outline': searchOutline,
 });
 
 type Status = 'loading' | 'loaded' | 'error';
 type Tab = 'super' | 'gym';
+
+const PAGE_SIZE = 25;
+
+/** Minúsculas y sin tildes, para que "jose" encuentre "José". */
+function normalize(value: string | null | undefined): string {
+  return (value ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+}
 
 /**
  * Vista de solo lectura "Administradores" — pedido explícito del usuario (2026-10-05): poder ver
@@ -49,6 +58,7 @@ type Tab = 'super' | 'gym';
     IonSegment,
     IonSegmentButton,
     IonLabel,
+    IonSearchbar,
   ],
   templateUrl: './admins-list.html',
   styleUrl: './admins-list.scss',
@@ -61,8 +71,54 @@ export class AdminsList {
   protected readonly superAdmins = signal<Admin[]>([]);
   protected readonly gymAdmins = signal<GymAdminListItem[]>([]);
 
+  protected readonly query = signal('');
+  private readonly limit = signal(PAGE_SIZE);
+
+  private readonly filteredSuper = computed(() => {
+    const q = normalize(this.query()).trim();
+    if (!q) {
+      return this.superAdmins();
+    }
+    return this.superAdmins().filter((a) => normalize(a.name).includes(q) || normalize(a.email).includes(q));
+  });
+
+  private readonly filteredGym = computed(() => {
+    const q = normalize(this.query()).trim();
+    if (!q) {
+      return this.gymAdmins();
+    }
+    return this.gymAdmins().filter(
+      (a) => normalize(a.name).includes(q) || normalize(a.email).includes(q) || normalize(a.gymName).includes(q),
+    );
+  });
+
+  /** Lista de la pestaña activa ya filtrada; el total y el recorte salen de ella. */
+  protected readonly filteredCount = computed(() =>
+    this.tab() === 'super' ? this.filteredSuper().length : this.filteredGym().length,
+  );
+  protected readonly visibleSuper = computed(() => this.filteredSuper().slice(0, this.limit()));
+  protected readonly visibleGym = computed(() => this.filteredGym().slice(0, this.limit()));
+  protected readonly hasMore = computed(() => this.filteredCount() > this.limit());
+  protected readonly resultsLabel = computed(() => {
+    const n = this.filteredCount();
+    return n === 1 ? '1 resultado' : `${n} resultados`;
+  });
+
   constructor() {
     this.load();
+  }
+
+  protected setQuery(value: string | null | undefined): void {
+    this.query.set(value ?? '');
+    this.limit.set(PAGE_SIZE);
+  }
+
+  protected clearQuery(): void {
+    this.setQuery('');
+  }
+
+  protected showMore(): void {
+    this.limit.update((n) => n + PAGE_SIZE);
   }
 
   protected load(): void {
@@ -82,6 +138,7 @@ export class AdminsList {
 
   protected setTab(tab: Tab): void {
     this.tab.set(tab);
+    this.limit.set(PAGE_SIZE);
   }
 
   protected initials(name: string): string {

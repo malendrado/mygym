@@ -15,14 +15,18 @@ import {
   arrowUndoOutline,
   calendarOutline,
   checkmarkCircleOutline,
+  checkmarkDoneOutline,
   chevronBackOutline,
+  chevronDownOutline,
   chevronForwardOutline,
   closeCircleOutline,
   logoWhatsapp,
   personRemoveOutline,
 } from 'ionicons/icons';
+import { firstValueFrom } from 'rxjs';
 import { Attendee } from '../../../../core/models/member.model';
-import { AgendaOccurrence, GymBlock } from '../../../../core/models/gym.model';
+import { AttendanceMark } from '../../../../core/models/attendance.model';
+import { AgendaOccurrence, AgendaWaitlistEntry, GymBlock } from '../../../../core/models/gym.model';
 import { AttendanceService } from '../../../../core/services/attendance.service';
 import { GymService } from '../../../../core/services/gym.service';
 import {
@@ -42,19 +46,24 @@ import {
 } from '../../../../core/utils/attendance';
 import { errorText } from '../../../../core/utils/error-text';
 import { whatsappUrl } from '../../../../core/utils/member-profile';
-import { missedClassMessage } from '../../../../core/utils/whatsapp-messages';
+import { missedClassMessage, waitlistSpotMessage } from '../../../../core/utils/whatsapp-messages';
 import { TIME_BAND_ALL_HINT, TIME_BAND_OPTIONS, TimeBand, timeBandOf } from '../../../../core/utils/time-band';
 
 addIcons({
   'arrow-undo-outline': arrowUndoOutline,
   'calendar-outline': calendarOutline,
   'checkmark-circle-outline': checkmarkCircleOutline,
+  'checkmark-done-outline': checkmarkDoneOutline,
   'chevron-back-outline': chevronBackOutline,
+  'chevron-down-outline': chevronDownOutline,
   'chevron-forward-outline': chevronForwardOutline,
   'close-circle-outline': closeCircleOutline,
   'logo-whatsapp': logoWhatsapp,
   'person-remove-outline': personRemoveOutline,
 });
+
+// Cuántas marcas de asistencia viajan a la vez en "Marcar a todos".
+const MARK_CONCURRENCY = 5;
 
 const DOW_BY_INDEX = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'] as const;
 const WEEKDAY_SHORT = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
@@ -88,6 +97,13 @@ interface AttendeeRow {
   whatsapp: string | null;
 }
 
+interface WaitlistRow {
+  entry: AgendaWaitlistEntry;
+  /** Hora corta (HH:MM) en que se anotó. */
+  since: string;
+  whatsapp: string | null;
+}
+
 interface ClassRow {
   block: GymBlock;
   attendees: AttendeeRow[];
@@ -96,6 +112,8 @@ interface ClassRow {
   started: boolean;
   rate: number | null;
   editable: boolean;
+  /** Reservas aún sin marcar como que vinieron (para "Marcar a todos"). */
+  unmarked: number;
   /** Pasaron más de 7 días: solo lectura. */
   tooOld: boolean;
   capacity: number;
@@ -107,6 +125,8 @@ interface ClassRow {
   closed: boolean;
   closedReason: string | null;
   waitlistCount: number;
+  /** Quiénes esperan; vacío si el servidor no los manda (entonces solo se ve el conteo). */
+  waitlist: WaitlistRow[];
   /** false mientras la agenda de la semana aún no llega: no se pinta "0/8 · Sin reservas" con datos que no son. */
   dataReady: boolean;
 }
@@ -312,6 +332,7 @@ export class HistoryBoard {
         started,
         rate: ended ? ratePct(counts.attended, counts.booked) : null,
         editable,
+        unmarked: counts.booked - counts.attended,
         tooOld: started && !editable,
         capacity,
         taken,
@@ -320,6 +341,14 @@ export class HistoryBoard {
         closed: occurrence?.closed ?? false,
         closedReason: occurrence?.closedReason ?? null,
         waitlistCount: occurrence?.waitlistCount ?? 0,
+        waitlist: (occurrence?.waitlist ?? []).map<WaitlistRow>((entry) => ({
+          entry,
+          since: this.sinceOf(entry.joinedAt),
+          whatsapp: whatsappUrl(
+            entry.phone,
+            waitlistSpotMessage(entry.name, this.classLabel(block), date, block.startTime.slice(0, 5)),
+          ),
+        })),
         dataReady: occurrence !== undefined || !this.loading(),
       };
     });
@@ -367,6 +396,23 @@ export class HistoryBoard {
 
   protected tone(rate: number | null): string {
     return rate === null ? 'none' : rateTone(rate);
+  }
+
+  private classLabel(block: GymBlock): string {
+    const time = block.startTime.slice(0, 5);
+    return block.label.replace(time, '').replace(/[\s\-–·]+$/, '').trim() || block.label;
+  }
+
+  private sinceOf(joinedAt: string): string {
+    const when = new Date(joinedAt);
+    return Number.isNaN(when.getTime()) ? '' : TIME_FORMAT.format(when);
+  }
+
+  // Listas de espera desplegadas, por id de bloque.
+  protected readonly openWaitlists = signal<Record<number, boolean>>({});
+
+  protected toggleWaitlist(blockId: number): void {
+    this.openWaitlists.update((open) => ({ ...open, [blockId]: !open[blockId] }));
   }
 
   protected blockTitle(row: ClassRow): string {
@@ -444,24 +490,7 @@ export class HistoryBoard {
     this.pending.update((p) => ({ ...p, [id]: target }));
     this.attendanceService.setAttendance(id, target, this.gymId).subscribe({
       next: (mark) => {
-        const key = this.key(row.block.id, date);
-        this.occurrencesByKey.update((map) => {
-          const current = map[key];
-          if (!current) {
-            return map;
-          }
-          return {
-            ...map,
-            [key]: {
-              ...current,
-              attendees: current.attendees.map((a) =>
-                a.reservationId === mark.reservationId
-                  ? { ...a, checkedInAt: mark.checkedInAt, checkinMethod: mark.checkinMethod }
-                  : a,
-              ),
-            },
-          };
-        });
+        this.applyMark(this.key(row.block.id, date), mark);
         this.dropPending(id);
         this.toast(target ? `${item.attendee.name}: marcado como que vino.` : `${item.attendee.name}: marcado como que no vino.`);
       },
@@ -470,6 +499,93 @@ export class HistoryBoard {
         this.toast(errorText(err, 'No pudimos guardar el cambio. Intenta nuevamente.'), 'danger');
       },
     });
+  }
+
+  private applyMark(key: string, mark: AttendanceMark): void {
+    this.occurrencesByKey.update((map) => {
+      const current = map[key];
+      if (!current) {
+        return map;
+      }
+      return {
+        ...map,
+        [key]: {
+          ...current,
+          attendees: current.attendees.map((a) =>
+            a.reservationId === mark.reservationId
+              ? { ...a, checkedInAt: mark.checkedInAt, checkinMethod: mark.checkinMethod }
+              : a,
+          ),
+        },
+      };
+    });
+  }
+
+  /**
+   * Marca (o desmarca) a varias reservas con las llamadas por persona de siempre (no hay endpoint en lote), de a
+   * MARK_CONCURRENCY. Cada resultado se aplica apenas llega; lo que falla vuelve a su estado real. Devuelve los ids que sí se guardaron.
+   */
+  private async markMany(key: string, ids: number[], target: boolean): Promise<number[]> {
+    this.pending.update((p) => ({ ...p, ...Object.fromEntries(ids.map((id) => [id, target])) }));
+    const done: number[] = [];
+    const queue = [...ids];
+    const worker = async (): Promise<void> => {
+      for (let id = queue.shift(); id !== undefined; id = queue.shift()) {
+        try {
+          const mark = await firstValueFrom(this.attendanceService.setAttendance(id, target, this.gymId));
+          this.applyMark(key, mark);
+          done.push(id);
+        } catch {
+          // queda fuera de `done`: abajo vuelve a su estado real
+        }
+        this.dropPending(id);
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(MARK_CONCURRENCY, ids.length) }, worker));
+    return done;
+  }
+
+  protected async markAll(row: ClassRow): Promise<void> {
+    if (this.demo) {
+      this.toast('Estás en una cuenta demo — esta acción está deshabilitada a propósito.', 'warning');
+      return;
+    }
+    if (!row.editable || row.closed) {
+      return;
+    }
+    const key = this.key(row.block.id, this.selectedDate());
+    const ids = row.attendees.filter((a) => !a.attended).map((a) => a.attendee.reservationId);
+    if (ids.length === 0) {
+      return;
+    }
+    const done = await this.markMany(key, ids, true);
+    if (done.length < ids.length) {
+      this.toast(
+        done.length === 0
+          ? 'No pudimos guardar la asistencia. Intenta nuevamente.'
+          : `Marcaste a ${done.length} de ${ids.length}. Reintenta.`,
+        done.length === 0 ? 'danger' : 'warning',
+      );
+      return;
+    }
+    const toast = await this.toastController.create({
+      message: `Marcaste a ${done.length}`,
+      duration: 6000,
+      position: 'bottom',
+      color: 'success',
+      buttons: [{ text: 'Deshacer', handler: () => void this.undoMarkAll(key, done) }],
+    });
+    await toast.present();
+  }
+
+  /** Deshace solo lo que marcó "Marcar a todos", no lo que ya estaba marcado de antes. */
+  private async undoMarkAll(key: string, ids: number[]): Promise<void> {
+    const undone = await this.markMany(key, ids, false);
+    if (undone.length < ids.length) {
+      this.toast(`Deshiciste a ${undone.length} de ${ids.length}. Reintenta.`, 'warning');
+    } else {
+      this.toast(`Deshiciste la asistencia de ${undone.length}.`);
+    }
   }
 
   protected requestCancel(row: ClassRow, item: AttendeeRow): void {

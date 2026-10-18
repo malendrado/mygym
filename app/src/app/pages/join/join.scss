@@ -255,16 +255,19 @@
   color: var(--brand-text-dim);
 }
 
+// Siempre 2 columnas (con 4 planes quedaban 4 tarjetas apiladas y la página larguísima); si la cantidad es impar,
+// la última ocupa todo el ancho en vez de dejar un hueco.
 .join-plans__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 0.6rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  // Más aire entre filas: la etiqueta (Recomendado / Tu elección) sobresale 0.6rem por arriba de cada tarjeta y con menos
+  // espacio quedaba tocando el borde de la tarjeta de arriba.
+  column-gap: 0.6rem;
+  row-gap: 1.1rem;
   margin-bottom: 0.5rem;
 
-  // En desktop, minmax(140px, 1fr) estira cada tarjeta a cientos de px —
-  // mismo tope que .plan-grid en member.ts, para que no se vean "vacías".
-  @media (min-width: 640px) {
-    grid-template-columns: repeat(auto-fit, minmax(140px, 200px));
+  .join-plan-card:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
   }
 }
 
@@ -336,6 +339,8 @@
     margin: 0.3rem 0 0.25rem;
     font-size: 0.9rem;
     font-family: var(--brand-font-heading);
+    // Evita que un nombre largo deje una palabra o número solo en la segunda línea ("Entrenamiento guiado / 8").
+    text-wrap: balance;
   }
 
   &__price {
@@ -787,6 +792,23 @@ $ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   }
 }
 
+// Las tres opciones de ingreso (Google, "o", email) en una columna del mismo ancho, centrada: antes el botón de Google
+// medía ~225 px pegado a la izquierda y el de email se estiraba a toda la columna.
+.auth-stack {
+  width: var(--auth-w, 100%);
+  max-width: 100%;
+  margin-inline: auto;
+
+  .google-auth {
+    justify-content: center;
+    padding-top: 0;
+  }
+
+  .google-auth__frame {
+    width: 100%;
+  }
+}
+
 .auth-alt-btn {
   display: flex;
   align-items: center;
@@ -842,6 +864,58 @@ $ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   &:focus-visible {
     outline: 3px solid var(--brand-accent);
     outline-offset: 2px;
+  }
+}
+
+// Ingreso de quien ya tiene cuenta: botón sin borde (fondo suave) para que se note sin competir con Google ni con el
+// botón con borde de "Registrarme con email".
+// `.join-card p` (más arriba) fija un margin inferior; con el prefijo de .auth-stack esta regla gana por especificidad.
+.auth-stack .auth-have-account {
+  margin: 1.1rem 0 0.4rem;
+  text-align: center;
+  font-size: 0.95rem;
+  color: var(--brand-text-dim);
+}
+
+.auth-ghost-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: var(--auth-w, 100%);
+  max-width: 100%;
+  min-height: 48px;
+  margin-inline: auto;
+  padding: 0 1rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brand-text) 8%, transparent);
+  color: var(--brand-text);
+  font-size: 1rem;
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
+  transition:
+    transform 160ms ease-out,
+    background-color 160ms ease-out;
+
+  ion-icon {
+    flex-shrink: 0;
+    font-size: 1.2rem;
+  }
+
+  &:active {
+    transform: scale(0.97);
+  }
+
+  &:focus-visible {
+    outline: 3px solid var(--brand-accent);
+    outline-offset: 2px;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      background: color-mix(in srgb, var(--brand-text) 14%, transparent);
+    }
   }
 }
 

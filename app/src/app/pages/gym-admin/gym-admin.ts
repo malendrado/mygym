@@ -36,6 +36,7 @@ import {
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import {
+  alertCircleOutline,
   banOutline,
   barbellOutline,
   businessOutline,
@@ -60,6 +61,7 @@ import {
   logOutOutline,
   logoGoogle,
   logoWhatsapp,
+  mailOutline,
   ellipsisHorizontal,
   closeOutline,
   megaphoneOutline,
@@ -138,7 +140,7 @@ import { ClosureModal } from '../admin/gyms/closure-modal/closure-modal';
 import { AttendanceTab } from '../admin/gyms/attendance-tab/attendance-tab';
 import { AttendanceSummaryView, CancelReservationRequest } from '../admin/gyms/attendance-summary/attendance-summary';
 import { MemberRef, MemberSearch } from '../admin/gyms/member-search/member-search';
-import { memberAgendaPeriod } from '../../core/utils/attendance';
+import { memberAgendaPeriod, santiagoNow } from '../../core/utils/attendance';
 import { HistoryBoard } from '../admin/gyms/history-board/history-board';
 import { EditClosureModal } from '../admin/gyms/edit-closure-modal/edit-closure-modal';
 import { ImportMembersModal } from '../admin/gyms/import-members-modal/import-members-modal';
@@ -181,6 +183,8 @@ import {
 } from '../../core/utils/gym-theme';
 
 addIcons({
+  'alert-circle-outline': alertCircleOutline,
+  'mail-outline': mailOutline,
   'eye-outline': eyeOutline,
   'time-outline': timeOutline,
   'calendar-outline': calendarOutline,
@@ -553,6 +557,9 @@ export class GymAdmin implements OnDestroy {
   protected readonly unpaidMembers = this.memberList.unpaid;
   // Usados solo para targetear un botón de UNA fila puntual en el tour guiado — el spotlight
   // necesita un selector único, no una clase repetida por cada socio de la lista.
+  // Filas de socio con el detalle desplegado (cerrado por defecto).
+  protected readonly openMemberDetails = signal<Record<number, boolean>>({});
+
   protected readonly firstUnpaidMemberId = computed(() => this.members().find((m) => !m.planId)?.id ?? null);
   protected readonly firstMemberWithPlanId = computed(() => this.members().find((m) => !!m.planId)?.id ?? null);
   protected readonly firstMemberId = computed(() => this.members()[0]?.id ?? null);
@@ -1287,6 +1294,25 @@ export class GymAdmin implements OnDestroy {
     this.memberList.setStatusFilter(null);
   }
 
+  // "Mostrando: X · Quitar" sobre la lista: el estado (o el de invitados) que filtra ahora.
+  protected readonly memberFilterLabel = computed(() => {
+    const status = this.memberStatusFilter();
+    if (status) {
+      return this.statusLabel(status);
+    }
+    const invite = this.memberInviteFilter();
+    return invite ? this.inviteStatusLabel(invite) : null;
+  });
+
+  protected clearMemberFilters(): void {
+    // Los dos ejes son excluyentes: se quita solo el que está activo (un solo pedido al servidor).
+    if (this.memberStatusFilter()) {
+      this.clearMemberStatusFilter();
+    } else {
+      this.clearMemberInviteFilter();
+    }
+  }
+
   protected viewMembersByInvite(status: Exclude<InviteStatus, null>): void {
     this.memberList.setInviteFilter(status);
     this.section.set('members');
@@ -1304,8 +1330,8 @@ export class GymAdmin implements OnDestroy {
   // no lo respetan de forma confiable: el scroll vive en el shadow DOM de ion-content), así que se
   // usa la API propia de Ionic (scrollToPoint). Se repite una vez después de que la lista termina
   // de acomodarse: al aplicar el filtro la altura cambia y el primer scroll quedaba corto.
-  private scrollToMembersList(): void {
-    const run = async (): Promise<void> => {
+  private scrollToMembersList(focusTitle = false): void {
+    const run = async (focus: boolean): Promise<void> => {
       const card = document.getElementById('members-list-card');
       const content = card?.closest('ion-content') as HTMLIonContentElement | null;
       if (!card || !content) {
@@ -1313,10 +1339,16 @@ export class GymAdmin implements OnDestroy {
       }
       const scrollEl = await content.getScrollElement();
       const top = card.getBoundingClientRect().top - scrollEl.getBoundingClientRect().top + scrollEl.scrollTop - 8;
-      await content.scrollToPoint(0, Math.max(top, 0), 300);
+      // Con "reducir movimiento" activo el salto es directo, sin animación.
+      const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+      await content.scrollToPoint(0, Math.max(top, 0), reduce ? 0 : 300);
+      if (focus) {
+        // El foco queda en el encabezado de la lista (teclado y lector de pantalla); sin mover el scroll.
+        document.getElementById('members-list-title')?.focus({ preventScroll: true });
+      }
     };
-    setTimeout(() => void run());
-    setTimeout(() => void run(), 450);
+    setTimeout(() => void run(false));
+    setTimeout(() => void run(focusTitle), 450);
   }
 
   protected clearMemberInviteFilter(): void {
@@ -1325,7 +1357,7 @@ export class GymAdmin implements OnDestroy {
 
   protected onMemberPage(page: number): void {
     this.memberList.goTo(page);
-    this.scrollToMembersList();
+    this.scrollToMembersList(true);
   }
 
   protected inviteStatusLabel(status: Exclude<InviteStatus, null>): string {
@@ -1440,6 +1472,41 @@ export class GymAdmin implements OnDestroy {
       },
       error: () => this.handleWriteError(() => this.showToast('No pudimos cancelar la reserva. Intenta nuevamente.', 'danger')),
     });
+  }
+
+  protected toggleMemberDetail(id: number): void {
+    this.openMemberDetails.update((open) => ({ ...open, [id]: !open[id] }));
+  }
+
+  /** La acción principal (Renovar / Marcar pago) solo aparece cuando hay algo que cobrar. */
+  protected memberNeedsPayment(member: Member): boolean {
+    return member.membershipStatus !== 'ACTIVE';
+  }
+
+  /** Línea clave de la fila: plan y vencimiento, o cuánto falta / cuánto pasó (días calendario, hora de Santiago). */
+  protected memberKeyLine(member: Member): { text: string; warn: boolean } {
+    if (!member.planId) {
+      return { text: 'Sin plan', warn: false };
+    }
+    const endAt = member.planEndDate ? new Date(member.planEndDate) : null;
+    if (!endAt || Number.isNaN(endAt.getTime())) {
+      return { text: member.planName ?? 'Plan', warn: false };
+    }
+    const end = santiagoNow(endAt).date;
+    const toDays = (iso: string) => Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10)) / 86_400_000;
+    const left = toDays(end) - toDays(santiagoNow().date);
+    if (member.membershipStatus === 'EXPIRING_SOON') {
+      const text = left <= 0 ? 'Vence hoy' : left === 1 ? 'Vence mañana' : `Vence en ${left} días`;
+      return { text, warn: true };
+    }
+    if (member.membershipStatus === 'EXPIRED') {
+      const ago = -left;
+      const text = ago <= 0 ? 'Venció hoy' : ago === 1 ? 'Venció ayer' : `Venció hace ${ago} días`;
+      return { text, warn: true };
+    }
+    const [y, m, d] = end.split('-').map(Number);
+    const short = new Intl.DateTimeFormat('es-CL', { day: 'numeric', month: 'short' }).format(new Date(y, m - 1, d));
+    return { text: `${member.planName ?? 'Plan'} · vence ${short}`, warn: false };
   }
 
   protected formatClp(value: number): string {
@@ -2621,6 +2688,9 @@ export class GymAdmin implements OnDestroy {
   }
 
   protected async logout(): Promise<void> {
+    if (!(await this.confirmAction('¿Cerrar sesión?', 'Tendrás que volver a ingresar para entrar al panel.', 'Salir'))) {
+      return;
+    }
     await this.authService.logout();
     const slug = this.gymSlug();
     this.router.navigate([slug ? `/j/${slug}` : '/login']);

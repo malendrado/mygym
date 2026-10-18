@@ -47,16 +47,18 @@
       </div>
     } @else if (mode() === 'google') {
       <p>Usa tu cuenta de Google para reservar clases o administrar tu gimnasio.</p>
-      <div class="google-auth">
-        <div class="google-auth__frame">
-          <asl-google-signin-button type="standard" size="large" text="signin_with" shape="pill" theme="outline" logo_alignment="left" />
+      <div class="auth-stack" [style.--auth-w.px]="googleBtnWidth + 10">
+        <div class="google-auth">
+          <div class="google-auth__frame">
+            <asl-google-signin-button type="standard" size="large" text="signin_with" shape="pill" theme="outline" logo_alignment="left" [width]="googleBtnWidth" />
+          </div>
         </div>
+        <div class="auth-divider" role="separator"><span>o</span></div>
+        <button type="button" class="auth-alt-btn" (click)="setMode('password')">
+          <ion-icon name="mail-outline" aria-hidden="true"></ion-icon>
+          Ingresar con contraseña
+        </button>
       </div>
-      <div class="auth-divider" role="separator"><span>o</span></div>
-      <button type="button" class="auth-alt-btn" (click)="setMode('password')">
-        <ion-icon name="mail-outline" aria-hidden="true"></ion-icon>
-        Ingresar con email y contraseña
-      </button>
     } @else if (mode() === 'password') {
       <p>Ingresa con el email y la contraseña de tu cuenta.</p>
       <form class="password-auth" (submit)="$event.preventDefault(); submitPasswordLogin()">

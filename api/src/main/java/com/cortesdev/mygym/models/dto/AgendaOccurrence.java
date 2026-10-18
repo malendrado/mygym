@@ -16,4 +16,5 @@ public record AgendaOccurrence(
         boolean closed,
         String closedReason,
         int waitlistCount,
+        List<WaitlistStaffEntry> waitlist,
         List<MemberReservation> attendees) {}

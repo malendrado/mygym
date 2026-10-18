@@ -13,11 +13,13 @@ import com.cortesdev.mygym.models.GymBlock;
 import com.cortesdev.mygym.models.Reservation;
 import com.cortesdev.mygym.models.ReservationStatus;
 import com.cortesdev.mygym.models.dto.AgendaOccurrence;
+import com.cortesdev.mygym.models.dto.WaitlistStaffEntry;
 import com.cortesdev.mygym.repositories.AppUserRepository;
 import com.cortesdev.mygym.repositories.GymBlockRepository;
 import com.cortesdev.mygym.repositories.ReservationRepository;
 import com.cortesdev.mygym.services.exception.InvalidAttendanceException;
 import java.time.DayOfWeek;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
@@ -86,7 +88,7 @@ class ReservationServiceAgendaTest {
     private void givenNoClosuresNoWaiting() {
         when(gymClosureService.scheduleFor(eq(GYM_ID), any(), any()))
                 .thenReturn(new GymClosureService.ClosureSchedule(Set.of(), Set.of()));
-        when(waitlistService.countWaitingByOccurrence(anyCollection(), any(), any())).thenReturn(Map.of());
+        when(waitlistService.waitingStaffByOccurrence(eq(GYM_ID), anyCollection(), any(), any())).thenReturn(Map.of());
     }
 
     @Test
@@ -104,6 +106,7 @@ class ReservationServiceAgendaTest {
         assertThat(agenda.get(0).capacity()).isEqualTo(12);
         assertThat(agenda.get(0).taken()).isZero();
         assertThat(agenda.get(0).attendees()).isEmpty();
+        assertThat(agenda.get(0).waitlist()).isEmpty();
         assertThat(agenda.get(0).closed()).isFalse();
         assertThat(agenda.get(0).closedReason()).isNull();
     }
@@ -132,7 +135,7 @@ class ReservationServiceAgendaTest {
         when(gymClosureService.scheduleFor(GYM_ID, FROM, TO))
                 .thenReturn(new GymClosureService.ClosureSchedule(
                         Set.of(TUESDAY), Set.of(), Map.of(TUESDAY, "Corte de luz"), Map.of()));
-        when(waitlistService.countWaitingByOccurrence(anyCollection(), any(), any())).thenReturn(Map.of());
+        when(waitlistService.waitingStaffByOccurrence(eq(GYM_ID), anyCollection(), any(), any())).thenReturn(Map.of());
 
         AgendaOccurrence occurrence = reservationService.getAgenda(GYM_ID, FROM, TO).get(0);
 
@@ -150,7 +153,7 @@ class ReservationServiceAgendaTest {
         when(gymClosureService.scheduleFor(GYM_ID, FROM, TO))
                 .thenReturn(new GymClosureService.ClosureSchedule(
                         Set.of(), Set.of("2|" + TUESDAY), Map.of(), Map.of("2|" + TUESDAY, "Mantención")));
-        when(waitlistService.countWaitingByOccurrence(anyCollection(), any(), any())).thenReturn(Map.of());
+        when(waitlistService.waitingStaffByOccurrence(eq(GYM_ID), anyCollection(), any(), any())).thenReturn(Map.of());
 
         List<AgendaOccurrence> agenda = reservationService.getAgenda(GYM_ID, FROM, TO);
 
@@ -166,10 +169,17 @@ class ReservationServiceAgendaTest {
                 .thenReturn(List.of());
         when(gymClosureService.scheduleFor(GYM_ID, FROM, TO))
                 .thenReturn(new GymClosureService.ClosureSchedule(Set.of(), Set.of()));
-        when(waitlistService.countWaitingByOccurrence(anyCollection(), eq(FROM), eq(TO)))
-                .thenReturn(Map.of("1|" + TUESDAY, 3));
+        List<WaitlistStaffEntry> waiting = List.of(
+                new WaitlistStaffEntry(7L, "Ana", "+56911111111", 1, Instant.parse("2026-10-10T10:00:00Z")),
+                new WaitlistStaffEntry(8L, "Pedro", null, 2, Instant.parse("2026-10-10T10:05:00Z")),
+                new WaitlistStaffEntry(9L, "Luz", null, 3, Instant.parse("2026-10-10T10:09:00Z")));
+        when(waitlistService.waitingStaffByOccurrence(eq(GYM_ID), anyCollection(), eq(FROM), eq(TO)))
+                .thenReturn(Map.of("1|" + TUESDAY, waiting));
 
-        assertThat(reservationService.getAgenda(GYM_ID, FROM, TO).get(0).waitlistCount()).isEqualTo(3);
+        AgendaOccurrence occurrence = reservationService.getAgenda(GYM_ID, FROM, TO).get(0);
+
+        assertThat(occurrence.waitlistCount()).isEqualTo(3);
+        assertThat(occurrence.waitlist()).isEqualTo(waiting);
     }
 
     @Test

@@ -10,7 +10,7 @@ ion-content {
 }
 
 .closure-item-meta {
-  font-size: 0.78rem;
+  font-size: 0.8125rem;
 }
 
 .closure-item-actions {
@@ -64,7 +64,7 @@ ion-content {
   transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 
   ion-badge {
-    font-size: 0.75rem;
+    font-size: 0.8125rem;
   }
 
   @media (hover: hover) and (pointer: fine) {
@@ -288,7 +288,7 @@ ion-header ion-toolbar ion-title {
     background: none;
     color: var(--brand-accent-text-safe, var(--brand-accent));
     font-family: inherit;
-    font-size: 0.75rem;
+    font-size: 0.8125rem;
     font-weight: 600;
     cursor: pointer;
     min-height: 32px;
@@ -309,7 +309,7 @@ ion-header ion-toolbar ion-title {
   gap: 0.35rem;
   margin: 0.15rem 0 0;
   color: var(--brand-text-dim);
-  font-size: 0.78rem;
+  font-size: 0.8125rem;
 
   img {
     width: 18px;
@@ -349,7 +349,7 @@ ion-header ion-toolbar ion-title {
 
   &__label {
     margin: 0;
-    font-size: 0.75rem;
+    font-size: 0.8125rem;
     color: var(--brand-text-dim);
   }
 }
@@ -357,10 +357,6 @@ ion-header ion-toolbar ion-title {
 // Reemplaza el botón "Marcar pago" en la fila del socio una vez que ya
 // tiene un plan asociado — pedido del usuario: no tiene sentido seguir
 // invitando a marcar un pago que ya existe, mejor mostrar el estado real.
-// Fila completa del socio (nombre + email + info de plan) en UNA sola
-// línea horizontal — pedido explícito, nada se apila hacia abajo. En
-// pantallas angostas scrollea horizontal en su propia franja en vez de
-// romper el layout de la lista.
 // Mismo tamaño/posición que el ion-icon genérico que reemplaza — solo
 // aparece cuando el socio/admin se logueó alguna vez con Google.
 .member-avatar {
@@ -369,35 +365,6 @@ ion-header ion-toolbar ion-title {
   border-radius: 999px;
   object-fit: cover;
   flex-shrink: 0;
-}
-
-.member-row {
-  display: flex;
-  // Con RUT/celular/clases fijas la fila lleva más datos: pasa a otra línea en vez de esconderlos tras un scroll.
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.25rem 0.6rem;
-
-  &::-webkit-scrollbar {
-    display: none;
-  }
-
-  &__name {
-    flex-shrink: 0;
-    font-weight: 600;
-  }
-
-  &__email {
-    flex-shrink: 0;
-    color: var(--brand-text-dim);
-    font-size: 0.85rem;
-
-    &::before {
-      content: '·';
-      margin-right: 0.6rem;
-      color: var(--brand-text-dim);
-    }
-  }
 }
 
 // Pedido explícito del usuario: marcar en la fila quién viene de una
@@ -410,7 +377,7 @@ ion-header ion-toolbar ion-title {
   flex-shrink: 0;
   padding: 0.1rem 0.5rem;
   border-radius: 999px;
-  font-size: 0.7rem;
+  font-size: 0.8125rem;
   font-weight: 600;
   color: var(--ion-color-tertiary, #8b5cf6);
   background: color-mix(in srgb, var(--ion-color-tertiary, #8b5cf6) 14%, transparent);
@@ -430,7 +397,7 @@ ion-header ion-toolbar ion-title {
   align-items: center;
   gap: 0.3rem;
   color: var(--brand-text-dim);
-  font-size: 0.78rem;
+  font-size: 0.8125rem;
   white-space: nowrap;
   flex-shrink: 0;
 
@@ -450,60 +417,109 @@ ion-header ion-toolbar ion-title {
   }
 }
 
-// Con 3 botones + la caluga de estado, ya no entraban junto al nombre/email en una sola línea
-// (reportado por el usuario con captura: se veía amontonado/cortado en desktop angosto, y
-// directamente desaparecía en mobile real). DOS intentos de arreglarlo forzando flex-wrap en el
-// `::part(native)` de ion-item (el contenedor interno que reparte el espacio entre ion-label y
-// el slot "end") rompieron el layout al revés: ion-label terminaba con width:0 — medido con
-// getBoundingClientRect(), no a simple vista — porque el tamaño mínimo automático de un flex item
-// colapsa a 0 por spec cuando el padre wrappea, y nada de lo que se le hace a ion-label desde
-// afuera (min-width, flex-basis) alcanza a ganarle a eso de forma confiable: Ionic decide el
-// layout real adentro de su shadow DOM, no en `::part(native)`.
-//
-// Fix real: dejar de pelear con el slot "end" por completo. `.member-actions` ya NO es un
-// hermano de ion-label (slot="end") — ahora es un hijo MÁS de ion-label, junto a `.member-row`,
-// envueltos los dos en `.member-row-wrapper` (ver gym-admin.html). Al ser contenido normal
-// adentro de ion-label (no un slot de Ionic), el flex que los reparte es 100% nuestro: lado a
-// lado en desktop, apilado en mobile, sin ningún cálculo automático de Ionic de por medio.
-.member-row-wrapper {
+// Fila de socio compacta: nombre + estado, UNA línea clave, acciones y un detalle plegable.
+.member-row {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.6rem;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.3rem;
   width: 100%;
+
+  &__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem 0.6rem;
+    min-width: 0;
+  }
+
+  &__name {
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+
+  &__key {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--brand-text-dim);
+    white-space: normal;
+
+    ion-icon {
+      flex-shrink: 0;
+      font-size: 1rem;
+    }
+
+    // Aviso (por vencer / vencido): color legible en claro y oscuro, más ícono y texto (no solo color).
+    &--warn {
+      font-weight: 600;
+      color: #ffc409;
+      color: light-dark(#8a5a00, #ffc409);
+    }
+  }
+
+  &__toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    min-height: 44px;
+    padding: 0 0.25rem;
+    border: 0;
+    background: transparent;
+    color: var(--brand-accent-text-safe, var(--brand-accent));
+    font: inherit;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+
+    ion-icon {
+      transition: transform 160ms ease-out;
+    }
+
+    &[aria-expanded='true'] ion-icon {
+      transform: rotate(180deg);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--brand-accent);
+      outline-offset: 2px;
+    }
+  }
+
+  &__detail {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.8rem;
+    width: 100%;
+    padding: 0.2rem 0 0.4rem;
+
+    .member-plan-info__item {
+      font-size: 0.8125rem;
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+  }
 }
 
 .member-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: flex-end;
-  gap: 0.4rem;
-  row-gap: 0.35rem;
-  flex-shrink: 0;
-  max-width: 55%;
+  gap: 0.35rem 0.4rem;
 }
 
-// Mismo breakpoint que el resto del panel usa para mobile — acá sí es simplemente apilar: el
-// wrapper pasa a columna, `.member-row` deja de scrollear horizontal (nunca más "se perdió la
-// info", ver guía de la skill UX: el contenido nunca debe depender de un scroll lateral que nadie
-// descubre) y `.member-actions` ocupa todo el ancho para que sus botones (ya en size="small",
-// 44px de alto — no se achican más para no romper el tamaño mínimo de touch target) tengan
-// espacio real en vez de amontonarse en una columna angosta.
-@media (max-width: 600px) {
-  .member-row-wrapper {
-    flex-direction: column;
-    align-items: stretch;
-  }
+.member-search-help {
+  margin: -0.2rem 0 0.6rem;
+  padding: 0 1rem;
+  font-size: 0.8125rem;
+  color: var(--brand-text-dim);
+}
 
-  .member-row {
-    flex-wrap: wrap;
-    overflow-x: visible;
-  }
-
-  .member-actions {
-    max-width: 100%;
-    justify-content: flex-start;
+@media (prefers-reduced-motion: reduce) {
+  .member-row__toggle ion-icon {
+    transition: none;
   }
 }
 
@@ -538,6 +554,7 @@ ion-header ion-toolbar ion-title {
   background: var(--gym-panel-card, var(--brand-ink-surface-2));
   text-align: center;
   cursor: pointer;
+  position: relative;
   transition: border-color 0.15s ease, transform 0.15s ease;
 
   @media (hover: hover) and (pointer: fine) {
@@ -552,6 +569,28 @@ ion-header ion-toolbar ion-title {
 
   &:active {
     transform: scale(0.98);
+  }
+
+  // Filtro activo: borde de acento + subrayado del nombre + check en la esquina (no solo color).
+  &.member-tile--active {
+    border-color: var(--brand-accent);
+    box-shadow: inset 0 0 0 1px var(--brand-accent);
+
+    .member-stat__label {
+      text-decoration: underline;
+      text-decoration-thickness: 2px;
+      text-underline-offset: 3px;
+    }
+
+    &::after {
+      content: '✓';
+      position: absolute;
+      top: 0.35rem;
+      right: 0.5rem;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--brand-accent-text-safe, var(--brand-accent));
+    }
   }
 
   ion-icon {
@@ -722,7 +761,7 @@ ion-header ion-toolbar ion-title {
 
 .member-stat__label {
   margin: 0;
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   color: var(--brand-text-dim);
 }
 
@@ -969,7 +1008,7 @@ ion-header ion-toolbar ion-title {
 
 .tv-preview-card__caption {
   margin: 0.6rem 0 0;
-  font-size: 0.78rem;
+  font-size: 0.8125rem;
   color: var(--brand-text-dim);
   text-align: center;
   letter-spacing: 0.02em;
@@ -978,7 +1017,7 @@ ion-header ion-toolbar ion-title {
 // Título de cada grupo de colores en "Mi marca" (Energía, Calma, Frescura, Premium).
 .palette-group__title {
   margin: 1rem 0 0.4rem;
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -1113,6 +1152,12 @@ ion-header ion-toolbar ion-title {
   ion-icon {
     font-size: 1rem;
   }
+
+  // "Mostrando: X · Quitar" sobre la lista: siempre 44px, con aire respecto del buscador.
+  &--showing {
+    min-height: 44px;
+    margin: 0.25rem 0 0.5rem;
+  }
 }
 
 // Código de la TV: siempre en mayúsculas (antes era un style inline en el template).
@@ -1141,6 +1186,105 @@ ion-header ion-toolbar ion-title {
   &--full {
     color: var(--ion-color-danger);
     font-weight: 600;
+  }
+}
+
+// Encabezado de la tarjeta de socios: título + badge y, debajo, la línea de cupo; el botón de alta
+// va a la derecha en pantallas anchas y a ancho completo (44px) en celular.
+.members-head {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+@media (max-width: 480px) {
+  #members-list-card .card-header-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .members-head__actions {
+    width: 100%;
+
+    ion-button {
+      flex: 1 1 auto;
+      width: 100%;
+      min-height: 44px;
+    }
+  }
+}
+
+// Encabezado enfocado por código al cambiar de página: sin aro (no es un control).
+#members-list-title:focus {
+  outline: none;
+}
+
+// Carga de la lista de socios: 5 filas con la altura aproximada de .member-row (nombre + línea
+// clave + botones de 44px) para no saltar cuando llegan los datos.
+.member-skeleton {
+  display: flex;
+  flex-direction: column;
+
+  &__sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  &__row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    min-height: 108px;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--brand-ink-surface-2);
+  }
+
+  &__avatar {
+    flex-shrink: 0;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 50%;
+  }
+
+  &__lines {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 0.6rem;
+    min-width: 0;
+    padding-top: 0.2rem;
+  }
+
+  &__line {
+    display: block;
+    height: 0.9rem;
+    border-radius: 6px;
+
+    &--name {
+      width: 55%;
+    }
+
+    &--key {
+      width: 80%;
+    }
+  }
+
+  &__avatar,
+  &__line {
+    background: var(--brand-ink-surface-2);
+    animation: member-skeleton-pulse 1.3s ease-in-out infinite;
+  }
+}
+
+@keyframes member-skeleton-pulse {
+  50% {
+    opacity: 0.45;
   }
 }
 
@@ -1246,6 +1390,11 @@ ion-header ion-toolbar ion-title {
 
 @media (prefers-reduced-motion: reduce) {
   .member-add-panel {
+    animation: none;
+  }
+
+  .member-skeleton__avatar,
+  .member-skeleton__line {
     animation: none;
   }
 

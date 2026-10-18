@@ -1,5 +1,6 @@
 import { Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import {
   IonBadge,
@@ -354,9 +355,35 @@ interface MemberSnapshot {
     paidAt: string;
   };
   reservations: { id: number; gymBlockId: number; blockLabel: string; classDate: string; startTime: string; endTime: string }[];
+  // Clases de los próximos 7 días, solo lectura: sin fotos ni asistentes, con un tope de tamaño.
+  classes?: SnapshotClass[];
+}
+
+interface SnapshotClass {
+  gymBlockId: number;
+  label: string;
+  classDate: string;
+  dayOfWeek: GymBlockOccurrence['dayOfWeek'];
+  startTime: string;
+  endTime: string;
+  capacity: number;
+  category: string | null;
+  instructorName: string | null;
+  taken: number;
+  closed: boolean;
+  myReservationId: number | null;
+  waitlisted: boolean;
+  myReservationFixed: boolean;
 }
 
 const SNAPSHOT_KEY_PREFIX = 'mygym.snapshot.v1.';
+// Días de clases que se guardan para verlas sin conexión, y tope de filas (evita llenar el almacenamiento).
+const SNAPSHOT_CLASS_DAYS = 7;
+const SNAPSHOT_CLASS_LIMIT = 120;
+
+const SECTION_VALUES = ['reservar', 'reservas', 'rutina'] as const;
+type MemberSection = (typeof SECTION_VALUES)[number];
+const OFFLINE_WRITE_MESSAGE = 'Sin conexión: no se pudo hacer esto. Inténtalo cuando vuelvas a tener internet.';
 
 /** "HH:mm" en hora de Chile de un instante en milisegundos. */
 function clockLabel(ms: number): string {
@@ -1041,6 +1068,9 @@ export class MemberPage {
   });
 
   constructor() {
+    // La sección activa vive en ?s= (reservar | reservas | rutina): se lee al abrir y cada vez que cambia la URL.
+    this.route.queryParamMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => this.readSectionFromUrl(params.get('s')));
+    this.startNetworkWatch();
     // Aviso al abrir /member: plan por vencer (≤3 días), plan vencido o clases agotadas. El email
     // llega aparte (MembershipReminderJob / ReservationService.book); esto es el mismo mensaje
     // dentro de la app, para quien no revisa el correo.
@@ -1187,6 +1217,11 @@ export class MemberPage {
     return resolveClassCategoryIcon(category);
   }
 
+  /** Nombre accesible único de los botones repetidos de las tarjetas: acción + clase + fecha y hora. */
+  protected tileLabel(action: string, label: string, classDate: string, startTime: string): string {
+    return `${action} ${label}, ${formatShortDate(classDate)} a las ${shortTime(startTime)}`;
+  }
+
   protected formatShortDate(dateIso: string): string {
     return formatShortDate(dateIso);
   }
@@ -1217,13 +1252,44 @@ export class MemberPage {
   protected selectDay(iso: string): void {
     this.selectedDate.set(iso);
     this.pastOccurrencesCollapsed.set(true);
+    this.revealDayList();
+  }
+
+  // En móvil (columnas apiladas, bajo 860px) la lista del día queda bajo el calendario: si el título
+  // no se ve tras elegir el día, se lleva a la vista para que el toque tenga respuesta visible.
+  private revealDayList(): void {
+    if (!window.matchMedia?.('(max-width: 859px)').matches) {
+      return;
+    }
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    setTimeout(() => {
+      const title = document.querySelector('.member-columns__agenda h2');
+      if (!title) {
+        return;
+      }
+      const rect = title.getBoundingClientRect();
+      if (rect.top >= 0 && rect.bottom <= window.innerHeight) {
+        return;
+      }
+      title.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+    });
   }
 
   protected toggleMonthExpanded(): void {
     this.monthExpanded.update((expanded) => !expanded);
   }
 
-  protected setSection(section: 'reservar' | 'reservas' | 'rutina'): void {
+  // Toque del socio en una pestaña: cambia la sección y la deja en la URL (?s=) como una entrada nueva del
+  // historial, para que Atrás/Adelante recorran las pestañas y se pueda enlazar a una.
+  protected setSection(section: MemberSection): void {
+    if (section !== this.section()) {
+      this.applySection(section);
+    }
+    this.syncSectionToUrl(section);
+  }
+
+  // Cambia la sección y carga lo suyo, sin tocar la URL (la usan el toque y la lectura de la URL).
+  private applySection(section: MemberSection): void {
     this.section.set(section);
     if (section === 'reservas') {
       this.loadWaitlist();
@@ -1232,6 +1298,33 @@ export class MemberPage {
       // Volver a la pestaña no debe borrar lo que el socio ya estaba anotando (ver loadPendingWorkout).
       this.loadPendingWorkout(false, true);
     }
+  }
+
+  private static sectionFromParam(value: string | null): MemberSection {
+    return (SECTION_VALUES as readonly string[]).includes(value ?? '') ? (value as MemberSection) : 'reservar';
+  }
+
+  // Sin ?s= (o con un valor desconocido) la sección es "reservar", así que la entrada inicial no escribe nada
+  // en la URL ni agrega historial; solo cambiar de pestaña agrega una entrada.
+  private syncSectionToUrl(section: MemberSection): void {
+    const current = MemberPage.sectionFromParam(this.route.snapshot.queryParamMap.get('s'));
+    if (current === section) {
+      return;
+    }
+    void this.router.navigate([], { queryParams: { s: section }, queryParamsHandling: 'merge', replaceUrl: false });
+  }
+
+  // Atrás/Adelante, enlaces directos y recarga: la URL manda sobre la sección mostrada.
+  private readSectionFromUrl(param: string | null = this.route.snapshot.queryParamMap.get('s')): void {
+    const target = MemberPage.sectionFromParam(param);
+    if (target !== this.section()) {
+      this.applySection(target);
+    }
+  }
+
+  // Ionic reutiliza la página al volver: se relee la URL por si cambió mientras estaba en segundo plano.
+  ionViewWillEnter(): void {
+    this.readSectionFromUrl();
   }
 
   // Tour guiado por sección de la vista de socio (modo demo) — antes un solo recorrido de 5
@@ -1649,7 +1742,7 @@ export class MemberPage {
   }
 
   protected book(occurrence: GymBlockOccurrence): void {
-    if (this.blockedInDemo()) {
+    if (this.blockedInDemo() || this.guardOffline()) {
       return;
     }
     // Sin datos de contacto el servidor no deja reservar: se piden ahora (no al entrar) y se sigue con esta reserva al guardar.
@@ -1689,7 +1782,10 @@ export class MemberPage {
             this.askProfileToBook(occurrence);
             return;
           }
-          this.showToast(err.message || 'No pudimos reservar esa clase. Intenta nuevamente.', 'danger');
+          this.showToast(
+            this.isNetworkError(err) ? OFFLINE_WRITE_MESSAGE : err.message || 'No pudimos reservar esa clase. Intenta nuevamente.',
+            'danger',
+          );
         },
       });
   }
@@ -1705,8 +1801,7 @@ export class MemberPage {
     if (this.blockedInDemo() || this.cancelingId() !== null) {
       return;
     }
-    if (this.offline()) {
-      this.showToast('Sin conexión: no se puede cancelar ahora. Reintenta cuando vuelva internet.', 'danger');
+    if (this.guardOffline()) {
       return;
     }
     const today = this.todayIso();
@@ -1736,7 +1831,7 @@ export class MemberPage {
   }
 
   private cancel(reservationId: number, fixed = false): void {
-    if (this.blockedInDemo()) {
+    if (this.blockedInDemo() || this.guardOffline()) {
       return;
     }
     this.cancelingId.set(reservationId);
@@ -1760,16 +1855,16 @@ export class MemberPage {
       },
       error: (err: Error) => {
         this.cancelingId.set(null);
-        this.showToast(err.message || 'No pudimos cancelar esa reserva.', 'danger');
+        this.showToast(this.isNetworkError(err) ? OFFLINE_WRITE_MESSAGE : err.message || 'No pudimos cancelar esa reserva.', 'danger');
       },
     });
   }
 
-  // Bloque lleno: en vez de quedarse sin enterarse, el socio pide que le avisen por mail si se
+  // Bloque lleno: en vez de quedarse sin enterarse, el socio pide que le avisen si se
   // libera un cupo (ver WaitlistService en el backend — orden de llegada, con ventaja para el
   // primero de la lista antes de avisarle al resto).
   protected joinWaitlist(occurrence: GymBlockOccurrence): void {
-    if (this.blockedInDemo()) {
+    if (this.blockedInDemo() || this.guardOffline()) {
       return;
     }
     this.waitlistingId.set(occurrence.gymBlockId);
@@ -1784,17 +1879,20 @@ export class MemberPage {
           );
           this.loadOccurrences();
           this.loadWaitlist();
-          this.showToast('Listo, te avisamos por mail si se libera un cupo.');
+          this.showToast('Listo, te avisamos si se libera un cupo.');
         },
         error: (err: Error) => {
           this.waitlistingId.set(null);
-          this.showToast(err.message || 'No pudimos anotarte en la lista de espera.', 'danger');
+          this.showToast(
+            this.isNetworkError(err) ? OFFLINE_WRITE_MESSAGE : err.message || 'No pudimos anotarte en la lista de espera.',
+            'danger',
+          );
         },
       });
   }
 
   protected leaveWaitlist(occurrence: Pick<GymBlockOccurrence, 'gymBlockId' | 'classDate'>): void {
-    if (this.blockedInDemo()) {
+    if (this.blockedInDemo() || this.guardOffline()) {
       return;
     }
     this.waitlistingId.set(occurrence.gymBlockId);
@@ -1811,7 +1909,10 @@ export class MemberPage {
       },
       error: (err: Error) => {
         this.waitlistingId.set(null);
-        this.showToast(err.message || 'No pudimos sacarte de la lista de espera.', 'danger');
+        this.showToast(
+          this.isNetworkError(err) ? OFFLINE_WRITE_MESSAGE : err.message || 'No pudimos sacarte de la lista de espera.',
+          'danger',
+        );
       },
     });
   }
@@ -1820,7 +1921,7 @@ export class MemberPage {
   protected async confirmLeaveWaitlist(
     entry: Pick<WaitlistEntry, 'gymBlockId' | 'classDate' | 'label' | 'startTime'>,
   ): Promise<void> {
-    if (this.blockedInDemo() || this.waitlistingId() !== null) {
+    if (this.blockedInDemo() || this.waitlistingId() !== null || this.guardOffline()) {
       return;
     }
     const alert = await this.alertController.create({
@@ -1945,6 +2046,24 @@ export class MemberPage {
       this.router.navigate(['/gym-admin']);
       return;
     }
+    const alert = await this.alertController.create({
+      header: '¿Cerrar sesión?',
+      message: 'Vas a salir de tu cuenta en este dispositivo.',
+      buttons: [
+        { text: 'Cancelar', role: 'cancel' },
+        {
+          text: 'Salir',
+          role: 'destructive',
+          handler: () => {
+            void this.doLogout();
+          },
+        },
+      ],
+    });
+    await alert.present();
+  }
+
+  private async doLogout(): Promise<void> {
     this.clearSnapshot();
     await this.authService.logout();
     const slug = this.gym()?.slug;
@@ -2195,7 +2314,7 @@ export class MemberPage {
   // Spinner solo en la primera carga (o al reintentar tras un error sin datos). Si ya hay datos, refresca
   // en silencio: la grilla, la altura y el scroll se quedan como están y solo cambian los números.
   protected loadOccurrences(): void {
-    if (!this.occurrencesLoaded) {
+    if (!this.occurrencesLoaded && this.occurrences().length === 0) {
       this.status.set('loading');
     }
     const request = ++this.occurrencesRequest;
@@ -2210,14 +2329,21 @@ export class MemberPage {
           return; // llegó una respuesta más nueva, esta quedó vieja
         }
         this.occurrencesLoaded = true;
+        this.classesNoNetwork.set(false);
         this.occurrences.set(occurrences);
         this.status.set('idle');
+        this.cacheClasses(occurrences);
       },
-      error: () => {
+      error: (err: unknown) => {
         if (request !== this.occurrencesRequest) {
           return;
         }
         if (!this.occurrencesLoaded) {
+          // Sin red: se muestran las clases guardadas (solo lectura); sin copia, un aviso claro en vez del error genérico.
+          if (this.isNetworkError(err) && this.restoreClasses()) {
+            return;
+          }
+          this.classesNoNetwork.set(this.isNetworkError(err));
           this.status.set('error');
           return;
         }
@@ -2275,8 +2401,58 @@ export class MemberPage {
   protected readonly offline = signal<number | null>(null);
   protected readonly offlineLabel = computed(() => {
     const at = this.offline();
-    return at === null ? '' : `Última actualización ${clockLabel(at)} · sin conexión`;
+    return at === null ? 'Sin conexión · lo que ves puede estar desactualizado' : `Última actualización ${clockLabel(at)} · sin conexión`;
   });
+
+  // Estado de la red según el navegador (eventos online/offline) y bloqueo de escrituras: con copia local
+  // mostrada o sin red, reservar/cancelar/lista de espera no salen a internet (el banner explica el motivo).
+  private readonly networkUp = signal(typeof navigator === 'undefined' ? true : navigator.onLine);
+  protected readonly writesBlocked = computed(() => !this.isDemoPreview && (this.offline() !== null || !this.networkUp()));
+  // true cuando la última carga de clases falló por falta de red y no había copia que mostrar.
+  protected readonly classesNoNetwork = signal(false);
+  private wentOffline = false;
+
+  private startNetworkWatch(): void {
+    const onOffline = () => {
+      this.wentOffline = true;
+      this.networkUp.set(false);
+    };
+    const onOnline = () => {
+      this.networkUp.set(true);
+      const stale =
+        this.wentOffline ||
+        this.offline() !== null ||
+        this.status() === 'error' ||
+        this.membershipError() ||
+        this.reservationsError();
+      this.wentOffline = false;
+      if (!stale) {
+        return;
+      }
+      this.classesNoNetwork.set(false);
+      this.retryOffline();
+      this.showToast('Volvió la conexión');
+    };
+    window.addEventListener('offline', onOffline);
+    window.addEventListener('online', onOnline);
+    this.destroyRef.onDestroy(() => {
+      window.removeEventListener('offline', onOffline);
+      window.removeEventListener('online', onOnline);
+    });
+  }
+
+  // Un solo punto para las acciones que escriben (reservar, cancelar, lista de espera): sin red avisa y corta.
+  private guardOffline(): boolean {
+    if (!this.writesBlocked()) {
+      return false;
+    }
+    this.showToast(OFFLINE_WRITE_MESSAGE, 'danger');
+    return true;
+  }
+
+  private isNetworkError(err: unknown): boolean {
+    return (err as { status?: number } | null)?.status === 0;
+  }
 
   private snapshotKey(): string | null {
     const userId = this.authService.currentUser()?.userId;
@@ -2317,6 +2493,7 @@ export class MemberPage {
           startTime: r.startTime,
           endTime: r.endTime,
         })),
+      ...(this.classesCache.length > 0 ? { classes: this.classesCache } : {}),
     };
     try {
       localStorage.setItem(key, JSON.stringify(snapshot));
@@ -2371,6 +2548,70 @@ export class MemberPage {
     this.reservationsError.set(false);
     this.reservationsLoaded.set(true);
     this.offline.set(snapshot.savedAt);
+    return true;
+  }
+
+  // Clases de los próximos días en memoria, para incluirlas en la copia local (ver saveSnapshot).
+  private classesCache: SnapshotClass[] = [];
+
+  private cacheClasses(occurrences: GymBlockOccurrence[]): void {
+    if (this.isDemoPreview) {
+      return;
+    }
+    const today = this.todayIso();
+    const last = addDaysIso(today, SNAPSHOT_CLASS_DAYS - 1);
+    this.classesCache = occurrences
+      .filter((o) => o.classDate >= today && o.classDate <= last)
+      .slice(0, SNAPSHOT_CLASS_LIMIT)
+      .map((o) => ({
+        gymBlockId: o.gymBlockId,
+        label: o.label,
+        classDate: o.classDate,
+        dayOfWeek: o.dayOfWeek,
+        startTime: o.startTime,
+        endTime: o.endTime,
+        capacity: o.capacity,
+        category: o.category,
+        instructorName: o.instructorName,
+        taken: o.taken,
+        closed: o.closed,
+        myReservationId: o.myReservationId,
+        waitlisted: o.waitlisted,
+        myReservationFixed: o.myReservationFixed,
+      }));
+    this.saveSnapshot();
+  }
+
+  /** Sin red: muestra las clases guardadas (solo lectura, sin fotos ni asistentes). Devuelve true si las usó. */
+  private restoreClasses(): boolean {
+    if (this.isDemoPreview) {
+      return false;
+    }
+    const snapshot = this.readSnapshot();
+    const today = this.todayIso();
+    const savedClasses = snapshot?.classes;
+    const saved = (Array.isArray(savedClasses) ? savedClasses : []).filter((c) => c.classDate >= today);
+    if (!snapshot || saved.length === 0) {
+      return false;
+    }
+    const nowIso = this.nowChileIso();
+    this.occurrences.set(
+      saved.map((c) => {
+        const past = `${c.classDate}T${c.endTime}` < nowIso;
+        return {
+          ...c,
+          instructorPhoto: null,
+          bookable: !past && !c.closed,
+          past,
+          myCheckedInAt: null,
+        };
+      }),
+    );
+    this.classesNoNetwork.set(false);
+    this.status.set('idle');
+    if (this.offline() === null) {
+      this.offline.set(snapshot.savedAt);
+    }
     return true;
   }
 

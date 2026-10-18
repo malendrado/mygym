@@ -15,7 +15,7 @@
 
   &__eyebrow {
     margin: 0 0 0.25rem;
-    font-size: 0.75rem;
+    font-size: 0.8125rem;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.06em;
@@ -70,8 +70,131 @@
 
   &__label {
     margin: 0;
-    font-size: 0.75rem;
+    font-size: 0.8125rem;
     color: var(--brand-text-dim);
+  }
+}
+
+// Calugas que filtran la lista (mismo lenguaje que member-stat en gym-form): elegida = borde de acento + subrayado + check.
+.gyms-stats--filters {
+  @media (min-width: 640px) {
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  }
+}
+
+.gyms-stat {
+  position: relative;
+
+  &--filter {
+    cursor: pointer;
+    transition: border-color 0.15s ease, transform 0.15s ease;
+
+    @media (hover: hover) and (pointer: fine) {
+      &:hover {
+        border-color: var(--brand-accent);
+      }
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--brand-accent);
+      outline-offset: 2px;
+    }
+
+    &:active {
+      transform: scale(0.98);
+    }
+  }
+
+  &--selected {
+    border-color: var(--brand-accent);
+    box-shadow: inset 0 -3px 0 var(--brand-accent);
+  }
+
+  &--selected &__label {
+    font-weight: 700;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  &--selected &__check {
+    display: block;
+  }
+
+  &__check {
+    display: none;
+    position: absolute;
+    top: 0.35rem;
+    right: 0.5rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--brand-accent-text-safe, var(--brand-accent));
+  }
+}
+
+// "Mostrando: <estado> · Quitar" sobre la lista de gimnasios.
+.gyms-filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin: 0 0 0.75rem;
+  padding: 0 0.25rem 0 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--brand-accent) 35%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--brand-accent) 14%, transparent);
+  font-size: 0.875rem;
+
+  &__clear {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    min-height: 44px;
+    padding: 0 0.75rem;
+    border: 0;
+    background: transparent;
+    color: var(--brand-accent-text-safe, var(--brand-accent));
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+
+    &:focus-visible {
+      outline: 2px solid var(--brand-accent);
+      outline-offset: 2px;
+    }
+
+    ion-icon {
+      font-size: 1rem;
+    }
+  }
+}
+
+// Línea bajo las calugas de totales: reserva su altura siempre para que el reintento no desplace el layout.
+.gyms-stats-note {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.5rem;
+  min-height: 44px;
+  margin: -1rem 0 0.75rem;
+  font-size: 0.8125rem;
+  color: var(--brand-text-dim);
+}
+
+.gyms-retry {
+  min-height: 44px;
+  padding: 0 0.75rem;
+  border: 0;
+  background: transparent;
+  color: var(--brand-accent);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+
+  &--btn {
+    border: 1px solid var(--brand-ink-surface-2);
+    border-radius: 999px;
+    text-decoration: none;
   }
 }
 
@@ -158,7 +281,7 @@
 
 .gym-card__meta {
   margin: 0.15rem 0 0;
-  font-size: 0.8rem;
+  font-size: 0.8125rem;
   color: var(--brand-text-dim);
 }
 
@@ -219,7 +342,7 @@
 
   &__meta {
     flex-shrink: 0;
-    font-size: 0.78rem;
+    font-size: 0.8125rem;
     color: var(--brand-text-dim);
   }
 
@@ -322,6 +445,12 @@
   &--card {
     min-height: 4.7rem;
   }
+
+  // Misma altura que una fila de .visit-row (reserva el espacio del panel de Visitas).
+  &--visit {
+    min-height: 2.9rem;
+    border-radius: 12px;
+  }
 }
 
 @keyframes gyms-skel-pulse {
@@ -332,11 +461,16 @@
 
 @media (prefers-reduced-motion: reduce) {
   .gym-card,
+  .gyms-stat--filter,
   .visit-row__bar {
     transition: none;
   }
 
   .gyms-skel {
     animation: none;
+  }
+
+  .gyms-stat--filter:active {
+    transform: none;
   }
 }

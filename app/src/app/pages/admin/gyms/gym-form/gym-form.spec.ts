@@ -124,21 +124,34 @@ describe('GymForm (edit mode)', () => {
 
   afterEach(() => httpMock.verify());
 
-  it('loads the gym and its blocks, and prefills the config form', () => {
+  it('loads only General data on entry and the blocks the first time Classes opens', () => {
     const fixture = TestBed.createComponent(GymForm);
     fixture.detectChanges();
 
     httpMock.expectOne(`/api/gyms/by-public-id/${gym.publicId}`).flush(gym);
-    httpMock.expectOne('/api/gyms/1/blocks').flush([block]);
-    // Al resolver el gym el componente pide además los profesores; no es lo que se prueba acá.
-    httpMock.match((r) => r.url !== '/api/gyms/1/blocks').forEach((r) => {
-      // Las listas de socios vienen paginadas; el resto de los listados son arreglos.
+    fixture.detectChanges();
+    // Al entrar solo se pide lo de General: no hay bloques, planes, fotos, Flow, cierres ni pantallas.
+    httpMock.expectNone('/api/gyms/1/blocks');
+    expect(httpMock.match((r) => /\/(plans|photos|flow|closures|tv-screens|demo)/.test(r.url)).length).toBe(0);
+    httpMock.match(() => true).forEach((r) => {
       r.flush(r.request.url.includes('/members') ? { items: [], page: 0, size: 20, totalElements: 0, hasNext: false } : []);
     });
 
     const component = fixture.componentInstance;
     expect(component['gymName']()).toBe('Gold Gym');
     expect(component['configForm'].value).toEqual({ active: true, maxUsers: 100, googleLoginEnabled: false, logoSvg: '' });
+
+    // Primera apertura de Clases: pide los bloques.
+    component['setSection']('classes');
+    fixture.detectChanges();
+    httpMock.expectOne('/api/gyms/1/blocks').flush([block]);
+    httpMock.match(() => true).forEach((r) => r.flush([]));
     expect(component['blocks']()).toEqual([block]);
+
+    // Volver a abrirla no repite el pedido.
+    component['setSection']('general');
+    component['setSection']('classes');
+    fixture.detectChanges();
+    httpMock.expectNone('/api/gyms/1/blocks');
   });
 });

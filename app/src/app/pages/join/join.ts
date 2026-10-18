@@ -21,6 +21,7 @@ import {
   informationCircleOutline,
   arrowForwardOutline,
   logoGoogle,
+  logInOutline,
   mailOutline,
   logoInstagram,
   logoWhatsapp,
@@ -37,6 +38,7 @@ import { toLogoImgSrc } from '../../core/utils/logo-src';
 addIcons({
   'arrow-forward-outline': arrowForwardOutline,
   'logo-google': logoGoogle,
+  'log-in-outline': logInOutline,
   'mail-outline': mailOutline,
   'logo-instagram': logoInstagram,
   'logo-whatsapp': logoWhatsapp,
@@ -106,6 +108,9 @@ export class Join {
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly plans = signal<MemberPlan[]>([]);
   protected readonly plansLoaded = signal(false);
+  // Ancho del botón de Google (Google lo acepta entre 200 y 400 px): las tres opciones de ingreso (Google, separador
+  // "o" y "Registrarme con email") comparten el mismo ancho; en celulares angostos se achica para no desbordar la tarjeta.
+  protected readonly googleBtnWidth = Math.min(300, Math.max(200, (typeof window === "undefined" ? 400 : window.innerWidth) - 96));
   protected readonly photos = signal<GymPhoto[]>([]);
   protected readonly isNewMember = signal<boolean | null>(null);
 

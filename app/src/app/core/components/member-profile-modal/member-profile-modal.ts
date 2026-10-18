@@ -1,7 +1,7 @@
-import { Component, EventEmitter, Input, Output, signal } from '@angular/core';
+import { Component, ElementRef, EventEmitter, Input, Output, QueryList, ViewChildren, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { IonButton, IonButtons, IonContent, IonFooter, IonHeader, IonIcon, IonInput, IonItem, IonNote, IonSpinner, IonTitle, IonToolbar } from '@ionic/angular';
+import { IonButton, IonButtons, IonContent, IonFooter, IonHeader, IonIcon, IonInput, IonItem, IonNote, IonSpinner, IonTitle, IonToolbar, ToastController } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { idCardOutline } from 'ionicons/icons';
 import { MemberProfile } from '../../models/member.model';
@@ -91,6 +91,10 @@ export class MemberProfileModal {
   @Output() dismiss = new EventEmitter<void>();
   /** Hay cambios sin guardar (el padre admin lo usa para no cerrar el modal sin avisar). */
   @Output() dirtyChange = new EventEmitter<boolean>();
+
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly toastController = inject(ToastController);
+  @ViewChildren(IonInput, { read: ElementRef }) private readonly inputs!: QueryList<ElementRef<HTMLIonInputElement>>;
 
   protected isPartial = false;
   protected readonly maxBirthDate = todayIsoDate();
@@ -200,6 +204,9 @@ export class MemberProfileModal {
     this.tidyPhone();
     this.tidyPhone('emergencyContactPhone');
     if (this.form.invalid || this._saving()) {
+      if (this.form.invalid) {
+        void this.focusFirstInvalid();
+      }
       return;
     }
     const raw = this.form.getRawValue();
@@ -216,6 +223,25 @@ export class MemberProfileModal {
       emergencyContactName: raw.emergencyContactName.trim().replace(/\s+/g, ' '),
       emergencyContactPhone: raw.emergencyContactPhone.trim(),
     });
+  }
+
+  /** Lleva el foco (y con él el scroll) al primer campo inválido y avisa con un toast: con el teclado abierto el error queda fuera de pantalla. */
+  private async focusFirstInvalid(): Promise<void> {
+    const order: FieldName[] = ['rut', 'address', 'birthDate', 'phone', 'emergencyContactName', 'emergencyContactPhone'];
+    const first = order.find((name) => this.form.controls[name].invalid);
+    if (first === 'birthDate') {
+      const el = this.host.nativeElement.querySelector('#mp-birth') as HTMLInputElement | null;
+      el?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      el?.focus();
+    } else if (first) {
+      const input = this.inputs.toArray().find((i) => i.nativeElement.getAttribute('formcontrolname') === first);
+      if (input) {
+        input.nativeElement.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        await input.nativeElement.setFocus();
+      }
+    }
+    const toast = await this.toastController.create({ message: 'Revisa los campos marcados', duration: 2500, position: 'top', color: 'danger' });
+    await toast.present();
   }
 
   protected cancel(): void {

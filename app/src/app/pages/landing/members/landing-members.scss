@@ -4,6 +4,7 @@
 @include landing-base;
 
 .members {
+  scroll-margin-top: 5rem; // deja libre el nav sticky al saltar por ancla
   @extend %section-container;
 
   &__eyebrow {
@@ -75,7 +76,7 @@
     &-label {
       margin: 0;
       color: var(--brand-text-dim);
-      font-size: 0.7rem;
+      font-size: 0.8125rem;
       text-transform: uppercase;
       letter-spacing: 0.04em;
     }

@@ -1,12 +1,18 @@
 <ion-content class="legal-page">
   <div class="legal-page__inner">
-    <a routerLink="/" class="legal-page__back" style="display:inline-flex;align-items:center;min-height:44px;margin-bottom:1rem">← mygym</a>
+    <a routerLink="/" class="legal-page__back">← mygym</a>
     <h1>Preguntas frecuentes</h1>
     <p class="legal-page__intro">Para dueños de gimnasios que están evaluando contratar mygym o que ya lo usan.</p>
 
-    @for (section of sections; track section.title) {
+    <nav class="legal-page__index" aria-label="Secciones de esta página">
+      @for (section of sections; track section.title; let i = $index) {
+        <a class="legal-page__chip" [href]="'#faq-seccion-' + i" (click)="goTo($event, 'faq-seccion-' + i)">{{ section.title }}</a>
+      }
+    </nav>
+
+    @for (section of sections; track section.title; let i = $index) {
       <section class="legal-page__section">
-        <h2>{{ section.title }}</h2>
+        <h2 [id]="'faq-seccion-' + i">{{ section.title }}</h2>
         @for (item of section.items; track item.question) {
           <div class="legal-page__item">
             <h3>{{ item.question }}</h3>

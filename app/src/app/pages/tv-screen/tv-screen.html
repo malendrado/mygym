@@ -152,9 +152,10 @@
         }
       }
       @case ('error') {
-        <div class="tv-pairing">
-          <p class="tv-pairing__eyebrow">No pudimos conectar</p>
-          <p class="tv-pairing__hint">Reintentando automáticamente…</p>
+        <div class="tv-pairing tv-offline" role="status">
+          <p class="tv-offline__title">No pudimos conectar</p>
+          <p class="tv-pairing__hint">Seguimos intentando solos, no hace falta hacer nada.</p>
+          <p class="tv-offline__time">Último intento: {{ lastAttemptLabel() }} · Reintentando en {{ pairingRetryIn() }} s</p>
         </div>
       }
       @case ('display') {

@@ -1,10 +1,23 @@
 <ion-content class="legal-page">
   <div class="legal-page__inner">
-    <a routerLink="/" class="legal-page__back" style="display:inline-flex;align-items:center;min-height:44px;margin-bottom:1rem">← mygym</a>
+    <a routerLink="/" class="legal-page__back">← mygym</a>
     <h1>Política de privacidad y condiciones comerciales</h1>
 
+    <nav class="legal-page__index" aria-label="Secciones de esta página">
+      <a class="legal-page__chip" href="#privacidad-seccion-1" (click)="goTo($event, 'privacidad-seccion-1')">1. Quiénes somos</a>
+      <a class="legal-page__chip" href="#privacidad-seccion-2" (click)="goTo($event, 'privacidad-seccion-2')">2. Qué información recopilamos</a>
+      <a class="legal-page__chip" href="#privacidad-seccion-3" (click)="goTo($event, 'privacidad-seccion-3')">3. Para qué usamos esta información</a>
+      <a class="legal-page__chip" href="#privacidad-seccion-4" (click)="goTo($event, 'privacidad-seccion-4')">4. Con quién compartimos información</a>
+      <a class="legal-page__chip" href="#privacidad-seccion-5" (click)="goTo($event, 'privacidad-seccion-5')">5. Cómo se paga y se liquida el dinero</a>
+      <a class="legal-page__chip" href="#privacidad-seccion-6" (click)="goTo($event, 'privacidad-seccion-6')">6. Duración del contrato y término</a>
+      <a class="legal-page__chip" href="#privacidad-seccion-7" (click)="goTo($event, 'privacidad-seccion-7')">7. Retención y eliminación de datos</a>
+      <a class="legal-page__chip" href="#privacidad-seccion-8" (click)="goTo($event, 'privacidad-seccion-8')">8. Seguridad</a>
+      <a class="legal-page__chip" href="#privacidad-seccion-9" (click)="goTo($event, 'privacidad-seccion-9')">9. Marco legal</a>
+      <a class="legal-page__chip" href="#privacidad-seccion-10" (click)="goTo($event, 'privacidad-seccion-10')">10. Contacto</a>
+    </nav>
+
     <section class="legal-page__section">
-      <h2>1. Quiénes somos</h2>
+      <h2 id="privacidad-seccion-1">1. Quiénes somos</h2>
       <p>
         mygym.cl es operado por <strong>ASESORES Y CONSULTORES EN INFORMÁTICA INFORMATICA LUIS CORTES ALVAREZ EIRL</strong>,
         RUT 76.831.567-1 ("mygym", "nosotros"). Esta política aplica a los dueños de gimnasios que contratan mygym (los
@@ -21,7 +34,7 @@
     </section>
 
     <section class="legal-page__section">
-      <h2>2. Qué información recopilamos</h2>
+      <h2 id="privacidad-seccion-2">2. Qué información recopilamos</h2>
       <p>
         <strong>De los administradores de gimnasio:</strong> nombre, correo electrónico, y los datos de tu propia cuenta
         de pago online (Flow.cl) — RUT y razón social de tu empresa, giro, dirección comercial, condición frente al IVA,
@@ -49,7 +62,7 @@
     </section>
 
     <section class="legal-page__section">
-      <h2>3. Para qué usamos esta información</h2>
+      <h2 id="privacidad-seccion-3">3. Para qué usamos esta información</h2>
       <ul>
         <li>Operar la plataforma: gestionar reservas, cupos, planes y accesos.</li>
         <li>Procesar el pago de membresías: cada pago llega directamente a la cuenta de Flow del gimnasio.</li>
@@ -62,7 +75,7 @@
     </section>
 
     <section class="legal-page__section">
-      <h2>4. Con quién compartimos información</h2>
+      <h2 id="privacidad-seccion-4">4. Con quién compartimos información</h2>
       <ul>
         <li><strong>Flow.cl:</strong> procesa los pagos de los socios directamente en la cuenta de Flow propia de cada
         gimnasio. mygym no almacena datos de tarjetas — esa información la maneja Flow directamente — ni recibe ni
@@ -80,7 +93,7 @@
     </section>
 
     <section class="legal-page__section">
-      <h2>5. Cómo se paga y se liquida el dinero</h2>
+      <h2 id="privacidad-seccion-5">5. Cómo se paga y se liquida el dinero</h2>
       <p>
         Los socios pagan sus planes de membresía en línea a través de Flow.cl, mes a mes y de forma manual — mygym no
         guarda tarjetas ni realiza cobros automáticos recurrentes. Cada gimnasio cuenta con su propia cuenta de Flow,
@@ -100,7 +113,7 @@
     </section>
 
     <section class="legal-page__section">
-      <h2>6. Duración del contrato y término</h2>
+      <h2 id="privacidad-seccion-6">6. Duración del contrato y término</h2>
       <p>
         El contrato entre mygym y el administrador de un gimnasio tiene una duración mínima de 6 meses y no contempla
         derecho a retracto. Cumplido ese plazo mínimo, el contrato sigue mes a mes y el administrador puede terminarlo
@@ -111,7 +124,7 @@
     </section>
 
     <section class="legal-page__section">
-      <h2>7. Retención y eliminación de datos</h2>
+      <h2 id="privacidad-seccion-7">7. Retención y eliminación de datos</h2>
       <p>Mientras un gimnasio esté activo en mygym, conservamos la información necesaria para operar el servicio.</p>
       <p>
         La dirección de avisos de tu dispositivo se elimina cuando cierras sesión, cuando desactivas los avisos, cuando el
@@ -127,7 +140,7 @@
     </section>
 
     <section class="legal-page__section">
-      <h2>8. Seguridad</h2>
+      <h2 id="privacidad-seccion-8">8. Seguridad</h2>
       <p>
         Aplicamos medidas técnicas razonables para proteger la información que manejamos (comunicaciones cifradas,
         acceso restringido a los sistemas). La API key y secret key de la cuenta Flow de cada gimnasio se guardan
@@ -137,7 +150,7 @@
     </section>
 
     <section class="legal-page__section">
-      <h2>9. Marco legal</h2>
+      <h2 id="privacidad-seccion-9">9. Marco legal</h2>
       <p>
         Esta política se enmarca en la Ley N° 19.628 sobre Protección de la Vida Privada, vigente hoy, y en la Ley
         N° 21.719, que modifica el régimen de protección de datos personales y entra en vigor el 1 de diciembre de 2026.
@@ -147,7 +160,7 @@
     </section>
 
     <section class="legal-page__section">
-      <h2>10. Contacto</h2>
+      <h2 id="privacidad-seccion-10">10. Contacto</h2>
       <p>Para consultas sobre esta política o sobre tus datos, escríbenos a <a href="mailto:contacto@mygym.cl">contacto&#64;mygym.cl</a>.</p>
       <p>
         Si eres socio de un gimnasio y quieres acceder a tus datos, corregirlos o pedir su eliminación, dirígete primero a

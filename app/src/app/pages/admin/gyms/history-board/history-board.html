@@ -86,6 +86,12 @@
           @if (row.block.instructorName) {
             <span class="hb-class__sub">{{ row.block.instructorName }}</span>
           }
+          @if (row.editable && !row.closed && row.unmarked > 0) {
+            <button type="button" class="hb-markall" (click)="markAll(row)">
+              <ion-icon name="checkmark-done-outline" aria-hidden="true"></ion-icon>
+              Marcar a todos
+            </button>
+          }
         </span>
         <span class="hb-class__chips">
           @if (row.closed) {
@@ -95,11 +101,55 @@
               <span class="hb-chip hb-chip--full">Llena</span>
             }
             @if (row.waitlistCount > 0) {
-              <span class="hb-chip">{{ row.waitlistCount }} en espera</span>
+              @if (row.waitlist.length > 0) {
+                <button
+                  type="button"
+                  class="hb-chip hb-chip--btn"
+                  [attr.aria-expanded]="!!openWaitlists()[row.block.id]"
+                  [attr.aria-controls]="'hb-wl-' + row.block.id"
+                  (click)="toggleWaitlist(row.block.id)"
+                >
+                  {{ row.waitlistCount }} en espera
+                  <ion-icon name="chevron-down-outline" aria-hidden="true" class="hb-chip__chev"></ion-icon>
+                </button>
+              } @else {
+                <span class="hb-chip">{{ row.waitlistCount }} en espera</span>
+              }
             }
           }
         </span>
       </div>
+
+      @if (!row.closed && row.waitlist.length > 0 && openWaitlists()[row.block.id]) {
+        <div class="hb-wait" [id]="'hb-wl-' + row.block.id">
+          <p class="hb-wait__title">En lista de espera</p>
+          <ol class="hb-wait__list">
+            @for (item of row.waitlist; track item.entry.memberId) {
+              <li class="hb-wait__item">
+                <span class="hb-wait__pos hb-num">{{ item.entry.position }}</span>
+                <span class="hb-wait__main">
+                  <span class="hb-wait__name">{{ item.entry.name }}</span>
+                  @if (item.since) {
+                    <span class="hb-wait__since">Desde las {{ item.since }}</span>
+                  }
+                </span>
+                @if (item.whatsapp) {
+                  <a
+                    class="hb-btn hb-btn--whatsapp"
+                    [href]="item.whatsapp"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    [attr.aria-label]="'Avisarle por WhatsApp que hay un cupo a ' + item.entry.name"
+                    data-tip="Avisarle que hay un cupo"
+                  >
+                    <ion-icon name="logo-whatsapp" aria-hidden="true"></ion-icon>
+                  </a>
+                }
+              </li>
+            }
+          </ol>
+        </div>
+      }
 
       @if (!row.closed && row.dataReady) {
         <div class="hb-cap">
@@ -179,16 +229,27 @@
                   </a>
                 }
                 @if (row.editable) {
-                  <button
-                    type="button"
-                    class="hb-btn"
-                    [class.hb-btn--mark]="!item.attended"
-                    [attr.aria-label]="(item.attended ? 'Marcar que no vino: ' : 'Marcar que vino: ') + item.attendee.name"
-                    [attr.data-tip]="item.attended ? 'Marcar que no vino' : 'Marcar que vino'"
-                    (click)="toggle(row, item)"
-                  >
-                    <ion-icon [name]="item.attended ? 'arrow-undo-outline' : 'checkmark-circle-outline'" aria-hidden="true"></ion-icon>
-                  </button>
+                  @if (item.attended) {
+                    <button
+                      type="button"
+                      class="hb-btn"
+                      [attr.aria-label]="'Deshacer asistencia de ' + item.attendee.name"
+                      data-tip="Deshacer asistencia"
+                      (click)="toggle(row, item)"
+                    >
+                      <ion-icon name="arrow-undo-outline" aria-hidden="true"></ion-icon>
+                    </button>
+                  } @else {
+                    <button
+                      type="button"
+                      class="hb-vino"
+                      [attr.aria-label]="'Marcar que vino: ' + item.attendee.name"
+                      (click)="toggle(row, item)"
+                    >
+                      <ion-icon name="checkmark-circle-outline" aria-hidden="true"></ion-icon>
+                      Vino
+                    </button>
+                  }
                 }
                 @if (canCancel() && !row.ended) {
                   <button

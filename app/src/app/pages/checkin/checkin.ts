@@ -65,4 +65,8 @@ export class CheckinPage {
   protected goToMember(): void {
     this.router.navigateByUrl('/member');
   }
+
+  protected goToRoutine(): void {
+    this.router.navigateByUrl('/member?s=rutina');
+  }
 }

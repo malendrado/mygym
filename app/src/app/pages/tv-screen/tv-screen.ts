@@ -25,6 +25,8 @@ const SCHEDULE_POLL_MS = 25_000;
 // La galería se baja al conectarse y se renueva cada 10 minutos (no viaja en cada poll del schedule).
 const PHOTOS_REFRESH_MS = 600_000;
 const PAIRING_POLL_MS = 3_000;
+// Si falla pedir el código de vinculación, se reintenta solo a los 15 s (y la pantalla lo dice).
+const PAIRING_RETRY_MS = 15_000;
 // Longevidad del kiosco: una pestaña de TV queda abierta meses — un reload periódico evita
 // leaks de memoria de una SPA que nunca se cierra, sin cortar el show por más de un segundo.
 const TV_ROOT_FONT_SIZE = 'max(11px, min(calc(100vw / 96), calc(100vh / 54)))';
@@ -76,7 +78,8 @@ const ROSTER_TIERS: FitTier[] = [
   { name: 'xl', w: 19, h: 5.2, gap: 1 },
   { name: 'l', w: 14.5, h: 4.6, gap: 0.85 },
   { name: 'm', w: 12.5, h: 3.2, gap: 0.6 },
-  { name: 's', w: 9.5, h: 2.3, gap: 0.5 },
+  // w 10.5 (antes 9.5): el nombre sube a 14 px de piso y a 11 px de raíz (TV de 950x540) necesita más ancho.
+  { name: 's', w: 10.5, h: 2.3, gap: 0.5 },
 ];
 
 // Mínimo garantizado de un roster lateral (una fila de chips chicos, ver .tv-roster-fit en el
@@ -213,6 +216,13 @@ export class TvScreenPage implements OnDestroy {
   // cuando llega una respuesta buena (el sondeo nunca se detiene).
   protected readonly offline = signal(false);
   protected readonly lastAttemptLabel = signal('');
+  // Momento (reloj real) del próximo reintento de vinculación; la cuenta regresiva de la pantalla de
+  // error se deriva del reloj de 1 s existente → sin timer propio que limpiar.
+  private readonly pairingRetryAt = signal(0);
+  protected readonly pairingRetryIn = computed(() => {
+    this.now(); // recomputa cada segundo (el cálculo usa Date.now()).
+    return Math.max(0, Math.ceil((this.pairingRetryAt() - Date.now()) / 1000));
+  });
   // Aviso sutil de que el sondeo lleva rato sin poder actualizar — mejor decirlo que dejar la
   // pantalla congelada en silencio (ver STALE_CURRENT_GRACE_SECONDS / RECONNECTING_THRESHOLD_MS).
   protected readonly isReconnecting = computed(() => {
@@ -424,8 +434,10 @@ export class TvScreenPage implements OnDestroy {
         this.pollPairingStatus(res.code);
       },
       error: () => {
+        this.markAttempt();
+        this.pairingRetryAt.set(Date.now() + PAIRING_RETRY_MS);
         this.stage.set('error');
-        this.pollTimer = setTimeout(() => this.startPairing(), 15_000);
+        this.pollTimer = setTimeout(() => this.startPairing(), PAIRING_RETRY_MS);
       },
     });
   }

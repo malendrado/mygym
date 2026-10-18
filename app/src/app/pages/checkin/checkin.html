@@ -15,7 +15,8 @@
             <p class="checkin__body">Quedaste marcado en {{ classLabelText() }}. Disfruta tu clase.</p>
           }
         </div>
-        <ion-button (click)="goToMember()">Ir a mi cuenta</ion-button>
+        <ion-button class="checkin__action" (click)="goToMember()">Ir a mi cuenta</ion-button>
+        <ion-button class="checkin__action" fill="outline" (click)="goToRoutine()">Anotar mi rutina</ion-button>
       }
       @case ('error') {
         <div role="alert" class="checkin__live">

@@ -9,6 +9,7 @@ import com.cortesdev.mygym.models.Reservation;
 import com.cortesdev.mygym.models.ReservationStatus;
 import com.cortesdev.mygym.models.Role;
 import com.cortesdev.mygym.models.dto.AgendaOccurrence;
+import com.cortesdev.mygym.models.dto.WaitlistStaffEntry;
 import com.cortesdev.mygym.models.dto.GymBlockOccurrenceResponse;
 import com.cortesdev.mygym.models.dto.MemberReservation;
 import com.cortesdev.mygym.models.dto.OccurrenceAttendees;
@@ -285,7 +286,8 @@ public class ReservationService {
             attendeesByKey.put(occurrenceKey(occurrence.gymBlockId(), occurrence.classDate()), occurrence);
         }
         GymClosureService.ClosureSchedule closures = gymClosureService.scheduleFor(gymId, from, to);
-        Map<String, Integer> waiting = waitlistService.countWaitingByOccurrence(blockIds, from, to);
+        Map<String, List<WaitlistStaffEntry>> waiting =
+                waitlistService.waitingStaffByOccurrence(gymId, blockIds, from, to);
 
         List<AgendaOccurrence> result = new ArrayList<>();
         Map<Long, LocalTime> startByBlock = new HashMap<>();
@@ -302,6 +304,7 @@ public class ReservationService {
                     continue;
                 }
                 boolean closed = closures.isClosed(block.getId(), date);
+                List<WaitlistStaffEntry> waitlist = waiting.getOrDefault(key, List.of());
                 result.add(new AgendaOccurrence(
                         block.getId(),
                         date,
@@ -309,7 +312,8 @@ public class ReservationService {
                         attendees.size(),
                         closed,
                         closed ? closures.reasonFor(block.getId(), date) : null,
-                        waiting.getOrDefault(key, 0),
+                        waitlist.size(),
+                        waitlist,
                         attendees));
             }
         }

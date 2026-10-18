@@ -43,25 +43,18 @@
         }
       </p>
 
-      @if (counts().noPlan || counts().unlogged || counts().first) {
-        <div class="cb-chips">
-          @if (counts().noPlan) {
-            <button type="button" class="cb-chip" [class.cb-chip--on]="filter() === 'noPlan'" [attr.aria-pressed]="filter() === 'noPlan'" (click)="setFilter('noPlan')">
-              {{ counts().noPlan }} sin rutina
-            </button>
-          }
-          @if (counts().unlogged) {
-            <button type="button" class="cb-chip" [class.cb-chip--on]="filter() === 'unlogged'" [attr.aria-pressed]="filter() === 'unlogged'" (click)="setFilter('unlogged')">
-              {{ counts().unlogged }} no {{ counts().unlogged === 1 ? 'anotó' : 'anotaron' }} la última
-            </button>
-          }
-          @if (counts().first) {
-            <button type="button" class="cb-chip" [class.cb-chip--on]="filter() === 'first'" [attr.aria-pressed]="filter() === 'first'" (click)="setFilter('first')">
-              {{ counts().first }} {{ counts().first === 1 ? 'primera clase' : 'primeras clases' }}
-            </button>
-          }
-        </div>
-      }
+      <!-- Los tres filtros se muestran siempre: con conteo 0 quedan atenuados y deshabilitados (así el profesor sabe que existen). -->
+      <div class="cb-chips">
+        <button type="button" class="cb-chip" [class.cb-chip--on]="filter() === 'noPlan'" [attr.aria-pressed]="filter() === 'noPlan'" [disabled]="!counts().noPlan && filter() !== 'noPlan'" (click)="setFilter('noPlan')">
+          {{ counts().noPlan }} sin rutina
+        </button>
+        <button type="button" class="cb-chip" [class.cb-chip--on]="filter() === 'unlogged'" [attr.aria-pressed]="filter() === 'unlogged'" [disabled]="!counts().unlogged && filter() !== 'unlogged'" (click)="setFilter('unlogged')">
+          {{ counts().unlogged }} no {{ counts().unlogged === 1 ? 'anotó' : 'anotaron' }} la última
+        </button>
+        <button type="button" class="cb-chip" [class.cb-chip--on]="filter() === 'first'" [attr.aria-pressed]="filter() === 'first'" [disabled]="!counts().first && filter() !== 'first'" (click)="setFilter('first')">
+          {{ counts().first }} {{ counts().first === 1 ? 'primera clase' : 'primeras clases' }}
+        </button>
+      </div>
 
       <!-- 3) Una tarjeta por alumno -->
       <ul class="cb-list">

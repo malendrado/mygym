@@ -27,15 +27,31 @@
       <ion-text color="danger"><p role="alert">No pudimos cargar los administradores. Intenta nuevamente.</p></ion-text>
       <ion-button fill="outline" size="small" (click)="load()">Reintentar</ion-button>
     </div>
-  } @else if (tab() === 'super') {
+  } @else {
+    <ion-searchbar
+      class="admins-search"
+      placeholder="Buscar por nombre, correo o gimnasio"
+      [debounce]="200"
+      [value]="query()"
+      (ionInput)="setQuery($any($event.detail.value))"
+      (ionClear)="clearQuery()"
+    ></ion-searchbar>
+    <p class="list-count" aria-live="polite">{{ resultsLabel() }}</p>
+    @if (tab() === 'super') {
     @if (superAdmins().length === 0) {
       <div class="admins-empty">
         <ion-icon name="shield-checkmark-outline" aria-hidden="true"></ion-icon>
         <p>No hay super-admins para mostrar.</p>
       </div>
+    } @else if (filteredCount() === 0) {
+      <div class="admins-empty" role="status">
+        <ion-icon name="search-outline" aria-hidden="true"></ion-icon>
+        <p>Sin resultados para «{{ query().trim() }}»</p>
+        <ion-button fill="outline" size="small" (click)="clearQuery()">Limpiar</ion-button>
+      </div>
     } @else {
       <div class="admin-list">
-        @for (admin of superAdmins(); track admin.id) {
+        @for (admin of visibleSuper(); track admin.id) {
           <div class="admin-card">
             @if (admin.photoUrl) {
               <img [src]="admin.photoUrl" alt="" class="admin-card__avatar" />
@@ -50,16 +66,25 @@
           </div>
         }
       </div>
+      @if (hasMore()) {
+        <ion-button class="list-more" fill="outline" expand="block" (click)="showMore()">Ver más</ion-button>
+      }
     }
-  } @else {
+    } @else {
     @if (gymAdmins().length === 0) {
       <div class="admins-empty">
         <ion-icon name="people-outline" aria-hidden="true"></ion-icon>
         <p>No hay administradores de gimnasio para mostrar.</p>
       </div>
+    } @else if (filteredCount() === 0) {
+      <div class="admins-empty" role="status">
+        <ion-icon name="search-outline" aria-hidden="true"></ion-icon>
+        <p>Sin resultados para «{{ query().trim() }}»</p>
+        <ion-button fill="outline" size="small" (click)="clearQuery()">Limpiar</ion-button>
+      </div>
     } @else {
       <div class="admin-list">
-        @for (admin of gymAdmins(); track admin.id) {
+        @for (admin of visibleGym(); track admin.id) {
           <div class="admin-card" [class.admin-card--inactive]="!admin.active">
             @if (admin.photoUrl) {
               <img [src]="admin.photoUrl" alt="" class="admin-card__avatar" />
@@ -86,6 +111,10 @@
           </div>
         }
       </div>
+      @if (hasMore()) {
+        <ion-button class="list-more" fill="outline" expand="block" (click)="showMore()">Ver más</ion-button>
+      }
     }
+  }
   }
 </ion-content>

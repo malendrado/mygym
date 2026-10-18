@@ -28,8 +28,24 @@
       <p>Cuando un gimnasio se desvincule para siempre, va a quedar registrado aquí.</p>
     </div>
   } @else {
+    <ion-searchbar
+      class="audits-search"
+      placeholder="Buscar por gimnasio, correo o fecha"
+      [debounce]="200"
+      [value]="query()"
+      (ionInput)="setQuery($any($event.detail.value))"
+      (ionClear)="clearQuery()"
+    ></ion-searchbar>
+    <p class="list-count" aria-live="polite">{{ resultsLabel() }}</p>
+    @if (filteredCount() === 0) {
+      <div class="audits-empty" role="status">
+        <ion-icon name="search-outline" aria-hidden="true"></ion-icon>
+        <h3>Sin resultados para «{{ query().trim() }}»</h3>
+        <ion-button fill="outline" size="small" (click)="clearQuery()">Limpiar</ion-button>
+      </div>
+    }
     <div class="audit-list">
-      @for (audit of audits(); track audit.id) {
+      @for (audit of visible(); track audit.id) {
         <div class="audit-card">
           <div class="audit-card__header">
             <p class="audit-card__name">{{ audit.gymName }}</p>
@@ -53,5 +69,8 @@
         </div>
       }
     </div>
+    @if (hasMore()) {
+      <ion-button class="list-more" fill="outline" expand="block" (click)="showMore()">Ver más</ion-button>
+    }
   }
 </ion-content>

@@ -235,6 +235,21 @@
   }
 }
 
+// Google, "o" y el botón de email en una columna del mismo ancho (antes el de Google medía ~225 px y el de email todo el
+// ancho de la tarjeta).
+.auth-stack {
+  width: var(--auth-w, 100%);
+  max-width: 100%;
+
+  .google-auth {
+    padding-top: 0;
+  }
+
+  .google-auth__frame {
+    width: 100%;
+  }
+}
+
 .auth-alt-btn {
   display: flex;
   align-items: center;

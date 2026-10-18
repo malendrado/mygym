@@ -216,11 +216,15 @@ export class GymService {
     return this.http.post<CheckoutResponse>(`${this.meBase}/plans/${planId}/checkout`, {});
   }
 
-  /** Una página de gimnasios (super-admin) — la búsqueda por nombre/slug la resuelve el servidor. */
-  listPage(query: { q: string; page: number; size: number }): Observable<Page<GymSummary>> {
-    const params: Record<string, string | number> = { page: query.page, size: query.size };
+  /** Una página de gimnasios (super-admin) — la búsqueda por nombre/slug y el estado (activo/inactivo) los resuelve el servidor. */
+  listPage(query: { q: string; page: number; size: number; active?: boolean }): Observable<Page<GymSummary>> {
+    const params: Record<string, string | number | boolean> = { page: query.page, size: query.size };
     if (query.q) {
       params['q'] = query.q;
+    }
+    // Ausente = todos los gimnasios; el servidor combina el estado con la búsqueda por texto.
+    if (query.active !== undefined) {
+      params['active'] = query.active;
     }
     return this.http.get<Page<GymSummary>>(this.base, { params });
   }

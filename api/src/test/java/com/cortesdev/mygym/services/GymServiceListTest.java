@@ -60,6 +60,16 @@ class GymServiceListTest {
     }
 
     @Test
+    void forwardsTheActiveFilterTogetherWithTheSearchText() {
+        when(gymRepository.findSummariesPage(any(), any(), any()))
+                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 12), 0));
+
+        gymService.listGyms(false, "Gold", 0, 12);
+
+        verify(gymRepository).findSummariesPage(eq(false), eq("%gold%"), any());
+    }
+
+    @Test
     void searchTextIsLowercasedAndWildcardsAreEscaped() {
         assertThat(GymService.likePattern("  Gold GYM ")).isEqualTo("%gold gym%");
         assertThat(GymService.likePattern("100%_real\\x")).isEqualTo("%100\\%\\_real\\\\x%");

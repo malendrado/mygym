@@ -177,17 +177,23 @@
 
         @if (status() === 'ready') {
           @if (joinMode() === 'google') {
-            <div class="google-auth">
-              <div class="google-auth__frame">
-                <asl-google-signin-button type="standard" size="large" text="signin_with" shape="pill" theme="outline" logo_alignment="left" />
+            <div class="auth-stack" [style.--auth-w.px]="googleBtnWidth + 10">
+              <div class="google-auth">
+                <div class="google-auth__frame">
+                  <asl-google-signin-button type="standard" size="large" text="signin_with" shape="pill" theme="outline" logo_alignment="left" [width]="googleBtnWidth" />
+                </div>
               </div>
+              <div class="auth-divider" role="separator"><span>o</span></div>
+              <button type="button" class="auth-alt-btn" (click)="setJoinMode('password')">
+                <ion-icon name="mail-outline" aria-hidden="true"></ion-icon>
+                Registrarme con email
+              </button>
+              <p class="auth-have-account">¿Ya tienes cuenta?</p>
+              <a class="auth-ghost-btn" routerLink="/login" [queryParams]="{ gym: slug }">
+                <ion-icon name="log-in-outline" aria-hidden="true"></ion-icon>
+                Ingresa con tu contraseña
+              </a>
             </div>
-            <div class="auth-divider" role="separator"><span>o</span></div>
-            <button type="button" class="auth-alt-btn" (click)="setJoinMode('password')">
-              <ion-icon name="mail-outline" aria-hidden="true"></ion-icon>
-              Registrarme con email
-            </button>
-            <p class="auth-signup-prompt">¿Ya tienes cuenta? <a routerLink="/login" [queryParams]="{ gym: slug }">Ingresa con tu email y contraseña</a></p>
           } @else if (registerSent()) {
             <div role="status" aria-live="polite">
               <p #sentTitle tabindex="-1" class="join-sent">

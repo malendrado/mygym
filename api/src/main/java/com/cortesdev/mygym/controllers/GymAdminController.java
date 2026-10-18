@@ -145,6 +145,7 @@ public class GymAdminController {
                 occurrence.closed(),
                 occurrence.closedReason(),
                 occurrence.waitlistCount(),
+                occurrence.waitlist(),
                 occurrence.attendees().stream().map(this::toAttendeeResponse).toList());
     }
 

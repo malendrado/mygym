@@ -21,6 +21,7 @@ import {
   barbellOutline,
   businessOutline,
   checkmarkCircleOutline,
+  closeCircleOutline,
   documentTextOutline,
   eyeOutline,
   logOutOutline,
@@ -40,6 +41,7 @@ addIcons({
   add: addOutline,
   'log-out-outline': logOutOutline,
   'checkmark-circle-outline': checkmarkCircleOutline,
+  'close-circle-outline': closeCircleOutline,
   'people-outline': peopleOutline,
   'sparkles-outline': sparklesOutline,
   'eye-outline': eyeOutline,
@@ -47,6 +49,7 @@ addIcons({
 });
 
 type Status = 'idle' | 'loading' | 'loaded' | 'error';
+type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
 
 @Component({
   selector: 'app-gym-list',
@@ -71,6 +74,7 @@ type Status = 'idle' | 'loading' | 'loaded' | 'error';
 })
 export class GymList implements ViewWillEnter {
   protected readonly skeletonItems = [0, 1, 2, 3];
+  protected readonly visitSkeletonRows = [0, 1, 2];
   private readonly gymService = inject(GymService);
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
@@ -78,7 +82,16 @@ export class GymList implements ViewWillEnter {
   // Lista paginada (12 por página) con búsqueda por nombre/slug en el servidor — la lista crece con
   // cada cliente nuevo y cada tarjeta arrastra el logo SVG. Las calugas leen los conteos de TODOS
   // los gimnasios (stats), no cuentan las tarjetas de la página visible.
-  protected readonly gymList = new PagedListState<GymSummary>((query) => this.gymService.listPage(query), 12);
+  // El estado también lo filtra el servidor (parámetro `active`): un filtro en cliente solo vería la página cargada.
+  protected readonly statusFilter = signal<StatusFilter>('ALL');
+  protected readonly gymList = new PagedListState<GymSummary>(
+    (query) =>
+      this.gymService.listPage({
+        ...query,
+        active: this.statusFilter() === 'ALL' ? undefined : this.statusFilter() === 'ACTIVE',
+      }),
+    12,
+  );
   protected readonly gyms = this.gymList.items;
   protected readonly stats = signal<GymStats | null>(null);
 
@@ -89,10 +102,35 @@ export class GymList implements ViewWillEnter {
   protected readonly analyticsStatus = signal<Status>('idle');
   protected readonly analytics = signal<AnalyticsSummary | null>(null);
 
-  protected readonly totalGyms = computed(() => this.stats()?.total ?? 0);
-  protected readonly activeCount = computed(() => this.stats()?.active ?? 0);
-  protected readonly totalCapacity = computed(() => this.stats()?.totalCapacity ?? 0);
-  protected readonly brandedCount = computed(() => this.stats()?.branded ?? 0);
+  protected readonly statsStatus = signal<Status>('idle');
+
+  // Sin datos todavía (cargando o con error) las calugas muestran "—": un 0 inventado se lee como dato real.
+  protected readonly totalGyms = computed(() => this.stats()?.total ?? '—');
+  protected readonly activeCount = computed(() => this.stats()?.active ?? '—');
+  protected readonly inactiveCount = computed(() => {
+    const stats = this.stats();
+    return stats ? Math.max(0, stats.total - stats.active) : '—';
+  });
+  protected readonly statusFilterLabel = computed(() => {
+    switch (this.statusFilter()) {
+      case 'ACTIVE':
+        return 'Activos';
+      case 'INACTIVE':
+        return 'Inactivos';
+      default:
+        return null;
+    }
+  });
+  protected readonly totalCapacity = computed(() => this.stats()?.totalCapacity ?? '—');
+  protected readonly brandedCount = computed(() => this.stats()?.branded ?? '—');
+
+  // Panel de Visitas: solo las 10 primeras filas hasta que se pida ver todas.
+  protected readonly visitsPreview = 10;
+  protected readonly showAllVisits = signal(false);
+  protected readonly visibleByGym = computed(() => {
+    const rows = this.analytics()?.byGym ?? [];
+    return this.showAllVisits() ? rows : rows.slice(0, this.visitsPreview);
+  });
 
   /** Para dibujar cada fila de "Visitas" como una barra proporcional al máximo, no una
    *  lista plana de números — el mínimo de 1 evita dividir por cero cuando no hay datos. */
@@ -131,15 +169,34 @@ export class GymList implements ViewWillEnter {
     document.querySelector('.gyms-section-title')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
-  private loadStats(): void {
+  /** Elige el estado de la lista; tocar la caluga ya elegida (o "Gimnasios totales") quita el filtro. */
+  protected setStatusFilter(filter: StatusFilter): void {
+    this.statusFilter.set(this.statusFilter() === filter ? 'ALL' : filter);
+    this.gymList.goTo(0);
+  }
+
+  protected clearStatusFilter(): void {
+    this.statusFilter.set('ALL');
+    this.gymList.goTo(0);
+  }
+
+  protected loadStats(): void {
+    this.statsStatus.set('loading');
     this.gymService.stats().subscribe({
-      next: (stats) => this.stats.set(stats),
-      // Las calugas son informativas: si fallan, la lista sigue funcionando.
-      error: () => undefined,
+      next: (stats) => {
+        this.stats.set(stats);
+        this.statsStatus.set('loaded');
+      },
+      // Las calugas son informativas: si fallan, la lista sigue funcionando y se ofrece reintentar.
+      error: () => this.statsStatus.set('error'),
     });
   }
 
-  private loadAnalytics(): void {
+  protected toggleAllVisits(): void {
+    this.showAllVisits.update((v) => !v);
+  }
+
+  protected loadAnalytics(): void {
     this.analyticsStatus.set('loading');
     this.gymService.getAnalyticsSummary().subscribe({
       next: (summary) => {

@@ -22,9 +22,9 @@
     mygym
   </span>
   <div class="nav__links">
-    <a href="#producto">Producto</a>
-    <a href="#socios">Tus socios</a>
-    <a href="#precios">Precios</a>
+    <a href="#producto" [class.nav__link--active]="activeSection() === 'producto'" [attr.aria-current]="activeSection() === 'producto' ? 'true' : null" (click)="goTo($event, 'producto')">Producto</a>
+    <a href="#socios" [class.nav__link--active]="activeSection() === 'socios'" [attr.aria-current]="activeSection() === 'socios' ? 'true' : null" (click)="goTo($event, 'socios')">Tus socios</a>
+    <a href="#precios" [class.nav__link--active]="activeSection() === 'precios'" [attr.aria-current]="activeSection() === 'precios' ? 'true' : null" (click)="goTo($event, 'precios')">Precios</a>
   </div>
   <div class="nav__actions">
     <div class="nav__help">
@@ -34,19 +34,20 @@
     <div class="nav__help-wrap">
       <button
         type="button"
+        #helpToggle
         class="nav__help-toggle"
         [attr.aria-expanded]="helpMenuOpen()"
-        aria-label="Más enlaces: Producto, Tus socios, Precios, FAQ y Privacidad"
         (click)="toggleHelpMenu()"
       >
-        <ion-icon name="ellipsis-horizontal-outline" aria-hidden="true"></ion-icon>
+        <ion-icon name="menu-outline" aria-hidden="true"></ion-icon>
+        <span>Menú</span>
       </button>
       @if (helpMenuOpen()) {
         <div class="nav__help-menu">
           <!-- Anclas de sección: solo en móvil (desde 768px ya están en la barra). -->
-          <a class="nav__help-anchor" href="#producto" (click)="closeHelpMenu()">Producto</a>
-          <a class="nav__help-anchor" href="#socios" (click)="closeHelpMenu()">Tus socios</a>
-          <a class="nav__help-anchor" href="#precios" (click)="closeHelpMenu()">Precios</a>
+          <a class="nav__help-anchor" href="#producto" (click)="goTo($event, 'producto')">Producto</a>
+          <a class="nav__help-anchor" href="#socios" (click)="goTo($event, 'socios')">Tus socios</a>
+          <a class="nav__help-anchor" href="#precios" (click)="goTo($event, 'precios')">Precios</a>
           <a routerLink="/faq" (click)="closeHelpMenu()">
             <ion-icon name="help-circle-outline" aria-hidden="true"></ion-icon> FAQ
           </a>

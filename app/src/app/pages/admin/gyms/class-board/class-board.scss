@@ -141,8 +141,15 @@
   background: transparent;
   color: var(--brand-text);
   font: inherit;
-  font-size: 0.8rem;
+  font-size: 0.8125rem;
   cursor: pointer;
+
+  // Sin casos: sigue visible pero apagado. Se atenúa con colores (no con opacity) para mantener el contraste del texto.
+  &:disabled {
+    border-color: var(--brand-ink-surface-2);
+    color: var(--brand-text-dim);
+    cursor: default;
+  }
 
   &--on {
     background: color-mix(in srgb, var(--cb-warn) 22%, transparent);
@@ -232,7 +239,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
-  font-size: 0.78rem;
+  font-size: 0.8125rem;
   color: var(--brand-text-dim);
   font-variant-numeric: tabular-nums;
 
@@ -252,7 +259,7 @@
 }
 
 .cb-card__order {
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   color: var(--brand-text-dim);
   font-variant-numeric: tabular-nums;
 }
@@ -289,7 +296,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
-  font-size: 0.78rem;
+  font-size: 0.8125rem;
   color: var(--cb-good-text);
 }
 
@@ -306,7 +313,7 @@
   border-radius: 999px;
   background: var(--brand-ink-surface-2);
   color: var(--brand-text);
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   font-weight: 600;
 
   &--accent {
@@ -423,7 +430,7 @@
 }
 
 .cb-log__date {
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   color: var(--brand-text-dim);
 }
 

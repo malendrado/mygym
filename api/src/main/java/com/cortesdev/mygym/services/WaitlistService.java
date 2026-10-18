@@ -11,6 +11,7 @@ import com.cortesdev.mygym.repositories.GymBlockRepository;
 import com.cortesdev.mygym.repositories.GymRepository;
 import com.cortesdev.mygym.repositories.ReservationRepository;
 import com.cortesdev.mygym.models.dto.WaitlistEntryResponse;
+import com.cortesdev.mygym.models.dto.WaitlistStaffEntry;
 import com.cortesdev.mygym.services.exception.BookingWindowClosedException;
 import com.cortesdev.mygym.services.exception.GymBlockNotFoundException;
 import java.time.Instant;
@@ -69,6 +70,49 @@ public class WaitlistService {
                 .collect(Collectors.groupingBy(
                         entry -> entry.getGymBlockId() + "|" + entry.getClassDate(),
                         Collectors.collectingAndThen(Collectors.counting(), Long::intValue)));
+    }
+
+    /** Quiénes esperan en cada ocurrencia del rango, para la Agenda del equipo (dueño/profesor). Clave "bloqueId|fecha".
+     *  Dos consultas en total sin importar cuántas clases haya: las esperas del rango y los socios con findAllById.
+     *  Solo entran socios del gym indicado (defensa en profundidad: los bloques ya son del gym). Orden: el mismo de
+     *  los avisos (created_at, desempate por id); position parte en 1. Las ocurrencias sin espera no aparecen. */
+    @Transactional(readOnly = true)
+    public Map<String, List<WaitlistStaffEntry>> waitingStaffByOccurrence(
+            Long gymId, Collection<Long> gymBlockIds, LocalDate from, LocalDate to) {
+        if (gymBlockIds.isEmpty()) {
+            return Map.of();
+        }
+        List<ClassWaitlistEntry> entries = waitlistRepository.findByGymBlockIdInAndClassDateBetween(gymBlockIds, from, to);
+        if (entries.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, AppUser> members = appUserRepository
+                .findAllById(entries.stream().map(ClassWaitlistEntry::getMemberId).collect(Collectors.toSet()))
+                .stream()
+                .filter(user -> gymId.equals(user.getGymId()))
+                .collect(Collectors.toMap(AppUser::getId, user -> user, (a, b) -> a));
+        Map<String, List<ClassWaitlistEntry>> grouped = entries.stream()
+                .filter(entry -> members.containsKey(entry.getMemberId()))
+                .sorted(java.util.Comparator.comparing(
+                                ClassWaitlistEntry::getCreatedAt,
+                                java.util.Comparator.nullsLast(java.util.Comparator.<Instant>naturalOrder()))
+                        .thenComparing(ClassWaitlistEntry::getId, java.util.Comparator.nullsLast(java.util.Comparator.<Long>naturalOrder())))
+                .collect(Collectors.groupingBy(
+                        entry -> entry.getGymBlockId() + "|" + entry.getClassDate(),
+                        java.util.LinkedHashMap::new,
+                        Collectors.toList()));
+        Map<String, List<WaitlistStaffEntry>> result = new java.util.HashMap<>();
+        grouped.forEach((key, list) -> {
+            List<WaitlistStaffEntry> staff = new java.util.ArrayList<>(list.size());
+            for (int i = 0; i < list.size(); i++) {
+                ClassWaitlistEntry entry = list.get(i);
+                AppUser member = members.get(entry.getMemberId());
+                String phone = member.getPhone() == null || member.getPhone().isBlank() ? null : member.getPhone().trim();
+                staff.add(new WaitlistStaffEntry(member.getId(), member.getName(), phone, i + 1, entry.getCreatedAt()));
+            }
+            result.put(key, List.copyOf(staff));
+        });
+        return result;
     }
 
     public void join(Long gymId, Long memberId, Long gymBlockId, LocalDate classDate) {

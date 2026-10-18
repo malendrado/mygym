@@ -14,7 +14,7 @@
     <ul class="booking__attendees">
       @for (attendee of attendees; track attendee.name) {
         <li>
-          <span class="booking__avatar">{{ attendee.initials }}</span>
+          <span class="booking__avatar" aria-hidden="true">{{ attendee.initials }}</span>
           {{ attendee.name }}
         </li>
       }

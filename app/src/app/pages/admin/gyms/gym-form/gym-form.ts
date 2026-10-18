@@ -42,6 +42,7 @@ import {
   barbellOutline,
   ellipsisHorizontal,
   closeOutline,
+  alertCircleOutline,
   businessOutline,
   calendarOutline,
   cardOutline,
@@ -58,6 +59,7 @@ import {
   helpCircleOutline,
   hourglassOutline,
   imagesOutline,
+  mailOutline,
   logoGoogle,
   megaphoneOutline,
   paperPlaneOutline,
@@ -178,6 +180,8 @@ addIcons({
   'business-outline': businessOutline,
   'settings-outline': settingsOutline,
   'time-outline': timeOutline,
+  'alert-circle-outline': alertCircleOutline,
+  'mail-outline': mailOutline,
   'calendar-outline': calendarOutline,
   'chevron-back-outline': chevronBackOutline,
   'chevron-forward-outline': chevronForwardOutline,
@@ -217,6 +221,9 @@ addIcons({
 
 type Status = 'idle' | 'loading' | 'saving' | 'error';
 type SuggestStatus = 'idle' | 'loading' | 'error';
+// Datos que se piden la primera vez que se abre una sección (ver ensureSectionData).
+type LazyKey = 'blocks' | 'plans' | 'photos' | 'flow' | 'profesores' | 'demoAdmins';
+
 type Section = 'general' | 'classes' | 'plans' | 'members' | 'branding' | 'flow' | 'screens' | 'closures';
 // Sub-pestañas de Clases (mismo criterio que gym-admin.ts): Agenda, Asistencia y Horarios.
 type ClassesSub = 'agenda' | 'attendance' | 'schedule';
@@ -327,6 +334,18 @@ const THEMED_ROOT_PROPERTIES = [
   '--brand-accent-text-safe',
 ] as const;
 
+/** "Gimnasio Ñandú Fit!" -> "gimnasio-nandu-fit": minúsculas, sin tildes, símbolos a guiones, máx. 60 (largo permitido del slug). */
+function slugify(name: string): string {
+  return name
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60)
+    .replace(/-+$/, '');
+}
+
 @Component({
   selector: 'app-gym-form',
   imports: [
@@ -435,6 +454,19 @@ export class GymForm implements OnDestroy {
   protected readonly isSeriesModalOpen = signal(false);
   protected readonly seriesCreating = signal(false);
   protected readonly admins = signal<Admin[]>([]);
+  // Banderas de carga: sin ellas "0 administradores · 0 bloques" se leía como dato real mientras llegaban las listas.
+  protected readonly adminsLoaded = signal(false);
+  protected readonly blocksLoaded = signal(false);
+  // Banderas de las secciones de carga perezosa: sin ellas el estado vacío ("sin planes", "sin fotos") se vería mientras llega la lista.
+  protected readonly plansLoaded = signal(false);
+  protected readonly photosLoaded = signal(false);
+  protected readonly profesoresLoaded = signal(false);
+  protected readonly flowLoaded = signal(false);
+  // Claves ya pedidas (o en vuelo); si una carga falla se quita para que reabrir la sección o "Reintentar" la repita.
+  private readonly requestedKeys = new Set<LazyKey>();
+  // Al abrir Clases/Socios sin bloques todavía, la sub pestaña inicial se decide cuando llegan.
+  private pendingClassesChoice = false;
+  private pendingBoardChoice = false;
   protected readonly adminError = signal<string | null>(null);
 
   // Acceso de solo-lectura a la demo comercial (Role.DEMO_ADMIN) — ver DemoPreviewController/
@@ -484,6 +516,7 @@ export class GymForm implements OnDestroy {
   // con las calugas de estado/invitación.
   protected readonly memberSearch = this.memberList.searchQuery;
   protected readonly filteredMembers = this.memberList.members;
+  protected readonly memberSkeletonRows = [0, 1, 2, 3, 4];
   protected readonly memberForm = new FormGroup({
     name: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.minLength(2)] }),
     email: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.email] }),
@@ -613,6 +646,28 @@ export class GymForm implements OnDestroy {
     ownerEmail: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.email] }),
   });
 
+  /** El slug del alta se deriva del nombre mientras nadie lo haya escrito a mano. */
+  private createSlugEdited = false;
+  protected readonly createSlugPreview = signal('');
+
+  protected onCreateNameInput(name: string): void {
+    if (this.createSlugEdited) {
+      return;
+    }
+    const slug = slugify(name);
+    this.createForm.controls.slug.setValue(slug);
+    this.createSlugPreview.set(slug);
+  }
+
+  protected onCreateSlugInput(value: string): void {
+    // Si lo vacía vuelve a seguir al nombre; si escribe algo, deja de sobreescribirse.
+    this.createSlugEdited = value.trim() !== '';
+    this.createSlugPreview.set(value.trim());
+    if (!this.createSlugEdited) {
+      this.onCreateNameInput(this.createForm.controls.name.value);
+    }
+  }
+
   protected readonly configForm = new FormGroup({
     active: new FormControl(true, { nonNullable: true }),
     maxUsers: new FormControl(1, { nonNullable: true, validators: [Validators.required, Validators.min(1), Validators.max(10000)] }),
@@ -652,6 +707,15 @@ export class GymForm implements OnDestroy {
         const section = this.section();
         const sub = this.memberSub();
         untracked(() => this.syncUrl(section, sub));
+      });
+      // Carga perezosa: cada sección pide sus datos la primera vez que se muestra, también al entrar directo por ?s=.
+      effect(() => {
+        const section = this.section();
+        const sub = this.memberSub();
+        if (this.gymId() === null) {
+          return;
+        }
+        untracked(() => this.ensureSectionData(section, sub));
       });
     }
 
@@ -763,6 +827,82 @@ export class GymForm implements OnDestroy {
     }
   }
 
+  // Pide lo que la sección visible necesita y aún no se ha pedido. General (admins, límites y conteos de socios)
+  // se carga al entrar a la pantalla; el resto, aquí.
+  private ensureSectionData(section: Section, sub: 'members' | 'board' | 'team'): void {
+    switch (section) {
+      case 'general':
+        if (this.isDemoGym()) {
+          this.ensureLoaded('demoAdmins');
+        }
+        break;
+      case 'classes':
+        this.ensureLoaded('blocks');
+        break;
+      case 'plans':
+        this.ensureLoaded('plans');
+        break;
+      case 'members':
+        // Bloques: tablero "En clase" y clases fijas; planes: el modal de "Marcar pago".
+        this.ensureLoaded('blocks');
+        this.ensureLoaded('plans');
+        if (sub === 'team') {
+          this.ensureLoaded('profesores');
+        }
+        if (!this.memberList.loaded() && !this.memberList.loading()) {
+          this.memberList.goTo(this.memberList.page());
+        }
+        break;
+      case 'branding':
+        this.ensureLoaded('photos');
+        break;
+      case 'flow':
+        this.ensureLoaded('flow');
+        break;
+      case 'closures':
+        // Los bloques alimentan el modal de nuevo cierre.
+        this.ensureLoaded('blocks');
+        if (!this.closureList.loaded() && !this.closureList.loading()) {
+          this.closureList.reload();
+        }
+        break;
+    }
+  }
+
+  private ensureLoaded(key: LazyKey): void {
+    const id = this.gymId();
+    if (id === null || this.requestedKeys.has(key)) {
+      return;
+    }
+    this.requestedKeys.add(key);
+    switch (key) {
+      case 'blocks':
+        this.loadBlocks(id);
+        break;
+      case 'plans':
+        this.loadPlans(id);
+        break;
+      case 'photos':
+        this.loadPhotos(id);
+        break;
+      case 'flow':
+        this.loadFlowAccount(id);
+        break;
+      case 'profesores':
+        this.loadProfesores(id);
+        break;
+      case 'demoAdmins':
+        this.loadDemoAdmins(id);
+        break;
+    }
+  }
+
+  // "Reintentar" del aviso de error: repite lo que falló en la sección visible.
+  protected retrySectionLoad(): void {
+    this.status.set('idle');
+    this.ensureSectionData(this.section(), this.memberSub());
+  }
+
   protected setSection(section: Section): void {
     this.section.set(section);
     if (section === 'general' || section === 'members') {
@@ -771,13 +911,25 @@ export class GymForm implements OnDestroy {
     }
     if (section === 'classes') {
       // Sin bloques la Agenda queda vacía: se abre directo en Horarios para crear el primero.
-      this.classesSub.set(this.blocks().length > 0 ? 'agenda' : 'schedule');
+      if (this.blocksLoaded()) {
+        this.classesSub.set(this.blocks().length > 0 ? 'agenda' : 'schedule');
+      } else {
+        this.pendingClassesChoice = true;
+      }
     }
     if (section === 'members') {
       // Al entrar a Socios: si hay una clase en curso o que empieza en 15 min o menos, se abre en "En clase".
-      const timing = classTiming(this.blocks(), BOARD_SOON_MINUTES);
-      this.memberSub.set(timing.live.length > 0 || timing.soon ? 'board' : 'members');
+      if (this.blocksLoaded()) {
+        this.memberSub.set(this.boardOrMembers());
+      } else {
+        this.pendingBoardChoice = true;
+      }
     }
+  }
+
+  private boardOrMembers(): 'members' | 'board' {
+    const timing = classTiming(this.blocks(), BOARD_SOON_MINUTES);
+    return timing.live.length > 0 || timing.soon ? 'board' : 'members';
   }
 
   protected isoDate(iso: string): string {
@@ -809,6 +961,7 @@ export class GymForm implements OnDestroy {
   protected readonly boardRefresh = signal(0);
 
   protected setMemberSub(sub: 'members' | 'board' | 'team'): void {
+    this.pendingBoardChoice = false;
     this.memberSub.set(sub);
   }
 
@@ -839,9 +992,26 @@ export class GymForm implements OnDestroy {
     this.memberList.setInviteFilter(null);
   }
 
+  // Texto del filtro activo de las calugas ("Activo", "Por vencer", "Invitado"…), o null si no hay ninguno.
+  protected readonly memberFilterLabel = computed(() => {
+    const status = this.memberStatusFilter();
+    if (status) {
+      return this.statusLabel(status);
+    }
+    const invite = this.memberInviteFilter();
+    return invite ? this.inviteStatusLabel(invite) : null;
+  });
+
+  protected clearMemberFilters(): void {
+    this.clearMemberStatusFilter();
+    this.clearMemberInviteFilter();
+  }
+
   protected onMemberPage(page: number): void {
     this.memberList.goTo(page);
     this.scrollToMembersList();
+    // El foco queda en el encabezado de la lista (sin scroll propio: ya lo hace scrollToMembersList).
+    document.getElementById('members-list-title')?.focus({ preventScroll: true });
   }
 
   // Tocar una caluga o cambiar de página ya filtraba la lista pero la pantalla se quedaba arriba. Se
@@ -856,7 +1026,8 @@ export class GymForm implements OnDestroy {
       }
       const scrollEl = await content.getScrollElement();
       const top = card.getBoundingClientRect().top - scrollEl.getBoundingClientRect().top + scrollEl.scrollTop - 8;
-      await content.scrollToPoint(0, Math.max(top, 0), 300);
+      const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+      await content.scrollToPoint(0, Math.max(top, 0), reduceMotion ? 0 : 300);
     };
     setTimeout(() => void run());
     setTimeout(() => void run(), 450);
@@ -903,7 +1074,6 @@ export class GymForm implements OnDestroy {
           showAttendeesToMembers: gym.showAttendeesToMembers,
           fixedMembersCurrentWeekOnly: gym.fixedMembersCurrentWeekOnly,
         });
-        this.loadProfesores(id);
         const knownBank = gym.bankName && (this.chileBanks as readonly string[]).includes(gym.bankName);
         this.bankTransferForm.patchValue({
           bankName: gym.bankName ? (knownBank ? gym.bankName : 'Otro') : '',
@@ -916,15 +1086,10 @@ export class GymForm implements OnDestroy {
         });
         this.status.set('idle');
         this.gymLoaded.set(true);
-        this.loadBlocks(id);
+        // Al entrar solo lo de General (límites + administradores y conteos de socios); las demás secciones
+        // piden lo suyo al abrirse (ensureSectionData).
         this.loadAdmins(id);
-        this.loadDemoAdmins(id);
-        this.loadPlans(id);
-        this.memberList.reload();
-        this.loadPhotos(id);
-        this.loadTvScreens(id);
-        this.loadFlowAccount(id);
-        this.closureList.reload();
+        this.memberList.ensureSummary();
       },
       error: () => {
         this.status.set('error');
@@ -937,6 +1102,7 @@ export class GymForm implements OnDestroy {
     this.gymService.getFlowAccount(id).subscribe({
       next: (account) => {
         this.flowAccount.set(account);
+        this.flowLoaded.set(true);
         this.flowAccountForm.patchValue({
           companyRut: account.companyRut ?? '',
           companyName: account.companyName ?? '',
@@ -953,14 +1119,34 @@ export class GymForm implements OnDestroy {
       },
       error: () => {
         // Best-effort: si falla, la sección queda vacía pero el resto del panel sigue andando.
+        this.flowLoaded.set(true);
+        this.requestedKeys.delete('flow');
       },
     });
   }
 
   private loadBlocks(id: number): void {
     this.gymService.listBlocks(id).subscribe({
-      next: (blocks) => this.blocks.set(sortBlocksBySchedule(blocks)),
-      error: () => this.status.set('error'),
+      next: (blocks) => {
+        this.blocks.set(sortBlocksBySchedule(blocks));
+        this.blocksLoaded.set(true);
+        if (this.pendingClassesChoice) {
+          this.pendingClassesChoice = false;
+          if (this.section() === 'classes') {
+            this.classesSub.set(blocks.length > 0 ? 'agenda' : 'schedule');
+          }
+        }
+        if (this.pendingBoardChoice) {
+          this.pendingBoardChoice = false;
+          if (this.section() === 'members' && this.memberSub() === 'members') {
+            this.memberSub.set(this.boardOrMembers());
+          }
+        }
+      },
+      error: () => {
+        this.requestedKeys.delete('blocks');
+        this.status.set('error');
+      },
     });
   }
 
@@ -971,7 +1157,10 @@ export class GymForm implements OnDestroy {
   private loadAdmins(id: number): void {
     this.loadLimits(id);
     this.gymService.listAdmins(id).subscribe({
-      next: (admins) => this.admins.set(admins),
+      next: (admins) => {
+        this.admins.set(admins);
+        this.adminsLoaded.set(true);
+      },
       error: () => this.status.set('error'),
     });
   }
@@ -979,7 +1168,10 @@ export class GymForm implements OnDestroy {
   private loadDemoAdmins(id: number): void {
     this.gymService.listDemoAdmins(id).subscribe({
       next: (demoAdmins) => this.demoAdmins.set(demoAdmins),
-      error: () => this.status.set('error'),
+      error: () => {
+        this.requestedKeys.delete('demoAdmins');
+        this.status.set('error');
+      },
     });
   }
 
@@ -1299,6 +1491,9 @@ export class GymForm implements OnDestroy {
   }
 
   protected emptyBlocksMessage(): string {
+    if (!this.blocksLoaded()) {
+      return 'Cargando bloques…';
+    }
     if (this.blocks().length === 0) {
       return 'Todavía no hay bloques configurados.';
     }
@@ -1641,8 +1836,14 @@ export class GymForm implements OnDestroy {
 
   private loadPlans(id: number): void {
     this.gymService.listPlans(id).subscribe({
-      next: (plans) => this.plans.set(plans),
-      error: () => this.status.set('error'),
+      next: (plans) => {
+        this.plans.set(plans);
+        this.plansLoaded.set(true);
+      },
+      error: () => {
+        this.requestedKeys.delete('plans');
+        this.status.set('error');
+      },
     });
   }
 
@@ -1690,6 +1891,71 @@ export class GymForm implements OnDestroy {
     }
   }
 
+  // Fila compacta de socio: una línea clave con plan y vencimiento, y el resto de los datos plegado.
+  protected readonly expandedMemberIds = signal<ReadonlySet<number>>(new Set());
+
+  protected toggleMemberDetail(memberId: number): void {
+    this.expandedMemberIds.update((ids) => {
+      const next = new Set(ids);
+      if (!next.delete(memberId)) {
+        next.add(memberId);
+      }
+      return next;
+    });
+  }
+
+  // Año, mes y día de un instante en el huso del gym (las fechas sin hora se toman tal cual).
+  private calendarParts(value: string): [number, number, number] {
+    const iso = /^\d{4}-\d{2}-\d{2}$/.test(value)
+      ? value
+      : new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Santiago' }).format(new Date(value));
+    const [y, m, d] = iso.split('-').map(Number);
+    return [y, m, d];
+  }
+
+  // Días de calendario desde hoy hasta la fecha (negativo = ya pasó).
+  private calendarDaysUntil(value: string): number {
+    const [ty, tm, td] = this.calendarParts(todayIsoDate());
+    const [y, m, d] = this.calendarParts(value);
+    return Math.round((Date.UTC(y, m - 1, d) - Date.UTC(ty, tm - 1, td)) / 86_400_000);
+  }
+
+  private shortDate(value: string): string {
+    const [y, m, d] = this.calendarParts(value);
+    return new Intl.DateTimeFormat('es-CL', { timeZone: 'UTC', day: 'numeric', month: 'short' })
+      .format(new Date(Date.UTC(y, m - 1, d)))
+      .replace('.', '');
+  }
+
+  // Texto de la línea clave y su tono ('warn' = por vencer, 'danger' = vencido): el aviso lleva ícono y texto, no solo color.
+  protected memberKey(member: Member): { text: string; tone: 'ok' | 'none' | 'warn' | 'danger' } {
+    if (!member.planId) {
+      return { text: 'Sin plan', tone: 'none' };
+    }
+    const end = member.planEndDate;
+    const days = end ? this.calendarDaysUntil(end) : null;
+    if (member.membershipStatus === 'EXPIRING_SOON' && days !== null) {
+      return {
+        text: days <= 0 ? 'Vence hoy' : days === 1 ? 'Vence mañana' : `Vence en ${days} días`,
+        tone: 'warn',
+      };
+    }
+    if (member.membershipStatus === 'EXPIRED' && days !== null) {
+      const ago = -days;
+      return {
+        text: ago <= 0 ? 'Venció hoy' : ago === 1 ? 'Venció ayer' : `Venció hace ${ago} días`,
+        tone: 'danger',
+      };
+    }
+    const plan = member.planName ?? 'Plan';
+    return { text: end ? `${plan} · vence ${this.shortDate(end)}` : plan, tone: 'ok' };
+  }
+
+  // La acción principal solo aparece cuando hay algo que resolver con el plan; con el plan al día vive en "Acciones".
+  protected needsPrimaryAction(member: Member): boolean {
+    return member.membershipStatus !== 'ACTIVE';
+  }
+
   protected statusColor(status: MembershipStatus): string {
     switch (status) {
       case 'ACTIVE':
@@ -1721,6 +1987,10 @@ export class GymForm implements OnDestroy {
   protected readonly markPaidLoseConfirm = signal(false);
 
   protected markMemberPaid(member: Member): void {
+    if (!this.plansLoaded()) {
+      this.showToast('Todavía estamos cargando los planes. Intenta de nuevo en un momento.');
+      return;
+    }
     if (this.plans().length === 0) {
       this.showToast('Primero crea un plan en la pestaña Planes.', 'danger');
       return;
@@ -1974,7 +2244,16 @@ export class GymForm implements OnDestroy {
 
   private loadProfesores(gymId: number): void {
     this.loadLimits(gymId);
-    this.profesorService.listForGym(gymId).subscribe({ next: (list) => this.profesores.set(list) });
+    this.profesorService.listForGym(gymId).subscribe({
+      next: (list) => {
+        this.profesores.set(list);
+        this.profesoresLoaded.set(true);
+      },
+      error: () => {
+        this.requestedKeys.delete('profesores');
+        this.status.set('error');
+      },
+    });
   }
 
   protected addProfesor(): void {
@@ -2433,6 +2712,15 @@ export class GymForm implements OnDestroy {
   // Menú "Acciones" de un socio (todos los anchos): hoja inferior con las opciones, igual que en gym-admin.
   protected async openMemberActions(member: Member): Promise<void> {
     const buttons = [
+      ...(this.needsPrimaryAction(member)
+        ? []
+        : [
+            {
+              text: member.planId ? 'Renovar' : 'Marcar pago',
+              icon: member.planId ? 'refresh-outline' : 'checkmark-circle-outline',
+              handler: () => this.markMemberPaid(member),
+            },
+          ]),
       { text: 'Rutina', icon: 'barbell-outline', handler: () => this.openWorkoutPlanModal(member) },
       { text: 'Clases fijas', icon: 'repeat-outline', handler: () => void this.openFixedClassesModal(member) },
       { text: 'Datos de contacto', icon: 'id-card-outline', handler: () => this.openMemberProfile(member) },
@@ -2757,8 +3045,14 @@ export class GymForm implements OnDestroy {
 
   private loadPhotos(id: number): void {
     this.gymService.listPhotos(id).subscribe({
-      next: (photos) => this.photos.set(photos),
-      error: () => this.status.set('error'),
+      next: (photos) => {
+        this.photos.set(photos);
+        this.photosLoaded.set(true);
+      },
+      error: () => {
+        this.requestedKeys.delete('photos');
+        this.status.set('error');
+      },
     });
   }
 

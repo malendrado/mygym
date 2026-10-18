@@ -1,6 +1,7 @@
 import { Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { IonContent } from '@ionic/angular';
+import { scrollToSection } from '../scroll-to-section';
 
 interface FaqSection {
   title: string;
@@ -14,6 +15,8 @@ interface FaqSection {
   styleUrl: '../legal-page.scss',
 })
 export class LegalFaq {
+  protected readonly goTo = scrollToSection;
+
   protected readonly sections: FaqSection[] = [
     {
       title: 'Sobre mygym',

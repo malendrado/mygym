@@ -480,6 +480,16 @@ export interface BlockOccurrenceAttendees {
   attendees: Attendee[];
 }
 
+/** Una persona en la lista de espera de una ocurrencia (ordenada por posición). */
+export interface AgendaWaitlistEntry {
+  memberId: number;
+  name: string;
+  phone: string | null;
+  position: number;
+  /** Instante ISO en que se anotó. */
+  joinedAt: string;
+}
+
 /** Una ocurrencia de la Agenda del admin (.../agenda?from=&to=): cupos, cierre de emergencia, lista de espera y
  *  quién reservó. Viene UNA por cada bloque×fecha del rango, incluso sin reservas (a diferencia de history-attendees).
  *  closedReason es null si la clase no está cerrada. */
@@ -491,6 +501,8 @@ export interface AgendaOccurrence {
   closed: boolean;
   closedReason: string | null;
   waitlistCount: number;
+  /** Quiénes esperan, por posición. Opcional: si no viene, se muestra solo el conteo. */
+  waitlist?: AgendaWaitlistEntry[];
   attendees: Attendee[];
 }
 

@@ -63,3 +63,13 @@ export function transferNoticeMessage(
   const plan = planName?.trim() ? ` del plan ${planName.trim()}` : '';
   return `Hola, ${who}ya hice la transferencia${plan} a ${gymName}. ¿Me confirman el pago?`;
 }
+
+/** Lista de espera: avisa que se liberó un cupo en la clase (fecha ISO y hora "18:30" ya vienen listas). */
+export function waitlistSpotMessage(
+  name: string | null | undefined,
+  className: string,
+  date: string,
+  time: string,
+): string {
+  return `${greeting(name)}, hay un cupo disponible en ${className} el ${displayDate(date)} a las ${time}. ¿Quieres reservarlo?`;
+}

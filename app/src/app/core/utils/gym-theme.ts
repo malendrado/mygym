@@ -266,6 +266,26 @@ export const LIGHT_DANGER = {
   tint: '#e03c3c',
 };
 
+/**
+ * Color efectivo de --brand-text-dim para un tema: parte del gris secundario del tema (mutedFg)
+ * y, solo si no alcanza minRatio contra TODAS las superficies donde se pinta (fondo de página y
+ * tarjeta), lo acerca al color de texto principal hasta lograrlo. Si ya cumple, devuelve el
+ * color tal cual (el aspecto no cambia). Texto chico (12-13px) exige 4.5:1 (WCAG AA).
+ */
+export function ensureTextDimContrast(mutedHex: string, fgHex: string, surfaces: readonly string[], minRatio = 4.5): string {
+  const worst = (hex: string) => Math.min(...surfaces.map((s) => contrastRatio(hex, s)));
+  if (worst(mutedHex) >= minRatio) {
+    return mutedHex;
+  }
+  for (let step = 1; step <= 20; step++) {
+    const candidate = mixHex(mutedHex, fgHex, step / 20);
+    if (worst(candidate) >= minRatio) {
+      return candidate;
+    }
+  }
+  return fgHex;
+}
+
 function findLightPalette(accentHex: string): LightPaletteEntry {
   return (
     LIGHT_PALETTES.find((p) => p.hex.toLowerCase() === accentHex.toLowerCase()) ?? LIGHT_PALETTES[0]
@@ -355,7 +375,7 @@ export function applyLightThemeOverrides(accentHex: string): void {
   root.setProperty('--brand-ink-surface', palette.card);
   root.setProperty('--brand-ink-surface-2', palette.border);
   root.setProperty('--brand-text', palette.fg);
-  root.setProperty('--brand-text-dim', palette.mutedFg);
+  root.setProperty('--brand-text-dim', ensureTextDimContrast(palette.mutedFg, palette.fg, [palette.bg, palette.card]));
 
   // --ion-background-color y --ion-text-color ya son var(--brand-ink)/var(--brand-text)
   // en styles.scss, así que las 2 líneas de arriba alcanzan para esos — pero sus

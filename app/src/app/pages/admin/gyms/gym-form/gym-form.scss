@@ -17,7 +17,7 @@
 }
 
 .closure-item-meta {
-  font-size: 0.78rem;
+  font-size: 0.8125rem;
 }
 
 .closure-item-actions {
@@ -181,7 +181,7 @@
 
   &__label {
     margin: 0;
-    font-size: 0.75rem;
+    font-size: 0.8125rem;
     color: var(--brand-text-dim);
   }
 }
@@ -227,7 +227,7 @@
 // como lo que es: un campo de código, no un párrafo.
 .logo-svg-input {
   font-family: var(--brand-font-mono);
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   --padding-top: 0.5rem;
   --padding-bottom: 0.5rem;
 }
@@ -318,7 +318,7 @@
   transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 
   ion-badge {
-    font-size: 0.75rem;
+    font-size: 0.8125rem;
   }
 
   @media (hover: hover) and (pointer: fine) {
@@ -446,7 +446,7 @@
     background: none;
     color: var(--brand-accent-text-safe, var(--brand-accent));
     font-family: inherit;
-    font-size: 0.75rem;
+    font-size: 0.8125rem;
     font-weight: 600;
     cursor: pointer;
     min-height: 32px;
@@ -464,7 +464,7 @@
   gap: 0.35rem;
   margin: 0.15rem 0 0;
   color: var(--brand-text-dim);
-  font-size: 0.78rem;
+  font-size: 0.8125rem;
 
   img {
     width: 18px;
@@ -533,7 +533,7 @@ ion-segment-button.segment-button-checked {
 }
 
 .demo-admin-detail {
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   color: var(--brand-text-dim);
 }
 
@@ -545,7 +545,7 @@ ion-segment-button.segment-button-checked {
   flex-shrink: 0;
   padding: 0.1rem 0.5rem;
   border-radius: 999px;
-  font-size: 0.7rem;
+  font-size: 0.8125rem;
   font-weight: 600;
   color: var(--ion-color-tertiary, #8b5cf6);
   background: color-mix(in srgb, var(--ion-color-tertiary, #8b5cf6) 14%, transparent);
@@ -565,7 +565,7 @@ ion-segment-button.segment-button-checked {
   align-items: center;
   gap: 0.3rem;
   color: var(--brand-text-dim);
-  font-size: 0.78rem;
+  font-size: 0.8125rem;
   white-space: nowrap;
   flex-shrink: 0;
 
@@ -674,6 +674,73 @@ ion-segment-button.segment-button-checked {
   }
 }
 
+// Caluga elegida como filtro de la lista: borde de acento + subrayado + check (no solo color).
+.member-stat {
+  position: relative;
+
+  &--selected {
+    border-color: var(--brand-accent);
+    box-shadow: inset 0 -3px 0 var(--brand-accent);
+  }
+
+  &--selected &__label {
+    font-weight: 700;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  &--selected &__check {
+    display: block;
+  }
+}
+
+.member-stat__check {
+  display: none;
+  position: absolute;
+  top: 0.35rem;
+  right: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--brand-accent-text-safe, var(--brand-accent));
+}
+
+// "Mostrando: <estado> · Quitar" justo encima de la lista de socios.
+.member-filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin: 0.5rem 0;
+  padding: 0 0.25rem 0 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--brand-accent) 35%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--brand-accent) 14%, transparent);
+  font-size: 0.85rem;
+
+  &__clear {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    min-height: 44px;
+    padding: 0 0.75rem;
+    border: 0;
+    background: transparent;
+    color: var(--brand-accent-text-safe, var(--brand-accent));
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+
+    &:focus-visible {
+      outline: 2px solid var(--brand-accent);
+      outline-offset: 2px;
+    }
+
+    ion-icon {
+      font-size: 1rem;
+    }
+  }
+}
+
 .member-stat__value {
   margin: 0 0 0.15rem;
   font-family: var(--brand-font-mono);
@@ -683,7 +750,7 @@ ion-segment-button.segment-button-checked {
 
 .member-stat__label {
   margin: 0;
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   color: var(--brand-text-dim);
 }
 
@@ -909,7 +976,7 @@ ion-segment-button.segment-button-checked {
 // Título de cada grupo de colores en "Mi marca" (Energía, Calma, Frescura, Premium).
 .palette-group__title {
   margin: 1rem 0 0.4rem;
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -922,6 +989,78 @@ ion-segment-button.segment-button-checked {
 }
 
 // "Renovado por adelantado": ya pagó el período siguiente (queuedPeriodEnd).
+// Fila compacta: nombre + estado, una línea clave y el resto de los datos plegado en "Ver detalle".
+.member-row__key {
+  flex-basis: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--brand-text-dim);
+
+  ion-icon {
+    font-size: 1rem;
+    flex-shrink: 0;
+  }
+
+  &--warn {
+    color: color-mix(in srgb, var(--ion-color-warning) 70%, var(--brand-text));
+    font-weight: 600;
+  }
+
+  &--danger {
+    color: var(--ion-color-danger);
+    font-weight: 600;
+  }
+}
+
+.member-row__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-height: 44px;
+  padding: 0 0.5rem;
+  border: 0;
+  background: transparent;
+  color: var(--brand-accent-text-safe, var(--brand-accent));
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 120ms ease-out;
+
+  &:active {
+    transform: scale(0.97);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--brand-accent);
+    outline-offset: 2px;
+  }
+}
+
+.member-row__detail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.75rem;
+  margin-top: 0.35rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--brand-ink-surface-2);
+
+  &[hidden] {
+    display: none;
+  }
+
+  .member-plan-info__item,
+  .member-invite-badge {
+    font-size: 0.8125rem;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+
 .member-plan-info__item--queued {
   color: var(--ion-color-success);
   font-weight: 600;
@@ -973,6 +1112,47 @@ ion-segment-button.segment-button-checked {
 }
 
 // Fila de socio: nombre/estado a un lado y acciones al otro (apiladas en mobile). Igual que gym-admin.
+// Esqueleto de la lista de socios: 5 filas con la altura de la fila compacta (.member-row + acciones).
+.member-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+
+  &__row {
+    min-height: 4.25rem;
+    border-radius: 12px;
+    background: var(--brand-ink-surface-2);
+    animation: member-skel-pulse 1.4s ease-in-out infinite;
+  }
+
+  &__sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+@keyframes member-skel-pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .member-skeleton__row {
+    animation: none;
+  }
+}
+
+#members-list-title:focus-visible {
+  outline: 2px solid var(--brand-accent);
+  outline-offset: 2px;
+}
+
 .member-row-wrapper {
   display: flex;
   align-items: center;
@@ -1015,37 +1195,6 @@ ion-segment-button.segment-button-checked {
   }
 }
 
-
-// Chip "Filtro: X" para quitar el filtro de socios. <button> real (antes ion-chip con click, sin foco ni teclado).
-.filter-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  min-height: 32px;
-  margin: 0.25rem 0.5rem 0 0;
-  padding: 0.25rem 0.75rem;
-  border: 1px solid color-mix(in srgb, var(--brand-accent) 35%, transparent);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--brand-accent) 14%, transparent);
-  color: var(--brand-accent-text-safe, var(--brand-accent));
-  font-family: inherit;
-  font-size: 0.82rem;
-  font-weight: 600;
-  cursor: pointer;
-
-  @media (pointer: coarse) {
-    min-height: 44px;
-  }
-
-  &:focus-visible {
-    outline: 2px solid var(--brand-accent);
-    outline-offset: 2px;
-  }
-
-  ion-icon {
-    font-size: 1rem;
-  }
-}
 
 // Código de la TV: siempre en mayúsculas (antes era un style inline en el template).
 .tv-code-input {

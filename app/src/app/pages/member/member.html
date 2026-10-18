@@ -139,7 +139,7 @@
       </div>
     </div>
 
-    @if (offline() !== null) {
+    @if (writesBlocked()) {
       <div class="offline-banner" role="status">
         <ion-icon name="cloud-offline-outline" aria-hidden="true"></ion-icon>
         <span class="offline-banner__text">{{ offlineLabel() }}</span>
@@ -161,13 +161,20 @@
     @if (nextStrip(); as next) {
       <div class="next-strip" [class.next-strip--live]="isReservationLive(next)">
         <ion-icon [name]="isReservationLive(next) ? 'radio-button-on-outline' : 'time-outline'" aria-hidden="true"></ion-icon>
-        <p class="next-strip__text">
-          @if (isReservationLive(next)) {
-            <strong class="next-strip__when">En curso:</strong> {{ next.blockLabel }} · hasta {{ shortTime(next.endTime) }}
-          } @else {
-            <strong class="next-strip__when">Próxima:</strong> {{ relativeDayLabel(next.classDate) }} {{ shortTime(next.startTime) }} · {{ next.blockLabel }}
+        <div class="next-strip__body">
+          <p class="next-strip__text">
+            @if (isReservationLive(next)) {
+              <strong class="next-strip__when">En curso:</strong> {{ next.blockLabel }} · hasta {{ shortTime(next.endTime) }}
+            } @else {
+              <strong class="next-strip__when">Próxima:</strong> {{ relativeDayLabel(next.classDate) }} {{ shortTime(next.startTime) }} · {{ next.blockLabel }}
+            }
+          </p>
+          @if (!isReservationLive(next) && isTodayDate(next.classDate)) {
+            @if (todayRoutine(); as routine) {
+              <p class="next-strip__routine">Hoy te toca: <strong>{{ routine }}</strong></p>
+            }
           }
-        </p>
+        </div>
         @if (isReservationLive(next)) {
           @if (next.checkedInAt) {
             <span class="next-strip__done">
@@ -184,7 +191,8 @@
           <button
             type="button"
             class="next-strip__action"
-            [disabled]="cancelingId() === next.id"
+            [disabled]="cancelingId() === next.id || writesBlocked()"
+            [attr.aria-disabled]="writesBlocked() ? 'true' : null"
             (click)="confirmCancel(next.id, next.blockLabel, next.classDate, next.startTime, next.fixed)"
           >
             {{ cancelingId() === next.id ? 'Cancelando…' : 'Cancelar' }}
@@ -458,8 +466,8 @@
       </div>
     } @else if (status() === 'error' && occurrences().length === 0) {
       <app-error-state
-        title="No pudimos cargar las clases"
-        message="Revisa tu conexión e inténtalo de nuevo."
+        [title]="classesNoNetwork() ? 'Sin conexión: conéctate para ver las clases' : 'No pudimos cargar las clases'"
+        [message]="classesNoNetwork() ? 'Cuando vuelva internet las cargamos solas.' : 'Revisa tu conexión e inténtalo de nuevo.'"
         (retry)="loadOccurrences()"
       />
     } @else {
@@ -582,6 +590,7 @@
                     type="button"
                     class="class-tile__attendees-toggle"
                     data-tour="class-attendees"
+                    [attr.aria-label]="(expandedAttendeesKey() === occurrenceKey(occurrence) ? 'Ocultar quién va a ' : 'Ver quién va a ') + tileLabel('', occurrence.label, occurrence.classDate, occurrence.startTime).trim()"
                     [attr.aria-expanded]="expandedAttendeesKey() === occurrenceKey(occurrence)"
                     (click)="toggleAttendees(occurrence)"
                   >
@@ -640,7 +649,8 @@
                           fill="outline"
                           color="danger"
                           size="small"
-                          [disabled]="cancelingId() === occurrence.myReservationId"
+                          [disabled]="cancelingId() === occurrence.myReservationId || writesBlocked()"
+                          [attr.aria-label]="tileLabel('Cancelar reserva de', occurrence.label, occurrence.classDate, occurrence.startTime)"
                           (click)="confirmCancel(occurrence.myReservationId!, occurrence.label, occurrence.classDate, occurrence.startTime, occurrence.myReservationFixed)"
                         >
                           {{ cancelingId() === occurrence.myReservationId ? 'Cancelando...' : 'Cancelar reserva' }}
@@ -671,7 +681,8 @@
                         fill="outline"
                         color="danger"
                         size="small"
-                        [disabled]="waitlistingId() === occurrence.gymBlockId"
+                        [disabled]="waitlistingId() === occurrence.gymBlockId || writesBlocked()"
+                        [attr.aria-label]="tileLabel('Salir de la lista de espera de', occurrence.label, occurrence.classDate, occurrence.startTime)"
                         (click)="confirmLeaveWaitlist(occurrence)"
                       >
                         {{ waitlistingId() === occurrence.gymBlockId ? 'Sacando...' : 'Salir de la lista' }}
@@ -682,10 +693,11 @@
                         expand="block"
                         fill="outline"
                         size="small"
-                        [disabled]="waitlistingId() === occurrence.gymBlockId"
+                        [disabled]="waitlistingId() === occurrence.gymBlockId || writesBlocked()"
+                        [attr.aria-label]="tileLabel('Avisarme si se libera un cupo en', occurrence.label, occurrence.classDate, occurrence.startTime)"
                         (click)="joinWaitlist(occurrence)"
                       >
-                        {{ waitlistingId() === occurrence.gymBlockId ? 'Anotando...' : 'Notificarme si se libera un cupo' }}
+                        {{ waitlistingId() === occurrence.gymBlockId ? 'Anotando...' : 'Avísame si se libera' }}
                       </ion-button>
                     }
                   } @else {
@@ -694,7 +706,8 @@
                       expand="block"
                       fill="solid"
                       size="small"
-                      [disabled]="!occurrence.bookable || bookingId() === occurrence.gymBlockId"
+                      [disabled]="!occurrence.bookable || bookingId() === occurrence.gymBlockId || writesBlocked()"
+                      [attr.aria-label]="occurrence.bookable ? tileLabel('Reservar', occurrence.label, occurrence.classDate, occurrence.startTime) : null"
                       (click)="book(occurrence)"
                     >
                       {{
@@ -896,7 +909,8 @@
                   fill="outline"
                   color="danger"
                   size="small"
-                  [disabled]="cancelingId() === reservation.id"
+                  [disabled]="cancelingId() === reservation.id || writesBlocked()"
+                  [attr.aria-label]="tileLabel('Cancelar reserva de', reservation.blockLabel, reservation.classDate, reservation.startTime)"
                   (click)="confirmCancel(reservation.id, reservation.blockLabel, reservation.classDate, reservation.startTime, reservation.fixed)"
                 >
                   {{ cancelingId() === reservation.id ? 'Cancelando...' : 'Cancelar reserva' }}
@@ -940,7 +954,8 @@
                   fill="outline"
                   color="danger"
                   size="small"
-                  [disabled]="waitlistingId() === entry.gymBlockId"
+                  [disabled]="waitlistingId() === entry.gymBlockId || writesBlocked()"
+                  [attr.aria-label]="tileLabel('Salir de la lista de espera de', entry.label, entry.classDate, entry.startTime)"
                   (click)="confirmLeaveWaitlist(entry)"
                 >
                   {{ waitlistingId() === entry.gymBlockId ? 'Sacando...' : 'Salir de la lista' }}
@@ -1216,25 +1231,35 @@
       }
       <p class="workout-form__label" data-tour="workout-exercise-rows">Ejercicios (opcional)</p>
       @for (row of exerciseRows(); track $index) {
-        <ion-item lines="full">
-          <ion-input
-            placeholder="Ejercicio"
-            [attr.aria-label]="'Ejercicio ' + ($index + 1)"
-            maxlength="200"
-            [value]="row.exercise"
-            (ionInput)="setExerciseField($index, 'exercise', $any($event.detail.value) ?? '')"
-          ></ion-input>
-          <ion-input
-            placeholder="Notas"
-            [attr.aria-label]="'Notas del ejercicio ' + ($index + 1)"
-            maxlength="500"
-            [value]="row.notes ?? ''"
-            (ionInput)="setExerciseField($index, 'notes', $any($event.detail.value) ?? '')"
-          ></ion-input>
-          <ion-button fill="clear" color="danger" slot="end" (click)="removeExerciseRow($index)" aria-label="Quitar ejercicio">
+        <div class="exercise-row">
+          <div class="exercise-row__fields">
+            <ion-item lines="full">
+              <ion-input
+                label="Ejercicio"
+                labelPlacement="stacked"
+                placeholder="Ej. Sentadillas"
+                [attr.aria-label]="'Ejercicio ' + ($index + 1)"
+                maxlength="200"
+                [value]="row.exercise"
+                (ionInput)="setExerciseField($index, 'exercise', $any($event.detail.value) ?? '')"
+              ></ion-input>
+            </ion-item>
+            <ion-item lines="full">
+              <ion-input
+                label="Notas"
+                labelPlacement="stacked"
+                placeholder="Ej. 4x10 con 40 kg"
+                [attr.aria-label]="'Notas del ejercicio ' + ($index + 1)"
+                maxlength="500"
+                [value]="row.notes ?? ''"
+                (ionInput)="setExerciseField($index, 'notes', $any($event.detail.value) ?? '')"
+              ></ion-input>
+            </ion-item>
+          </div>
+          <ion-button fill="clear" color="danger" class="exercise-row__remove" (click)="removeExerciseRow($index)" aria-label="Quitar ejercicio">
             <ion-icon name="close-circle-outline" slot="icon-only" aria-hidden="true"></ion-icon>
           </ion-button>
-        </ion-item>
+        </div>
       }
       <ion-button fill="outline" size="small" (click)="addExerciseRow()">
         <ion-icon name="add-circle-outline" slot="start" aria-hidden="true"></ion-icon>
