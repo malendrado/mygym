@@ -49,7 +49,7 @@
     }
     @if (fit.layout().pages > 1) {
       <div class="tv-chip tv-chip--more tv-chip--pager" [attr.aria-label]="'Página ' + (fit.layout().page + 1) + ' de ' + fit.layout().pages">
-        <ng-container [ngTemplateOutlet]="pager" [ngTemplateOutletContext]="{ $implicit: fit.layout().pages, index: fit.layout().page }"></ng-container>
+        <ng-container [ngTemplateOutlet]="pager" [ngTemplateOutletContext]="{ $implicit: fit.layout().pages, index: fit.layout().page, dots: false }"></ng-container>
       </div>
     }
   </div>
@@ -57,13 +57,16 @@
 
 <!-- Indicador de página de un carrusel: puntitos (el actual, alargado) + "2/3" en cifras para
      leerlo de lejos. Se muestra siempre que haya más de una página, así se nota que hay más. -->
-<ng-template #pager let-count let-index="index">
+<ng-template #pager let-count let-index="index" let-dots="dots">
   <span class="tv-pager">
-    <span class="tv-pager__dots" aria-hidden="true">
-      @for (d of pagerDots(count); track $index) {
-        <span class="tv-pager__dot" [class.tv-pager__dot--on]="$index === index"></span>
-      }
-    </span>
+    <!-- Puntitos solo con pocas páginas y fuera de la celda del roster: con 16 páginas desbordaban y cortaban el "11/16". -->
+    @if (dots !== false && count <= 6) {
+      <span class="tv-pager__dots" aria-hidden="true">
+        @for (d of pagerDots(count); track $index) {
+          <span class="tv-pager__dot" [class.tv-pager__dot--on]="$index === index"></span>
+        }
+      </span>
+    }
     <span class="tv-pager__num">{{ index + 1 }}/{{ count }}</span>
   </span>
 </ng-template>
@@ -227,7 +230,7 @@
                 <section class="tv-now-panel">
                   <!-- La tira de fotos vive en la columna izquierda (no a todo el ancho): así la
                        columna lateral arranca bajo el header y usa ese alto para mostrar más gente. -->
-                  @if (photoStrip().length) {
+                  @if (photoStrip().length && !heroCompact()) {
                     <div class="tv-photo-strip" aria-hidden="true">
                       <div class="tv-photo-strip__track">
                         @for (photo of photoStrip(); track $index) {
@@ -246,7 +249,7 @@
                     <!-- Leyenda color→plan UNA sola vez para toda la pantalla (el color ya es
                          estable en toda la TV, ver planColorMap) — repetirla en cada tarjeta le
                          comía espacio fijo al roster sin sumar información nueva. -->
-                    @if (planLegend().length > 1) {
+                    @if (planLegend().length > 0) {
                       <div class="tv-plan-legend">
                         @for (p of planLegend(); track p.planId) {
                           <span class="tv-plan-legend__item">
@@ -258,7 +261,7 @@
                     }
                   </div>
                   @if (heroBlocks().length > 0) {
-                    <div class="tv-slides">
+                    <div class="tv-slides" [class.tv-slides--compact]="heroCompact()">
                       @for (occ of heroBlocks(); track occ.blockId) {
                         <article
                           class="tv-slide"
@@ -283,7 +286,7 @@
                               }
                             </div>
                             <h2 class="tv-slide__title">{{ occ.label }}</h2>
-                            @if (isHeroLive()) {
+                            @if (isHeroLive() && !heroCompact()) {
                               <div class="tv-slide__progress">
                                 <div
                                   class="tv-slide__progress-fill"
@@ -399,7 +402,7 @@
                         >
                           @for (occ of laterItems().slice(agenda.layout().start, agenda.layout().start + agenda.layout().visible); track occ.blockId) {
                             <div class="tv-agenda__row">
-                              <span class="tv-agenda__time">{{ timeRangeLabel(occ) }}</span>
+                              <span class="tv-agenda__time">{{ startLabel(occ) }}</span>
                               <span class="tv-agenda__title">
                                 {{ occ.label }}
                                 @if (occ.instructorName && agenda.layout().tier.name !== 'row-xl') {
@@ -427,9 +430,9 @@
                               <span class="tv-agenda__cap">
                                 {{ capacityLabel(occ) }}
                                 @if (isFull(occ)) {
-                                  <span class="tv-tag">Lleno</span>
+                                  <span class="tv-agenda__flag tv-agenda__flag--full" role="img" aria-label="Lleno"></span>
                                 } @else if (isLowCapacity(occ)) {
-                                  <span class="tv-tag tv-tag--low">Últimos</span>
+                                  <span class="tv-agenda__flag tv-agenda__flag--low" role="img" aria-label="Últimos cupos"></span>
                                 }
                               </span>
                             </div>
@@ -458,7 +461,7 @@
       }
     }
 
-    @if (fullscreenSupported && !isFullscreen()) {
+    @if (fullscreenSupported && !isFullscreen() && fullscreenHintVisible()) {
       <button type="button" class="tv-fullscreen-hint" (click)="enterFullscreen()" aria-label="Activar pantalla completa">
         <span aria-hidden="true">⛶</span> Pantalla completa · clic u OK
       </button>

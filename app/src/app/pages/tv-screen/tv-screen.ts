@@ -30,6 +30,8 @@ const PAIRING_RETRY_MS = 15_000;
 // Longevidad del kiosco: una pestaña de TV queda abierta meses — un reload periódico evita
 // leaks de memoria de una SPA que nunca se cierra, sin cortar el show por más de un segundo.
 const TV_ROOT_FONT_SIZE = 'max(11px, min(calc(100vw / 96), calc(100vh / 54)))';
+// El aviso "Pantalla completa" se retira solo a los 5 s para no tapar la agenda (vuelve si se sale de pantalla completa).
+const FULLSCREEN_HINT_MS = 5_000;
 const KIOSK_RELOAD_MS = 6 * 60 * 60 * 1000;
 // Pasado este rato desde que terminó, "clase anterior" deja de ser información útil y se oculta
 // en vez de quedar mostrando la clase de la mañana toda la tarde.
@@ -247,6 +249,10 @@ export class TvScreenPage implements OnDestroy {
   private readonly heroPages = computed<TvBlockOccurrence[][]>(() =>
     chunk(this.isIdle() ? this.allNextBlocks() : this.allCurrentBlocks(), HERO_PAGE_SIZE),
   );
+  // Modo compacto: con 2+ clases en el total (no por página) la tarjeta pierde barra de progreso y título de 2 líneas, y la
+  // tira de fotos se oculta. Depende del TOTAL a propósito: si dependiera de las tarjetas de la página, el layout saltaría
+  // entre "1/2" y "2/2" (la última página puede traer una sola).
+  protected readonly heroCompact = computed(() => this.heroPages().reduce((n, page) => n + page.length, 0) >= 2);
   protected readonly heroPageCount = computed(() => this.heroPages().length);
   protected readonly heroPageIndex = computed(() => this.pageTick() % Math.max(this.heroPageCount(), 1));
   protected readonly heroBlocks = computed<TvBlockOccurrence[]>(() => this.heroPages()[this.heroPageIndex()] ?? []);
@@ -309,7 +315,8 @@ export class TvScreenPage implements OnDestroy {
   // Leyenda color→plan, UNA sola vez para toda la pantalla (no por tarjeta) — el color de cada
   // plan ya es estable en toda la TV (mismo planColorMap de arriba), así que repetirla en cada
   // clase en curso solo le comía espacio fijo al roster sin agregar información nueva (feedback
-  // real del usuario). Si todos comparten un solo plan, no hay nada que distinguir.
+  // real del usuario). Se muestra SIEMPRE que haya al menos un plan en pantalla, incluso con uno solo: aunque
+  // todos compartan plan, el dueño quiere ver cuál es (feedback real, 2026-10-18).
   protected readonly planLegend = computed<{ planId: number; planName: string; color: string }[]>(() => {
     const sched = this.schedule();
     if (!sched) return [];
@@ -348,7 +355,13 @@ export class TvScreenPage implements OnDestroy {
   protected readonly fullscreenSupported = typeof document.documentElement.requestFullscreen === 'function';
   protected readonly isFullscreen = signal(!!document.fullscreenElement);
   private readonly gestureEvents = ['pointerdown', 'keydown', 'touchend'] as const;
-  private readonly onFullscreenChange = (): void => this.isFullscreen.set(!!document.fullscreenElement);
+  protected readonly fullscreenHintVisible = signal(true);
+  private hintTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly onFullscreenChange = (): void => {
+    this.isFullscreen.set(!!document.fullscreenElement);
+    if (document.fullscreenElement) this.clearHintTimer();
+    else this.showFullscreenHint();
+  };
   private readonly onFirstGesture = (): void => this.enterFullscreen();
 
   private clockOffsetMs = 0;
@@ -367,6 +380,7 @@ export class TvScreenPage implements OnDestroy {
     document.documentElement.style.fontSize = TV_ROOT_FONT_SIZE;
     if (this.fullscreenSupported) {
       document.addEventListener('fullscreenchange', this.onFullscreenChange);
+      if (!document.fullscreenElement) this.showFullscreenHint();
       this.gestureEvents.forEach((name) => document.addEventListener(name, this.onFirstGesture, true));
     }
     this.clockTimer = setInterval(() => this.now.set(new Date(Date.now() + this.clockOffsetMs)), 1000);
@@ -405,7 +419,22 @@ export class TvScreenPage implements OnDestroy {
     if (this.pollTimer) clearTimeout(this.pollTimer);
     if (this.kioskReloadTimer) clearTimeout(this.kioskReloadTimer);
     this.clearOfflineTimer();
+    this.clearHintTimer();
     clearThemeOverrides();
+  }
+
+  private showFullscreenHint(): void {
+    this.clearHintTimer();
+    this.fullscreenHintVisible.set(true);
+    this.hintTimer = setTimeout(() => {
+      this.hintTimer = null;
+      this.fullscreenHintVisible.set(false);
+    }, FULLSCREEN_HINT_MS);
+  }
+
+  private clearHintTimer(): void {
+    if (this.hintTimer) clearTimeout(this.hintTimer);
+    this.hintTimer = null;
   }
 
   private clearOfflineTimer(): void {

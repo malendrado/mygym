@@ -157,6 +157,7 @@
   // con el fondo de tarjeta. Par por defecto: #eaf6f7 sobre #28393e = #cddadb. Peor fondo real (cabecera con el
   // resplandor del .tv-display, ~#505a5d): 4,9:1; sobre tarjeta (~#3e4d51): 6,3:1 -> pasa 4,5:1. En modo claro el texto
   // es oscuro y el resultado sigue por encima de 7:1.
+  --tv-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --tv-dim: color-mix(in srgb, var(--tv-accent-text, var(--brand-text)) 85%, var(--tv-card, var(--brand-ink-surface)));
 }
 
@@ -435,11 +436,13 @@
   align-items: baseline;
   justify-content: space-between;
   gap: 1rem;
-  flex-wrap: wrap;
+  // Sin wrap: que la leyenda se achique en vez de saltar a otra línea y mover el alto de las tarjetas.
+  flex-wrap: nowrap;
 }
 
 .tv-main__label {
   margin: 0;
+  flex: 0 0 auto;
   display: flex;
   align-items: baseline;
   gap: 0.6rem;
@@ -448,14 +451,6 @@
   letter-spacing: 0.14em;
   font-size: clamp(1.1rem, 1.8vw, 1.5rem);
   color: var(--tv-accent-text, var(--brand-accent));
-}
-
-.tv-main__label-extra {
-  font-family: var(--brand-font-mono);
-  letter-spacing: normal;
-  text-transform: none;
-  font-size: max(14px, 0.8rem);
-  color: var(--tv-dim);
 }
 
 .tv-idle {
@@ -505,7 +500,7 @@
   box-shadow:
     0 1.5rem 3rem -1.5rem rgba(0, 0, 0, 0.5),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
-  animation: tv-fade 600ms ease-out both;
+  animation: tv-fade 150ms var(--tv-ease-out) both;
   overflow: hidden;
 }
 
@@ -513,6 +508,63 @@
   transition:
     border-color 0.4s ease,
     box-shadow 0.4s ease;
+}
+
+// 2+ clases en curso: título en una línea, sin barra (el "Quedan N min" ya informa) y subtítulo + cupo en una sola fila.
+// Todo para que el roster tenga alto de sobra y no cambie entre páginas.
+.tv-slides--compact {
+  .tv-slide {
+    gap: 0.5rem;
+    padding: clamp(0.7rem, 1.1vw, 1.1rem);
+  }
+
+  .tv-slide__head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.3rem 0.6rem;
+  }
+
+  .tv-slide__meta,
+  .tv-slide__title {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+
+  .tv-slide__time {
+    font-size: clamp(1.1rem, 1.8vw, 1.5rem);
+  }
+
+  .tv-slide__title {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    line-height: 1.15;
+    font-size: clamp(1.4rem, 2.4vw, 2.2rem);
+  }
+
+  .tv-slide__instructor {
+    grid-column: 1;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .tv-slide__instructor-photo {
+    width: 1.6rem;
+    height: 1.6rem;
+  }
+
+  .tv-sub {
+    flex-wrap: nowrap;
+    white-space: nowrap;
+    font-size: max(14px, 0.95rem);
+  }
+
+  .tv-slide__capacity {
+    grid-column: 2;
+    gap: 0.5rem;
+    font-size: max(14px, 0.95rem);
+  }
 }
 
 .tv-slide--full {
@@ -731,6 +783,12 @@
   min-height: 2.3rem;
 }
 
+// Modo compacto (2+ clases en curso): los nombres arrancan justo bajo el encabezado en vez de quedar centrados con huecos arriba y abajo.
+// (!important: TvFitDirective escribe align-content: center como estilo en línea.)
+.tv-slides--compact .tv-slide .tv-roster-fit {
+  align-content: start !important;
+}
+
 .tv-roster-empty {
   margin: 0;
   flex: 1 1 0;
@@ -744,10 +802,11 @@
 // real — UNA sola vez para toda la pantalla, junto al label "AHORA" (zona fija, nunca la mide
 // TvFitDirective), no repetida por tarjeta: el color ya es estable en toda la TV.
 .tv-plan-legend {
-  flex-shrink: 0;
+  flex: 0 1 auto;
+  min-width: 0;
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.3rem 0.9rem;
+  flex-wrap: nowrap;
+  gap: 0 0.8rem;
   font-size: max(14px, clamp(0.8rem, 0.9vw, 0.9rem));
   color: var(--tv-dim);
 
@@ -755,6 +814,10 @@
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   &__dot {
@@ -780,7 +843,6 @@
   padding: 0 0.9rem 0 0.55rem;
   border-radius: 999px;
   overflow: hidden;
-  transition: opacity 0.4s ease;
   position: relative;
 
   // Marca de plan = fondo teñido, no anillo/barra (feedback real del usuario: el anillo se leía
@@ -1012,8 +1074,9 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
-  padding: clamp(0.9rem, 1.2vw, 1.15rem) clamp(1rem, 1.4vw, 1.3rem);
+  gap: 0.4rem;
+  // Cromo mínimo: cada px de padding es alto que le sobra al roster (a 960x540 la columna lateral va justa).
+  padding: 0.65rem clamp(0.9rem, 1.4vw, 1.3rem);
   border-radius: 1.25rem;
   background:
     linear-gradient(rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.08)),
@@ -1029,7 +1092,7 @@
 // (mismo padding que .tv-mini-card + título + gap). Al llegar al tope, flexbox le pasa el
 // sobrante a las demás tarjetas en vez de dejar filas vacías acá.
 .tv-mini-card--agenda {
-  max-height: calc(var(--agenda-max, 100rem) + 2 * clamp(0.9rem, 1.2vw, 1.15rem) + 2rem);
+  max-height: calc(var(--agenda-max, 100rem) + 2 * 0.65rem + 2rem);
 }
 
 .tv-mini-card__label {
@@ -1068,18 +1131,11 @@
   order: -1;
 }
 
-.tv-mini-card__label-extra {
-  margin-left: 0.4rem;
-  font-family: var(--brand-font-mono);
-  letter-spacing: normal;
-  text-transform: none;
-}
-
 .tv-mini-card__head {
   flex: 0 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.1rem;
 }
 
 .tv-mini-card__line {
@@ -1181,8 +1237,8 @@
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 0.9rem;
-  padding: 0 0.9rem;
+  gap: 0.6rem;
+  padding: 0 0.7rem;
   border-radius: 0.75rem;
   background: color-mix(in srgb, var(--tv-accent-text, var(--brand-text)) 6%, transparent);
   font-size: max(14px, 1rem);
@@ -1269,9 +1325,22 @@
   color: var(--tv-dim);
 }
 
+// Lleno / últimos cupos como punto de color (el texto le quitaba ~60 px al nombre de la clase): macizo = lleno, aro = quedan pocos.
+.tv-agenda__flag {
+  width: 0.75rem;
+  height: 0.75rem;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 2px solid var(--tv-accent, var(--brand-accent));
 
-// Carruseles: cada página nueva entra con un fundido suave (sin deslizamiento — en una pantalla
-// grande vista de lejos, el movimiento lateral distrae más de lo que informa).
+  &--full {
+    background: var(--tv-accent, var(--brand-accent));
+  }
+}
+
+
+// Carruseles: cada página nueva entra con un fundido corto (150 ms, solo opacidad: más largo dejaba filas a medio desvanecer,
+// ilegibles, justo cuando alguien mira la pantalla).
 @keyframes tv-fade {
   from {
     opacity: 0;
@@ -1284,7 +1353,7 @@
 .tv-chip,
 .tv-mini-entry,
 .tv-agenda__row {
-  animation: tv-fade 600ms ease-out both;
+  animation: tv-fade 150ms var(--tv-ease-out) both;
 }
 
 .tv-pager {
