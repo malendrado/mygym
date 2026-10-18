@@ -1074,7 +1074,10 @@ public class GymService {
                 early,
                 // Un pago que NO conserva la cadena descarta la cola y los días que quedaban del período actual.
                 early || scheduled ? 0 : MembershipPeriods.queuedMonths(member, ZonedDateTime.now(GYM_ZONE)),
-                early || scheduled ? 0 : MembershipPeriods.daysLeftInCurrent(member, ZonedDateTime.now(GYM_ZONE)),
+                // Con las funciones avanzadas escondidas no se muestra el aviso de días que se pierden (nadie renueva por adelantado).
+                early || scheduled || !MembershipPeriods.ADVANCE_PLANS_ENABLED
+                        ? 0
+                        : MembershipPeriods.daysLeftInCurrent(member, ZonedDateTime.now(GYM_ZONE)),
                 scheduled,
                 scheduled ? start.toLocalDate() : null);
     }

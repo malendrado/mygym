@@ -83,6 +83,16 @@
   <build>
     <plugins>
       <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <!-- Las funciones de renovación anticipada y cambio de plan están escondidas en producción (ver MembershipPeriods.ADVANCE_PLANS_ENABLED); los tests siguen cubriendo ese código. -->
+          <systemPropertyVariables>
+            <mygym.advancePlans>true</mygym.advancePlans>
+          </systemPropertyVariables>
+        </configuration>
+      </plugin>
+      <plugin>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
         <configuration>

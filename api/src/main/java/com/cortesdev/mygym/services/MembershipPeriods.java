@@ -23,6 +23,16 @@ public final class MembershipPeriods {
 
     public static final ZoneId GYM_ZONE = ZoneId.of("America/Santiago");
 
+    /**
+     * Interruptor de las dos funciones avanzadas de pago, ESCONDIDAS por ahora (decisión de producto: basta con "se bloquea
+     * al vencer y se reactiva al pagar"): renovación anticipada (pagar el mismo plan vigente suma un mes en cola) y cambio de
+     * plan programado (pagar otro plan vigente lo deja en espera). Apagado, todo pago arranca un período nuevo desde su fecha.
+     * El código y las columnas siguen ahí; se enciende con la variable de entorno MYGYM_ADVANCE_PLANS=true (o la propiedad
+     * -Dmygym.advancePlans=true, que usan los tests). Las cadenas ya en cola siguen respetándose hasta que terminen.
+     */
+    public static final boolean ADVANCE_PLANS_ENABLED =
+            Boolean.getBoolean("mygym.advancePlans") || "true".equalsIgnoreCase(System.getenv("MYGYM_ADVANCE_PLANS"));
+
     private MembershipPeriods() {}
 
     /** Ancla de la cadena, o null si el socio nunca pagó. */
@@ -109,7 +119,8 @@ public final class MembershipPeriods {
 
     /** ¿Un pago ahora, con ese plan, renueva por adelantado? Plan vigente (no vencido) y el MISMO plan que ya tiene. */
     public static boolean canExtend(AppUser user, Long planId, Instant now) {
-        return planId != null
+        return ADVANCE_PLANS_ENABLED
+                && planId != null
                 && planId.equals(user.getPlanId())
                 && user.getPaidAt() != null
                 && !isExpired(user, now.atZone(GYM_ZONE));
@@ -117,7 +128,8 @@ public final class MembershipPeriods {
 
     /** ¿Pagar ESTE plan ahora es un cambio de plan? Hay plan vigente (no vencido) y el pago es de otro plan distinto. */
     public static boolean isPlanChange(AppUser user, Long planId, Instant now) {
-        return planId != null
+        return ADVANCE_PLANS_ENABLED
+                && planId != null
                 && user.getPlanId() != null
                 && !planId.equals(user.getPlanId())
                 && user.getPaidAt() != null
