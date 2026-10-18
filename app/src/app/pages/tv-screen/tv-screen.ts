@@ -64,12 +64,14 @@ const PLAN_PALETTE = ['#f97316', '#3b82f6', '#06b6d4', '#ec4899', '#eab308', '#a
 // Una TV no tiene scroll — nada puede depender de más espacio del que existe. Lo que no cabe se
 // PAGINA (carrusel) en vez de achicarse o esconderse tras un "+N": clases en curso de a 2,
 // próximas de a 1, asistentes y agenda por páginas según el espacio medido. Cada página dura
-// ~10 s: en una TV nadie puede apretar "siguiente", tiene que alcanzar a buscarse en la lista.
+// ~18 s: en una TV nadie puede apretar "siguiente", tiene que alcanzar a buscarse en la lista
+// (antes 10 s: con 3-4 zonas cambiando a la vez, el dueño reportó que no alcanzaba a leer, 2026-10-18).
 const HERO_PAGE_SIZE = 2;
-const CAROUSEL_PAGE_MS = 10_000;
-// Las paginas de asistentes (lista que no entra completa) rotan mas rapido que el resto del carrusel: leer una pagina de
-// nombres toma 2-3 s, y con 8 anotados en una tarjeta lateral a 10 s por pagina el ultimo tardaba mas de un minuto.
-const ROSTER_PAGE_MS = 5_000;
+const CAROUSEL_PAGE_MS = 18_000;
+// Las paginas de asistentes (lista que no entra completa) rotan al doble de ritmo que el resto del carrusel (9 s contra
+// 18 s, siempre en proporcion 2:1 para que los cambios caigan juntos): una pagina de hasta 12 nombres se lee en ~8 s;
+// a 5 s (valor anterior) no alcanzaba. Costo: una tarjeta lateral de 16 asistentes completa su ciclo en ~54 s.
+const ROSTER_PAGE_MS = 9_000;
 
 // Tamaños de chip de asistente, de mayor a menor (rem). TvFitDirective mide el espacio real y
 // elige el más grande en el que entran todos; si ni el chico alcanza, "+N". Los 3 primeros
