@@ -115,6 +115,31 @@ public final class MembershipPeriods {
                 && !isExpired(user, now.atZone(GYM_ZONE));
     }
 
+    /** ¿Pagar ESTE plan ahora es un cambio de plan? Hay plan vigente (no vencido) y el pago es de otro plan distinto. */
+    public static boolean isPlanChange(AppUser user, Long planId, Instant now) {
+        return planId != null
+                && user.getPlanId() != null
+                && !planId.equals(user.getPlanId())
+                && user.getPaidAt() != null
+                && !isExpired(user, now.atZone(GYM_ZONE));
+    }
+
+    /** Deja el pago en espera: el plan nuevo parte cuando termine el actual. Pagar de nuevo el mismo plan pendiente suma un mes; otro plan lo reemplaza. */
+    public static void schedulePlanChange(AppUser user, Long planId) {
+        if (planId.equals(user.getPendingPlanId())) {
+            user.setPendingPlanPeriods(pendingPeriods(user) + 1);
+        } else {
+            user.setPendingPlanId(planId);
+            user.setPendingPlanPeriods(1);
+        }
+    }
+
+    /** Meses seguidos pagados del plan pendiente (>= 1). */
+    public static int pendingPeriods(AppUser user) {
+        Integer n = user.getPendingPlanPeriods();
+        return n == null || n < 1 ? 1 : n;
+    }
+
     /**
      * Registra un pago hecho en {@code now}. Con {@code allowEarly} y un plan vigente del mismo plan, alarga la cadena un
      * mes más (la cola se encadena desde SU vencimiento, sin tocar el período actual ni sus clases usadas). En cualquier
@@ -154,6 +179,11 @@ public final class MembershipPeriods {
         user.setPaidAt(start);
         user.setPeriodStart(null);
         user.setPaidPeriods(null);
+        // Un cambio pendiente de OTRO plan sobrevive (ya está pagado); si arrancó justo ese plan, deja de estar pendiente.
+        if (planId != null && planId.equals(user.getPendingPlanId())) {
+            user.setPendingPlanId(null);
+            user.setPendingPlanPeriods(null);
+        }
     }
 
     /** Quita todo rastro de pago (revokePlan). */
@@ -162,5 +192,7 @@ public final class MembershipPeriods {
         user.setPaidAt(null);
         user.setPeriodStart(null);
         user.setPaidPeriods(null);
+        user.setPendingPlanId(null);
+        user.setPendingPlanPeriods(null);
     }
 }

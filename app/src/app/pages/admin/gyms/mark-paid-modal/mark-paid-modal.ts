@@ -128,6 +128,11 @@ export class MarkPaidModal {
   // vista previa falla por algo ajeno al usuario, el resumen sigue mostrando las fechas y no se bloquea nada.
   // Con renovación por adelantado, la vista previa trae el período NUEVO (parte en el vencimiento actual).
   protected readonly earlyRenewal = computed(() => this.preview()?.earlyRenewal === true);
+  protected readonly planChangeScheduled = computed(() => this.preview()?.planChangeScheduled === true);
+  protected readonly planChangeLabel = computed(() => {
+    const p = this.preview();
+    return p?.planChangeScheduled && p.planChangeFrom ? formatIsoDate(p.planChangeFrom) : '';
+  });
   protected readonly earlyStartLabel = computed(() => {
     const p = this.preview();
     return p?.earlyRenewal ? formatIsoDate(p.periodStart) : '';

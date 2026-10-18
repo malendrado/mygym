@@ -45,6 +45,9 @@ public interface AppUserRepository extends JpaRepository<AppUser, Long> {
      *  paid_at, así que no entran por la ventana de arriba. Son pocos (solo quien pagó por adelantado); el job filtra el resto. */
     List<AppUser> findByRoleAndPeriodStartIsNotNull(Role role);
 
+    /** Socios con un cambio de plan programado (V53): los recorre PlanChangeJob. Pocos; respalda el índice parcial. */
+    List<AppUser> findByPendingPlanIdIsNotNull();
+
     /** Para la vista "Administradores" del super-admin — super-admins (sin gym_id) y gym-admins
      *  de todos los gimnasios, cada una en su propia consulta por rol. */
     List<AppUser> findByRole(Role role);

@@ -39,6 +39,7 @@ class GymServiceAdminGuardsTest {
     @Mock private GymRepository gymRepository;
     @Mock private GymPlanRepository gymPlanRepository;
     @Mock private AppUserRepository appUserRepository;
+    @Mock private PlanChangeService planChangeService;
     @InjectMocks private GymService gymService;
 
     @BeforeEach

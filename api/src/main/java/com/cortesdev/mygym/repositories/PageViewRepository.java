@@ -4,8 +4,10 @@ import com.cortesdev.mygym.models.PageView;
 import java.time.Instant;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 public interface PageViewRepository extends JpaRepository<PageView, Long> {
 
@@ -29,4 +31,16 @@ public interface PageViewRepository extends JpaRepository<PageView, Long> {
             """,
             nativeQuery = true)
     List<GymVisitAggregateRow> aggregateByGym(@Param("page") String page, @Param("since30d") Instant since30d);
+
+    /** Purga diaria (ExpiredRowsPurgeJob): borra hasta {@code batchSize} visitas anteriores a {@code cutoff}. Va por lotes
+     *  (ctid + LIMIT) para no tener un DELETE gigante; usa idx_page_view_created_at (V54). Devuelve cuántas borró. */
+    @Transactional
+    @Modifying
+    @Query(
+            value = """
+            DELETE FROM page_view
+            WHERE ctid IN (SELECT ctid FROM page_view WHERE created_at < :cutoff LIMIT :batchSize)
+            """,
+            nativeQuery = true)
+    int deleteOlderThanBatch(@Param("cutoff") Instant cutoff, @Param("batchSize") int batchSize);
 }

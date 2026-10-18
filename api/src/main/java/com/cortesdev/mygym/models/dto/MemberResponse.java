@@ -51,13 +51,16 @@ public record MemberResponse(
         /** true si el plan está vigente y todavía no renovó por adelantado: pagar ahora conserva los días que le quedan. */
         boolean canRenewEarly,
         /** Primer día del período nuevo si renueva ahora (= vencimiento actual); null si canRenewEarly es false. */
-        LocalDate earlyRenewalStartsOn) {
+        LocalDate earlyRenewalStartsOn,
+        /** Cambio de plan programado (ya pagado): plan que partirá cuando se acaben las clases o llegue el vencimiento; null si no hay. */
+        Long pendingPlanId,
+        String pendingPlanName) {
 
     /** Sin los datos sensibles (RUT, dirección, nacimiento); hoy no se usa: el PROFESOR también los ve y edita. */
     public MemberResponse withoutSensitiveData() {
         return new MemberResponse(id, name, email, role, gymId, active, createdAt, planId, paidAt, membershipStatus,
                 planName, planEndDate, monthlyClasses, sessionsRemaining, photoUrl, inviteStatus, fixedClassesSummary,
                 null, null, null, phone, null, null, profileComplete, currentPeriodEnd, queuedPeriodEnd,
-                queuedSessionsRemaining, canRenewEarly, earlyRenewalStartsOn);
+                queuedSessionsRemaining, canRenewEarly, earlyRenewalStartsOn, pendingPlanId, pendingPlanName);
     }
 }

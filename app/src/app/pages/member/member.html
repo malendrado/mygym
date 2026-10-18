@@ -402,6 +402,11 @@
                   </p>
                 }
               }
+              @if (membership().pendingPlanName; as pendingPlan) {
+                <p class="membership-status__queued-sub">
+                  Ya pagaste el plan {{ pendingPlan }}: parte cuando se te acaben las clases o llegue el vencimiento
+                </p>
+              }
             }
           </div>
           @if (membership().status === 'active') {

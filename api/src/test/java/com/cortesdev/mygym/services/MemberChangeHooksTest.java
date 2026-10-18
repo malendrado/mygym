@@ -46,6 +46,7 @@ class MemberChangeHooksTest {
     @Mock private ReservationRepository reservationRepository;
     @Mock private GymClosureRepository gymClosureRepository;
     @Mock private WaitlistService waitlistService;
+    @Mock private PlanChangeService planChangeService;
     @InjectMocks private GymService gymService;
     @InjectMocks private ReservationService reservationService;
     @InjectMocks private GymClosureService gymClosureService;

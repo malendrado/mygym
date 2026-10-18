@@ -388,6 +388,51 @@ public class MemberLifecycleEmailService {
                         + escapeHtml(gym.getName()) + ".");
     }
 
+    /** Pagó otro plan mientras tenía uno vigente: queda en espera hasta que termine el actual (clases o vencimiento). */
+    public void sendPlanChangeScheduledMember(Gym gym, AppUser member, GymPlan plan, ZonedDateTime currentEnd) {
+        String headline = "¡Pago confirmado! Tu cambio a " + plan.getName() + " está programado";
+        String body = "<p style=\"margin:0 0 12px;\">Recibimos tu pago del plan <strong style=\"color:#eaf6f7;\">"
+                + escapeHtml(plan.getName())
+                + "</strong>. Se activará cuando termine tu plan actual: cuando se te acaben las clases o llegue su vencimiento"
+                + " (el " + IMPORT_DATE_FORMAT.format(currentEnd.minusDays(1)) + "), lo que ocurra primero.</p>"
+                + "<p style=\"margin:0;\">Mientras tanto sigues usando tu plan de siempre, sin perder nada.</p>";
+        send(
+                gym,
+                member.getEmail(),
+                "Pago confirmado — cambio a " + plan.getName(),
+                "Pago confirmado",
+                headline,
+                body,
+                "Ir a mi cuenta",
+                LOGIN_URL,
+                "Recibiste este correo porque pagaste el plan " + escapeHtml(plan.getName()) + " en " + escapeHtml(gym.getName())
+                        + ".");
+    }
+
+    /** El plan pendiente acaba de partir. */
+    public void sendPlanChangeActivated(Gym gym, AppUser member, GymPlan plan, ZonedDateTime start, ZonedDateTime end) {
+        String quota = plan.getMonthlyClasses() == null
+                ? "clases ilimitadas dentro de los cupos disponibles"
+                : plan.getMonthlyClasses() + " clases al mes";
+        String headline = "Ya está activo tu plan " + plan.getName();
+        String body = "<p style=\"margin:0 0 12px;\">Terminó tu plan anterior y partió el plan <strong style=\"color:#eaf6f7;\">"
+                + escapeHtml(plan.getName()) + "</strong>, con " + quota + ". Está vigente del <strong style=\"color:#eaf6f7;\">"
+                + IMPORT_DATE_FORMAT.format(start) + "</strong> al <strong style=\"color:#eaf6f7;\">"
+                + IMPORT_DATE_FORMAT.format(end.minusDays(1)) + "</strong>.</p>"
+                + "<p style=\"margin:0;\">Nos vemos en " + escapeHtml(gym.getName()) + ".</p>";
+        send(
+                gym,
+                member.getEmail(),
+                "Ya está activo tu plan " + plan.getName(),
+                "Plan activo",
+                headline,
+                body,
+                "Reservar mi clase",
+                LOGIN_URL,
+                "Recibiste este correo porque pagaste el plan " + escapeHtml(plan.getName()) + " en " + escapeHtml(gym.getName())
+                        + ".");
+    }
+
     public void sendPaymentConfirmedAdmin(Gym gym, AppUser member, GymPlan plan, List<String> adminEmails) {
         String headline = "Nuevo pago confirmado en " + gym.getName();
         String body = "<p style=\"margin:0 0 12px;\"><strong style=\"color:#eaf6f7;\">" + escapeHtml(member.getName())

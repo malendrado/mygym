@@ -47,7 +47,11 @@ app:
   google:
     client-id: ${GOOGLE_CLIENT_ID}
   cors:
-    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:https://www.mygym.cl,https://mygym.cl,http://localhost:4300}
+    # Solo los orígenes de producción por defecto: un localhost permitido en prod deja que cualquier página
+    # corriendo en la máquina de una víctima llame a la API con su token. En desarrollo local ng serve usa el
+    # proxy a :8080 (mismo origen, sin CORS); si se necesita llamar directo, definir
+    # APP_CORS_ALLOWED_ORIGINS=http://localhost:4300 solo en ese entorno.
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:https://www.mygym.cl,https://mygym.cl}
   gemini:
     api-key: ${GEMINI_API_KEY:}
     model: ${GEMINI_MODEL:gemini-2.0-flash}

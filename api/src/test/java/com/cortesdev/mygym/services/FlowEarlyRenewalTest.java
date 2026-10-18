@@ -51,6 +51,7 @@ class FlowEarlyRenewalTest {
     @Mock private PaymentRepository paymentRepository;
     @Mock private MemberLifecycleEmailService emailService;
     @Mock private ApplicationEventPublisher eventPublisher;
+    @Mock private PlanChangeService planChangeService;
 
     private FlowPaymentService service;
     private Payment payment;
@@ -62,7 +63,7 @@ class FlowEarlyRenewalTest {
     void setUp() {
         service = new FlowPaymentService(
                 flowApiClient, appUserRepository, gymPlanRepository, gymRepository, paymentRepository, emailService,
-                eventPublisher, "http://return", "http://webhook");
+                eventPublisher, planChangeService, "http://return", "http://webhook");
         payment = Payment.builder().id(1L).memberId(MEMBER_ID).planId(PLAN_ID).commerceOrder("mygym-1")
                 .amountClp(25_700).status("PENDING").flowToken(TOKEN).build();
         member = AppUser.builder().id(MEMBER_ID).gymId(GYM_ID).role(Role.MEMBER).build();

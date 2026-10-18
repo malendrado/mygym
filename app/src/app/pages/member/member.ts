@@ -181,6 +181,8 @@ interface Membership {
   canRenewEarly?: boolean;
   /** Primer día del período nuevo (= vencimiento actual). */
   earlyRenewalStartsOn?: string | null;
+  /** Nombre del plan ya pagado que parte al terminar el actual; null = sin cambio programado. */
+  pendingPlanName?: string | null;
 }
 
 /** El plan de precio intermedio se marca "Recomendado" — heurística visual, no una señal del admin.
@@ -2098,6 +2100,7 @@ export class MemberPage {
       queuedSessionsRemaining: member.queuedSessionsRemaining ?? null,
       canRenewEarly: member.canRenewEarly === true && status === 'active',
       earlyRenewalStartsOn: member.earlyRenewalStartsOn ?? null,
+      pendingPlanName: member.pendingPlanName ?? null,
     });
     if (!member.canRenewEarly) {
       this.renewingEarly.set(false);

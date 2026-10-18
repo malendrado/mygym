@@ -85,6 +85,12 @@
           Renovación por adelantado: conserva los días que le quedan; el período nuevo parte el {{ earlyStartLabel() }}
         </p>
       }
+      @if (planChangeScheduled()) {
+        <p class="mark-paid-summary__early">
+          <ion-icon name="time-outline" aria-hidden="true"></ion-icon>
+          Cambio de plan: queda en espera y parte cuando se le acaben las clases o llegue su vencimiento ({{ planChangeLabel() }}), lo que ocurra primero. No pierde nada.
+        </p>
+      }
       <p class="mark-paid-summary__period">{{ periodLine() }}</p>
       @if (preview(); as p) {
         @if (remainingLine(); as line) {

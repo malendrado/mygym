@@ -42,6 +42,9 @@ export class GymPause implements OnInit, OnDestroy {
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   // Hermanos de la ruta del diálogo que pusimos en `inert` (para quitarlos al reanudar sin tocar los que ya lo estaban).
   private inertified: Element[] = [];
+  // Vigila los contenedores de la ruta: un modal, toast o popover que se monte después (Ionic los cuelga de <ion-app>)
+  // también queda inerte, no solo lo que ya existía al pausar.
+  private observers: MutationObserver[] = [];
   private focusOpener: HTMLElement | null = null;
 
   protected readonly status = this.pause.status;
@@ -92,12 +95,17 @@ export class GymPause implements OnInit, OnDestroy {
       if (!parent) {
         break;
       }
+      const branch = node;
       for (const sibling of Array.from(parent.children)) {
-        if (sibling !== node && !sibling.hasAttribute('inert') && !/^(SCRIPT|STYLE|LINK|TEMPLATE)$/.test(sibling.tagName)) {
-          sibling.setAttribute('inert', '');
-          this.inertified.push(sibling);
-        }
+        this.inertify(sibling, branch);
       }
+      const observer = new MutationObserver((records) => {
+        for (const record of records) {
+          record.addedNodes.forEach((added) => added instanceof Element && this.inertify(added, branch));
+        }
+      });
+      observer.observe(parent, { childList: true });
+      this.observers.push(observer);
       node = parent;
     }
     // Se espera a que el @if pinte el aviso antes de enfocar el título.
@@ -106,7 +114,16 @@ export class GymPause implements OnInit, OnDestroy {
     });
   }
 
+  private inertify(el: Element, branch: Element): void {
+    if (el !== branch && !el.hasAttribute('inert') && !/^(SCRIPT|STYLE|LINK|TEMPLATE)$/.test(el.tagName)) {
+      el.setAttribute('inert', '');
+      this.inertified.push(el);
+    }
+  }
+
   private releaseBackground(): void {
+    this.observers.forEach((observer) => observer.disconnect());
+    this.observers = [];
     if (this.inertified.length === 0) {
       return;
     }

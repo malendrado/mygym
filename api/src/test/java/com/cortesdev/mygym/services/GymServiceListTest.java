@@ -27,6 +27,7 @@ import org.springframework.data.domain.Pageable;
 class GymServiceListTest {
 
     @Mock private GymRepository gymRepository;
+    @Mock private PlanChangeService planChangeService;
     @InjectMocks private GymService gymService;
 
     private GymSummaryResponse summary(long id, String name) {

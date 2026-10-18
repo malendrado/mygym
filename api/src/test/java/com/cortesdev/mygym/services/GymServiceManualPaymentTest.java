@@ -39,6 +39,7 @@ class GymServiceManualPaymentTest {
     @Mock private ManualPaymentRepository manualPaymentRepository;
     @Mock private MemberLifecycleEmailService memberLifecycleEmailService;
     @Mock private org.springframework.context.ApplicationEventPublisher eventPublisher;
+    @Mock private PlanChangeService planChangeService;
     @InjectMocks private GymService gymService;
 
     @Test

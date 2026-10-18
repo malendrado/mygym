@@ -54,6 +54,7 @@ class GymServiceEarlyRenewalTest {
     @Mock private MemberLifecycleEmailService memberLifecycleEmailService;
     @Mock private org.springframework.context.ApplicationEventPublisher eventPublisher;
     @Mock private MemberChangeNotifier memberChangeNotifier;
+    @Mock private PlanChangeService planChangeService;
     @InjectMocks private GymService gymService;
 
     private final LocalDate today = LocalDate.now(ZONE);

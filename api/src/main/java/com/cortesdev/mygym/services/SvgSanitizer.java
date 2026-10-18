@@ -2,6 +2,7 @@ package com.cortesdev.mygym.services;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -22,7 +23,9 @@ public final class SvgSanitizer {
     private static final List<String> FORBIDDEN_SUBSTRINGS = List.of(
             "<script", "<iframe", "<object", "<embed", "<foreignobject", "<style",
             // SMIL — animar atributos y disparar un handler sin interacción del usuario.
-            "<animate", "<set", "<animatetransform", "<animatemotion", "<animatecolor");
+            "<animate", "<set", "<animatetransform", "<animatemotion", "<animatecolor",
+            // Recursos que no hacen falta en un logo y abren carga externa o cambio de base de URLs.
+            "<link", "<base");
 
     // Cualquier atributo de evento (onload=, onclick=, onbegin=, onmouseover=, etc.) — una
     // denylist de nombres puntuales siempre deja afuera el próximo que no se nos ocurrió.
@@ -65,13 +68,37 @@ public final class SvgSanitizer {
         }
         // Sin espacios/control chars: "java\tscript:" colapsa a "javascript:" y cae igual.
         String collapsedWhitespace = normalized.replaceAll("[\\s\\u0000-\\u001f]", "");
+        // "jav&#x61;script:" dentro de un href: el navegador decodifica la entidad al parsear el atributo y el
+        // escaneo de arriba no la veía. Se vuelve a revisar con las entidades numéricas ya resueltas.
+        String decoded = decodeNumericEntities(normalized);
+        String decodedCollapsed = decoded.replaceAll("[\\s\\u0000-\\u001f]", "");
         if (EVENT_HANDLER_ATTR.matcher(normalized).find()
                 || JAVASCRIPT_SCHEME.matcher(normalized).find()
                 || JAVASCRIPT_SCHEME.matcher(collapsedWhitespace).find()
+                || JAVASCRIPT_SCHEME.matcher(decodedCollapsed).find()
+                || EVENT_HANDLER_ATTR.matcher(decoded).find()
+                || lower.contains("data:image/svg")
+                || decoded.toLowerCase(Locale.ROOT).contains("data:text/html")
                 || lower.contains("data:text/html")
                 || lower.contains("data:application")) {
             return "El logo contiene contenido no permitido.";
         }
         return null;
+    }
+
+    private static final Pattern NUMERIC_ENTITY = Pattern.compile("&#(x[0-9a-f]+|[0-9]+);?", Pattern.CASE_INSENSITIVE);
+
+    private static String decodeNumericEntities(String value) {
+        return NUMERIC_ENTITY.matcher(value).replaceAll(m -> {
+            try {
+                String num = m.group(1);
+                int cp = num.charAt(0) == 'x' || num.charAt(0) == 'X'
+                        ? Integer.parseInt(num.substring(1), 16)
+                        : Integer.parseInt(num);
+                return Matcher.quoteReplacement(new String(Character.toChars(cp)));
+            } catch (IllegalArgumentException e) {
+                return "";
+            }
+        });
     }
 }

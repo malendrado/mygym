@@ -38,8 +38,8 @@
         </span>
         <span class="tv-chip__text">
           <span class="tv-chip__name" [style.color]="a.planId != null ? planTextColor(a.planId) : null">{{ chipName(a, fit.layout().tier.name) }}</span>
-          <!-- Sin plan escrito en 's' ni 'm': a distancia no se lee a menos de 14px y no cabe; queda el color del chip + la leyenda. -->
-          @if (a.planName && fit.layout().tier.name !== 's' && fit.layout().tier.name !== 'm') {
+          <!-- Sin plan escrito solo en 's': ahí no cabe a 14px; queda el color del chip + la leyenda. En 'm' entra en una línea (3,2rem de alto: nombre + píldora). -->
+          @if (a.planName && fit.layout().tier.name !== 's') {
             <span class="tv-chip__plan" [style.background]="planColor(a.planId)" [style.color]="planTextColor(a.planId)">
               {{ a.planName }}
             </span>

@@ -67,6 +67,12 @@ public class AppUser {
     /** Meses calendario seguidos que cubre la cadena desde el ancla (V52). null = 1. */
     private Integer paidPeriods;
 
+    /** Cambio de plan programado (V53): plan que pagó y se activará cuando se acaben las clases o llegue el vencimiento. */
+    private Long pendingPlanId;
+
+    /** Meses seguidos pagados del plan pendiente (null = 1). */
+    private Integer pendingPlanPeriods;
+
     /** Solo aplica a MEMBER con plan de cupo limitado, cargado por el Excel de importación
      *  masiva (ver MemberImportRowService) — clases que ya venía usando en el sistema anterior
      *  del gym ese mismo mes. Se resta aparte al calcular sessionsRemaining (MemberService.

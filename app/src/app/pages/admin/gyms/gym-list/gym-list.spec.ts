@@ -2,6 +2,8 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { SwPush } from '@angular/service-worker';
+import { SOCIAL_AUTH_CONFIG } from '@abacritt/angularx-social-login';
 import { GymList } from './gym-list';
 import { GymSummary } from '../../../../core/models/gym.model';
 
@@ -22,7 +24,11 @@ describe('GymList', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [GymList],
-      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([]),
+        // Algún servicio del árbol inyecta AuthService -> SocialAuthService, que exige este token (NG0201).
+        { provide: SOCIAL_AUTH_CONFIG, useValue: { autoLogin: false, providers: [] } },
+        { provide: SwPush, useValue: { isEnabled: false } },
+      ],
     }).compileComponents();
     httpMock = TestBed.inject(HttpTestingController);
   });

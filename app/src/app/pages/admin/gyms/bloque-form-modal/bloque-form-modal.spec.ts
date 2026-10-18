@@ -27,7 +27,7 @@ describe('BloqueFormModal', () => {
     const fixture = TestBed.createComponent(BloqueFormModal);
     fixture.detectChanges();
     const form = fixture.componentInstance['form'];
-    form.setValue({ label: 'Morning', dayOfWeek: 'MONDAY', startTime: '10:00', endTime: '09:00', capacity: 10 });
+    form.setValue({ label: 'Morning', dayOfWeek: 'MONDAY', startTime: '10:00', endTime: '09:00', capacity: 10, category: '', instructorName: '' });
     expect(form.invalid).toBe(true);
     expect(form.errors?.['endBeforeStart']).toBe(true);
   });
@@ -45,6 +45,8 @@ describe('BloqueFormModal', () => {
       startTime: '08:00',
       endTime: '09:00',
       capacity: 20,
+      category: '',
+      instructorName: '',
     });
     component['submit']();
 
@@ -54,6 +56,9 @@ describe('BloqueFormModal', () => {
       startTime: '08:00',
       endTime: '09:00',
       capacity: 20,
+      category: null,
+      instructorName: null,
+      instructorPhoto: null,
     });
   });
 
@@ -68,6 +73,9 @@ describe('BloqueFormModal', () => {
       startTime: '08:00',
       endTime: '09:00',
       capacity: 20,
+      category: null,
+      instructorName: null,
+      instructorPhoto: null,
       active: false,
     };
     component.block = existing;
@@ -83,6 +91,9 @@ describe('BloqueFormModal', () => {
       startTime: '08:00',
       endTime: '09:00',
       capacity: 20,
+      category: null,
+      instructorName: null,
+      instructorPhoto: null,
       active: false,
     });
   });

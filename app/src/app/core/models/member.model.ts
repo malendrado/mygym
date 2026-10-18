@@ -52,6 +52,9 @@ export interface Member {
   canRenewEarly?: boolean;
   /** "YYYY-MM-DD": primer día del período nuevo (= vencimiento actual); null si canRenewEarly es false. */
   earlyRenewalStartsOn?: string | null;
+  /** Cambio de plan ya pagado que partirá cuando se acaben las clases o llegue el vencimiento; null = ninguno. */
+  pendingPlanId?: number | null;
+  pendingPlanName?: string | null;
 }
 
 /** Los datos de contacto y el contacto de emergencia juntos — PUT /api/me/profile y los de admin/super-admin. */
@@ -101,6 +104,10 @@ export interface PaymentPreview {
   lostPaidMonths?: number;
   /** Días que le quedaban del período actual y se pierden si el pago reinicia la cadena (0 = ninguno). */
   lostDays?: number;
+  /** true = cambio de plan que queda en espera: no descarta nada, el plan nuevo parte al terminar el actual. */
+  planChangeScheduled?: boolean;
+  /** "YYYY-MM-DD": vencimiento actual = fecha tope en que partiría el plan nuevo. */
+  planChangeFrom?: string | null;
 }
 
 /**

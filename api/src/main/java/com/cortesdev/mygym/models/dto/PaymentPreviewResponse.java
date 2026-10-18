@@ -20,4 +20,8 @@ public record PaymentPreviewResponse(
         /** Meses completos ya pagados por adelantado (en cola) que este pago descartaría; 0 si no se pierde nada. */
         int lostPaidMonths,
         /** Días que le quedaban del período actual y este pago descartaría (reinicia la cadena sobre un plan vigente); 0 si no se pierde nada. */
-        long lostDays) {}
+        long lostDays,
+        /** true si el pago es un cambio de plan que queda en espera: no reinicia nada, el plan nuevo parte cuando se acaben las clases o llegue el vencimiento. */
+        boolean planChangeScheduled,
+        /** Vencimiento actual = fecha tope en que partiría el plan nuevo; null si no es un cambio programado. */
+        LocalDate planChangeFrom) {}

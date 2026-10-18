@@ -26,9 +26,12 @@
 
 .tour-overlay__hole {
   position: fixed;
+  top: 0;
+  left: 0;
   border-radius: 12px;
   box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6);
-  transition: top 0.3s ease, left 0.3s ease, width 0.3s ease, height 0.3s ease;
+  // La posición se mueve con transform (compositor); solo el tamaño sigue animando ancho/alto.
+  transition: transform 0.3s ease, width 0.3s ease, height 0.3s ease;
   pointer-events: none;
 }
 

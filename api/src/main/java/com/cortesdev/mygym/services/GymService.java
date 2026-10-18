@@ -108,6 +108,7 @@ public class GymService {
     private final MemberChangeNotifier memberChangeNotifier;
     private final com.cortesdev.mygym.security.GymPauseGuard gymPauseGuard;
     private final org.springframework.context.ApplicationEventPublisher eventPublisher;
+    private final PlanChangeService planChangeService;
 
     public GymResponse createGym(GymCreateRequest request) {
         if (gymRepository.existsBySlug(request.slug())) {
@@ -123,7 +124,7 @@ public class GymService {
                 .active(true)
                 .googleLoginEnabled(true)
                 .themeColor(request.themeColor())
-                .logoSvg(request.logoSvg())
+                .logoSvg(validatedLogoOrNull(request.logoSvg()))
                 .bookingWindowMinutes(120)
                 .cancellationWindowMinutes(120)
                 .waitlistHeadStartMinutes(30)
@@ -231,7 +232,7 @@ public class GymService {
         gym.setActive(request.active());
         gym.setMaxUsers(request.maxUsers());
         gym.setGoogleLoginEnabled(request.googleLoginEnabled());
-        gym.setLogoSvg(request.logoSvg());
+        gym.setLogoSvg(validatedLogoOrNull(request.logoSvg()));
         GymResponse saved = toResponse(gymRepository.save(gym));
         // Pausar y reactivar se nota de inmediato (el control de pausa guarda el estado 30 s en memoria).
         gymPauseGuard.invalidate(id);
@@ -416,6 +417,21 @@ public class GymService {
 
     public void updateMyLogo(Long gymId, String logo) {
         Gym gym = findGymOrThrow(gymId);
+        gym.setLogoSvg(validatedLogo(logo));
+        gymRepository.save(gym);
+    }
+
+    /** Alta y edición del super admin: el logo es opcional, pero si viene pasa por la misma validación que el del admin del gym. */
+    private static String validatedLogoOrNull(String logo) {
+        return logo == null || logo.isBlank() ? logo : validatedLogo(logo);
+    }
+
+    /**
+     * El logo se sirve a todos los visitantes de /tv y de la página pública del gimnasio y el front lo pinta como HTML. Solo
+     * entra un SVG sin contenido activo o un PNG/JPG/WEBP cuya firma coincida; cualquier otro data: URI se rechaza.
+     * Antes alta y edición del super admin guardaban el texto tal cual, sin pasar por acá.
+     */
+    static String validatedLogo(String logo) {
         String trimmed = logo.strip();
         if (SvgSanitizer.looksLikeSvg(trimmed)) {
             String error = SvgSanitizer.validate(trimmed);
@@ -434,8 +450,7 @@ public class GymService {
         } else {
             throw new InvalidLogoException("El logo debe ser un SVG o una imagen (PNG, JPG, WEBP).");
         }
-        gym.setLogoSvg(trimmed);
-        gymRepository.save(gym);
+        return trimmed;
     }
 
     private static final int MAX_GYM_PHOTOS = 8;
@@ -886,6 +901,29 @@ public class GymService {
         }
         Instant periodStartInstant = resolvePeriodStart(startDate, now);
         Integer usedOutside = resolveUsedClasses(plan, usedClasses);
+        // Cambio de plan: otro plan sobre un plan vigente (sin fecha elegida ni clases declaradas) no lo pisa; el pago queda en
+        // espera y el plan nuevo parte cuando se acaben las clases o llegue el vencimiento (ver PlanChangeService).
+        if (isDefaultStart(startDate) && usedOutside == null && planChangeService.shouldSchedule(member, planId, now)) {
+            ZonedDateTime currentEnd = MembershipPeriods.finalEnd(member);
+            MembershipPeriods.schedulePlanChange(member, planId);
+            appUserRepository.save(member);
+            manualPaymentRepository.save(ManualPayment.builder()
+                    .gymId(gymId)
+                    .memberId(memberId)
+                    .planId(planId)
+                    .amountClp(plan.getPriceClp())
+                    .bank(bank)
+                    .registeredByUserId(registeredByUserId)
+                    .paidAt(now)
+                    .periodStart(currentEnd.toLocalDate())
+                    .build());
+            List<String> scheduledAdminEmails = appUserRepository.findByGymIdAndRole(gymId, Role.GYM_ADMIN).stream()
+                    .map(AppUser::getEmail)
+                    .toList();
+            memberLifecycleEmailService.sendPlanChangeScheduledMember(gym, member, plan, currentEnd);
+            memberLifecycleEmailService.sendPaymentConfirmedAdmin(gym, member, plan, scheduledAdminEmails);
+            return;
+        }
         // Renovación anticipada: "Renovar" sin fecha explícita (o con la de hoy) y sin clases declaradas, sobre el MISMO plan
         // vigente, conserva los días que le quedan (el período nuevo parte en el vencimiento actual). Con una fecha elegida
         // por el admin, clases declaradas, otro plan, plan vencido o nunca pagado, el pago arranca período desde esa fecha, igual que antes.
@@ -948,8 +986,12 @@ public class GymService {
 
     /** ¿Este pago del admin renueva por adelantado? Solo sin fecha explícita (o la de hoy), sin clases usadas declaradas y sobre el mismo plan vigente. */
     private boolean isEarlyRenewal(AppUser member, Long planId, LocalDate startDate, Integer usedOutside, Instant now) {
-        boolean explicitDate = startDate != null && !startDate.equals(LocalDate.now(GYM_ZONE));
-        return !explicitDate && usedOutside == null && MembershipPeriods.canExtend(member, planId, now);
+        return isDefaultStart(startDate) && usedOutside == null && MembershipPeriods.canExtend(member, planId, now);
+    }
+
+    /** Sin fecha de inicio elegida por el admin (o la de hoy). */
+    private static boolean isDefaultStart(LocalDate startDate) {
+        return startDate == null || startDate.equals(LocalDate.now(GYM_ZONE));
     }
 
     /** Hasta cuánto atrás se puede fechar un plan: más de un mes y ya habría vencido. */
@@ -1002,8 +1044,13 @@ public class GymService {
         // Misma decisión que simulatePlanPayment: si renueva por adelantado, el período que se muestra es el NUEVO
         // (parte en el vencimiento actual, con su cupo completo).
         boolean early = isEarlyRenewal(member, planId, startDate, usedOutside, now);
+        boolean scheduled = isDefaultStart(startDate) && usedOutside == null && planChangeService.shouldSchedule(member, planId, now);
         ZonedDateTime endExclusive = start.plusMonths(1);
-        if (early) {
+        if (scheduled) {
+            // El plan nuevo parte cuando termine el actual: se muestra desde su vencimiento (puede ser antes si se le acaban las clases).
+            start = MembershipPeriods.finalEnd(member);
+            endExclusive = start.plusMonths(1);
+        } else if (early) {
             ZonedDateTime anchor = MembershipPeriods.anchor(member);
             int queuedIndex = MembershipPeriods.paidPeriods(member) + 1;
             start = MembershipPeriods.startOf(anchor, queuedIndex);
@@ -1026,8 +1073,10 @@ public class GymService {
                 daysLeft <= EXPIRING_SOON_DAYS,
                 early,
                 // Un pago que NO conserva la cadena descarta la cola y los días que quedaban del período actual.
-                early ? 0 : MembershipPeriods.queuedMonths(member, ZonedDateTime.now(GYM_ZONE)),
-                early ? 0 : MembershipPeriods.daysLeftInCurrent(member, ZonedDateTime.now(GYM_ZONE)));
+                early || scheduled ? 0 : MembershipPeriods.queuedMonths(member, ZonedDateTime.now(GYM_ZONE)),
+                early || scheduled ? 0 : MembershipPeriods.daysLeftInCurrent(member, ZonedDateTime.now(GYM_ZONE)),
+                scheduled,
+                scheduled ? start.toLocalDate() : null);
     }
 
     /**

@@ -35,6 +35,7 @@ class GymServiceDuplicateStaffEmailTest {
     @Mock private GymRepository gymRepository;
     @Mock private AppUserRepository appUserRepository;
     @Mock private GymCapacityService gymCapacityService;
+    @Mock private PlanChangeService planChangeService;
     @InjectMocks private GymService gymService;
 
     @BeforeEach

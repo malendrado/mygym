@@ -18,6 +18,9 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @Configuration
 public class SecurityConfig {
 
+    /** Un año, el mínimo que exigen las listas de precarga y los escáneres. */
+    static final long HSTS_MAX_AGE_SECONDS = 31536000L;
+
     private final JwtService jwtService;
     private final List<String> allowedOrigins;
     private final DemoAccessExpiryFilter demoAccessExpiryFilter;
@@ -43,6 +46,14 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http.csrf(csrf -> csrf.disable())
+                // HSTS: el default de Spring solo lo manda si la petición llegó por HTTPS directo, pero en Railway el TLS se
+                // termina en el proxy y la API ve HTTP (sin forward-headers-strategy), así que nunca salía. Se mira también
+                // X-Forwarded-Proto. Un cliente que falsee ese header por HTTP solo logra recibir un HSTS que los navegadores
+                // ignoran fuera de HTTPS: no abre nada. En dev/test (HTTP sin header) no se emite.
+                .headers(headers -> headers.httpStrictTransportSecurity(hsts -> hsts.maxAgeInSeconds(HSTS_MAX_AGE_SECONDS)
+                        .includeSubDomains(true)
+                        .requestMatcher(request -> request.isSecure()
+                                || "https".equalsIgnoreCase(request.getHeader("X-Forwarded-Proto")))))
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth.requestMatchers(

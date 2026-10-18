@@ -581,6 +581,16 @@
         type="button"
         role="tab"
         class="history-mode__btn"
+        [class.history-mode__btn--active]="classesSub() === 'schedule'"
+        [attr.aria-selected]="classesSub() === 'schedule'"
+        (click)="setClassesSub('schedule')"
+      >
+        Horarios
+      </button>
+      <button
+        type="button"
+        role="tab"
+        class="history-mode__btn"
         [class.history-mode__btn--active]="classesSub() === 'agenda'"
         [attr.aria-selected]="classesSub() === 'agenda'"
         (click)="setClassesSub('agenda')"
@@ -596,16 +606,6 @@
         (click)="setClassesSub('attendance')"
       >
         Asistencia
-      </button>
-      <button
-        type="button"
-        role="tab"
-        class="history-mode__btn"
-        [class.history-mode__btn--active]="classesSub() === 'schedule'"
-        [attr.aria-selected]="classesSub() === 'schedule'"
-        (click)="setClassesSub('schedule')"
-      >
-        Horarios
       </button>
     </div>
     @if (classesSub() === 'agenda') {
@@ -1233,6 +1233,20 @@
                   <ion-badge [color]="statusColor(member.membershipStatus)">
                     {{ statusLabel(member.membershipStatus) }}
                   </ion-badge>
+                @if (memberWhatsapp(member); as wa) {
+                  <ion-button
+                    fill="outline"
+                    size="small"
+                    color="success"
+                    class="member-action-btn"
+                    [href]="wa"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    [attr.aria-label]="'Escribir a ' + member.name + ' por WhatsApp'"
+                  >
+                    <ion-icon name="logo-whatsapp" slot="icon-only" aria-hidden="true"></ion-icon>
+                  </ion-button>
+                }
                   <ion-button
                     fill="outline"
                     size="small"
@@ -1248,20 +1262,6 @@
                     }
                     {{ member.planId ? 'Renovar' : 'Marcar pago' }}
                   </ion-button>
-              @if (memberWhatsapp(member); as wa) {
-                <ion-button
-                  fill="outline"
-                  size="small"
-                  color="success"
-                  class="member-action-btn"
-                  [href]="wa"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  [attr.aria-label]="'Escribir a ' + member.name + ' por WhatsApp'"
-                >
-                  <ion-icon name="logo-whatsapp" slot="icon-only" aria-hidden="true"></ion-icon>
-                </ion-button>
-              }
               <ion-button
                 fill="outline"
                 size="small"
@@ -1528,7 +1528,7 @@
             />
           </ion-item>
           <ion-item>
-            <ion-input label="Instagram (link)" inputmode="url" autocapitalize="off" autocomplete="off" spellcheck="false" formControlName="instagramUrl" placeholder="https://instagram.com/elgym" />
+            <ion-input label="Instagram (link)" type="url" inputmode="url" autocapitalize="off" autocomplete="off" spellcheck="false" formControlName="instagramUrl" placeholder="https://instagram.com/elgym" />
           </ion-item>
           <ion-item>
             <ion-input label="WhatsApp (número)" type="tel" inputmode="tel" autocomplete="tel" formControlName="whatsappNumber" placeholder="+56912345678" />

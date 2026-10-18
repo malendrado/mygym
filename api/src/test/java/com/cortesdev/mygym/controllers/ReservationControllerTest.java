@@ -22,6 +22,7 @@ import com.cortesdev.mygym.security.JwtService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import org.junit.jupiter.api.Test;
@@ -116,10 +117,11 @@ class ReservationControllerTest {
     @Test
     void book_lessThanTwoHoursBefore_returns400() throws Exception {
         Gym gym = createGym();
-        LocalDate today = LocalDate.now(ZONE);
-        DayOfWeek todayDow = today.getDayOfWeek();
-        GymBlock block = createBlock(
-                gym.getId(), todayDow, LocalTime.now(ZONE).plusMinutes(30), LocalTime.now(ZONE).plusMinutes(90), 5);
+        // La clase empieza en 30 min: pasadas las 23:30 eso cae mañana, así que la fecha sale del instante sumado
+        // (antes se usaba siempre "hoy" y el test fallaba cada noche después de las 22:30).
+        LocalDateTime startsAt = LocalDateTime.now(ZONE).plusMinutes(30);
+        LocalDate today = startsAt.toLocalDate();
+        GymBlock block = createBlock(gym.getId(), today.getDayOfWeek(), startsAt.toLocalTime(), endAfter(startsAt), 5);
         AppUser member = createMember(gym.getId());
         String token = jwtService.issueToken(member.getId(), member.getEmail(), Role.MEMBER, gym.getId());
         String body = objectMapper.writeValueAsString(new ReservationPayload(block.getId(), today.toString()));
@@ -135,13 +137,10 @@ class ReservationControllerTest {
     @Test
     void cancel_lessThanTwoHoursBefore_returns400() throws Exception {
         Gym gym = createGym();
-        LocalDate today = LocalDate.now(ZONE);
-        GymBlock block = createBlock(
-                gym.getId(),
-                today.getDayOfWeek(),
-                LocalTime.now(ZONE).plusMinutes(30),
-                LocalTime.now(ZONE).plusMinutes(90),
-                5);
+        // Misma razón que en book_lessThanTwoHoursBefore: la fecha sale de "ahora + 30 min", no de "hoy".
+        LocalDateTime startsAt = LocalDateTime.now(ZONE).plusMinutes(30);
+        LocalDate today = startsAt.toLocalDate();
+        GymBlock block = createBlock(gym.getId(), today.getDayOfWeek(), startsAt.toLocalTime(), endAfter(startsAt), 5);
         AppUser member = createMember(gym.getId());
         Reservation reservation = reservationRepository.save(Reservation.builder()
                 .gymBlockId(block.getId())
@@ -214,6 +213,12 @@ class ReservationControllerTest {
                 .bookingWindowMinutes(120)
                 .cancellationWindowMinutes(120)
                 .build());
+    }
+
+    /** Fin de la clase una hora después del inicio, sin pasar de medianoche (el bloque es de un solo día). */
+    private static LocalTime endAfter(LocalDateTime start) {
+        LocalDateTime end = start.plusHours(1);
+        return end.toLocalDate().equals(start.toLocalDate()) ? end.toLocalTime() : LocalTime.of(23, 59);
     }
 
     private GymBlock createBlock(Long gymId, DayOfWeek dayOfWeek, LocalTime start, LocalTime end, int capacity) {

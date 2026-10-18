@@ -3,8 +3,7 @@
     @if (rect(); as r) {
       <div
         class="tour-overlay__hole"
-        [style.top.px]="r.top"
-        [style.left.px]="r.left"
+        [style.transform]="'translate(' + r.left + 'px,' + r.top + 'px)'"
         [style.width.px]="r.width"
         [style.height.px]="r.height"
       ></div>

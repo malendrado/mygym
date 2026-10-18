@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { HttpClient, provideHttpClient, withInterceptors } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { Router, provideRouter } from '@angular/router';
+import { SwPush } from '@angular/service-worker';
 import { SOCIAL_AUTH_CONFIG } from '@abacritt/angularx-social-login';
 import { errorInterceptor } from './error.interceptor';
 
@@ -20,6 +21,8 @@ describe('errorInterceptor', () => {
         // que a su vez requiere este token o falla con NG0201 — mismo workaround que
         // google-auth.providers.ts.
         { provide: SOCIAL_AUTH_CONFIG, useValue: { autoLogin: false, providers: [] } },
+        // AuthService también inyecta PushService -> SwPush, que no existe sin el service worker de la app.
+        { provide: SwPush, useValue: { isEnabled: false } },
       ],
     });
     http = TestBed.inject(HttpClient);
@@ -63,7 +66,7 @@ describe('errorInterceptor', () => {
   });
 
   it('sends a revoked session to /login without emitting an error', async () => {
-    const navigateSpy = spyOn(router, 'navigate').and.resolveTo(true);
+    const navigateSpy = vi.spyOn(router, 'navigate').mockResolvedValue(true);
     let sawError = false;
     http.get('/api/me/reservations').subscribe({ error: () => (sawError = true) });
 
@@ -78,7 +81,7 @@ describe('errorInterceptor', () => {
   });
 
   it('does not treat an ordinary 401 (for example a wrong password) as a revoked session', () => {
-    const navigateSpy = spyOn(router, 'navigate').and.resolveTo(true);
+    const navigateSpy = vi.spyOn(router, 'navigate').mockResolvedValue(true);
     let captured: Error | undefined;
     http.post('/api/public/auth/login', {}).subscribe({ error: (err) => (captured = err) });
 
@@ -95,7 +98,7 @@ describe('errorInterceptor', () => {
     // Bug real encontrado en la práctica: antes caía en la regla genérica de 403+no-GET de abajo
     // y mostraba "esta es una demo de solo lectura" a alguien que nunca tuvo nada que ver con
     // mygym — acá se verifica que en vez de eso se redirige, sin dejar ningún error pendiente.
-    const navigateSpy = spyOn(router, 'navigate').and.resolveTo(true);
+    const navigateSpy = vi.spyOn(router, 'navigate').mockResolvedValue(true);
     let completed = false;
     let sawError = false;
     http.post('/api/auth/google', { idToken: 'x' }).subscribe({

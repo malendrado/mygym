@@ -10,11 +10,30 @@ describe('GymService', () => {
 
   const gym: Gym = {
     id: 1,
+    publicId: '11111111-1111-4111-8111-111111111111',
     name: 'Gold Gym',
     slug: 'gold-gym',
     active: true,
     maxUsers: 100,
     googleLoginEnabled: false,
+    themeColor: null,
+    logoSvg: null,
+    tagline: null,
+    description: null,
+    instagramUrl: null,
+    whatsappNumber: null,
+    bookingWindowMinutes: 60,
+    cancellationWindowMinutes: 60,
+    waitlistHeadStartMinutes: 0,
+    showAttendeesToMembers: false,
+    fixedMembersCurrentWeekOnly: false,
+    themeMode: 'DARK',
+    bankName: null,
+    bankAccountType: null,
+    bankAccountNumber: null,
+    bankHolderRut: null,
+    bankHolderName: null,
+    bankConfirmationEmail: null,
     createdAt: '2026-01-01T00:00:00Z',
     updatedAt: '2026-01-01T00:00:00Z',
   };
@@ -27,6 +46,9 @@ describe('GymService', () => {
     startTime: '08:00',
     endTime: '09:00',
     capacity: 20,
+    category: null,
+    instructorName: null,
+    instructorPhoto: null,
     active: true,
   };
 
@@ -66,7 +88,7 @@ describe('GymService', () => {
   });
 
   it('create() POSTs to /api/gyms', () => {
-    const payload = { name: 'Gold Gym', slug: 'gold-gym', maxUsers: 100 };
+    const payload = { name: 'Gold Gym', slug: 'gold-gym', maxUsers: 100, ownerName: 'Ana Pérez', ownerEmail: 'ana@gold.cl' };
     service.create(payload).subscribe((result) => expect(result).toEqual(gym));
     const req = httpMock.expectOne('/api/gyms');
     expect(req.request.method).toBe('POST');
@@ -75,7 +97,7 @@ describe('GymService', () => {
   });
 
   it('updateConfig() PUTs to /api/gyms/:id/config', () => {
-    const payload = { active: true, maxUsers: 100, googleLoginEnabled: true };
+    const payload = { active: true, maxUsers: 100, googleLoginEnabled: true, logoSvg: null };
     service.updateConfig(1, payload).subscribe((result) => expect(result).toEqual(gym));
     const req = httpMock.expectOne('/api/gyms/1/config');
     expect(req.request.method).toBe('PUT');
@@ -97,6 +119,9 @@ describe('GymService', () => {
       startTime: '08:00',
       endTime: '09:00',
       capacity: 20,
+      category: null,
+      instructorName: null,
+      instructorPhoto: null,
     };
     service.createBlock(1, payload).subscribe((result) => expect(result).toEqual(block));
     const req = httpMock.expectOne('/api/gyms/1/blocks');
@@ -112,6 +137,9 @@ describe('GymService', () => {
       startTime: '08:00',
       endTime: '09:00',
       capacity: 20,
+      category: null,
+      instructorName: null,
+      instructorPhoto: null,
       active: true,
     };
     service.updateBlock(1, 1, payload).subscribe((result) => expect(result).toEqual(block));

@@ -60,6 +60,7 @@ public class FlowPaymentService {
     private final PaymentRepository paymentRepository;
     private final MemberLifecycleEmailService memberLifecycleEmailService;
     private final ApplicationEventPublisher eventPublisher;
+    private final PlanChangeService planChangeService;
     private final String returnUrl;
     private final String webhookUrl;
 
@@ -71,6 +72,7 @@ public class FlowPaymentService {
             PaymentRepository paymentRepository,
             MemberLifecycleEmailService memberLifecycleEmailService,
             ApplicationEventPublisher eventPublisher,
+            PlanChangeService planChangeService,
             @Value("${app.flow.return-url}") String returnUrl,
             @Value("${app.flow.webhook-url}") String webhookUrl) {
         this.flowApiClient = flowApiClient;
@@ -80,6 +82,7 @@ public class FlowPaymentService {
         this.paymentRepository = paymentRepository;
         this.memberLifecycleEmailService = memberLifecycleEmailService;
         this.eventPublisher = eventPublisher;
+        this.planChangeService = planChangeService;
         this.returnUrl = returnUrl;
         this.webhookUrl = webhookUrl;
     }
@@ -227,6 +230,18 @@ public class FlowPaymentService {
             return;
         }
         Instant now = Instant.now();
+        // Cambio de plan: otro plan sobre un plan vigente queda en espera (no pisa lo que le queda); ver PlanChangeService.
+        if (planChangeService.shouldSchedule(member, plan.getId(), now)) {
+            java.time.ZonedDateTime currentEnd = MembershipPeriods.finalEnd(member);
+            MembershipPeriods.schedulePlanChange(member, plan.getId());
+            appUserRepository.save(member);
+            List<String> scheduledAdminEmails = appUserRepository.findByGymIdAndRole(gym.getId(), Role.GYM_ADMIN).stream()
+                    .map(AppUser::getEmail)
+                    .toList();
+            memberLifecycleEmailService.sendPlanChangeScheduledMember(gym, member, plan, currentEnd);
+            memberLifecycleEmailService.sendPaymentConfirmedAdmin(gym, member, plan, scheduledAdminEmails);
+            return;
+        }
         java.time.ZonedDateTime queuedStart = MembershipPeriods.canExtend(member, plan.getId(), now)
                 ? MembershipPeriods.endOf(MembershipPeriods.anchor(member), MembershipPeriods.paidPeriods(member))
                 : null;

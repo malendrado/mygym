@@ -447,7 +447,11 @@ public class MemberService {
      *  se resuelve en memoria. Un solo socio (createMember/getOwnMembership) pasa por acá
      *  también, como lista de 1 — el costo extra de armar los maps es despreciable. */
     private List<MemberResponse> toResponses(List<AppUser> users) {
-        List<Long> planIds = users.stream().map(AppUser::getPlanId).filter(Objects::nonNull).distinct().toList();
+        List<Long> planIds = users.stream()
+                .flatMap(u -> java.util.stream.Stream.of(u.getPlanId(), u.getPendingPlanId()))
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
         Map<Long, GymPlan> plansById = planIds.isEmpty()
                 ? Map.of()
                 : gymPlanRepository.findAllById(planIds).stream().collect(Collectors.toMap(GymPlan::getId, p -> p));
@@ -597,7 +601,11 @@ public class MemberService {
                     queuedPeriodEnd,
                     queuedSessionsRemaining,
                     canRenewEarly,
-                    earlyRenewalStartsOn));
+                    earlyRenewalStartsOn,
+                    user.getPendingPlanId(),
+                    user.getPendingPlanId() != null && plansById.get(user.getPendingPlanId()) != null
+                            ? plansById.get(user.getPendingPlanId()).getName()
+                            : null));
         }
         return responses;
     }
