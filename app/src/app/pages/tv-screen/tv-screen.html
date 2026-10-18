@@ -455,6 +455,9 @@
             </main>
             }
 
+            @if (updating()) {
+              <div class="tv-updating" role="status">Actualizando…</div>
+            }
             <app-version-tag variant="tv" />
           </div>
         }

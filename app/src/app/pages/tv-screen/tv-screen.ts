@@ -1,6 +1,8 @@
 import { NgTemplateOutlet } from '@angular/common';
 import { Component, OnDestroy, computed, inject, signal } from '@angular/core';
+import { SwUpdate } from '@angular/service-worker';
 import { IonContent } from '@ionic/angular';
+import { Subscription } from 'rxjs';
 import { toCanvas as qrToCanvas } from 'qrcode';
 import { TvAttendeeSummary, TvBlockOccurrence, TvPhoto, TvSchedule } from '../../core/models/tv-screen.model';
 import { TvScreenService } from '../../core/services/tv-screen.service';
@@ -33,6 +35,14 @@ const TV_ROOT_FONT_SIZE = 'max(11px, min(calc(100vw / 96), calc(100vh / 54)))';
 // El aviso "Pantalla completa" se retira solo a los 5 s para no tapar la agenda (vuelve si se sale de pantalla completa).
 const FULLSCREEN_HINT_MS = 5_000;
 const KIOSK_RELOAD_MS = 6 * 60 * 60 * 1000;
+// Actualización automática: antes una versión nueva tardaba hasta ~12 h en verse (recarga de kiosco cada 6 h x 2 recargas del
+// service worker para activarla). Ahora la TV pregunta cada 10 min si hay versión nueva; cuando está lista recarga sola en un
+// momento tranquilo (sin clases en curso) o, como tope, a los 10 min de haber llegado, avisando 2,5 s antes.
+const UPDATE_CHECK_MS = 10 * 60 * 1000;
+const UPDATE_MAX_WAIT_MS = 10 * 60 * 1000;
+const UPDATE_NOTICE_MS = 2_500;
+const UPDATE_RELOAD_KEY = 'mygym.tv.lastUpdateReload';
+const UPDATE_RELOAD_COOLDOWN_MS = 5 * 60 * 1000;
 // Pasado este rato desde que terminó, "clase anterior" deja de ser información útil y se oculta
 // en vez de quedar mostrando la clase de la mañana toda la tarde.
 const PREVIOUS_STALE_MINUTES = 90;
@@ -370,6 +380,13 @@ export class TvScreenPage implements OnDestroy {
   private clockTimer: ReturnType<typeof setInterval> | null = null;
   private pollTimer: ReturnType<typeof setTimeout> | null = null;
   private kioskReloadTimer: ReturnType<typeof setTimeout> | null = null;
+
+  // Actualización automática (ver UPDATE_CHECK_MS). SwUpdate puede no existir (build sin service worker): todo es opcional.
+  private readonly swUpdate = inject(SwUpdate, { optional: true });
+  protected readonly updating = signal(false);
+  private updateCheckTimer: ReturnType<typeof setInterval> | null = null;
+  private updateSub: Subscription | null = null;
+  private updateReadyAt: number | null = null;
   private offlineTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
@@ -385,8 +402,12 @@ export class TvScreenPage implements OnDestroy {
       if (!document.fullscreenElement) this.showFullscreenHint();
       this.gestureEvents.forEach((name) => document.addEventListener(name, this.onFirstGesture, true));
     }
-    this.clockTimer = setInterval(() => this.now.set(new Date(Date.now() + this.clockOffsetMs)), 1000);
+    this.clockTimer = setInterval(() => {
+      this.now.set(new Date(Date.now() + this.clockOffsetMs));
+      this.maybeApplyUpdate();
+    }, 1000);
     this.kioskReloadTimer = setTimeout(() => location.reload(), KIOSK_RELOAD_MS);
+    this.startAutoUpdate();
 
     const storedToken = localStorage.getItem(TV_TOKEN_KEY);
     if (storedToken) {
@@ -413,6 +434,37 @@ export class TvScreenPage implements OnDestroy {
     this.gestureEvents.forEach((name) => document.removeEventListener(name, this.onFirstGesture, true));
   }
 
+  /** Pregunta cada 10 min si hay versión nueva y anota el momento en que queda lista para aplicarla. */
+  private startAutoUpdate(): void {
+    if (!this.swUpdate?.isEnabled) return;
+    this.updateSub = this.swUpdate.versionUpdates.subscribe((event) => {
+      if (event.type === 'VERSION_READY' && this.updateReadyAt === null) this.updateReadyAt = Date.now();
+    });
+    this.updateCheckTimer = setInterval(() => void this.swUpdate?.checkForUpdate().catch(() => undefined), UPDATE_CHECK_MS);
+  }
+
+  /** Con una versión lista: recarga cuando no hay clases en curso, o a los 10 min como tope. Corre en el reloj de 1 s. */
+  private maybeApplyUpdate(): void {
+    if (this.updateReadyAt === null || this.updating()) return;
+    const quiet = (this.schedule()?.current.length ?? 0) === 0;
+    if (!quiet && Date.now() - this.updateReadyAt < UPDATE_MAX_WAIT_MS) return;
+    // Freno anti-bucle: a lo más UNA recarga automática por actualización cada 5 min (si la activación fallara y la
+    // versión nueva siguiera "lista", sin esto la TV podría recargarse sin parar). sessionStorage sobrevive a la recarga.
+    try {
+      const last = Number(sessionStorage.getItem(UPDATE_RELOAD_KEY) ?? 0);
+      if (Date.now() - last < UPDATE_RELOAD_COOLDOWN_MS) return;
+      sessionStorage.setItem(UPDATE_RELOAD_KEY, String(Date.now()));
+    } catch {
+      // Sin sessionStorage no hay freno posible; el tope de 10 min entre chequeos limita el daño.
+    }
+    this.updating.set(true);
+    setTimeout(() => {
+      const reload = (): void => location.reload();
+      if (this.swUpdate) this.swUpdate.activateUpdate().then(reload, reload);
+      else reload();
+    }, UPDATE_NOTICE_MS);
+  }
+
   ngOnDestroy(): void {
     document.documentElement.style.removeProperty('font-size');
     document.removeEventListener('fullscreenchange', this.onFullscreenChange);
@@ -420,6 +472,8 @@ export class TvScreenPage implements OnDestroy {
     if (this.clockTimer) clearInterval(this.clockTimer);
     if (this.pollTimer) clearTimeout(this.pollTimer);
     if (this.kioskReloadTimer) clearTimeout(this.kioskReloadTimer);
+    if (this.updateCheckTimer) clearInterval(this.updateCheckTimer);
+    this.updateSub?.unsubscribe();
     this.clearOfflineTimer();
     this.clearHintTimer();
     clearThemeOverrides();

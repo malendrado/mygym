@@ -1396,6 +1396,20 @@
 
 // Botón para pedir pantalla completa — discreto (esquina, translúcido) para no ensuciar la TV; desaparece
 // apenas el navegador entra en pantalla completa (ver enterFullscreen en tv-screen.ts).
+// Aviso de actualización automática (2,5 s antes de recargar). Sólido y legible, como el aviso de pantalla completa.
+.tv-updating {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 20;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
+  background: #14161a;
+  color: #d4d8de;
+  font-size: max(14px, 0.85rem);
+}
+
 .tv-fullscreen-hint {
   position: fixed;
   right: 1rem;
