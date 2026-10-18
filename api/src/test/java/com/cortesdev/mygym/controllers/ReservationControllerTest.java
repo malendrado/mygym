@@ -1,17 +1,20 @@
 package com.cortesdev.mygym.controllers;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.cortesdev.mygym.models.AppUser;
+import com.cortesdev.mygym.models.ClassWaitlistEntry;
 import com.cortesdev.mygym.models.Gym;
 import com.cortesdev.mygym.models.GymBlock;
 import com.cortesdev.mygym.models.Reservation;
 import com.cortesdev.mygym.models.ReservationStatus;
 import com.cortesdev.mygym.models.Role;
 import com.cortesdev.mygym.repositories.AppUserRepository;
+import com.cortesdev.mygym.repositories.ClassWaitlistRepository;
 import com.cortesdev.mygym.repositories.GymBlockRepository;
 import com.cortesdev.mygym.repositories.GymRepository;
 import com.cortesdev.mygym.repositories.ReservationRepository;
@@ -56,6 +59,9 @@ class ReservationControllerTest {
 
     @Autowired
     private JwtService jwtService;
+
+    @Autowired
+    private ClassWaitlistRepository waitlistRepository;
 
     @Test
     void book_thenCancel_happyPath() throws Exception {
@@ -149,6 +155,52 @@ class ReservationControllerTest {
                         delete("/api/me/reservations/" + reservation.getId()).header("Authorization", "Bearer " + token))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.title").value("Ventana de reserva cerrada"));
+    }
+
+    @Test
+    void myWaitlist_returnsOnlyMyFutureEntriesWithPlaceInLine() throws Exception {
+        Gym gym = createGym();
+        LocalDate classDate = LocalDate.now(ZONE).plusDays(2);
+        GymBlock block = createBlock(gym.getId(), classDate.getDayOfWeek(), LocalTime.of(19, 0), LocalTime.of(20, 0), 1);
+        AppUser first = createMember(gym.getId());
+        AppUser me = createMember(gym.getId());
+        AppUser third = createMember(gym.getId());
+        java.time.Instant t0 = java.time.Instant.now().minusSeconds(600);
+        waitlistRepository.save(entry(block.getId(), first.getId(), classDate, t0));
+        waitlistRepository.save(entry(block.getId(), me.getId(), classDate, t0.plusSeconds(60)));
+        waitlistRepository.save(entry(block.getId(), third.getId(), classDate, t0.plusSeconds(120)));
+        // otra clase, donde soy el único; y una espera ya vencida (ayer) que no debe aparecer
+        GymBlock other = createBlock(gym.getId(), classDate.getDayOfWeek(), LocalTime.of(7, 0), LocalTime.of(8, 0), 1);
+        waitlistRepository.save(entry(other.getId(), me.getId(), classDate, t0));
+        waitlistRepository.save(entry(block.getId(), me.getId(), LocalDate.now(ZONE).minusDays(1), t0));
+        // aislamiento entre gyms: la espera de un socio de otro gym no se mezcla
+        Gym otherGym = createGym();
+        GymBlock foreignBlock = createBlock(otherGym.getId(), classDate.getDayOfWeek(), LocalTime.NOON, LocalTime.NOON.plusHours(1), 1);
+        AppUser foreigner = createMember(otherGym.getId());
+        waitlistRepository.save(entry(foreignBlock.getId(), foreigner.getId(), classDate, t0));
+        String token = jwtService.issueToken(me.getId(), me.getEmail(), Role.MEMBER, gym.getId());
+
+        mockMvc.perform(get("/api/me/waitlist").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].gymBlockId").value(other.getId()))
+                .andExpect(jsonPath("$[0].position").value(1))
+                .andExpect(jsonPath("$[0].startTime").value("07:00:00"))
+                .andExpect(jsonPath("$[1].gymBlockId").value(block.getId()))
+                .andExpect(jsonPath("$[1].classDate").value(classDate.toString()))
+                .andExpect(jsonPath("$[1].label").value("Test Block"))
+                .andExpect(jsonPath("$[1].endTime").value("20:00:00"))
+                .andExpect(jsonPath("$[1].position").value(2));
+
+        String foreignToken = jwtService.issueToken(foreigner.getId(), foreigner.getEmail(), Role.MEMBER, otherGym.getId());
+        mockMvc.perform(get("/api/me/waitlist").header("Authorization", "Bearer " + foreignToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].position").value(1));
+    }
+
+    private static ClassWaitlistEntry entry(Long blockId, Long memberId, LocalDate date, java.time.Instant createdAt) {
+        return ClassWaitlistEntry.builder().gymBlockId(blockId).memberId(memberId).classDate(date).createdAt(createdAt).build();
     }
 
     private Gym createGym() {

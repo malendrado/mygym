@@ -15,6 +15,7 @@ import com.cortesdev.mygym.models.dto.PageResponse;
 import com.cortesdev.mygym.models.dto.PublicGymResponse;
 import com.cortesdev.mygym.models.dto.ReservationCreateRequest;
 import com.cortesdev.mygym.models.dto.ReservationResponse;
+import com.cortesdev.mygym.models.dto.WaitlistEntryResponse;
 import com.cortesdev.mygym.models.dto.CheckoutResponse;
 import com.cortesdev.mygym.security.AuthenticatedUser;
 import com.cortesdev.mygym.services.FlowPaymentService;
@@ -184,6 +185,13 @@ public class ReservationController {
         AuthenticatedUser user = AuthenticatedUser.from(jwt);
         waitlistService.join(user.gymId(), user.userId(), request.gymBlockId(), request.classDate());
         return ResponseEntity.noContent().build();
+    }
+
+    // "Mi lista de espera": solo las esperas futuras del propio socio, con su lugar en la fila.
+    @GetMapping("/waitlist")
+    public List<WaitlistEntryResponse> myWaitlist(@AuthenticationPrincipal Jwt jwt) {
+        AuthenticatedUser user = AuthenticatedUser.from(jwt);
+        return waitlistService.myWaitlist(user.gymId(), user.userId());
     }
 
     @DeleteMapping("/waitlist")

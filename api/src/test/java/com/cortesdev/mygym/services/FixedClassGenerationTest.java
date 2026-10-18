@@ -230,4 +230,98 @@ class FixedClassGenerationTest {
 
         verify(reservationService, never()).createBooked(anyLong(), anyLong(), any(), any());
     }
+
+    // ---- Renovación anticipada: el período pagado por adelantado también se reserva, con su propio cupo.
+
+    private void withQueuedPeriod(Integer currentRemaining, Integer queuedRemaining) {
+        when(memberService.queuedPeriod(member))
+                .thenReturn(new MemberService.PeriodRange(today.plusMonths(1), today.plusMonths(2).minusDays(1)));
+        when(memberService.remainingClasses(member)).thenReturn(currentRemaining);
+        when(memberService.remainingClassesInQueuedPeriod(member)).thenReturn(queuedRemaining);
+    }
+
+    private List<LocalDate> queuedOccurrenceDates() {
+        return today.plusMonths(1).datesUntil(today.plusMonths(2)).filter(d -> d.getDayOfWeek() == block.getDayOfWeek()).toList();
+    }
+
+    @Test
+    void withAQueuedPeriodUnlimitedPlanReservesBothPeriods() {
+        withQueuedPeriod(null, null);
+
+        FixedClassGenerationResult result = service.generateForCurrentPeriod(member);
+
+        assertThat(result.created()).isEqualTo(occurrenceDates().size() + queuedOccurrenceDates().size());
+        assertThat(result.stoppedByQuota()).isFalse();
+    }
+
+    @Test
+    void eachPeriodSpendsItsOwnQuota() {
+        withQueuedPeriod(1, 1);
+
+        FixedClassGenerationResult result = service.generateForCurrentPeriod(member);
+
+        assertThat(result.created()).isEqualTo(2);
+        assertThat(result.stoppedByQuota()).isTrue();
+        verify(reservationService).createBooked(BLOCK_ID, MEMBER_ID, occurrenceDates().get(0), FIXED_ID);
+        verify(reservationService).createBooked(BLOCK_ID, MEMBER_ID, queuedOccurrenceDates().get(0), FIXED_ID);
+        verify(reservationService, times(2)).createBooked(anyLong(), anyLong(), any(), anyLong());
+    }
+
+    @Test
+    void anExhaustedCurrentPeriodDoesNotBlockTheQueuedOne() {
+        withQueuedPeriod(0, 3);
+
+        FixedClassGenerationResult result = service.generateForCurrentPeriod(member);
+
+        assertThat(result.created()).isEqualTo(3);
+        assertThat(result.stoppedByQuota()).isTrue();
+        for (LocalDate d : occurrenceDates()) {
+            verify(reservationService, never()).createBooked(anyLong(), anyLong(), eq(d), any());
+        }
+        verify(reservationService).createBooked(BLOCK_ID, MEMBER_ID, queuedOccurrenceDates().get(0), FIXED_ID);
+        verify(reservationService).createBooked(BLOCK_ID, MEMBER_ID, queuedOccurrenceDates().get(2), FIXED_ID);
+    }
+
+    @Test
+    void withoutAQueuedPeriodNothingBeyondTheCurrentOneIsReserved() {
+        when(memberService.remainingClasses(member)).thenReturn(null);
+
+        service.generateForCurrentPeriod(member);
+
+        for (LocalDate d : queuedOccurrenceDates()) {
+            verify(reservationService, never()).createBooked(anyLong(), anyLong(), eq(d), any());
+        }
+    }
+
+    @Test
+    void renewingOnTheDayTheCurrentPeriodExpiresStillReservesTheNewPeriodStartingToday() {
+        // Vence hoy a las 15:00 y renueva hoy a las 10:00: el período actual ya no tiene fechas (terminó ayer, en fechas), el
+        // nuevo parte hoy. Antes se comparaba "desde" contra el fin del actual y no se generaba nada.
+        when(memberService.currentPeriod(member))
+                .thenReturn(new MemberService.PeriodRange(today.minusMonths(1), today.minusDays(1)));
+        when(memberService.queuedPeriod(member))
+                .thenReturn(new MemberService.PeriodRange(today, today.plusMonths(1).minusDays(1)));
+        when(memberService.remainingClasses(member)).thenReturn(5);
+        when(memberService.remainingClassesInQueuedPeriod(member)).thenReturn(null);
+
+        FixedClassGenerationResult result = service.generateForCurrentPeriod(member);
+
+        List<LocalDate> expected = today.datesUntil(today.plusMonths(1))
+                .filter(d -> d.getDayOfWeek() == block.getDayOfWeek())
+                .toList();
+        assertThat(result.created()).isEqualTo(expected.size());
+        verify(reservationService).createBooked(BLOCK_ID, MEMBER_ID, expected.get(0), FIXED_ID);
+    }
+
+    @Test
+    void withoutQueueAndAPastPeriodNothingIsGenerated() {
+        when(memberService.currentPeriod(member))
+                .thenReturn(new MemberService.PeriodRange(today.minusMonths(1), today.minusDays(1)));
+        when(memberService.queuedPeriod(member)).thenReturn(null);
+
+        FixedClassGenerationResult result = service.generateForCurrentPeriod(member);
+
+        assertThat(result.created()).isZero();
+        verify(reservationService, never()).createBooked(anyLong(), anyLong(), any(), any());
+    }
 }

@@ -29,12 +29,21 @@ public interface AppUserRepository extends JpaRepository<AppUser, Long> {
 
     Optional<AppUser> findByIdAndGymId(Long id, Long gymId);
 
+    /** Solo el gimnasio del socio, sin hidratar la entidad: permite leer el gym ANTES de bloquear la fila con findLockedByIdAndGymId
+     *  (si la entidad ya estuviera en la sesión, el bloqueo devolvería su estado viejo en vez de releerla). */
+    @org.springframework.data.jpa.repository.Query("select u.gymId from AppUser u where u.id = :id")
+    Optional<Long> findGymIdById(@org.springframework.data.repository.query.Param("id") Long id);
+
     /** Con la fila bloqueada hasta el fin de la transacción: ver GymBlockRepository.findLockedByIdAndGymId. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<AppUser> findLockedByIdAndGymId(Long id, Long gymId);
 
     /** Usado por MembershipReminderJob: solo socios cuyo último pago cae en la ventana en la que su período (1 mes) vence en 0 a 3 días. */
     List<AppUser> findByRoleAndPaidAtBetween(Role role, java.time.Instant from, java.time.Instant to);
+
+    /** Socios con renovación anticipada alguna vez (V52, period_start no nulo): su vencimiento final no se relaciona con
+     *  paid_at, así que no entran por la ventana de arriba. Son pocos (solo quien pagó por adelantado); el job filtra el resto. */
+    List<AppUser> findByRoleAndPeriodStartIsNotNull(Role role);
 
     /** Para la vista "Administradores" del super-admin — super-admins (sin gym_id) y gym-admins
      *  de todos los gimnasios, cada una en su propia consulta por rol. */

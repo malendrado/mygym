@@ -420,8 +420,8 @@ public class MemberLifecycleEmailService {
         String body = "<p style=\"margin:0 0 12px;\">Tu plan <strong style=\"color:#eaf6f7;\">" + escapeHtml(plan.getName())
                 + "</strong> vence en " + daysRemaining + " " + dayWord
                 + ". Hasta entonces puedes seguir reservando con normalidad.</p>"
-                + "<p style=\"margin:0;\">Cuando venza, podrás renovarlo desde tu cuenta en " + escapeHtml(gym.getName())
-                + " (si pagas antes, se pierden los días que te queden).</p>";
+                + "<p style=\"margin:0;\">Si renuevas el mismo plan desde tu cuenta en " + escapeHtml(gym.getName())
+                + " antes de que venza, conservas los días que te queden.</p>";
         send(
                 gym,
                 member.getEmail(),
@@ -429,7 +429,7 @@ public class MemberLifecycleEmailService {
                 "Por vencer",
                 headline,
                 body,
-                "Ver mi plan",
+                "Renovar mi plan",
                 LOGIN_URL,
                 "Recibiste este correo porque tu plan " + escapeHtml(plan.getName()) + " en " + escapeHtml(gym.getName())
                         + " está por vencer.");
@@ -442,8 +442,8 @@ public class MemberLifecycleEmailService {
         String headline = "Usaste todas tus clases";
         String body = "<p style=\"margin:0 0 12px;\">Ya reservaste las <strong style=\"color:#eaf6f7;\">"
                 + plan.getMonthlyClasses() + " clases</strong> de tu plan <strong style=\"color:#eaf6f7;\">"
-                + escapeHtml(plan.getName()) + "</strong> de este período — no podrás reservar más hasta que renueves.</p>"
-                + "<p style=\"margin:0;\">Tu plan sigue vigente hasta el " + escapeHtml(validUntil)
+                + escapeHtml(plan.getName()) + "</strong> de este período — no podrás reservar más clases dentro de él.</p>"
+                + "<p style=\"margin:0;\">Este período termina el " + escapeHtml(validUntil)
                 + ". Si cancelas una reserva a tiempo, esa clase se libera y puedes usarla en otra.</p>";
         send(
                 gym,

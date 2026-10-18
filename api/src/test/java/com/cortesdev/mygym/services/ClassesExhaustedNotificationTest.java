@@ -49,12 +49,12 @@ class ClassesExhaustedNotificationTest {
     @Test
     void usingTheLastClassSendsTheExhaustedEmail() {
         AppUser m = member();
-        when(memberService.remainingClasses(m)).thenReturn(0);
+        when(memberService.remainingClasses(eq(m), any(java.time.LocalDate.class))).thenReturn(0);
         when(gymPlanRepository.findById(5L)).thenReturn(Optional.of(plan));
         when(gymRepository.findById(GYM_ID)).thenReturn(Optional.of(gym));
-        when(memberService.periodEnd(m)).thenReturn(ZonedDateTime.now(ZONE).plusDays(10));
+        when(memberService.periodEndForClass(eq(m), any(java.time.LocalDate.class))).thenReturn(java.time.LocalDate.now(ZONE).plusDays(10));
 
-        reservationService().notifyIfClassesExhausted(GYM_ID, m);
+        reservationService().notifyIfClassesExhausted(GYM_ID, m, java.time.LocalDate.now(ZONE));
 
         verify(emailService).sendClassesExhaustedMember(eq(gym), eq(m), eq(plan), any(String.class));
         // Y el mismo aviso por push, solo al socio.
@@ -65,12 +65,45 @@ class ClassesExhaustedNotificationTest {
     void classesLeftOrUnlimitedPlanSendsNothing() {
         AppUser m = member();
         for (Integer remaining : new Integer[] {3, null}) {
-            when(memberService.remainingClasses(m)).thenReturn(remaining);
+            when(memberService.remainingClasses(eq(m), any(java.time.LocalDate.class))).thenReturn(remaining);
 
-            reservationService().notifyIfClassesExhausted(GYM_ID, m);
+            reservationService().notifyIfClassesExhausted(GYM_ID, m, java.time.LocalDate.now(ZONE));
         }
 
         verify(emailService, never()).sendClassesExhaustedMember(any(), any(), any(), any());
         verify(pushService, never()).notifyUsers(any(), any());
+    }
+
+    @Test
+    void reservingAClassOfTheQueuedPeriodDoesNotReFireTheExhaustedNoticeOfThePreviousOne() {
+        // El período 1 está agotado (remainingClasses(m) sería 0) pero la clase es del período 2, con cupo: no hay aviso.
+        AppUser m = member();
+        java.time.LocalDate queuedDate = java.time.LocalDate.now(ZONE).plusDays(40);
+        when(memberService.remainingClasses(m, queuedDate)).thenReturn(7);
+
+        reservationService().notifyIfClassesExhausted(GYM_ID, m, queuedDate);
+
+        verify(memberService, never()).remainingClasses(m); // nunca se mide contra el período actual
+
+        verify(emailService, never()).sendClassesExhaustedMember(any(), any(), any(), any());
+        verify(pushService, never()).notifyUsers(any(), any());
+    }
+
+    @Test
+    void exhaustingTheQueuedPeriodNotifiesWithTheEndOfThatPeriod() {
+        AppUser m = member();
+        java.time.LocalDate queuedDate = java.time.LocalDate.of(2027, 4, 20);
+        when(memberService.remainingClasses(m, queuedDate)).thenReturn(0);
+        when(gymPlanRepository.findById(5L)).thenReturn(Optional.of(plan));
+        when(gymRepository.findById(GYM_ID)).thenReturn(Optional.of(gym));
+        when(memberService.periodEndForClass(m, queuedDate)).thenReturn(java.time.LocalDate.of(2027, 5, 1));
+
+        reservationService().notifyIfClassesExhausted(GYM_ID, m, queuedDate);
+
+        org.mockito.ArgumentCaptor<String> date = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(emailService).sendClassesExhaustedMember(eq(gym), eq(m), eq(plan), date.capture());
+        org.assertj.core.api.Assertions.assertThat(date.getValue()).isEqualTo("1 de mayo");
+        verify(pushService).notifyUsers(eq(java.util.List.of(4L)), any(PushMessage.class));
+        verify(memberService, never()).periodEnd(any());
     }
 }

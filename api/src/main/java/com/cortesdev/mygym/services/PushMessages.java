@@ -87,7 +87,7 @@ public final class PushMessages {
         String when = daysRemaining == 1 ? "mañana" : "en " + daysRemaining + " días";
         return new PushMessage(
                 "Tu plan vence " + when,
-                "Sigue reservando con normalidad. Cuando venza, podrás renovarlo en " + gym.getName() + ".",
+                "Renueva antes y conservas los días que te quedan en " + gym.getName() + ".",
                 "membership",
                 MEMBER_URL,
                 MAX_TTL_SECONDS,
@@ -113,7 +113,7 @@ public final class PushMessages {
     public static PushMessage classesExhausted(String validUntil) {
         return new PushMessage(
                 "Usaste todas tus clases",
-                "Tu plan sigue vigente hasta el " + validUntil + ". Si cancelas una reserva a tiempo, puedes usar esa clase en otra.",
+                "No te quedan clases en este período, que termina el " + validUntil + ". Si cancelas una reserva a tiempo, puedes usar esa clase en otra.",
                 "classes-exhausted",
                 MEMBER_URL,
                 MAX_TTL_SECONDS,

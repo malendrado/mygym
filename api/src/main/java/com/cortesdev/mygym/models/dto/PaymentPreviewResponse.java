@@ -14,4 +14,10 @@ public record PaymentPreviewResponse(
         int usedOutside,
         int bookedInApp,
         Integer remaining,
-        boolean expiringSoon) {}
+        boolean expiringSoon,
+        /** true si pagar ahora renueva por adelantado: periodStart/periodEnd son los del período NUEVO (parte en el vencimiento actual). */
+        boolean earlyRenewal,
+        /** Meses completos ya pagados por adelantado (en cola) que este pago descartaría; 0 si no se pierde nada. */
+        int lostPaidMonths,
+        /** Días que le quedaban del período actual y este pago descartaría (reinicia la cadena sobre un plan vigente); 0 si no se pierde nada. */
+        long lostDays) {}

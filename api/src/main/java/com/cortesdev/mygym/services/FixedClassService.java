@@ -162,7 +162,11 @@ public class FixedClassService {
         LocalDate today = LocalDate.now(GYM_ZONE);
         LocalTime nowTime = LocalTime.now(GYM_ZONE);
         LocalDate from = period.start().isAfter(today) ? period.start() : today;
-        LocalDate to = period.endInclusive();
+        // Con renovación anticipada también se reservan las fijas del período ya pagado por adelantado (con su propio cupo).
+        MemberService.PeriodRange queued = memberService.queuedPeriod(member);
+        LocalDate to = queued != null ? queued.endInclusive() : period.endInclusive();
+        // Contra el fin de lo pagado completo (cola incluida): si renueva el mismo día del vencimiento, hoy ya pasó el fin del
+        // período actual pero el período nuevo parte hoy.
         if (from.isAfter(to)) {
             return FixedClassGenerationResult.none(false);
         }
@@ -207,6 +211,7 @@ public class FixedClassService {
         // Cierres del período en 1-2 consultas (nunca una por fecha); el motivo se pide solo para las cerradas.
         GymClosureService.ClosureSchedule closures = gymClosureService.scheduleFor(member.getGymId(), from, to);
         Integer remaining = memberService.remainingClasses(member); // null = sin tope
+        Integer queuedRemaining = queued != null ? memberService.remainingClassesInQueuedPeriod(member) : null;
         List<FixedClassSkipped> skipped = new ArrayList<>();
         boolean stoppedByQuota = false;
         int created = 0;
@@ -222,14 +227,25 @@ public class FixedClassService {
                         o.date(), o.block().getLabel(), "Cierre" + (closedReason != null ? ": " + closedReason : "")));
                 continue;
             }
-            if (remaining != null && remaining <= 0) {
+            boolean inQueued = queued != null && !o.date().isBefore(queued.start());
+            Integer segmentRemaining = inQueued ? queuedRemaining : remaining;
+            if (segmentRemaining != null && segmentRemaining <= 0) {
                 stoppedByQuota = true;
-                break;
+                boolean currentDone = remaining != null && remaining <= 0;
+                boolean queuedDone = queued == null || (queuedRemaining != null && queuedRemaining <= 0);
+                if (currentDone && queuedDone) {
+                    break; // sin cupo en ningún período: nada más que reservar
+                }
+                continue; // un período agotado no impide reservar en el otro
             }
             reservationService.createBooked(o.block().getId(), member.getId(), o.date(), o.fixed().getId());
             waitlistService.clearOnBooked(o.block().getId(), o.date(), member.getId());
-            if (remaining != null) {
-                remaining--;
+            if (segmentRemaining != null) {
+                if (inQueued) {
+                    queuedRemaining--;
+                } else {
+                    remaining--;
+                }
             }
             created++;
             firstCreated = firstCreated == null ? o.date() : firstCreated;

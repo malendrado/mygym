@@ -82,7 +82,7 @@ public class MemberController {
             @AuthenticationPrincipal Jwt jwt, @PathVariable Long memberId, @Valid @RequestBody MarkPaidRequest request) {
         AuthenticatedUser user = AuthenticatedUser.from(jwt);
         gymService.simulatePlanPayment(
-                user.gymId(), memberId, request.planId(), request.bank().trim(), user.userId(), request.startDate(), request.usedClasses());
+                user.gymId(), memberId, request.planId(), request.bank().trim(), user.userId(), request.startDate(), request.usedClasses(), request.confirmsLoseQueuedMonths());
         return ResponseEntity.noContent().build();
     }
 

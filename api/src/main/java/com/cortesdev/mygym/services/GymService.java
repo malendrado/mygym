@@ -8,6 +8,7 @@ import com.cortesdev.mygym.models.GymPhoto;
 import com.cortesdev.mygym.models.GymPlan;
 import com.cortesdev.mygym.models.ManualPayment;
 import com.cortesdev.mygym.services.exception.InvalidPaymentException;
+import com.cortesdev.mygym.services.exception.PaymentConflictException;
 import com.cortesdev.mygym.models.dto.PaymentPreviewResponse;
 import com.cortesdev.mygym.models.Role;
 import com.cortesdev.mygym.models.dto.AdminCreateRequest;
@@ -84,6 +85,8 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Transactional
 public class GymService {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(GymService.class);
 
     // Mismo huso que usa MemberService para calcular vigencia de plan — acá
     // define qué reservas cuentan como "a futuro" al expulsar a un socio.
@@ -847,20 +850,73 @@ public class GymService {
             Long registeredByUserId,
             LocalDate startDate,
             Integer usedClasses) {
+        simulatePlanPayment(gymId, memberId, planId, bank, registeredByUserId, startDate, usedClasses, false);
+    }
+
+    /** Ventana en la que un segundo pago manual idéntico (mismo socio, plan y método) se toma por doble clic o reintento. */
+    static final java.time.Duration DUPLICATE_PAYMENT_WINDOW = java.time.Duration.ofSeconds(15);
+
+    /**
+     * Con {@code confirmLoseQueuedMonths} el admin acepta que el pago reinicie la cadena y descarte los meses que el socio
+     * ya tenía pagados por adelantado; sin él, ese caso responde 409. La fila del socio se bloquea al principio (la
+     * primera vez que se lee en la transacción): dos pagos en paralelo del mismo socio se serializan y el segundo ve el
+     * paidPeriods ya actualizado, en vez de pisarlo y perder un mes pagado.
+     */
+    public void simulatePlanPayment(
+            Long gymId,
+            Long memberId,
+            Long planId,
+            String bank,
+            Long registeredByUserId,
+            LocalDate startDate,
+            Integer usedClasses,
+            boolean confirmLoseQueuedMonths) {
         Gym gym = findGymOrThrow(gymId);
         GymPlan plan = findPlanOrThrow(gymId, planId);
         AppUser member = appUserRepository
-                .findByIdAndGymId(memberId, gymId)
+                .findLockedByIdAndGymId(memberId, gymId)
                 .filter(u -> u.getRole() == Role.MEMBER)
                 .orElseThrow(() -> new MemberNotFoundException(memberId));
         Instant now = Instant.now();
+        // Doble clic / reintento: con la fila ya bloqueada, el primer pago confirmado es visible para esta consulta.
+        if (manualPaymentRepository.existsByMemberIdAndPlanIdAndBankAndCreatedAtAfter(
+                memberId, planId, bank, now.minus(DUPLICATE_PAYMENT_WINDOW))) {
+            throw new PaymentConflictException(
+                    PaymentConflictException.CODE_DUPLICATE_PAYMENT, "Ya registraste este pago hace un momento.");
+        }
         Instant periodStartInstant = resolvePeriodStart(startDate, now);
         Integer usedOutside = resolveUsedClasses(plan, usedClasses);
-        member.setPlanId(planId);
-        member.setPaidAt(periodStartInstant);
-        // Renovación real: lo que traía de una importación por Excel quedó atrás con el período anterior. Lo único que
-        // se arrastra es lo que el admin declara AHORA para el período nuevo (ver AppUser.usedSessionsAtImport).
-        member.setUsedSessionsAtImport(usedOutside);
+        // Renovación anticipada: "Renovar" sin fecha explícita (o con la de hoy) y sin clases declaradas, sobre el MISMO plan
+        // vigente, conserva los días que le quedan (el período nuevo parte en el vencimiento actual). Con una fecha elegida
+        // por el admin, clases declaradas, otro plan, plan vencido o nunca pagado, el pago arranca período desde esa fecha, igual que antes.
+        boolean early = isEarlyRenewal(member, planId, startDate, usedOutside, now);
+        ZonedDateTime periodStart;
+        ZonedDateTime periodEndExclusive;
+        if (early) {
+            ZonedDateTime anchor = MembershipPeriods.anchor(member);
+            int queuedIndex = MembershipPeriods.paidPeriods(member) + 1;
+            periodStart = MembershipPeriods.startOf(anchor, queuedIndex);
+            periodEndExclusive = MembershipPeriods.endOf(anchor, queuedIndex);
+            MembershipPeriods.applyPayment(member, planId, now, true);
+        } else {
+            int lostMonths = MembershipPeriods.queuedMonths(member, now.atZone(GYM_ZONE));
+            if (lostMonths > 0) {
+                if (!confirmLoseQueuedMonths) {
+                    throw new PaymentConflictException(
+                            PaymentConflictException.CODE_LOSE_QUEUED_MONTHS,
+                            "Este cambio descarta " + lostMonths + (lostMonths == 1 ? " mes ya pagado" : " meses ya pagados")
+                                    + " por adelantado. Confirma para continuar.");
+                }
+                log.warn("Pago manual del socio {} (plan {}) reinicia la cadena y descarta {} mes(es) pagados por adelantado",
+                        memberId, planId, lostMonths);
+            }
+            periodStart =periodStartInstant.atZone(GYM_ZONE);
+            periodEndExclusive = periodStart.plusMonths(1);
+            // Renovación real: lo que traía de una importación por Excel quedó atrás con el período anterior. Lo único que
+            // se arrastra es lo que el admin declara AHORA para el período nuevo (ver AppUser.usedSessionsAtImport).
+            MembershipPeriods.startFreshChain(member, planId, periodStartInstant);
+            member.setUsedSessionsAtImport(usedOutside);
+        }
         appUserRepository.save(member);
         // Antes esto no dejaba ningún rastro del pago (solo planId/paidAt del socio) — con el
         // banco guardado acá se pueden armar informes después (ver ManualPayment, V36).
@@ -872,23 +928,28 @@ public class GymService {
                 .bank(bank)
                 .registeredByUserId(registeredByUserId)
                 .paidAt(now)
-                .periodStart(periodStartInstant.atZone(GYM_ZONE).toLocalDate())
+                .periodStart(periodStart.toLocalDate())
                 .usedClassesOutside(usedOutside)
                 .build());
         List<String> adminEmails = appUserRepository.findByGymIdAndRole(gymId, Role.GYM_ADMIN).stream()
                 .map(AppUser::getEmail)
                 .toList();
-        ZonedDateTime periodStart = periodStartInstant.atZone(GYM_ZONE);
         Integer remaining = plan.getMonthlyClasses() == null
                 ? null
                 : plan.getMonthlyClasses()
                         - (usedOutside == null ? 0 : usedOutside)
                         - reservationRepository.countByMemberIdAndStatusAndClassDateBetween(
-                                memberId, ReservationStatus.BOOKED, periodStart.toLocalDate(), periodStart.plusMonths(1).toLocalDate().minusDays(1));
-        memberLifecycleEmailService.sendPaymentConfirmedMember(gym, member, plan, periodStart, periodStart.plusMonths(1), remaining);
+                                memberId, ReservationStatus.BOOKED, periodStart.toLocalDate(), periodEndExclusive.toLocalDate().minusDays(1));
+        memberLifecycleEmailService.sendPaymentConfirmedMember(gym, member, plan, periodStart, periodEndExclusive, remaining);
         memberLifecycleEmailService.sendPaymentConfirmedAdmin(gym, member, plan, adminEmails);
         // Reserva sus clases fijas del período nuevo, después del commit (ver FixedClassService).
         eventPublisher.publishEvent(new MembershipPaidEvent(memberId));
+    }
+
+    /** ¿Este pago del admin renueva por adelantado? Solo sin fecha explícita (o la de hoy), sin clases usadas declaradas y sobre el mismo plan vigente. */
+    private boolean isEarlyRenewal(AppUser member, Long planId, LocalDate startDate, Integer usedOutside, Instant now) {
+        boolean explicitDate = startDate != null && !startDate.equals(LocalDate.now(GYM_ZONE));
+        return !explicitDate && usedOutside == null && MembershipPeriods.canExtend(member, planId, now);
     }
 
     /** Hasta cuánto atrás se puede fechar un plan: más de un mes y ya habría vencido. */
@@ -931,20 +992,30 @@ public class GymService {
             Long gymId, Long memberId, Long planId, LocalDate startDate, Integer usedClasses) {
         assertGymExists(gymId);
         GymPlan plan = findPlanOrThrow(gymId, planId);
-        appUserRepository
+        AppUser member = appUserRepository
                 .findByIdAndGymId(memberId, gymId)
                 .filter(u -> u.getRole() == Role.MEMBER)
                 .orElseThrow(() -> new MemberNotFoundException(memberId));
         Instant now = Instant.now();
         ZonedDateTime start = resolvePeriodStart(startDate, now).atZone(GYM_ZONE);
         Integer usedOutside = resolveUsedClasses(plan, usedClasses);
-        LocalDate periodEnd = start.plusMonths(1).toLocalDate().minusDays(1);
+        // Misma decisión que simulatePlanPayment: si renueva por adelantado, el período que se muestra es el NUEVO
+        // (parte en el vencimiento actual, con su cupo completo).
+        boolean early = isEarlyRenewal(member, planId, startDate, usedOutside, now);
+        ZonedDateTime endExclusive = start.plusMonths(1);
+        if (early) {
+            ZonedDateTime anchor = MembershipPeriods.anchor(member);
+            int queuedIndex = MembershipPeriods.paidPeriods(member) + 1;
+            start = MembershipPeriods.startOf(anchor, queuedIndex);
+            endExclusive = MembershipPeriods.endOf(anchor, queuedIndex);
+        }
+        LocalDate periodEnd = endExclusive.toLocalDate().minusDays(1);
         int booked = reservationRepository.countByMemberIdAndStatusAndClassDateBetween(
                 memberId, ReservationStatus.BOOKED, start.toLocalDate(), periodEnd);
         Integer remaining = plan.getMonthlyClasses() == null
                 ? null
                 : plan.getMonthlyClasses() - (usedOutside == null ? 0 : usedOutside) - booked;
-        long daysLeft = java.time.Duration.between(ZonedDateTime.now(GYM_ZONE), start.plusMonths(1)).toDays();
+        long daysLeft = java.time.Duration.between(ZonedDateTime.now(GYM_ZONE), endExclusive).toDays();
         return new PaymentPreviewResponse(
                 start.toLocalDate(),
                 periodEnd,
@@ -952,7 +1023,11 @@ public class GymService {
                 usedOutside == null ? 0 : usedOutside,
                 booked,
                 remaining,
-                daysLeft <= EXPIRING_SOON_DAYS);
+                daysLeft <= EXPIRING_SOON_DAYS,
+                early,
+                // Un pago que NO conserva la cadena descarta la cola y los días que quedaban del período actual.
+                early ? 0 : MembershipPeriods.queuedMonths(member, ZonedDateTime.now(GYM_ZONE)),
+                early ? 0 : MembershipPeriods.daysLeftInCurrent(member, ZonedDateTime.now(GYM_ZONE)));
     }
 
     /**
@@ -970,13 +1045,13 @@ public class GymService {
      */
     public void revokePlan(Long gymId, Long memberId) {
         assertGymExists(gymId);
+        // Fila del socio bloqueada: un pago en paralelo no puede reescribir la cadena mientras se quita (ver simulatePlanPayment).
         AppUser member = appUserRepository
-                .findByIdAndGymId(memberId, gymId)
+                .findLockedByIdAndGymId(memberId, gymId)
                 .filter(u -> u.getRole() == Role.MEMBER)
                 .orElseThrow(() -> new MemberNotFoundException(memberId));
         boolean hadPlan = member.getPlanId() != null;
-        member.setPlanId(null);
-        member.setPaidAt(null);
+        MembershipPeriods.clear(member); // plan, pago y renovaciones anticipadas
         member.setUsedSessionsAtImport(null);
         appUserRepository.save(member);
 

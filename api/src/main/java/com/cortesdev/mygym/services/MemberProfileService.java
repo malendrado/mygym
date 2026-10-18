@@ -5,13 +5,16 @@ import com.cortesdev.mygym.models.Role;
 import com.cortesdev.mygym.models.dto.MemberProfileRequest;
 import com.cortesdev.mygym.models.dto.MemberResponse;
 import com.cortesdev.mygym.repositories.AppUserRepository;
+import com.cortesdev.mygym.services.exception.InvalidMemberProfileException;
 import com.cortesdev.mygym.services.exception.MemberNotFoundException;
+import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /** Datos de contacto del socio (RUT, dirección, fecha de nacimiento, celular) y contacto de emergencia (nombre y celular): los
- *  completa él mismo al entrar (pantalla obligatoria) o los carga/corrige el admin. Siempre los seis juntos. */
+ *  completa él mismo al entrar (pantalla obligatoria) o los carga/corrige el admin. Mientras el perfil esté incompleto, los
+ *  seis juntos; una vez completo, se puede corregir uno solo (lo no enviado queda como estaba). */
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -39,20 +42,52 @@ public class MemberProfileService {
     }
 
     private MemberResponse save(AppUser member, MemberProfileRequest request) {
+        // Perfil ya completo: un dato ausente/nulo/en blanco significa "no cambiar" y solo se valida lo enviado
+        // (así "Mis datos" puede corregir un solo campo). Perfil incompleto: los seis siguen siendo obligatorios.
+        boolean partialAllowed = member.isProfileComplete();
         // Se normaliza TODO antes de tocar el socio: si un dato es inválido no se guarda ninguno.
-        String rut = MemberProfileRules.normalizeRut(request.rut());
-        String address = MemberProfileRules.normalizeAddress(request.address());
-        String phone = MemberProfileRules.normalizePhone(request.phone());
-        var birthDate = MemberProfileRules.validateBirthDate(request.birthDate());
-        String emergencyName = MemberProfileRules.normalizeEmergencyName(request.emergencyContactName());
-        String emergencyPhone = MemberProfileRules.normalizeEmergencyPhone(request.emergencyContactPhone());
-        member.setRut(rut);
-        member.setAddress(address);
-        member.setPhone(phone);
-        member.setBirthDate(birthDate);
-        member.setEmergencyContactName(emergencyName);
-        member.setEmergencyContactPhone(emergencyPhone);
+        String rut = isBlank(request.rut()) && partialAllowed ? null : MemberProfileRules.normalizeRut(request.rut());
+        String address =
+                isBlank(request.address()) && partialAllowed ? null : MemberProfileRules.normalizeAddress(request.address());
+        String phone = isBlank(request.phone()) && partialAllowed ? null : MemberProfileRules.normalizePhone(request.phone());
+        LocalDate birthDate;
+        if (request.birthDate() == null) {
+            if (!partialAllowed) {
+                throw new InvalidMemberProfileException("Ingresa tu fecha de nacimiento.");
+            }
+            birthDate = null;
+        } else {
+            birthDate = MemberProfileRules.validateBirthDate(request.birthDate());
+        }
+        String emergencyName = isBlank(request.emergencyContactName()) && partialAllowed
+                ? null
+                : MemberProfileRules.normalizeEmergencyName(request.emergencyContactName());
+        String emergencyPhone = isBlank(request.emergencyContactPhone()) && partialAllowed
+                ? null
+                : MemberProfileRules.normalizeEmergencyPhone(request.emergencyContactPhone());
+        if (rut != null) {
+            member.setRut(rut);
+        }
+        if (address != null) {
+            member.setAddress(address);
+        }
+        if (phone != null) {
+            member.setPhone(phone);
+        }
+        if (birthDate != null) {
+            member.setBirthDate(birthDate);
+        }
+        if (emergencyName != null) {
+            member.setEmergencyContactName(emergencyName);
+        }
+        if (emergencyPhone != null) {
+            member.setEmergencyContactPhone(emergencyPhone);
+        }
         appUserRepository.save(member);
         return memberService.getOwnMembership(member.getId());
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 }

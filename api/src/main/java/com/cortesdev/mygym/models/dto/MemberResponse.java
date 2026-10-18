@@ -18,7 +18,7 @@ public record MemberResponse(
         String membershipStatus,
         /** Nombre del plan contratado — null si nunca se marcó un pago (planId null). */
         String planName,
-        /** paidAt + 1 mes calendario — null si nunca se marcó un pago. */
+        /** Vencimiento FINAL (con renovación anticipada, el del período ya pagado por adelantado) — null si nunca se marcó un pago. */
         Instant planEndDate,
         /** Cupo mensual del plan — null si el plan es libre (ilimitado) o no hay plan. */
         Integer monthlyClasses,
@@ -41,12 +41,23 @@ public record MemberResponse(
         /** Contacto de emergencia (nombre y celular internacional) — null mientras no lo complete. */
         String emergencyContactName,
         String emergencyContactPhone,
-        boolean profileComplete) {
+        boolean profileComplete,
+        /** Fin (instante, exclusivo) del período en curso. Sin renovación anticipada coincide con planEndDate; null sin pago. */
+        Instant currentPeriodEnd,
+        /** Renovación anticipada: vencimiento FINAL (= planEndDate) cuando ya pagó el período siguiente; null si no hay cola. */
+        Instant queuedPeriodEnd,
+        /** Clases que le quedan en el período ya pagado por adelantado (cupo completo menos reservas en él); null si no hay cola o el plan es libre. */
+        Integer queuedSessionsRemaining,
+        /** true si el plan está vigente y todavía no renovó por adelantado: pagar ahora conserva los días que le quedan. */
+        boolean canRenewEarly,
+        /** Primer día del período nuevo si renueva ahora (= vencimiento actual); null si canRenewEarly es false. */
+        LocalDate earlyRenewalStartsOn) {
 
     /** Sin los datos sensibles (RUT, dirección, nacimiento); hoy no se usa: el PROFESOR también los ve y edita. */
     public MemberResponse withoutSensitiveData() {
         return new MemberResponse(id, name, email, role, gymId, active, createdAt, planId, paidAt, membershipStatus,
                 planName, planEndDate, monthlyClasses, sessionsRemaining, photoUrl, inviteStatus, fixedClassesSummary,
-                null, null, null, phone, null, null, profileComplete);
+                null, null, null, phone, null, null, profileComplete, currentPeriodEnd, queuedPeriodEnd,
+                queuedSessionsRemaining, canRenewEarly, earlyRenewalStartsOn);
     }
 }

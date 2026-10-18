@@ -66,6 +66,8 @@ class FlowPaymentServiceTest {
         GymPlan plan = GymPlan.builder().id(PLAN_ID).gymId(GYM_ID).name("Plan").priceClp(25_000).active(true).build();
         when(paymentRepository.findLockedByFlowToken(TOKEN)).thenReturn(Optional.of(payment));
         when(appUserRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
+        when(appUserRepository.findGymIdById(MEMBER_ID)).thenReturn(Optional.of(GYM_ID));
+        when(appUserRepository.findLockedByIdAndGymId(MEMBER_ID, GYM_ID)).thenReturn(Optional.of(member));
         when(gymRepository.findById(GYM_ID)).thenReturn(Optional.of(gym));
         when(gymPlanRepository.findById(PLAN_ID)).thenReturn(Optional.of(plan));
         when(appUserRepository.findByGymIdAndRole(GYM_ID, Role.GYM_ADMIN)).thenReturn(List.of());

@@ -49,6 +49,8 @@ class GymServiceAdminGuardsTest {
                 .thenReturn(Optional.of(GymPlan.builder().id(PLAN_ID).gymId(GYM_ID).name("Plan").priceClp(30_000).build()));
         when(appUserRepository.findByIdAndGymId(STAFF_ID, GYM_ID))
                 .thenReturn(Optional.of(AppUser.builder().id(STAFF_ID).gymId(GYM_ID).role(Role.PROFESOR).build()));
+        when(appUserRepository.findLockedByIdAndGymId(STAFF_ID, GYM_ID))
+                .thenReturn(Optional.of(AppUser.builder().id(STAFF_ID).gymId(GYM_ID).role(Role.PROFESOR).build()));
         when(appUserRepository.findByIdAndGymId(OTHER_ADMIN_ID, GYM_ID))
                 .thenReturn(Optional.of(AppUser.builder().id(OTHER_ADMIN_ID).gymId(GYM_ID).role(Role.GYM_ADMIN).build()));
     }

@@ -153,17 +153,21 @@ public class FlowPaymentService {
             return; // idempotencia — Flow puede reintentar el mismo webhook más de una vez.
         }
 
-        AppUser member = appUserRepository.findById(payment.getMemberId()).orElse(null);
-        if (member == null) {
+        // Solo el gimnasio del socio, sin cargar ni bloquear su fila todavía: se bloquea más abajo, después de la llamada HTTP
+        // a Flow (no se retiene el bloqueo del socio mientras se espera a un tercero) y siendo la primera lectura de la
+        // entidad en esta transacción, para no trabajar con un estado viejo. Orden de bloqueos: pago -> socio (el pago
+        // por token ya está bloqueado arriba); ningún otro camino bloquea un pago estando con el socio bloqueado.
+        Long memberGymId = appUserRepository.findGymIdById(payment.getMemberId()).orElse(null);
+        if (memberGymId == null) {
             log.error("Webhook de Flow para el pago {} pero no se encontró el socio local", payment.getId());
             return;
         }
-        Gym gym = gymRepository.findById(member.getGymId()).orElse(null);
+        Gym gym = gymRepository.findById(memberGymId).orElse(null);
         if (gym == null || isBlank(gym.getFlowApiKey()) || isBlank(gym.getFlowSecretKey())) {
             log.error(
                     "No se pudo confirmar el pago {}: el gimnasio {} no tiene cuenta Flow configurada",
                     payment.getId(),
-                    member.getGymId());
+                    memberGymId);
             return;
         }
 
@@ -211,17 +215,43 @@ public class FlowPaymentService {
             return;
         }
 
-        member.setPlanId(plan.getId());
-        member.setPaidAt(Instant.now());
-        // Renovación real — cualquier "ya venía usando N clases" que traía de una importación
-        // por Excel quedó atrás con el período anterior, no se arrastra (ver AppUser.usedSessionsAtImport).
-        member.setUsedSessionsAtImport(null);
+        // Renovación anticipada: pagar el MISMO plan vigente conserva los días que le quedan (el período nuevo parte en el
+        // vencimiento actual y queda en cola); cualquier otro caso (vencido, nunca pagó, otro plan) arranca período desde
+        // ahora y no arrastra lo que traía de una importación (ver AppUser.usedSessionsAtImport). Un webhook repetido no
+        // llega acá: la fila del pago ya quedó en PAID arriba (idempotencia por token).
+        // Dos pagos distintos del mismo socio en paralelo (Flow + Flow, o Flow + manual) se serializan acá: el segundo lee
+        // el paidPeriods ya actualizado por el primero, en vez de escribir el mismo N+1 y perder un mes pagado.
+        AppUser member = appUserRepository.findLockedByIdAndGymId(payment.getMemberId(), memberGymId).orElse(null);
+        if (member == null) {
+            log.error("Webhook de Flow para el pago {} pero el socio local ya no existe", payment.getId());
+            return;
+        }
+        Instant now = Instant.now();
+        java.time.ZonedDateTime queuedStart = MembershipPeriods.canExtend(member, plan.getId(), now)
+                ? MembershipPeriods.endOf(MembershipPeriods.anchor(member), MembershipPeriods.paidPeriods(member))
+                : null;
+        // El dinero ya está cobrado: nunca se rechaza. Si el pago no conserva la cadena (otro plan o plan vencido) y traía
+        // meses pagados por adelantado, se descartan (comportamiento histórico) pero queda registrado.
+        if (queuedStart == null) {
+            int lostMonths = MembershipPeriods.queuedMonths(member, now.atZone(MembershipPeriods.GYM_ZONE));
+            if (lostMonths > 0) {
+                log.warn("Pago Flow {} del socio {} (plan {}) reinicia la cadena y descarta {} mes(es) pagados por adelantado",
+                        payment.getId(), member.getId(), plan.getId(), lostMonths);
+            }
+        }
+        boolean early = MembershipPeriods.applyPayment(member, plan.getId(), now, true);
         appUserRepository.save(member);
 
         List<String> adminEmails = appUserRepository.findByGymIdAndRole(gym.getId(), Role.GYM_ADMIN).stream()
                 .map(AppUser::getEmail)
                 .toList();
-        memberLifecycleEmailService.sendPaymentConfirmedMember(gym, member, plan);
+        if (early) {
+            // Con fechas explícitas: el período nuevo [vencimiento anterior, nuevo vencimiento).
+            memberLifecycleEmailService.sendPaymentConfirmedMember(
+                    gym, member, plan, queuedStart, MembershipPeriods.finalEnd(member), null);
+        } else {
+            memberLifecycleEmailService.sendPaymentConfirmedMember(gym, member, plan);
+        }
         memberLifecycleEmailService.sendPaymentConfirmedAdmin(gym, member, plan, adminEmails);
         // Reserva sus clases fijas del período nuevo, después del commit (ver FixedClassService).
         eventPublisher.publishEvent(new MembershipPaidEvent(member.getId()));

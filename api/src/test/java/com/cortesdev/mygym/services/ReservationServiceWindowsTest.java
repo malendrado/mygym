@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -211,7 +212,7 @@ class ReservationServiceWindowsTest {
         when(gymBlockRepository.findLockedByIdAndGymId(BLOCK_ID, GYM_ID)).thenReturn(Optional.of(blockStartingIn(60)));
         when(appUserRepository.findLockedByIdAndGymId(MEMBER_ID, GYM_ID)).thenReturn(Optional.of(member));
         when(memberService.hasActiveMembership(member)).thenReturn(true);
-        when(memberService.hasQuotaAvailable(member)).thenReturn(true);
+        when(memberService.hasQuotaAvailable(eq(member), any(LocalDate.class))).thenReturn(true);
     }
 
     @Test

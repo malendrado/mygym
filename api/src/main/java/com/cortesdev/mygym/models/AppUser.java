@@ -58,7 +58,14 @@ public class AppUser {
     /** Solo aplica a MEMBER — plan contratado y fecha del último pago (marcado a mano por un admin, ver GymService.simulatePlanPayment). */
     private Long planId;
 
+    /** INSTANTE REAL del último pago (informes, correos, CSV). Los períodos NO salen de acá directo: ver MembershipPeriods. */
     private Instant paidAt;
+
+    /** Ancla de la cadena de períodos pagados seguidos (renovación anticipada, V52). null = igual a paidAt. */
+    private Instant periodStart;
+
+    /** Meses calendario seguidos que cubre la cadena desde el ancla (V52). null = 1. */
+    private Integer paidPeriods;
 
     /** Solo aplica a MEMBER con plan de cupo limitado, cargado por el Excel de importación
      *  masiva (ver MemberImportRowService) — clases que ya venía usando en el sistema anterior

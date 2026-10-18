@@ -99,6 +99,77 @@ class MemberProfileServiceTest {
         assertThat(partial.isProfileComplete()).isFalse();
     }
 
+    private AppUser completeMember() {
+        return AppUser.builder().id(MEMBER_ID).gymId(GYM_ID).role(Role.MEMBER)
+                .rut("12.345.678-5").address("Av. Siempre Viva 742, Ñuñoa").birthDate(LocalDate.of(1990, 5, 20))
+                .phone("+56912345678").emergencyContactName("Marta Pérez").emergencyContactPhone("+56987654321").build();
+    }
+
+    @Test
+    void completeProfileAcceptsAPartialUpdateAndKeepsTheRest() {
+        AppUser complete = completeMember();
+        when(appUserRepository.findById(MEMBER_ID)).thenReturn(Optional.of(complete));
+
+        service.updateOwn(MEMBER_ID, new MemberProfileRequest(null, " ", null, "9 5555 4444", "", null));
+
+        assertThat(complete.getPhone()).isEqualTo("+56955554444");
+        assertThat(complete.getRut()).isEqualTo("12.345.678-5");
+        assertThat(complete.getAddress()).isEqualTo("Av. Siempre Viva 742, Ñuñoa");
+        assertThat(complete.getBirthDate()).isEqualTo(LocalDate.of(1990, 5, 20));
+        assertThat(complete.getEmergencyContactName()).isEqualTo("Marta Pérez");
+        assertThat(complete.getEmergencyContactPhone()).isEqualTo("+56987654321");
+        verify(appUserRepository).save(complete);
+    }
+
+    @Test
+    void completeProfileWithNothingSentIsANoOpThatSucceeds() {
+        AppUser complete = completeMember();
+        when(appUserRepository.findById(MEMBER_ID)).thenReturn(Optional.of(complete));
+
+        service.updateOwn(MEMBER_ID, new MemberProfileRequest(null, null, null, null, null, null));
+
+        assertThat(complete.getRut()).isEqualTo("12.345.678-5");
+        assertThat(complete.getPhone()).isEqualTo("+56912345678");
+        assertThat(complete.isProfileComplete()).isTrue();
+        verify(appUserRepository).save(complete);
+    }
+
+    @Test
+    void completeProfileStillValidatesTheFormatOfWhatIsSent() {
+        AppUser complete = completeMember();
+        when(appUserRepository.findById(MEMBER_ID)).thenReturn(Optional.of(complete));
+
+        assertThatThrownBy(() -> service.updateOwn(MEMBER_ID, new MemberProfileRequest("12.345.678-9", null, null, null, null, null)))
+                .isInstanceOf(InvalidMemberProfileException.class).hasMessageStartingWith("RUT inválido");
+        assertThatThrownBy(() -> service.updateOwn(MEMBER_ID, new MemberProfileRequest(null, null, null, "123", null, null)))
+                .isInstanceOf(InvalidMemberProfileException.class);
+        assertThatThrownBy(() -> service.updateOwn(MEMBER_ID, new MemberProfileRequest(null, null, LocalDate.now().plusDays(1), null, null, null)))
+                .isInstanceOf(InvalidMemberProfileException.class);
+        // y si uno es inválido no se guarda ni el válido que venía con él
+        assertThatThrownBy(() -> service.updateOwn(MEMBER_ID, new MemberProfileRequest(null, "Otra dirección 99", null, "123", null, null)))
+                .isInstanceOf(InvalidMemberProfileException.class);
+
+        assertThat(complete.getAddress()).isEqualTo("Av. Siempre Viva 742, Ñuñoa");
+        assertThat(complete.getPhone()).isEqualTo("+56912345678");
+        verify(appUserRepository, never()).save(any());
+    }
+
+    @Test
+    void incompleteProfileStillRequiresEverything() {
+        AppUser incomplete = completeMember();
+        incomplete.setEmergencyContactPhone(null); // un socio antiguo sin contacto de emergencia
+        when(appUserRepository.findById(MEMBER_ID)).thenReturn(Optional.of(incomplete));
+
+        assertThatThrownBy(() -> service.updateOwn(MEMBER_ID, new MemberProfileRequest(null, null, null, "9 5555 4444", null, null)))
+                .isInstanceOf(InvalidMemberProfileException.class);
+        assertThatThrownBy(() -> service.updateOwn(MEMBER_ID, new MemberProfileRequest(
+                "123456785", "Av. Siempre Viva 742", null, "9 5555 4444", "Marta", "9 8765 4321")))
+                .isInstanceOf(InvalidMemberProfileException.class).hasMessage("Ingresa tu fecha de nacimiento.");
+
+        assertThat(incomplete.getPhone()).isEqualTo("+56912345678");
+        verify(appUserRepository, never()).save(any());
+    }
+
     @Test
     void anInvalidEmergencyContactSavesNothingAtAll() {
         when(appUserRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));

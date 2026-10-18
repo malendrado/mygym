@@ -178,15 +178,19 @@ public class MemberService {
     }
 
     // Orden de la lista: por defecto nombre. Con EXPIRING_SOON/EXPIRED el que vence antes (o venció hace más
-    // tiempo) va primero: periodEnd = paidAt + 1 mes, así que paidAt ascendente es lo mismo y no recalcula
-    // fechas por fila; sin pago (null) al final. UNPAID no tiene fecha, queda por nombre. Desempate siempre
-    // nombre e id, para que la paginación sea estable.
+    // tiempo) va primero, por su vencimiento FINAL (el de la renovación anticipada si la hay); sin pago (null) al
+    // final. UNPAID no tiene fecha, queda por nombre. Desempate siempre nombre e id, para que la paginación sea estable.
     private static Comparator<AppUser> searchOrder(String status) {
         Comparator<AppUser> byName =
                 Comparator.comparing((AppUser u) -> u.getName() == null ? "" : u.getName().toLowerCase())
                         .thenComparing(AppUser::getId);
         if ("EXPIRING_SOON".equals(status) || "EXPIRED".equals(status)) {
-            return Comparator.comparing(AppUser::getPaidAt, Comparator.nullsLast(Comparator.<Instant>naturalOrder()))
+            return Comparator.comparing(
+                            (AppUser u) -> {
+                                ZonedDateTime end = MembershipPeriods.finalEnd(u);
+                                return end == null ? null : end.toInstant();
+                            },
+                            Comparator.nullsLast(Comparator.<Instant>naturalOrder()))
                     .thenComparing(byName);
         }
         return byName;
@@ -295,10 +299,17 @@ public class MemberService {
     // Segundo gate real de ReservationService.book(), separado de hasActiveMembership: un socio
     // con plan de cupo limitado podía seguir reservando clases pasado su límite mensual llamando
     // directo a la API — el frontend sí lo bloqueaba (member.ts quotaExhausted) pero el backend
-    // nunca lo chequeaba. Reusa el mismo criterio de período [paidAt, paidAt+1mes) que
-    // membershipStatus/toResponses, nunca lo duplica.
+    // nunca lo chequeaba. Reusa el mismo criterio de período que membershipStatus/toResponses
+    // (ver MembershipPeriods), nunca lo duplica.
     public boolean hasQuotaAvailable(AppUser user) {
         Integer remaining = remainingClasses(user);
+        return remaining == null || remaining > 0;
+    }
+
+    /** Igual, pero contra el período al que cuenta ESA clase: una fecha del período renovado por adelantado gasta el cupo
+     *  nuevo (completo); una anterior al vencimiento actual gasta el actual. */
+    public boolean hasQuotaAvailable(AppUser user, LocalDate classDate) {
+        Integer remaining = remainingClasses(user, classDate);
         return remaining == null || remaining > 0;
     }
 
@@ -306,47 +317,92 @@ public class MemberService {
      *  Mismo cálculo que usa hasQuotaAvailable y que el aviso "usaste todas tus clases" de
      *  ReservationService.book — nunca duplicarlo. */
     public Integer remainingClasses(AppUser user) {
-        Long planId = user.getPlanId();
-        Instant paidAt = user.getPaidAt();
-        if (planId == null || paidAt == null) {
+        if (user.getPlanId() == null || user.getPaidAt() == null) {
             return null;
         }
-        GymPlan plan = gymPlanRepository.findById(planId).orElse(null);
+        return remainingInPeriod(user, MembershipPeriods.currentIndex(user, ZonedDateTime.now(GYM_ZONE)));
+    }
+
+    /** Clases que le quedan en el período al que cuenta una clase de esa fecha (ver MembershipPeriods.indexOfClassDate). */
+    public Integer remainingClasses(AppUser user, LocalDate classDate) {
+        if (user.getPlanId() == null || user.getPaidAt() == null) {
+            return null;
+        }
+        ZonedDateTime now = ZonedDateTime.now(GYM_ZONE);
+        int index = MembershipPeriods.indexOfClassDate(user, classDate, now);
+        if (index > MembershipPeriods.paidPeriods(user)) {
+            return null; // fuera de lo pagado no hay cupo que gastar: lo rechaza isWithinPaidPeriod con su propio mensaje
+        }
+        return remainingInPeriod(user, index);
+    }
+
+    /** Fecha de vencimiento (fin exclusivo, fecha de Chile) del período al que cuenta una clase de esa fecha; para mensajes. */
+    public LocalDate periodEndForClass(AppUser user, LocalDate classDate) {
+        ZonedDateTime anchor = MembershipPeriods.anchor(user);
+        int index = Math.min(
+                MembershipPeriods.indexOfClassDate(user, classDate, ZonedDateTime.now(GYM_ZONE)),
+                MembershipPeriods.paidPeriods(user));
+        return MembershipPeriods.endOf(anchor, index).toLocalDate();
+    }
+
+    /** Clases que le quedan en el período PAGADO POR ADELANTADO (cupo completo menos lo ya reservado en él); null = sin cola o sin tope. */
+    public Integer remainingClassesInQueuedPeriod(AppUser user) {
+        ZonedDateTime now = ZonedDateTime.now(GYM_ZONE);
+        if (user.getPlanId() == null || !MembershipPeriods.hasQueued(user, now)) {
+            return null;
+        }
+        return remainingInPeriod(user, MembershipPeriods.currentIndex(user, now) + 1);
+    }
+
+    private Integer remainingInPeriod(AppUser user, int index) {
+        GymPlan plan = gymPlanRepository.findById(user.getPlanId()).orElse(null);
         if (plan == null || plan.getMonthlyClasses() == null) {
             return null;
         }
-        PeriodRange period = currentPeriod(user);
+        ZonedDateTime anchor = MembershipPeriods.anchor(user);
+        LocalDate start = MembershipPeriods.startOf(anchor, index).toLocalDate();
+        LocalDate endInclusive = MembershipPeriods.endOf(anchor, index).toLocalDate().minusDays(1);
         int used = reservationRepository.countByMemberIdAndStatusAndClassDateBetween(
-                user.getId(), ReservationStatus.BOOKED, period.start(), period.endInclusive());
-        int usedAtImport = user.getUsedSessionsAtImport() != null ? user.getUsedSessionsAtImport() : 0;
+                user.getId(), ReservationStatus.BOOKED, start, endInclusive);
+        // Lo que traía de una importación (o declaró el admin) vale solo para el PRIMER período de la cadena.
+        int usedAtImport = index == 1 && user.getUsedSessionsAtImport() != null ? user.getUsedSessionsAtImport() : 0;
         return plan.getMonthlyClasses() - (used + usedAtImport);
     }
 
-    /** Período vigente del socio: de la fecha de pago al día anterior a paidAt + 1 mes (ambos
-     *  inclusive) — el mismo rango que usa remainingClasses. */
+    /** Período del socio: de la fecha de inicio al día anterior al siguiente borde (ambos inclusive). */
     public record PeriodRange(LocalDate start, LocalDate endInclusive) {}
 
-    /** null si nunca pagó. Única cuenta del período, nunca duplicarla (ver remainingClasses). */
+    /** Período ACTUAL (el de la renovación anticipada, si ya empezó); null si nunca pagó. Única cuenta del período, nunca duplicarla. */
     public PeriodRange currentPeriod(AppUser user) {
-        return periodOf(user);
-    }
-
-    private static PeriodRange periodOf(AppUser user) {
         if (user.getPaidAt() == null) {
             return null;
         }
-        ZonedDateTime start = user.getPaidAt().atZone(GYM_ZONE);
-        return new PeriodRange(start.toLocalDate(), start.plusMonths(1).toLocalDate().minusDays(1));
+        ZonedDateTime now = ZonedDateTime.now(GYM_ZONE);
+        return new PeriodRange(
+                MembershipPeriods.currentStart(user, now).toLocalDate(),
+                MembershipPeriods.currentEnd(user, now).toLocalDate().minusDays(1));
     }
 
-    /** Último día cubierto por el pago del socio, o null si nunca pagó. */
+    /** Período pagado por adelantado (parte en el vencimiento del actual y llega al vencimiento final); null si no renovó antes. */
+    public PeriodRange queuedPeriod(AppUser user) {
+        ZonedDateTime now = ZonedDateTime.now(GYM_ZONE);
+        if (!MembershipPeriods.hasQueued(user, now)) {
+            return null;
+        }
+        return new PeriodRange(
+                MembershipPeriods.currentEnd(user, now).toLocalDate(),
+                MembershipPeriods.finalEnd(user).toLocalDate().minusDays(1));
+    }
+
+    /** Último día cubierto por lo pagado (cola incluida), o null si nunca pagó. */
     public static LocalDate paidUntil(AppUser user) {
-        PeriodRange period = periodOf(user);
-        return period != null ? period.endInclusive() : null;
+        ZonedDateTime end = MembershipPeriods.finalEnd(user);
+        return end != null ? end.toLocalDate().minusDays(1) : null;
     }
 
     /**
-     * ¿Cae esa clase dentro del período que el socio pagó? Reservar fechas posteriores al vencimiento
+     * ¿Cae esa clase dentro de lo que el socio pagó (hasta el vencimiento FINAL, cola incluida)? Reservar fechas
+     * posteriores al vencimiento
      * se saltaba el cupo mensual (la cuenta solo mira el período actual) y dejaba reservas vivas
      * después de que el plan venciera (auditoría 2026-10-17). Sin pago registrado no hay período que
      * validar: de eso se encarga hasActiveMembership. Estático a propósito: lo comparten la reserva y la
@@ -371,10 +427,11 @@ public class MemberService {
         return daysRemaining <= EXPIRING_SOON_DAYS ? "EXPIRING_SOON" : "ACTIVE";
     }
 
-    // Usado también por MembershipReminderJob — nunca duplicar la cuenta de "1 mes calendario
-    // desde paidAt" en dos lugares (así fue como se armó membershipStatus originalmente).
+    // Vencimiento FINAL (cola de renovación anticipada incluida): el estado "por vencer"/"vencido" se decide con este.
+    // Usado también por MembershipReminderJob y el CSV de desvinculación — nunca duplicar la cuenta de períodos
+    // (ver MembershipPeriods).
     public ZonedDateTime periodEnd(AppUser user) {
-        return user.getPaidAt().atZone(GYM_ZONE).plusMonths(1);
+        return MembershipPeriods.finalEnd(user);
     }
 
     private MemberResponse toResponse(AppUser user) {
@@ -395,20 +452,33 @@ public class MemberService {
                 ? Map.of()
                 : gymPlanRepository.findAllById(planIds).stream().collect(Collectors.toMap(GymPlan::getId, p -> p));
 
-        record Period(Long memberId, LocalDate start, LocalDate end) {}
+        // Período ACTUAL [curStart, curEnd) y, si renovó por adelantado, el período EN COLA [curEnd, queuedEnd) — fechas de
+        // Chile, fin exclusivo. Todo sale de MembershipPeriods.
+        ZonedDateTime nowZoned = ZonedDateTime.now(GYM_ZONE);
+        record Period(Long memberId, int curIndex, LocalDate curStart, LocalDate curEnd, LocalDate queuedEnd) {}
         List<Period> periods = new ArrayList<>();
         for (AppUser user : users) {
             GymPlan plan = user.getPlanId() != null ? plansById.get(user.getPlanId()) : null;
             if (plan != null && plan.getMonthlyClasses() != null && user.getPaidAt() != null) {
-                ZonedDateTime start = user.getPaidAt().atZone(GYM_ZONE);
-                periods.add(new Period(user.getId(), start.toLocalDate(), start.plusMonths(1).toLocalDate()));
+                periods.add(new Period(
+                        user.getId(),
+                        MembershipPeriods.currentIndex(user, nowZoned),
+                        MembershipPeriods.currentStart(user, nowZoned).toLocalDate(),
+                        MembershipPeriods.currentEnd(user, nowZoned).toLocalDate(),
+                        MembershipPeriods.hasQueued(user, nowZoned)
+                                ? MembershipPeriods.finalEnd(user).toLocalDate()
+                                : null));
             }
         }
 
         Map<Long, Long> usedByMember = Map.of();
+        Map<Long, Long> usedQueuedByMember = Map.of();
         if (!periods.isEmpty()) {
-            LocalDate minStart = periods.stream().map(Period::start).min(LocalDate::compareTo).orElseThrow();
-            LocalDate maxEnd = periods.stream().map(Period::end).max(LocalDate::compareTo).orElseThrow();
+            LocalDate minStart = periods.stream().map(Period::curStart).min(LocalDate::compareTo).orElseThrow();
+            LocalDate maxEnd = periods.stream()
+                    .map(p -> p.queuedEnd() != null ? p.queuedEnd() : p.curEnd())
+                    .max(LocalDate::compareTo)
+                    .orElseThrow();
             List<Long> memberIds = periods.stream().map(Period::memberId).toList();
             Map<Long, List<Reservation>> reservationsByMember = reservationRepository
                     .findByMemberIdInAndStatusAndClassDateBetween(memberIds, ReservationStatus.BOOKED, minStart, maxEnd)
@@ -418,7 +488,14 @@ public class MemberService {
                     .collect(Collectors.toMap(
                             Period::memberId,
                             p -> reservationsByMember.getOrDefault(p.memberId(), List.of()).stream()
-                                    .filter(r -> !r.getClassDate().isBefore(p.start()) && r.getClassDate().isBefore(p.end()))
+                                    .filter(r -> !r.getClassDate().isBefore(p.curStart()) && r.getClassDate().isBefore(p.curEnd()))
+                                    .count()));
+            usedQueuedByMember = periods.stream()
+                    .filter(p -> p.queuedEnd() != null)
+                    .collect(Collectors.toMap(
+                            Period::memberId,
+                            p -> reservationsByMember.getOrDefault(p.memberId(), List.of()).stream()
+                                    .filter(r -> !r.getClassDate().isBefore(p.curEnd()) && r.getClassDate().isBefore(p.queuedEnd()))
                                     .count()));
         }
 
@@ -445,20 +522,46 @@ public class MemberService {
             Instant planEndDate = null;
             Integer monthlyClasses = null;
             Integer sessionsRemaining = null;
+            Instant currentPeriodEnd = null;
+            Instant queuedPeriodEnd = null;
+            Integer queuedSessionsRemaining = null;
+            boolean canRenewEarly = false;
+            LocalDate earlyRenewalStartsOn = null;
             Long planId = user.getPlanId();
             Instant paidAt = user.getPaidAt();
             if (planId != null && paidAt != null) {
-                ZonedDateTime periodStart = paidAt.atZone(GYM_ZONE);
-                ZonedDateTime periodEnd = periodStart.plusMonths(1);
-                planEndDate = periodEnd.toInstant();
+                // planEndDate = vencimiento FINAL (el que ve el socio); el del período actual va aparte.
+                planEndDate = MembershipPeriods.finalEnd(user).toInstant();
+                currentPeriodEnd = MembershipPeriods.currentEnd(user, nowZoned).toInstant();
+                boolean queued = MembershipPeriods.hasQueued(user, nowZoned);
+                if (queued) {
+                    queuedPeriodEnd = planEndDate;
+                } else if (!MembershipPeriods.isExpired(user, nowZoned)) {
+                    canRenewEarly = true;
+                    earlyRenewalStartsOn = MembershipPeriods.currentEnd(user, nowZoned).toLocalDate();
+                }
                 GymPlan plan = plansById.get(planId);
                 if (plan != null) {
                     planName = plan.getName();
                     monthlyClasses = plan.getMonthlyClasses();
                     if (monthlyClasses != null) {
                         long used = usedByMember.getOrDefault(user.getId(), 0L);
-                        int usedAtImport = user.getUsedSessionsAtImport() != null ? user.getUsedSessionsAtImport() : 0;
+                        // Lo importado/declarado por el admin vale solo para el primer período de la cadena.
+                        int usedAtImport = MembershipPeriods.currentIndex(user, nowZoned) == 1
+                                        && user.getUsedSessionsAtImport() != null
+                                ? user.getUsedSessionsAtImport()
+                                : 0;
                         sessionsRemaining = (int) Math.max(0, monthlyClasses - used - usedAtImport);
+                        if (queued) {
+                            queuedSessionsRemaining =
+                                    (int) Math.max(0, monthlyClasses - usedQueuedByMember.getOrDefault(user.getId(), 0L));
+                            // Día del borde (de las 00:00 a la hora de vencimiento): el período actual sigue vigente por
+                            // instante pero ya no tiene fechas reservables (todas son < hoy), y una clase de hoy cuenta contra el
+                            // período nuevo. Mostrar el saldo del actual sería engañoso: se muestra el del siguiente.
+                            if (!MembershipPeriods.currentEnd(user, nowZoned).toLocalDate().isAfter(nowZoned.toLocalDate())) {
+                                sessionsRemaining = queuedSessionsRemaining;
+                            }
+                        }
                     }
                 }
             }
@@ -489,7 +592,12 @@ public class MemberService {
                     user.getPhone(),
                     user.getEmergencyContactName(),
                     user.getEmergencyContactPhone(),
-                    user.isProfileComplete()));
+                    user.isProfileComplete(),
+                    currentPeriodEnd,
+                    queuedPeriodEnd,
+                    queuedSessionsRemaining,
+                    canRenewEarly,
+                    earlyRenewalStartsOn));
         }
         return responses;
     }

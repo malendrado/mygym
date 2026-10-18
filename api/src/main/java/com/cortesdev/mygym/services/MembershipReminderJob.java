@@ -61,10 +61,18 @@ public class MembershipReminderJob {
         ZonedDateTime reference = ZonedDateTime.now(GYM_ZONE);
         // Solo los socios cuyo período (último pago + 1 mes) vence entre hoy y dentro de 3 días: antes se cargaban todos los que
         // alguna vez pagaron, de todos los gimnasios, cada mañana, solo para descartar casi todos en memoria.
-        List<AppUser> members = appUserRepository.findByRoleAndPaidAtBetween(
+        List<AppUser> members = new java.util.ArrayList<>(appUserRepository.findByRoleAndPaidAtBetween(
                 Role.MEMBER,
                 reference.minusDays(PAID_AT_WINDOW_FROM_DAYS).toInstant(),
-                reference.minusDays(PAID_AT_WINDOW_TO_DAYS).toInstant());
+                reference.minusDays(PAID_AT_WINDOW_TO_DAYS).toInstant()));
+        // Renovación anticipada: su vencimiento FINAL sale de period_start + meses, no de paid_at. Los que ya entraron por la
+        // ventana de arriba (sin period_start) no se repiten; processMember descarta a quien no vence en 0-3 días.
+        java.util.Set<Long> seen = members.stream().map(AppUser::getId).collect(Collectors.toSet());
+        for (AppUser chained : appUserRepository.findByRoleAndPeriodStartIsNotNull(Role.MEMBER)) {
+            if (seen.add(chained.getId())) {
+                members.add(chained);
+            }
+        }
 
         // Antes esto era 1 findById de plan + 1 findById de gym POR SOCIO dentro del loop — con
         // volumen real de socios pagos, cientos de queries secuenciales cada mañana. Se trae todo

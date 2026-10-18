@@ -427,7 +427,10 @@ public class ReservationService {
         if (!memberService.hasActiveMembership(member)) {
             throw new SubscriptionRequiredException("Necesitas un plan activo para reservar clases");
         }
-        if (!memberService.hasQuotaAvailable(member)) {
+        // El cupo es el del período al que cuenta ESA clase: con renovación anticipada, una fecha posterior al
+        // vencimiento actual gasta el cupo nuevo (completo) y una anterior gasta el actual. Una fecha fuera de lo pagado
+        // no tiene cupo que gastar: la rechaza la validación de fecha de abajo.
+        if (!memberService.hasQuotaAvailable(member, request.classDate())) {
             throw new MonthlyQuotaExceededException();
         }
         // El cupo mensual solo cuenta las clases del período pagado: sin este límite, una fecha posterior
@@ -444,7 +447,7 @@ public class ReservationService {
         ReservationResponse response = toResponse(createBooked(block.getId(), memberId, request.classDate(), null), block);
         // Después del commit: el aviso manda un correo (HTTP a Resend) y, dentro de la transacción, mantendría
         // bloqueadas las filas del bloque y del socio mientras tanto, poniendo en fila a todas las reservas de esa clase.
-        afterCommit(() -> notifyIfClassesExhausted(gymId, member));
+        afterCommit(() -> notifyIfClassesExhausted(gymId, member, request.classDate()));
         // Si venía de la lista de espera (o simplemente estaba anotado y consiguió cupo por su
         // cuenta), ya no tiene sentido que siga esperando esta misma clase.
         waitlistService.clearOnBooked(block.getId(), request.classDate(), memberId);
@@ -488,9 +491,11 @@ public class ReservationService {
     // Si la reserva recién guardada usó la ÚLTIMA clase del período, le llega un email "usaste todas
     // tus clases" (la app muestra su propio aviso al abrir /member). Best-effort: el envío nunca
     // tumba la reserva (MemberLifecycleEmailService.send ya traga sus errores; esto cubre el resto).
-    void notifyIfClassesExhausted(Long gymId, AppUser member) {
+    // Se mide contra el período de ESA clase (con renovación anticipada, reservar una fecha del período nuevo no agota el
+    // actual ni re-dispara el aviso) y la fecha que se informa es el fin de ese mismo período.
+    void notifyIfClassesExhausted(Long gymId, AppUser member, LocalDate classDate) {
         try {
-            Integer remaining = memberService.remainingClasses(member);
+            Integer remaining = memberService.remainingClasses(member, classDate);
             if (remaining == null || remaining > 0) {
                 return;
             }
@@ -499,7 +504,7 @@ public class ReservationService {
             if (plan == null || gym == null) {
                 return;
             }
-            String validUntil = EXHAUSTED_DATE_FORMAT.format(memberService.periodEnd(member).toLocalDate());
+            String validUntil = EXHAUSTED_DATE_FORMAT.format(memberService.periodEndForClass(member, classDate));
             memberLifecycleEmailService.sendClassesExhaustedMember(gym, member, plan, validUntil);
             pushService.notifyUsers(List.of(member.getId()), PushMessages.classesExhausted(validUntil));
         } catch (RuntimeException e) {

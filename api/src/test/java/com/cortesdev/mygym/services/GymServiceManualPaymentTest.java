@@ -48,7 +48,7 @@ class GymServiceManualPaymentTest {
         AppUser member = AppUser.builder().id(MEMBER_ID).gymId(GYM_ID).role(Role.MEMBER).name("Camila").build();
         when(gymRepository.findById(GYM_ID)).thenReturn(Optional.of(gym));
         when(gymPlanRepository.findByIdAndGymId(PLAN_ID, GYM_ID)).thenReturn(Optional.of(plan));
-        when(appUserRepository.findByIdAndGymId(MEMBER_ID, GYM_ID)).thenReturn(Optional.of(member));
+        when(appUserRepository.findLockedByIdAndGymId(MEMBER_ID, GYM_ID)).thenReturn(Optional.of(member));
         when(appUserRepository.findByGymIdAndRole(GYM_ID, Role.GYM_ADMIN)).thenReturn(List.of());
 
         gymService.simulatePlanPayment(GYM_ID, MEMBER_ID, PLAN_ID, "Banco Estado", ADMIN_ID);

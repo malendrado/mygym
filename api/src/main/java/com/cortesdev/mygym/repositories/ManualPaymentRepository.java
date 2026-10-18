@@ -9,4 +9,7 @@ public interface ManualPaymentRepository extends JpaRepository<ManualPayment, Lo
     List<ManualPayment> findByGymId(Long gymId);
 
     List<ManualPayment> findByMemberIdIn(List<Long> memberIds);
+
+    /** Idempotencia del pago manual (doble clic): usa idx_manual_payment_member y filtra el puñado de pagos de ese socio. */
+    boolean existsByMemberIdAndPlanIdAndBankAndCreatedAtAfter(Long memberId, Long planId, String bank, java.time.Instant after);
 }

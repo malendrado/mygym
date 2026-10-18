@@ -72,6 +72,7 @@ class GymServicePlanDatesTest {
         // Los métodos que solo comprueban que el gym existe usan existsById (no cargan la fila completa).
         lenient().when(gymRepository.existsById(GYM_ID)).thenReturn(true);
         when(appUserRepository.findByIdAndGymId(MEMBER_ID, GYM_ID)).thenReturn(Optional.of(member));
+        when(appUserRepository.findLockedByIdAndGymId(MEMBER_ID, GYM_ID)).thenReturn(Optional.of(member));
         when(appUserRepository.findByGymIdAndRole(GYM_ID, Role.GYM_ADMIN)).thenReturn(List.of());
         plan8 = planOf(8);
     }
@@ -241,6 +242,7 @@ class GymServicePlanDatesTest {
     @Test
     void laVistaPreviaDeUnSocioDeOtroGymEsNotFound() {
         when(appUserRepository.findByIdAndGymId(MEMBER_ID, 77L)).thenReturn(Optional.empty());
+        when(appUserRepository.findLockedByIdAndGymId(MEMBER_ID, 77L)).thenReturn(Optional.empty());
         when(gymRepository.existsById(77L)).thenReturn(true);
         when(gymPlanRepository.findByIdAndGymId(PLAN_ID, 77L)).thenReturn(Optional.of(GymPlan.builder().id(PLAN_ID).gymId(77L).build()));
 

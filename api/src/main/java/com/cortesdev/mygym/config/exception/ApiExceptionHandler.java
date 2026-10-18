@@ -518,6 +518,16 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
     }
 
+    @ExceptionHandler(com.cortesdev.mygym.services.exception.PaymentConflictException.class)
+    public ResponseEntity<ProblemDetail> handlePaymentConflict(
+            com.cortesdev.mygym.services.exception.PaymentConflictException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+        problem.setTitle("Pago en conflicto");
+        problem.setProperty("code", ex.getCode());
+        problem.setProperty("timestamp", Instant.now());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(problem);
+    }
+
     @ExceptionHandler(InvalidAttendanceException.class)
     public ResponseEntity<ProblemDetail> handleInvalidAttendance(InvalidAttendanceException ex) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());

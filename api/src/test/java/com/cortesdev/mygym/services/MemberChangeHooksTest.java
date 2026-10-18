@@ -192,7 +192,7 @@ class MemberChangeHooksTest {
         Reservation r1 = Reservation.builder().id(1L).memberId(MEMBER_ID).classDate(TODAY.plusDays(1)).status(ReservationStatus.BOOKED).build();
         Reservation r2 = Reservation.builder().id(2L).memberId(MEMBER_ID).classDate(TODAY.plusDays(2)).status(ReservationStatus.BOOKED).build();
         when(gymRepository.existsById(GYM_ID)).thenReturn(true);
-        when(appUserRepository.findByIdAndGymId(MEMBER_ID, GYM_ID)).thenReturn(Optional.of(member));
+        when(appUserRepository.findLockedByIdAndGymId(MEMBER_ID, GYM_ID)).thenReturn(Optional.of(member));
         when(reservationRepository.findByMemberIdAndStatusAndClassDateGreaterThanEqual(eq(MEMBER_ID), eq(ReservationStatus.BOOKED), any()))
                 .thenReturn(List.of(r1, r2));
         when(gymRepository.findById(GYM_ID)).thenReturn(Optional.of(gym));
@@ -206,7 +206,7 @@ class MemberChangeHooksTest {
     void removingThePlanOfAMemberWithoutOneTellsNobody() {
         AppUser member = AppUser.builder().id(MEMBER_ID).gymId(GYM_ID).role(Role.MEMBER).planId(null).build();
         when(gymRepository.existsById(GYM_ID)).thenReturn(true);
-        when(appUserRepository.findByIdAndGymId(MEMBER_ID, GYM_ID)).thenReturn(Optional.of(member));
+        when(appUserRepository.findLockedByIdAndGymId(MEMBER_ID, GYM_ID)).thenReturn(Optional.of(member));
         when(reservationRepository.findByMemberIdAndStatusAndClassDateGreaterThanEqual(eq(MEMBER_ID), eq(ReservationStatus.BOOKED), any()))
                 .thenReturn(List.of());
 

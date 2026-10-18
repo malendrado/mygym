@@ -605,7 +605,8 @@ public class GymController {
                 request.bank().trim(),
                 AuthenticatedUser.from(jwt).userId(),
                 request.startDate(),
-                request.usedClasses());
+                request.usedClasses(),
+                request.confirmsLoseQueuedMonths());
         return ResponseEntity.noContent().build();
     }
 

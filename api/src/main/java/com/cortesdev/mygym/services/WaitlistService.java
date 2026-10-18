@@ -10,10 +10,12 @@ import com.cortesdev.mygym.repositories.ClassWaitlistRepository;
 import com.cortesdev.mygym.repositories.GymBlockRepository;
 import com.cortesdev.mygym.repositories.GymRepository;
 import com.cortesdev.mygym.repositories.ReservationRepository;
+import com.cortesdev.mygym.models.dto.WaitlistEntryResponse;
 import com.cortesdev.mygym.services.exception.BookingWindowClosedException;
 import com.cortesdev.mygym.services.exception.GymBlockNotFoundException;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.Collection;
@@ -261,5 +263,22 @@ public class WaitlistService {
         return waitlistRepository.findByMemberIdAndClassDateBetween(memberId, from, to).stream()
                 .map(e -> e.getGymBlockId() + "|" + e.getClassDate())
                 .collect(Collectors.toSet());
+    }
+
+    /** Las esperas vigentes de este socio, por fecha y hora, con su lugar en la fila (1 = primero). Una sola consulta
+     *  (ver ClassWaitlistRepository.findMyUpcoming). La clase de hoy que ya terminó se excluye: esperar por algo que ya
+     *  pasó no sirve y la fila se limpia recién con el job de purga. */
+    @Transactional(readOnly = true)
+    public List<WaitlistEntryResponse> myWaitlist(Long gymId, Long memberId) {
+        LocalDate today = LocalDate.now(GYM_ZONE);
+        LocalTime nowTime = LocalTime.now(GYM_ZONE);
+        return waitlistRepository.findMyUpcoming(gymId, memberId, today).stream()
+                .filter(row -> !row.classDate().equals(today)
+                        || row.endTime() == null
+                        || row.endTime().isAfter(nowTime))
+                .map(row -> new WaitlistEntryResponse(
+                        row.gymBlockId(), row.classDate(), row.label(), row.startTime(), row.endTime(),
+                        row.place().intValue()))
+                .toList();
     }
 }
