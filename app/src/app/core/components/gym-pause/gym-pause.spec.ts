@@ -1,3 +1,5 @@
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
@@ -84,5 +86,64 @@ describe('GymPause (gimnasio en pausa)', () => {
     (el.querySelector('.gym-pause__logout') as HTMLElement).click();
     await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith(['/login']));
     expect(logout).toHaveBeenCalled();
+  });
+});
+
+// ---- Pausa por plan mygym sin activar o impago (BILLING)
+
+function renderBilling(role: 'GYM_ADMIN' | 'PROFESOR' | 'MEMBER', billingStatus: 'NOT_STARTED' | 'SUSPENDED') {
+  const state = signal<GymStatus | null>({
+    ...PAUSED,
+    pauseReason: 'BILLING',
+    billingStatus,
+  });
+  TestBed.configureTestingModule({
+    providers: [
+      provideHttpClient(),
+      provideHttpClientTesting(),
+      {
+        provide: GymPauseService,
+        useValue: {
+          status: state.asReadonly(),
+          paused: () => true,
+          check: vi.fn(async () => undefined),
+          watch: vi.fn(),
+          unwatch: vi.fn(),
+        },
+      },
+      { provide: AuthService, useValue: { logout: vi.fn(), currentUser: () => ({ role }) } },
+      { provide: Router, useValue: { navigate: vi.fn() } },
+    ],
+  });
+  const fixture = TestBed.createComponent(GymPause);
+  fixture.componentInstance.audience = role === 'MEMBER' ? 'member' : 'staff';
+  fixture.detectChanges();
+  return fixture.nativeElement as HTMLElement;
+}
+
+describe('GymPause por falta de pago del plan mygym', () => {
+  it('the administrator of a suspended gym sees the payment card inside the notice', () => {
+    const el = renderBilling('GYM_ADMIN', 'SUSPENDED');
+    expect(text(el)).toContain('El plan mygym de XaloGym está vencido');
+    expect(text(el)).toContain('Paga tu plan y tu gimnasio se reactiva al instante');
+    expect(el.querySelector('app-gym-subscription')).not.toBeNull();
+  });
+
+  it('a teacher is told to ask the administrator and gets no payment card', () => {
+    const el = renderBilling('PROFESOR', 'SUSPENDED');
+    expect(text(el)).toContain('Pídele al administrador de tu gimnasio que renueve el plan');
+    expect(el.querySelector('app-gym-subscription')).toBeNull();
+  });
+
+  it('a gym that was never activated says so, without asking anyone to pay inside the app', () => {
+    const el = renderBilling('GYM_ADMIN', 'NOT_STARTED');
+    expect(text(el)).toContain('todavía no está activada');
+    expect(el.querySelector('app-gym-subscription')).toBeNull();
+  });
+
+  it('members keep the calm message of any pause: they never hear about the gym\'s billing', () => {
+    const el = renderBilling('MEMBER', 'SUSPENDED');
+    expect(text(el)).toContain('XaloGym está haciendo una pausa en mygym');
+    expect(text(el)).not.toMatch(/plan mygym|pago|vencido/i);
   });
 });

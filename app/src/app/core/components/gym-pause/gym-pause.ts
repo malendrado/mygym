@@ -4,6 +4,7 @@ import { IonButton, IonIcon } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { logoInstagram, logoWhatsapp, mailOutline, pauseCircleOutline } from 'ionicons/icons';
 import { AuthService } from '../../services/auth.service';
+import { GymSubscriptionCard } from '../gym-subscription/gym-subscription';
 import { GymContact, GymPauseService } from '../../services/gym-pause.service';
 
 addIcons({
@@ -27,7 +28,7 @@ interface ContactLink {
  */
 @Component({
   selector: 'app-gym-pause',
-  imports: [IonButton, IonIcon],
+  imports: [IonButton, IonIcon, GymSubscriptionCard],
   templateUrl: './gym-pause.html',
   styleUrl: './gym-pause.scss',
 })
@@ -48,6 +49,11 @@ export class GymPause implements OnInit, OnDestroy {
   private focusOpener: HTMLElement | null = null;
 
   protected readonly status = this.pause.status;
+  /** El plan de mygym está sin activar o impago (y no es una pausa manual). */
+  protected readonly billing = computed(() => this.pause.status()?.pauseReason === 'BILLING');
+  protected readonly notStarted = computed(() => this.billing() && this.pause.status()?.billingStatus === 'NOT_STARTED');
+  /** Solo el administrador puede pagar: los profesores y el modo demo solo ven el aviso. */
+  protected readonly canPay = computed(() => this.audience === 'staff' && this.billing() && this.authService.currentUser()?.role === 'GYM_ADMIN');
   protected readonly contacts = computed<ContactLink[]>(() => {
     const status = this.pause.status();
     if (!status) {

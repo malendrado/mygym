@@ -23,12 +23,15 @@ public final class MembershipPeriods {
 
     public static final ZoneId GYM_ZONE = ZoneId.of("America/Santiago");
 
+    /** Desde cuantos dias antes del vencimiento un socio puede renovar por su cuenta (y se le muestra el boton "Renovar"). */
+    public static final int RENEWAL_WINDOW_DAYS = 3;
+
     /**
-     * Interruptor de las dos funciones avanzadas de pago, ESCONDIDAS por ahora (decisión de producto: basta con "se bloquea
-     * al vencer y se reactiva al pagar"): renovación anticipada (pagar el mismo plan vigente suma un mes en cola) y cambio de
-     * plan programado (pagar otro plan vigente lo deja en espera). Apagado, todo pago arranca un período nuevo desde su fecha.
-     * El código y las columnas siguen ahí; se enciende con la variable de entorno MYGYM_ADVANCE_PLANS=true (o la propiedad
-     * -Dmygym.advancePlans=true, que usan los tests). Las cadenas ya en cola siguen respetándose hasta que terminen.
+     * Interruptor del CAMBIO DE PLAN programado (pagar otro plan vigente lo deja en espera), ESCONDIDO por ahora: el cambio de
+     * plan de un socio lo hace el administrador de su gimnasio con "Marcar pago". La renovacion anticipada del MISMO plan ya no
+     * depende de este interruptor: siempre esta activa y el socio solo la ve en los ultimos {@link #RENEWAL_WINDOW_DAYS} dias.
+     * Se enciende con MYGYM_ADVANCE_PLANS=true (o -Dmygym.advancePlans=true, que usan los tests). Las cadenas ya en cola siguen
+     * respetandose hasta que terminen.
      */
     public static final boolean ADVANCE_PLANS_ENABLED =
             Boolean.getBoolean("mygym.advancePlans") || "true".equalsIgnoreCase(System.getenv("MYGYM_ADVANCE_PLANS"));
@@ -75,6 +78,14 @@ public final class MembershipPeriods {
         return n;
     }
 
+    /** ¿Faltan {@link #RENEWAL_WINDOW_DAYS} dias o menos para el vencimiento FINAL y el plan aun no vencio? */
+    public static boolean inRenewalWindow(AppUser user, ZonedDateTime now) {
+        ZonedDateTime end = finalEnd(user);
+        return end != null
+                && now.isBefore(end)
+                && java.time.Duration.between(now, end).toDays() <= RENEWAL_WINDOW_DAYS;
+    }
+
     public static boolean isExpired(AppUser user, ZonedDateTime now) {
         ZonedDateTime end = finalEnd(user);
         return end != null && !now.isBefore(end);
@@ -119,8 +130,7 @@ public final class MembershipPeriods {
 
     /** ¿Un pago ahora, con ese plan, renueva por adelantado? Plan vigente (no vencido) y el MISMO plan que ya tiene. */
     public static boolean canExtend(AppUser user, Long planId, Instant now) {
-        return ADVANCE_PLANS_ENABLED
-                && planId != null
+        return planId != null
                 && planId.equals(user.getPlanId())
                 && user.getPaidAt() != null
                 && !isExpired(user, now.atZone(GYM_ZONE));

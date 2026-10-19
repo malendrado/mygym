@@ -110,6 +110,72 @@ public final class PushMessages {
                 Urgency.NORMAL);
     }
 
+    // ---------------------------------------------------------------------------------------
+    // Administradores: suscripcion del gimnasio a mygym
+    // ---------------------------------------------------------------------------------------
+
+    public static PushMessage billingExpiring(long daysRemaining) {
+        String when = daysRemaining == 1 ? "mañana" : "en " + daysRemaining + " días";
+        return new PushMessage(
+                "Tu plan mygym vence " + when,
+                "Renueva a tiempo para que tu gimnasio siga funcionando sin interrupciones.",
+                "billing",
+                STAFF_URL,
+                MAX_TTL_SECONDS,
+                Urgency.NORMAL);
+    }
+
+    public static PushMessage billingDueToday() {
+        return new PushMessage(
+                "Tu plan mygym vence hoy",
+                "Renueva hoy para evitar que tu gimnasio se pause.",
+                "billing",
+                STAFF_URL,
+                MAX_TTL_SECONDS,
+                Urgency.HIGH);
+    }
+
+    public static PushMessage billingGrace(long daysUntilSuspension) {
+        String when = daysUntilSuspension == 1 ? "mañana" : "en " + daysUntilSuspension + " días";
+        return new PushMessage(
+                "Tu plan mygym está vencido",
+                "Tu gimnasio se pausará " + when + " si no renuevas.",
+                "billing",
+                STAFF_URL,
+                MAX_TTL_SECONDS,
+                Urgency.HIGH);
+    }
+
+    public static PushMessage billingSuspended() {
+        return new PushMessage(
+                "Tu gimnasio está en pausa",
+                "Renueva tu plan mygym y se reactiva al instante.",
+                "billing",
+                STAFF_URL,
+                MAX_TTL_SECONDS,
+                Urgency.HIGH);
+    }
+
+    public static PushMessage billingPaid(String nextDue) {
+        return new PushMessage(
+                "Pago recibido, gracias",
+                "Tu plan mygym queda al día hasta el " + nextDue + ".",
+                "billing",
+                STAFF_URL,
+                MAX_TTL_SECONDS,
+                Urgency.NORMAL);
+    }
+
+    public static PushMessage billingTransferRejected() {
+        return new PushMessage(
+                "No pudimos confirmar tu transferencia",
+                "Revisa los datos o escríbenos a contacto@mygym.cl.",
+                "billing",
+                STAFF_URL,
+                MAX_TTL_SECONDS,
+                Urgency.HIGH);
+    }
+
     public static PushMessage classesExhausted(String validUntil) {
         return new PushMessage(
                 "Usaste todas tus clases",

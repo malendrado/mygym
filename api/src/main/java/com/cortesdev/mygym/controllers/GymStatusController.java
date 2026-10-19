@@ -3,10 +3,12 @@ package com.cortesdev.mygym.controllers;
 import com.cortesdev.mygym.models.AppUser;
 import com.cortesdev.mygym.models.Gym;
 import com.cortesdev.mygym.models.GymClosure;
+import com.cortesdev.mygym.models.GymSubscription;
 import com.cortesdev.mygym.models.Role;
 import com.cortesdev.mygym.repositories.AppUserRepository;
 import com.cortesdev.mygym.repositories.GymClosureRepository;
 import com.cortesdev.mygym.repositories.GymRepository;
+import com.cortesdev.mygym.repositories.GymSubscriptionRepository;
 import com.cortesdev.mygym.repositories.ReservationRepository;
 import com.cortesdev.mygym.security.AuthenticatedUser;
 import com.cortesdev.mygym.services.exception.GymNotFoundException;
@@ -39,7 +41,14 @@ public class GymStatusController {
 
     /** `gymContact` es lo que ve un socio (como contactar a su gimnasio); `mygymContact` lo que ve el equipo del gimnasio. */
     public record GymStatusResponse(
-            boolean paused, String gymName, Contact gymContact, Contact mygymContact, String closuresStamp, String reservationsStamp) {}
+            boolean paused,
+            String gymName,
+            Contact gymContact,
+            Contact mygymContact,
+            String closuresStamp,
+            String reservationsStamp,
+            String pauseReason,
+            String billingStatus) {}
 
     private static final Logger log = LoggerFactory.getLogger(GymStatusController.class);
     private static final ZoneId GYM_ZONE = ZoneId.of("America/Santiago");
@@ -48,6 +57,7 @@ public class GymStatusController {
     private final AppUserRepository appUserRepository;
     private final GymClosureRepository gymClosureRepository;
     private final ReservationRepository reservationRepository;
+    private final GymSubscriptionRepository subscriptionRepository;
 
     @Value("${app.contact.whatsapp:56964641042}")
     private String mygymWhatsapp;
@@ -85,9 +95,23 @@ public class GymStatusController {
 
     private GymStatusResponse compute(Long gymId) {
         Gym gym = gymRepository.findById(gymId).orElseThrow(() -> new GymNotFoundException(gymId));
-        if (gym.isActive()) {
-            return new GymStatusResponse(false, gym.getName(), null, null, bestEffort(() -> closuresStamp(gymId)), bestEffort(() -> reservationsStamp(gymId)));
+        // Dos motivos de pausa con el mismo efecto: la apago el super-admin (MANUAL) o la suscripcion a mygym esta sin iniciar o
+        // suspendida por no pago (BILLING). La app los distingue para mostrar el texto y la forma de reactivar que corresponde.
+        String billingStatus = subscriptionRepository.findBillingStatusByGymId(gymId).orElse(null);
+        boolean billingBlocked =
+                GymSubscription.NOT_STARTED.equals(billingStatus) || GymSubscription.SUSPENDED.equals(billingStatus);
+        if (gym.isActive() && !billingBlocked) {
+            return new GymStatusResponse(
+                    false,
+                    gym.getName(),
+                    null,
+                    null,
+                    bestEffort(() -> closuresStamp(gymId)),
+                    bestEffort(() -> reservationsStamp(gymId)),
+                    null,
+                    null);
         }
+        String pauseReason = gym.isActive() ? "BILLING" : "MANUAL";
         // Correo de contacto del gimnasio: el del PRIMER administrador que se creo (el dueño).
         String ownerEmail = appUserRepository.findByGymIdAndRole(gymId, Role.GYM_ADMIN).stream()
                 .min(Comparator.comparing(AppUser::getId))
@@ -99,7 +123,9 @@ public class GymStatusController {
                 new Contact(gym.getWhatsappNumber(), ownerEmail, gym.getInstagramUrl()),
                 new Contact(mygymWhatsapp, mygymEmail, null),
                 null,
-                null);
+                null,
+                pauseReason,
+                "BILLING".equals(pauseReason) ? billingStatus : null);
     }
 
     /**

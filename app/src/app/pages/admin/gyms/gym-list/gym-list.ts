@@ -26,6 +26,7 @@ import {
   eyeOutline,
   logOutOutline,
   peopleOutline,
+  pricetagOutline,
   sparklesOutline,
 } from 'ionicons/icons';
 import { GymService } from '../../../../core/services/gym.service';
@@ -43,6 +44,7 @@ addIcons({
   'checkmark-circle-outline': checkmarkCircleOutline,
   'close-circle-outline': closeCircleOutline,
   'people-outline': peopleOutline,
+  'pricetag-outline': pricetagOutline,
   'sparkles-outline': sparklesOutline,
   'eye-outline': eyeOutline,
   'document-text-outline': documentTextOutline,

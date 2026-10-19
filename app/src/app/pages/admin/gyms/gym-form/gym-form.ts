@@ -87,6 +87,7 @@ import { GymService } from '../../../../core/services/gym.service';
 import { MemberService } from '../../../../core/services/member.service';
 import { MemberListState } from '../../../../core/state/member-list.state';
 import { GymLimitsPanel } from '../../../../core/components/gym-limits/gym-limits';
+import { GymSubscriptionCard } from '../../../../core/components/gym-subscription/gym-subscription';
 import { PaginationBar } from '../../../../core/components/pagination-bar/pagination-bar';
 import { PagedListState } from '../../../../core/state/paged-list.state';
 import {
@@ -350,6 +351,7 @@ function slugify(name: string): string {
   selector: 'app-gym-form',
   imports: [
     GymLimitsPanel,
+    GymSubscriptionCard,
     VersionTag,
     PaginationBar,
     ReactiveFormsModule,
@@ -1148,6 +1150,14 @@ export class GymForm implements OnDestroy {
         this.status.set('error');
       },
     });
+  }
+
+  /** Un pago, una activación o un cambio de plan pueden cambiar el cupo de socios y el estado del gimnasio. */
+  protected onSubscriptionChanged(): void {
+    const id = this.gymId();
+    if (id !== null) {
+      this.loadLimits(id);
+    }
   }
 
   private loadLimits(id: number): void {

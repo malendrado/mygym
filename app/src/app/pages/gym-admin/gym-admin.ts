@@ -85,6 +85,7 @@ import {
 } from 'ionicons/icons';
 import { InstallBanner } from '../member/install-banner/install-banner';
 import { GymLimitsPanel } from '../../core/components/gym-limits/gym-limits';
+import { GymSubscriptionCard } from '../../core/components/gym-subscription/gym-subscription';
 import { GymPause } from '../../core/components/gym-pause/gym-pause';
 import { GymPauseService } from '../../core/services/gym-pause.service';
 import { PushBell } from '../../core/components/push-bell/push-bell';
@@ -416,6 +417,7 @@ const THEMED_ROOT_PROPERTIES = [
     BookingRulesCard,
     InstallBanner,
     GymLimitsPanel,
+    GymSubscriptionCard,
     GymPause,
     PushBell,
     PushPrompt,

@@ -1,6 +1,7 @@
 package com.cortesdev.mygym.controllers;
 
 import com.cortesdev.mygym.services.FlowPaymentService;
+import com.cortesdev.mygym.services.GymSubscriptionFlowService;
 import java.net.URI;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -20,19 +21,37 @@ import org.springframework.web.bind.annotation.RestController;
 public class PublicFlowController {
 
     private final FlowPaymentService flowPaymentService;
+    private final GymSubscriptionFlowService subscriptionFlowService;
     private final String memberReturnUrl;
+    private final String subscriptionReturnUrl;
 
     public PublicFlowController(
             FlowPaymentService flowPaymentService,
-            @Value("${app.flow.member-return-url}") String memberReturnUrl) {
+            GymSubscriptionFlowService subscriptionFlowService,
+            @Value("${app.flow.member-return-url}") String memberReturnUrl,
+            @Value("${app.mygym-flow.member-return-url}") String subscriptionReturnUrl) {
         this.flowPaymentService = flowPaymentService;
+        this.subscriptionFlowService = subscriptionFlowService;
         this.memberReturnUrl = memberReturnUrl;
+        this.subscriptionReturnUrl = subscriptionReturnUrl;
     }
 
     @PostMapping("/webhook")
     public ResponseEntity<Void> webhook(@RequestParam String token) {
         flowPaymentService.handleWebhook(token);
         return ResponseEntity.ok().build();
+    }
+
+    // Pago de la suscripcion de un gimnasio a mygym (cuenta Flow propia de mygym): mismo mecanismo, otro destino.
+    @PostMapping("/mygym-webhook")
+    public ResponseEntity<Void> subscriptionWebhook(@RequestParam String token) {
+        subscriptionFlowService.handleWebhook(token);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/mygym-return")
+    public ResponseEntity<Void> subscriptionReturn() {
+        return ResponseEntity.status(HttpStatus.FOUND).location(URI.create(subscriptionReturnUrl)).build();
     }
 
     // Flow devuelve al socio con un POST del navegador (documentado así, no un GET) — no

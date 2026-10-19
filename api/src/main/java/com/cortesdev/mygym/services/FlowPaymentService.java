@@ -13,6 +13,7 @@ import com.cortesdev.mygym.services.exception.FlowNotConfiguredException;
 import com.cortesdev.mygym.services.exception.GymNotFoundException;
 import com.cortesdev.mygym.services.exception.GymPlanNotFoundException;
 import com.cortesdev.mygym.services.exception.MemberNotFoundException;
+import com.cortesdev.mygym.services.exception.RenewalWindowException;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
@@ -103,6 +104,14 @@ public class FlowPaymentService {
         AppUser member = appUserRepository
                 .findByIdAndGymId(memberId, gymId)
                 .orElseThrow(() -> new MemberNotFoundException(memberId));
+
+        // Con plan vigente solo se puede renovar en los ultimos dias: antes el boton no existe y la API tampoco lo permite.
+        java.time.ZonedDateTime nowZoned = java.time.ZonedDateTime.now(MembershipPeriods.GYM_ZONE);
+        if (member.getPaidAt() != null
+                && !MembershipPeriods.isExpired(member, nowZoned)
+                && !MembershipPeriods.inRenewalWindow(member, nowZoned)) {
+            throw new RenewalWindowException("Tu plan está vigente. Podrás renovar desde " + MembershipPeriods.RENEWAL_WINDOW_DAYS + " días antes de que venza.");
+        }
 
         long commission = Math.round(plan.getPriceClp() * GATEWAY_COMMISSION_RATE);
         long totalAmount = plan.getPriceClp() + commission;

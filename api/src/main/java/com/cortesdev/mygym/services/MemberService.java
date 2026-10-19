@@ -540,7 +540,7 @@ public class MemberService {
                 boolean queued = MembershipPeriods.hasQueued(user, nowZoned);
                 if (queued) {
                     queuedPeriodEnd = planEndDate;
-                } else if (MembershipPeriods.ADVANCE_PLANS_ENABLED && !MembershipPeriods.isExpired(user, nowZoned)) {
+                } else if (MembershipPeriods.inRenewalWindow(user, nowZoned)) {
                     canRenewEarly = true;
                     earlyRenewalStartsOn = MembershipPeriods.currentEnd(user, nowZoned).toLocalDate();
                 }

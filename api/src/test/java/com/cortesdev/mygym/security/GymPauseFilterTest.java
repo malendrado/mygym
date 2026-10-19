@@ -8,6 +8,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.cortesdev.mygym.repositories.GymRepository;
+import com.cortesdev.mygym.repositories.GymSubscriptionRepository;
+import java.util.Optional;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import java.time.Instant;
@@ -28,6 +30,7 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 class GymPauseFilterTest {
 
     @Mock private GymRepository gymRepository;
+    @Mock private GymSubscriptionRepository subscriptionRepository;
     @Mock private FilterChain chain;
 
     private final ObjectMapper mapper = new ObjectMapper();
@@ -38,7 +41,7 @@ class GymPauseFilterTest {
     }
 
     private GymPauseFilter filter() {
-        return new GymPauseFilter(new GymPauseGuard(gymRepository), mapper);
+        return new GymPauseFilter(new GymPauseGuard(gymRepository, subscriptionRepository), mapper);
     }
 
     private void login(String role, Long gymId) {
@@ -118,7 +121,7 @@ class GymPauseFilterTest {
 
     @Test
     void theAnswerIsCachedAndReactivationIsNoticedRightAwayAfterInvalidating() throws Exception {
-        GymPauseGuard guard = new GymPauseGuard(gymRepository);
+        GymPauseGuard guard = new GymPauseGuard(gymRepository, subscriptionRepository);
         when(gymRepository.existsByIdAndActiveTrue(5L)).thenReturn(false, true);
 
         assertTrue(guard.isPaused(5L));
@@ -128,5 +131,56 @@ class GymPauseFilterTest {
         guard.invalidate(5L); // el super-admin lo reactiva
         assertEquals(false, guard.isPaused(5L));
         verify(gymRepository, times(2)).existsByIdAndActiveTrue(5L);
+    }
+
+    @Test
+    void aGymSuspendedForNonPaymentBlocksEveryoneExceptAnAdminPayingTheSubscription() throws Exception {
+        when(gymRepository.existsByIdAndActiveTrue(5L)).thenReturn(true);
+        when(subscriptionRepository.findBillingStatusByGymId(5L)).thenReturn(Optional.of("SUSPENDED"));
+
+        login("MEMBER", 5L);
+        MockHttpServletResponse member = run("/api/me/reservations");
+        assertEquals(403, member.getStatus());
+        assertEquals("BILLING", mapper.readValue(member.getContentAsString(), Map.class).get("reason"));
+
+        login("GYM_ADMIN", 5L);
+        assertEquals(403, run("/api/gym-admin/members").getStatus());
+        assertEquals(200, run("/api/gym-admin/subscription").getStatus());
+        assertEquals(200, run("/api/gym-admin/subscription/checkout").getStatus());
+
+        login("PROFESOR", 5L);
+        assertEquals(403, run("/api/gym-admin/subscription").getStatus());
+    }
+
+    @Test
+    void aManualPauseNeverLetsTheAdminThroughTheSubscriptionRoutes() throws Exception {
+        when(gymRepository.existsByIdAndActiveTrue(5L)).thenReturn(false);
+        login("GYM_ADMIN", 5L);
+
+        MockHttpServletResponse response = run("/api/gym-admin/subscription");
+
+        assertEquals(403, response.getStatus());
+        assertEquals("MANUAL", mapper.readValue(response.getContentAsString(), Map.class).get("reason"));
+    }
+
+    @Test
+    void aGymThatWasNeverActivatedIsBlockedAndAGymWithoutASubscriptionRowIsNot() throws Exception {
+        when(gymRepository.existsByIdAndActiveTrue(5L)).thenReturn(true);
+        when(gymRepository.existsByIdAndActiveTrue(6L)).thenReturn(true);
+        when(subscriptionRepository.findBillingStatusByGymId(5L)).thenReturn(Optional.of("NOT_STARTED"));
+        when(subscriptionRepository.findBillingStatusByGymId(6L)).thenReturn(Optional.empty());
+
+        login("MEMBER", 5L);
+        assertEquals(403, run("/api/me/reservations").getStatus());
+        login("MEMBER", 6L);
+        assertEquals(200, run("/api/me/reservations").getStatus());
+    }
+
+    @Test
+    void graceAndExemptGymsKeepWorking() throws Exception {
+        when(gymRepository.existsByIdAndActiveTrue(5L)).thenReturn(true);
+        when(subscriptionRepository.findBillingStatusByGymId(5L)).thenReturn(Optional.of("GRACE"));
+        login("MEMBER", 5L);
+        assertEquals(200, run("/api/me/reservations").getStatus());
     }
 }

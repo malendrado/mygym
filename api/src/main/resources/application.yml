@@ -82,6 +82,23 @@ app:
     member-return-url: ${FLOW_MEMBER_RETURN_URL:https://www.mygym.cl/member?checkout=return}
     webhook-url: ${FLOW_WEBHOOK_URL:https://api-production-be95.up.railway.app/api/public/flow/webhook}
 
+  # Suscripcion de cada gimnasio a mygym: se paga a la cuenta Flow PROPIA de mygym (no a la de cada gimnasio). Sin llaves, el
+  # pago con Flow queda desactivado y solo queda la transferencia.
+  mygym-flow:
+    api-key: ${MYGYM_FLOW_API_KEY:}
+    secret-key: ${MYGYM_FLOW_SECRET_KEY:}
+    return-url: ${MYGYM_FLOW_RETURN_URL:https://api-production-be95.up.railway.app/api/public/flow/mygym-return}
+    member-return-url: ${MYGYM_FLOW_MEMBER_RETURN_URL:https://www.mygym.cl/gym-admin?subscription=return}
+    webhook-url: ${MYGYM_FLOW_WEBHOOK_URL:https://api-production-be95.up.railway.app/api/public/flow/mygym-webhook}
+  # Cuenta (de Cortes Dev) a la que transfieren los gimnasios. Variables de entorno, nunca escritas en el codigo.
+  mygym-bank:
+    holder: ${MYGYM_BANK_HOLDER:}
+    rut: ${MYGYM_BANK_RUT:}
+    bank: ${MYGYM_BANK_NAME:}
+    account-type: ${MYGYM_BANK_ACCOUNT_TYPE:}
+    account-number: ${MYGYM_BANK_ACCOUNT_NUMBER:}
+    email: ${MYGYM_BANK_EMAIL:contacto@mygym.cl}
+
 management:
   endpoints:
     web:

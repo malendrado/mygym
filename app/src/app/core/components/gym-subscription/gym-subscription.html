@@ -1,0 +1,273 @@
+<section class="gs" [class.gs--overlay]="overlay" aria-label="Suscripción a mygym">
+  @if (loading()) {
+    <div class="gs__loading" role="status"><ion-spinner name="crescent" aria-label="Cargando"></ion-spinner></div>
+  } @else if (loadError()) {
+    <p class="gs__error" role="alert">No pudimos cargar la suscripción.</p>
+    <ion-button fill="outline" size="small" (click)="reload()">Reintentar</ion-button>
+  } @else if (sub(); as s) {
+    @let st = statusView()!;
+
+    @if (!overlay) {
+      <header class="gs__head">
+        <h3 class="gs__title">
+          <ion-icon name="card-outline" aria-hidden="true"></ion-icon>
+          {{ isSuper() ? 'Suscripción a mygym' : 'Tu plan mygym' }}
+        </h3>
+        <span class="gs__chip" [class]="'gs__chip gs__chip--' + st.tone">{{ st.label }}</span>
+      </header>
+    } @else {
+      <p class="gs__chip-line"><span class="gs__chip" [class]="'gs__chip gs__chip--' + st.tone">{{ st.label }}</span></p>
+    }
+    <p class="gs__hint">{{ st.hint }}</p>
+
+    @if (confirmingPayment()) {
+      <p class="gs__notice" role="status">
+        <ion-spinner name="dots" aria-hidden="true"></ion-spinner>
+        Estamos confirmando tu pago con Flow…
+      </p>
+    }
+
+    <!-- Plan y montos -->
+    @if (s.planName) {
+      <div class="gs__plan">
+        <div class="gs__plan-name">
+          <strong>{{ s.planName }}</strong>
+          <span>{{ s.clientsLabel }}</span>
+        </div>
+        @if (s.netClp !== null) {
+          <dl class="gs__amounts">
+            <div><dt>Plan mensual</dt><dd>{{ clp(s.netClp) }}</dd></div>
+            <div><dt>IVA (19%)</dt><dd>{{ clp(s.ivaClp) }}</dd></div>
+            <div class="gs__amounts-total"><dt>Total al mes</dt><dd>{{ clp(s.totalClp) }}</dd></div>
+          </dl>
+          @if (flowDiffers() && !isSuper()) {
+            <p class="gs__small">Si pagas con Flow se suma su comisión ({{ clp(s.flowFeeClp) }}): total {{ clp(s.flowTotalClp) }}.</p>
+          }
+        } @else {
+          <p class="gs__small">Plan a medida: el precio se acuerda con mygym.</p>
+        }
+        @if (s.pendingPlanName) {
+          <p class="gs__small">Desde el {{ longDate(s.pendingPlanFrom) }} pasa al plan {{ s.pendingPlanName }}.</p>
+        }
+      </div>
+    }
+
+    <!-- ===== Administrador del gimnasio ===== -->
+    @if (!isSuper()) {
+      @if (s.canRenew && s.status !== 'EXEMPT') {
+        @if (s.transferPending) {
+          <p class="gs__notice" role="status">
+            <ion-icon name="time-outline" aria-hidden="true"></ion-icon>
+            Estamos revisando tu transferencia. Apenas la confirmemos, tu plan queda al día.
+          </p>
+        } @else {
+          <div class="gs__renew">
+            <p class="gs__renew-title">{{ s.status === 'ACTIVE' ? 'Renovar mi plan' : 'Pagar y reactivar' }}</p>
+            <div class="gs__actions">
+              <ion-button [disabled]="busy() || s.netClp === null" (click)="payWithFlow()">
+                @if (busy()) {
+                  <ion-spinner name="crescent" slot="start" aria-hidden="true"></ion-spinner>
+                } @else {
+                  <ion-icon slot="start" name="card-outline" aria-hidden="true"></ion-icon>
+                }
+                Pagar con Flow · {{ clp(s.flowTotalClp) }}
+              </ion-button>
+              <ion-button fill="outline" [disabled]="s.netClp === null" (click)="showTransfer.set(!showTransfer())">
+                <ion-icon slot="start" name="swap-horizontal-outline" aria-hidden="true"></ion-icon>
+                Ya transferí
+              </ion-button>
+            </div>
+            @if (s.netClp === null) {
+              <p class="gs__small">Tu plan es a medida: escríbenos a {{ s.bank.email }} para coordinar el pago.</p>
+            }
+
+            @if (showTransfer()) {
+              <div class="gs__transfer">
+                <p class="gs__small">Transfiere <strong>{{ clp(s.totalClp) }}</strong> (plan + IVA) a esta cuenta y cuéntanos los datos:</p>
+                <dl class="gs__bank">
+                  @if (s.bank.holder) { <div><dt>Titular</dt><dd>{{ s.bank.holder }}</dd></div> }
+                  @if (s.bank.rut) { <div><dt>RUT</dt><dd>{{ s.bank.rut }}</dd></div> }
+                  @if (s.bank.bank) { <div><dt>Banco</dt><dd>{{ s.bank.bank }}</dd></div> }
+                  @if (s.bank.accountType) { <div><dt>Tipo</dt><dd>{{ s.bank.accountType }}</dd></div> }
+                  @if (s.bank.accountNumber) { <div><dt>N.º de cuenta</dt><dd>{{ s.bank.accountNumber }}</dd></div> }
+                  @if (s.bank.email) { <div><dt>Correo</dt><dd>{{ s.bank.email }}</dd></div> }
+                </dl>
+                <div class="gs__fields">
+                  <ion-input type="date" label="Fecha de la transferencia" labelPlacement="stacked" fill="outline" [max]="transferDate()" [value]="transferDate()" (ionInput)="transferDate.set(text($event))" />
+                  <ion-input label="Banco desde el que transferiste" labelPlacement="stacked" fill="outline" maxlength="80" [value]="transferBank()" (ionInput)="transferBank.set(text($event))" />
+                  <ion-input label="N.º de operación (opcional)" labelPlacement="stacked" fill="outline" maxlength="60" [value]="transferOperation()" (ionInput)="transferOperation.set(text($event))" />
+                </div>
+                @if (transferError()) {
+                  <p class="gs__error" role="alert">{{ transferError() }}</p>
+                }
+                <ion-button [disabled]="busy()" (click)="submitTransfer()">Avisar a mygym</ion-button>
+              </div>
+            }
+          </div>
+        }
+      } @else if (s.status === 'ACTIVE' && !overlay) {
+        <p class="gs__small">Podrás renovar desde 3 días antes del vencimiento.</p>
+      }
+    }
+
+    <!-- ===== Super-admin ===== -->
+    @if (isSuper()) {
+      @for (p of reported(); track p.id) {
+        <div class="gs__alert" role="status">
+          <p>
+            <ion-icon name="alert-circle-outline" aria-hidden="true"></ion-icon>
+            <strong>Avisó una transferencia</strong> de {{ clp(p.amountClp) }}
+            · {{ longDate(p.transferDate) }} · {{ p.transferBank }}@if (p.transferOperation) { · op. {{ p.transferOperation }} }
+          </p>
+          <div class="gs__actions">
+            <ion-button size="small" [disabled]="busy()" (click)="confirmTransfer(p)">Confirmar y reactivar</ion-button>
+            <ion-button size="small" fill="outline" color="danger" [disabled]="busy()" (click)="rejectTransfer(p)">Rechazar</ion-button>
+          </div>
+        </div>
+      }
+
+      @if (!started()) {
+        <div class="gs__box">
+          <p class="gs__box-title">Activar gimnasio</p>
+          <p class="gs__small">Hazlo cuando recibas el primer pago (link de Flow o transferencia). Ese primer mes queda registrado como pagado.</p>
+          <div class="gs__fields">
+            <ion-select label="Plan" placeholder="Elige un plan" labelPlacement="stacked" fill="outline" interface="popover" [value]="activatePlanId()" (ionChange)="activatePlanId.set($any($event).detail.value)">
+              @for (p of activePlans(); track p.id) {
+                <ion-select-option [value]="p.id">{{ p.name }} · {{ p.priceClp ? clp(p.priceClp) + ' + IVA' : 'a medida' }}</ion-select-option>
+              }
+            </ion-select>
+            <ion-input type="date" label="Fecha de inicio (define el día de corte)" labelPlacement="stacked" fill="outline" [value]="activateStart()" (ionInput)="activateStart.set(text($event))" />
+            <ion-input
+              type="number"
+              inputmode="numeric"
+              [label]="selectedActivationPlan()?.priceClp ? 'Precio mensual neto propio (opcional)' : 'Precio mensual neto (obligatorio)'"
+              labelPlacement="stacked"
+              fill="outline"
+              [placeholder]="selectedActivationPlan()?.priceClp ? clp(selectedActivationPlan()!.priceClp) : 'Ej: 120000'"
+              [value]="activatePrice()"
+              (ionInput)="activatePrice.set(text($event))"
+            />
+            <ion-input
+              type="number"
+              inputmode="numeric"
+              label="Cupo de socios propio (opcional)"
+              labelPlacement="stacked"
+              fill="outline"
+              [placeholder]="selectedActivationPlan()?.maxUsers ? 'El plan da ' + selectedActivationPlan()!.maxUsers : 'Ej: 350'"
+              [value]="activateMaxUsers()"
+              (ionInput)="activateMaxUsers.set(text($event))"
+            />
+            <ion-select label="Cómo pagó el primer mes" labelPlacement="stacked" fill="outline" interface="popover" [value]="activateMethod()" (ionChange)="activateMethod.set($any($event).detail.value)">
+              <ion-select-option value="FLOW">Link de pago Flow</ion-select-option>
+              <ion-select-option value="TRANSFER">Transferencia</ion-select-option>
+              <ion-select-option value="MANUAL">Otro (efectivo, etc.)</ion-select-option>
+            </ion-select>
+            <ion-input label="N.º de operación (opcional)" labelPlacement="stacked" fill="outline" maxlength="60" [value]="activateOperation()" (ionInput)="activateOperation.set(text($event))" />
+            <ion-input label="Nota (opcional)" labelPlacement="stacked" fill="outline" maxlength="240" [value]="activateNote()" (ionInput)="activateNote.set(text($event))" />
+          </div>
+          @if (activateError()) {
+            <p class="gs__error" role="alert">{{ activateError() }}</p>
+          }
+          <ion-button [disabled]="busy()" (click)="activate()">
+            @if (busy()) { <ion-spinner name="crescent" slot="start" aria-hidden="true"></ion-spinner> }
+            Activar gimnasio
+          </ion-button>
+        </div>
+      } @else {
+        <div class="gs__box">
+          <p class="gs__box-title">Condiciones de este gimnasio</p>
+          <div class="gs__fields">
+            <ion-input type="number" inputmode="numeric" label="Precio mensual neto propio (vacío = el del plan)" labelPlacement="stacked" fill="outline" [value]="editPrice()" (ionInput)="editPrice.set(text($event))" />
+            <ion-input type="number" inputmode="numeric" label="Cupo de socios propio (vacío = el del plan)" labelPlacement="stacked" fill="outline" [value]="editMaxUsers()" (ionInput)="editMaxUsers.set(text($event))" />
+            <ion-input type="date" label="Fecha de inicio (día de corte)" labelPlacement="stacked" fill="outline" [value]="editStart()" (ionInput)="editStart.set(text($event))" />
+          </div>
+          <ion-toggle [checked]="editExempt()" (ionChange)="editExempt.set($any($event).detail.checked)">Sin cobro (exento)</ion-toggle>
+          <ion-button size="small" [disabled]="busy()" (click)="saveSettings()">Guardar</ion-button>
+        </div>
+
+        <div class="gs__box">
+          <p class="gs__box-title">Cambiar de plan</p>
+          <p class="gs__small">Rige desde el próximo período, sin prorrateo.</p>
+          <div class="gs__fields">
+            <ion-select label="Nuevo plan" placeholder="Elige un plan" labelPlacement="stacked" fill="outline" interface="popover" [value]="newPlanId()" (ionChange)="newPlanId.set($any($event).detail.value)">
+              @for (p of activePlans(); track p.id) {
+                <ion-select-option [value]="p.id">{{ p.name }} · {{ p.priceClp ? clp(p.priceClp) + ' + IVA' : 'a medida' }}</ion-select-option>
+              }
+            </ion-select>
+            @if (selectedNewPlan(); as np) {
+              <ion-input type="number" inputmode="numeric" [label]="np.priceClp ? 'Precio mensual neto propio (opcional)' : 'Precio mensual neto (obligatorio)'" labelPlacement="stacked" fill="outline" [value]="newPlanPrice()" (ionInput)="newPlanPrice.set(text($event))" />
+            }
+          </div>
+          <ion-button size="small" fill="outline" [disabled]="busy() || !selectedNewPlan()" (click)="changePlan()">Cambiar plan</ion-button>
+        </div>
+
+        <div class="gs__box">
+          <p class="gs__box-title">Registrar un pago</p>
+          @if (!showPay()) {
+            <ion-button size="small" fill="outline" [disabled]="reported().length > 0" (click)="showPay.set(true)">Registrar pago</ion-button>
+            @if (reported().length > 0) {
+              <p class="gs__small">Primero resuelve el aviso de transferencia de arriba.</p>
+            }
+          } @else {
+            <div class="gs__fields">
+              <ion-select label="Medio" labelPlacement="stacked" fill="outline" interface="popover" [value]="payMethod()" (ionChange)="payMethod.set($any($event).detail.value)">
+                <ion-select-option value="FLOW">Link de pago Flow</ion-select-option>
+                <ion-select-option value="TRANSFER">Transferencia</ion-select-option>
+                <ion-select-option value="MANUAL">Otro (efectivo, etc.)</ion-select-option>
+              </ion-select>
+              <ion-input label="N.º de operación (opcional)" labelPlacement="stacked" fill="outline" maxlength="60" [value]="payOperation()" (ionInput)="payOperation.set(text($event))" />
+              <ion-input label="Nota (opcional)" labelPlacement="stacked" fill="outline" maxlength="240" [value]="payNote()" (ionInput)="payNote.set(text($event))" />
+            </div>
+            <p class="gs__small">Suma un mes manteniendo el día de corte y reactiva el gimnasio si estaba en pausa.</p>
+            <div class="gs__actions">
+              <ion-button size="small" [disabled]="busy()" (click)="markPaid()">Registrar pago</ion-button>
+              <ion-button size="small" fill="clear" (click)="showPay.set(false)">Cancelar</ion-button>
+            </div>
+          }
+        </div>
+      }
+    }
+
+    <!-- Datos de factura (los dos) -->
+    @if (!overlay) {
+      <div class="gs__box">
+        <button type="button" class="gs__toggle" [attr.aria-expanded]="showBilling()" (click)="showBilling.set(!showBilling())">
+          <ion-icon name="receipt-outline" aria-hidden="true"></ion-icon>
+          Datos para la factura
+          <span class="gs__toggle-state">{{ s.billing.rut ? s.billing.name || s.billing.rut : 'Sin completar' }}</span>
+        </button>
+        @if (showBilling()) {
+          <div class="gs__fields">
+            <ion-input label="RUT" labelPlacement="stacked" fill="outline" maxlength="20" [value]="bRut()" (ionInput)="bRut.set(text($event))" />
+            <ion-input label="Razón social" labelPlacement="stacked" fill="outline" maxlength="160" [value]="bName()" (ionInput)="bName.set(text($event))" />
+            <ion-input label="Giro" labelPlacement="stacked" fill="outline" maxlength="160" [value]="bGiro()" (ionInput)="bGiro.set(text($event))" />
+            <ion-input label="Dirección" labelPlacement="stacked" fill="outline" maxlength="240" [value]="bAddress()" (ionInput)="bAddress.set(text($event))" />
+            <ion-input type="email" label="Correo para la factura" labelPlacement="stacked" fill="outline" maxlength="160" [value]="bEmail()" (ionInput)="bEmail.set(text($event))" />
+          </div>
+          <ion-button size="small" [disabled]="busy()" (click)="saveBilling()">Guardar datos</ion-button>
+        }
+      </div>
+
+      <!-- Historial -->
+      @if (visibleHistory().length > 0) {
+        <div class="gs__box">
+          <p class="gs__box-title">Historial de pagos</p>
+          <ul class="gs__history">
+            @for (p of visibleHistory(); track p.id) {
+              <li class="gs__pay" [class.gs__pay--dim]="p.status === 'REJECTED' || p.status === 'VOIDED'">
+                <div class="gs__pay-main">
+                  <strong>{{ clp(p.amountClp) }}</strong>
+                  <span>{{ methodLabel(p.method) }}@if (p.periodStart) { · {{ short(p.periodStart) }} – {{ short(p.periodEnd) }} }</span>
+                </div>
+                <span class="gs__pay-status" [class]="'gs__pay-status gs__pay-status--' + p.status.toLowerCase()">{{ paymentStatusLabel(p.status) }}</span>
+                @if (isSuper() && p.id === lastPaidId()) {
+                  <ion-button size="small" fill="clear" color="danger" [disabled]="busy()" (click)="voidPayment(p)">Anular</ion-button>
+                }
+              </li>
+            }
+          </ul>
+        </div>
+      }
+    }
+  }
+</section>

@@ -21,6 +21,10 @@ export interface GymStatus {
   closuresStamp?: string | null;
   /** Marca opaca de las reservas vigentes: cambia cuando alguien reserva o cancela (o sea, cuando cambia el cupo de una clase). */
   reservationsStamp?: string | null;
+  /** Por qué está en pausa: la apagó mygym a mano (MANUAL) o su plan de mygym está sin activar o impago (BILLING). */
+  pauseReason?: 'MANUAL' | 'BILLING' | null;
+  /** Con BILLING: NOT_STARTED (aún sin activar) o SUSPENDED (sin pago). */
+  billingStatus?: 'NOT_STARTED' | 'SUSPENDED' | null;
 }
 
 const RECHECK_MS = 45_000;

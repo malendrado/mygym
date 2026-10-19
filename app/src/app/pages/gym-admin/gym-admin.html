@@ -120,6 +120,9 @@
 
   @if (section() === 'general') {
     @if (!isProfesor()) {
+    @if (!isDemoAdmin()) {
+      <app-gym-subscription mode="admin" />
+    }
     @if (setupPending().length > 0) {
       <div class="setup-checklist">
         <p class="setup-checklist__title">

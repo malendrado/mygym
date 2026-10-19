@@ -161,8 +161,20 @@ class EarlyRenewalMemberServiceTest {
     }
 
     @Test
+    void renovarSoloSeOfreceEnLosUltimosTresDias() {
+        AppUser lejos = member("l", daysAgo(10)); // le quedan ~20 días
+        AppUser cerca = member("c", daysAgo(29)); // le quedan ~1-2 días
+
+        assertThat(memberService.getOwnMembership(saved(lejos)).canRenewEarly()).isFalse();
+        assertThat(memberService.getOwnMembership(saved(lejos)).earlyRenewalStartsOn()).isNull();
+        assertThat(memberService.getOwnMembership(saved(cerca)).canRenewEarly()).isTrue();
+        // El admin sí puede sumar el mes del mismo plan vigente en cualquier momento (no pierde días): canExtend no mira la ventana.
+        assertThat(MembershipPeriods.canExtend(lejos, PLAN_ID, Instant.now())).isTrue();
+    }
+
+    @Test
     void earlyRenewalStartsOnEsElVencimientoActual() {
-        AppUser u = member("a", daysAgo(10));
+        AppUser u = member("a", daysAgo(29));
 
         MemberResponse r = memberService.getOwnMembership(saved(u));
 
@@ -306,7 +318,7 @@ class EarlyRenewalMemberServiceTest {
         assertThat(memberService.queuedPeriod(u)).isNull();
         MemberResponse r = memberService.getOwnMembership(saved(u));
         assertThat(r.sessionsRemaining()).isEqualTo(7);
-        assertThat(r.canRenewEarly()).isTrue();
+        assertThat(r.canRenewEarly()).isFalse(); // su vencimiento final está a ~25 días: fuera de la ventana de 3 días
     }
 
     @Test

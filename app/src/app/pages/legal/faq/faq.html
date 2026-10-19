@@ -5,12 +5,12 @@
     <p class="legal-page__intro">Para dueños de gimnasios que están evaluando contratar mygym o que ya lo usan.</p>
 
     <nav class="legal-page__index" aria-label="Secciones de esta página">
-      @for (section of sections; track section.title; let i = $index) {
+      @for (section of sections(); track section.title; let i = $index) {
         <a class="legal-page__chip" [href]="'#faq-seccion-' + i" (click)="goTo($event, 'faq-seccion-' + i)">{{ section.title }}</a>
       }
     </nav>
 
-    @for (section of sections; track section.title; let i = $index) {
+    @for (section of sections(); track section.title; let i = $index) {
       <section class="legal-page__section">
         <h2 [id]="'faq-seccion-' + i">{{ section.title }}</h2>
         @for (item of section.items; track item.question) {

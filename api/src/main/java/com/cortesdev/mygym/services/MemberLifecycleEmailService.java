@@ -688,6 +688,20 @@ public class MemberLifecycleEmailService {
         }
     }
 
+    /** Correo generico con la plantilla de mygym, para avisos que arma otro servicio (ver GymBillingNotifier). */
+    public void sendNotice(
+            Gym gym,
+            String to,
+            String subject,
+            String badgeLabel,
+            String headline,
+            String bodyHtml,
+            String ctaText,
+            String ctaUrl,
+            String footerText) {
+        send(gym, to, subject, badgeLabel, headline, bodyHtml, ctaText, ctaUrl, footerText);
+    }
+
     private void send(
             Gym gym,
             String to,

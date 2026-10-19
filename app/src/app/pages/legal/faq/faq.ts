@@ -1,11 +1,33 @@
-import { Component } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { IonContent } from '@ionic/angular';
+import { MygymPlan } from '../../../core/models/subscription.model';
+import { SubscriptionService } from '../../../core/services/subscription.service';
 import { scrollToSection } from '../scroll-to-section';
 
 interface FaqSection {
   title: string;
   items: { question: string; answer: string }[];
+}
+
+// La respuesta sobre precios se arma con los planes reales de mygym (los mismos de la landing): nunca queda desactualizada.
+const PRICE_QUESTION = '¿mygym cobra alguna comisión sobre lo que pagan mis socios?';
+
+function clpLabel(amount: number): string {
+  return '$' + amount.toLocaleString('es-CL');
+}
+
+function priceAnswer(plans: MygymPlan[]): string {
+  const intro =
+    'No. mygym no cobra comisión por socio ni por transacción — pagas un valor fijo mensual según el plan que corresponda a la cantidad de socios de tu gimnasio';
+  if (plans.length === 0) {
+    return intro + '. Escríbenos y te contamos los valores vigentes. Puedes subir o bajar de plan cuando lo necesites.';
+  }
+  const parts = plans.map(
+    (p) => p.name + ' (' + p.clientsLabel.toLowerCase() + ', ' + (p.priceClp ? clpLabel(p.priceClp) + '/mes + IVA' : 'precio a medida') + ')',
+  );
+  const list = parts.length > 1 ? parts.slice(0, -1).join(', ') + ' o ' + parts[parts.length - 1] : parts[0];
+  return intro + ': ' + list + '. Puedes subir o bajar de plan cuando lo necesites.';
 }
 
 @Component({
@@ -16,8 +38,21 @@ interface FaqSection {
 })
 export class LegalFaq {
   protected readonly goTo = scrollToSection;
+  private readonly subscriptionService = inject(SubscriptionService);
+  private readonly plans = signal<MygymPlan[]>([]);
 
-  protected readonly sections: FaqSection[] = [
+  constructor() {
+    this.subscriptionService.listPublicPlans().subscribe({ next: (plans) => this.plans.set(plans), error: () => undefined });
+  }
+
+  protected readonly sections = computed<FaqSection[]>(() =>
+    this.baseSections.map((section) => ({
+      ...section,
+      items: section.items.map((item) => (item.question === PRICE_QUESTION ? { ...item, answer: priceAnswer(this.plans()) } : item)),
+    })),
+  );
+
+  private readonly baseSections: FaqSection[] = [
     {
       title: 'Sobre mygym',
       items: [

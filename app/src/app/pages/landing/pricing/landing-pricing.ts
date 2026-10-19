@@ -1,6 +1,8 @@
-import { Component, inject } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { Reveal } from '../shared/reveal';
 import { ContactModalService } from '../shared/contact-modal.service';
+import { MygymPlan } from '../../../core/models/subscription.model';
+import { SubscriptionService } from '../../../core/services/subscription.service';
 
 interface PricingTier {
   name: string;
@@ -46,32 +48,29 @@ export class LandingPricing {
     { label: 'Sin pago', tone: 'frozen', body: 'Ya tiene su cuenta, pero todavía no paga ningún plan.' },
   ];
 
-  protected readonly pricingTiers: PricingTier[] = [
-    {
-      name: 'Empieza',
-      clients: 'Hasta 100 socios',
-      price: '$29.990',
-      showIva: true,
-      highlight: false,
-      items: ['Todas las funciones incluidas', 'Hasta 10 profesores y 5 administradores', 'Sin comisión por socio ni por pago'],
-    },
-    {
-      name: 'Crece',
-      clients: 'Hasta 200 socios',
-      price: '$59.990',
-      showIva: true,
-      highlight: true,
-      items: ['Todas las funciones incluidas', 'Hasta 10 profesores y 5 administradores', 'Sin comisión por socio ni por pago'],
-    },
-    {
-      name: 'Escala',
-      clients: 'Más de 200 socios',
-      price: 'A medida',
-      showIva: false,
-      highlight: false,
-      items: ['Todas las funciones incluidas', 'Soporte prioritario', 'Funciones a la medida si las necesitas'],
-    },
-  ];
+  private readonly subscriptionService = inject(SubscriptionService);
+  private readonly plans = signal<MygymPlan[] | null>(null);
+  protected readonly plansFailed = signal(false);
+
+  // Los planes salen de la base (los administra el super-admin en "Planes"): la landing nunca queda con precios viejos.
+  protected readonly pricingTiers = computed<PricingTier[]>(() =>
+    (this.plans() ?? []).map((plan) => ({
+      name: plan.name,
+      clients: plan.clientsLabel,
+      price: plan.priceClp ? '$' + plan.priceClp.toLocaleString('es-CL') : 'A medida',
+      showIva: plan.priceClp != null,
+      highlight: plan.highlighted,
+      items: plan.features,
+    })),
+  );
+  protected readonly plansLoading = computed(() => this.plans() === null && !this.plansFailed());
+
+  constructor() {
+    this.subscriptionService.listPublicPlans().subscribe({
+      next: (plans) => this.plans.set(plans),
+      error: () => this.plansFailed.set(true),
+    });
+  }
 
   // Lo que hoy hace mygym, igual en los tres planes: el precio depende solo de cuántos socios tienes.
   protected readonly featureGroups: FeatureGroup[] = [

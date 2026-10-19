@@ -311,7 +311,7 @@
             }
           </div>
         } @else {
-          <h2>{{ earlyMode() ? 'Elige el plan a renovar' : 'Elige tu plan' }}</h2>
+          <h2>{{ earlyMode() ? 'Renueva tu plan' : 'Elige tu plan' }}</h2>
           @if (earlyMode()) {
             <p class="early-renew__help">
               Tu plan actual vence el {{ renewsOnLabel() }}. Si renuevas el mismo plan ahora, conservas tus
@@ -322,7 +322,7 @@
             <p class="item-hint">Tu gimnasio todavía no tiene planes configurados. Pregúntale al equipo cuándo estarán disponibles.</p>
           }
           <div class="plan-grid" data-tour="plans-grid">
-            @for (plan of plans(); track plan.id) {
+            @for (plan of pickerPlans(); track plan.id) {
               <article class="plan-card" [class.plan-card--highlight]="plan.highlight">
                 @if (plan.highlight) {
                   <span class="plan-card__badge">
@@ -336,17 +336,10 @@
                   {{ plan.monthlyClasses === null ? 'Clases ilimitadas' : plan.monthlyClasses + ' clases al mes' }}
                 </p>
                 @if (earlyMode()) {
-                  @if (isCurrentPlan(plan)) {
-                    <p class="plan-card__early plan-card__early--keep">
-                      <ion-icon name="checkmark-circle-outline" aria-hidden="true"></ion-icon>
-                      Tu plan actual: conservas tus días
-                    </p>
-                  } @else {
-                    <p class="plan-card__early plan-card__early--warn">
-                      <ion-icon name="alert-circle-outline" aria-hidden="true"></ion-icon>
-                      Cambiar de plan hoy parte un período nuevo desde hoy y se pierden los días que te quedan
-                    </p>
-                  }
+                  <p class="plan-card__early plan-card__early--keep">
+                    <ion-icon name="checkmark-circle-outline" aria-hidden="true"></ion-icon>
+                    Conservas tus días: el mes nuevo parte cuando termina el actual
+                  </p>
                 }
                 <ion-button expand="block" [fill]="plan.highlight ? 'solid' : 'outline'" (click)="choosePaymentMethod(plan)">
                   {{ earlyMode() && isCurrentPlan(plan) ? 'Renovar este plan' : 'Elegir plan' }}
@@ -447,7 +440,7 @@
                   Tu plan actual vence el {{ renewsOnLabel() }}. Si renuevas el mismo plan ahora, conservas tus
                   {{ currentPeriodDaysRemaining() }} días y el nuevo mes parte el {{ earlyStartLabel() }}.
                 </p>
-                <button type="button" class="early-renew__btn" (click)="toggleEarlyRenewal()">Renovar por adelantado</button>
+                <button type="button" class="early-renew__btn" (click)="toggleEarlyRenewal()">Renovar mi plan</button>
               } @else {
                 <ng-container *ngTemplateOutlet="planPicker"></ng-container>
               }

@@ -35,6 +35,8 @@ public class GymPauseFilter extends OncePerRequestFilter {
     public static final String CODE = "GYM_PAUSED";
     private static final Set<String> GYM_ROLES = Set.of("MEMBER", "GYM_ADMIN", "PROFESOR", "DEMO_ADMIN");
     private static final String STATUS_PATH = "/api/gym-status";
+    /** Lo unico que un administrador puede usar estando suspendido por no pago: ver su suscripcion y pagarla. */
+    private static final String SUBSCRIPTION_PREFIX = "/api/gym-admin/subscription";
 
     private final GymPauseGuard guard;
     private final ObjectMapper objectMapper;
@@ -47,15 +49,22 @@ public class GymPauseFilter extends OncePerRequestFilter {
                 && GYM_ROLES.contains(jwtAuth.getToken().getClaimAsString("role"))
                 && !STATUS_PATH.equals(request.getRequestURI())) {
             Number gymId = jwtAuth.getToken().getClaim("gymId");
-            if (gymId != null && guard.isPaused(gymId.longValue())) {
-                respondPaused(response);
-                return;
+            if (gymId != null) {
+                GymPauseGuard.Reason reason = guard.reason(gymId.longValue());
+                boolean payingOwnSubscription = reason == GymPauseGuard.Reason.BILLING
+                        && "GYM_ADMIN".equals(jwtAuth.getToken().getClaimAsString("role"))
+                        && (request.getRequestURI().equals(SUBSCRIPTION_PREFIX)
+                                || request.getRequestURI().startsWith(SUBSCRIPTION_PREFIX + "/"));
+                if (reason != GymPauseGuard.Reason.NONE && !payingOwnSubscription) {
+                    respondPaused(response, reason);
+                    return;
+                }
             }
         }
         filterChain.doFilter(request, response);
     }
 
-    private void respondPaused(HttpServletResponse response) throws IOException {
+    private void respondPaused(HttpServletResponse response, GymPauseGuard.Reason reason) throws IOException {
         response.setStatus(HttpStatus.FORBIDDEN.value());
         response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
         // Mismo formato que un ProblemDetail, armado a mano: asi no depende de como este configurado el ObjectMapper.
@@ -64,6 +73,7 @@ public class GymPauseFilter extends OncePerRequestFilter {
         problem.put("status", HttpStatus.FORBIDDEN.value());
         problem.put("detail", "Este gimnasio está en pausa por ahora.");
         problem.put("code", CODE);
+        problem.put("reason", reason.name());
         problem.put("timestamp", Instant.now().toString());
         objectMapper.writeValue(response.getWriter(), problem);
     }

@@ -17,6 +17,7 @@ import com.cortesdev.mygym.models.Role;
 import com.cortesdev.mygym.models.dto.GymLimitsResponse;
 import com.cortesdev.mygym.repositories.AppUserRepository;
 import com.cortesdev.mygym.repositories.GymRepository;
+import com.cortesdev.mygym.repositories.GymSubscriptionRepository;
 import com.cortesdev.mygym.services.exception.GymLimitReachedException;
 import java.util.List;
 import java.util.Optional;
@@ -34,6 +35,7 @@ class GymCapacityServiceTest {
 
     @Mock private AppUserRepository appUserRepository;
     @Mock private GymRepository gymRepository;
+    @Mock private GymSubscriptionRepository subscriptionRepository;
     @Mock private MemberLifecycleEmailService emailService;
     @InjectMocks private GymCapacityService service;
 
@@ -43,6 +45,21 @@ class GymCapacityServiceTest {
 
     private void members(long used) {
         when(appUserRepository.countByGymIdAndRole(GYM_ID, Role.MEMBER)).thenReturn(used);
+    }
+
+    @Test
+    void theTeachersAndAdminsCapComeFromTheGymsMygymPlanWhenItHasOne() {
+        when(gymRepository.findMaxUsersById(GYM_ID)).thenReturn(Optional.of(50));
+        when(subscriptionRepository.findMaxProfesoresByGymId(GYM_ID)).thenReturn(Optional.of(20));
+        when(subscriptionRepository.findMaxAdminsByGymId(GYM_ID)).thenReturn(Optional.of(8));
+        members(1);
+        when(appUserRepository.countByGymIdAndRole(GYM_ID, Role.PROFESOR)).thenReturn(12L);
+        when(appUserRepository.countByGymIdAndRole(GYM_ID, Role.GYM_ADMIN)).thenReturn(5L);
+
+        GymLimitsResponse limits = service.limits(GYM_ID);
+
+        assertEquals(new GymLimitsResponse.Usage(12, 20, 8), limits.profesores());
+        assertEquals(new GymLimitsResponse.Usage(5, 8, 3), limits.admins());
     }
 
     @Test

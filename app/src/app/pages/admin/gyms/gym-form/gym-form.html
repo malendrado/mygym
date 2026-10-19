@@ -176,6 +176,8 @@
       · Login con Google: {{ gym()?.googleLoginEnabled ? 'sí' : 'no' }}
     </p>
 
+    <app-gym-subscription mode="super" [gymId]="gymId()" (changed)="onSubscriptionChanged()" />
+
     <app-gym-limits [limits]="limits()" audience="super" />
 
     <p class="member-stats-heading">

@@ -37,7 +37,10 @@ import com.cortesdev.mygym.services.exception.InvalidGoogleTokenException;
 import com.cortesdev.mygym.services.exception.InvalidLogoException;
 import com.cortesdev.mygym.services.exception.InvalidOrExpiredTokenException;
 import com.cortesdev.mygym.services.exception.InvalidRutException;
+import com.cortesdev.mygym.services.exception.InvalidSubscriptionException;
+import com.cortesdev.mygym.services.exception.RenewalWindowException;
 import com.cortesdev.mygym.services.exception.InvalidThemeException;
+import com.cortesdev.mygym.services.exception.SubscriptionConflictException;
 import com.cortesdev.mygym.services.exception.MemberNotFoundException;
 import com.cortesdev.mygym.services.exception.MonthlyQuotaExceededException;
 import com.cortesdev.mygym.services.exception.ReservationNotFoundException;
@@ -169,6 +172,30 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
         problem.setTitle("Horario de bloque inválido");
         problem.setProperty("timestamp", Instant.now());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
+    }
+
+    @ExceptionHandler(RenewalWindowException.class)
+    public ResponseEntity<ProblemDetail> handleRenewalWindow(RenewalWindowException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+        problem.setTitle("Todavía no puedes renovar");
+        problem.setProperty("timestamp", Instant.now());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(problem);
+    }
+
+    @ExceptionHandler(InvalidSubscriptionException.class)
+    public ResponseEntity<ProblemDetail> handleInvalidSubscription(InvalidSubscriptionException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+        problem.setTitle("Suscripción inválida");
+        problem.setProperty("timestamp", Instant.now());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
+    }
+
+    @ExceptionHandler(SubscriptionConflictException.class)
+    public ResponseEntity<ProblemDetail> handleSubscriptionConflict(SubscriptionConflictException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+        problem.setTitle("Suscripción en otro estado");
+        problem.setProperty("timestamp", Instant.now());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(problem);
     }
 
     @ExceptionHandler(InvalidThemeException.class)

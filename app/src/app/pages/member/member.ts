@@ -728,6 +728,8 @@ export class MemberPage {
   protected isCurrentPlan(plan: MembershipPlan): boolean {
     return plan.id === this.membership().plan?.id;
   }
+  // Renovar es del MISMO plan: cambiar de plan lo hace el administrador del gimnasio, así que en ese modo no se ofrecen otros.
+  protected readonly pickerPlans = computed(() => (this.earlyMode() ? this.plans().filter((p) => this.isCurrentPlan(p)) : this.plans()));
   protected toggleEarlyRenewal(): void {
     this.cancelPaymentChoice();
     this.renewingEarly.update((open) => !open);

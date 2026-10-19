@@ -67,7 +67,7 @@ public class SecurityConfig {
                         // por si algún día se habilita sin querer.
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
                         .hasRole("SUPER_ADMIN")
-                        .requestMatchers("/api/gyms/**")
+                        .requestMatchers("/api/gyms/**", "/api/mygym-plans/**")
                         .hasRole("SUPER_ADMIN")
                         // DEMO_ADMIN es de solo-lectura: el matcher de GET tiene que ir ANTES del
                         // genérico de abajo (Spring Security usa el PRIMER matcher que hace match,
@@ -83,6 +83,10 @@ public class SecurityConfig {
                         // ni un profesor tienen por qué leer al "socio de muestra" del gimnasio.
                         .requestMatchers(HttpMethod.GET, "/api/gym-admin/demo-preview/**")
                         .hasRole("DEMO_ADMIN")
+                        // Suscripcion del gimnasio a mygym (montos, datos de factura, cuenta bancaria): solo su administrador,
+                        // ni profesores ni demo. Antes del GET generico de abajo.
+                        .requestMatchers("/api/gym-admin/subscription/**")
+                        .hasRole("GYM_ADMIN")
                         .requestMatchers(
                                 HttpMethod.GET,
                                 "/api/gym-admin/gym/flow-account",

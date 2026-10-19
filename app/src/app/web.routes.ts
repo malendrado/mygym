@@ -103,6 +103,11 @@ export const webRoutes: Routes = [
           import('./pages/admin/gyms/deletion-audits/deletion-audits').then((m) => m.DeletionAudits),
       },
       {
+        path: 'plans',
+        title: 'Planes mygym · mygym',
+        loadComponent: () => import('./pages/admin/gyms/mygym-plans/mygym-plans').then((m) => m.MygymPlans),
+      },
+      {
         path: 'admins',
         loadComponent: () => import('./pages/admin/gyms/admins-list/admins-list').then((m) => m.AdminsList),
       },

@@ -1,4 +1,4 @@
-import { Component, DestroyRef, EventEmitter, Input, Output, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, EventEmitter, Input, OnInit, Output, computed, inject, signal } from '@angular/core';
 import { IonButton, IonContent, IonIcon, IonModal, IonSpinner, ToastController } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import {
@@ -58,7 +58,7 @@ const MAX_EXERCISE_ROWS = 10;
   templateUrl: './class-board.html',
   styleUrl: './class-board.scss',
 })
-export class ClassBoardView {
+export class ClassBoardView implements OnInit {
   private readonly boardService = inject(ClassBoardService);
   private readonly workoutService = inject(WorkoutService);
   private readonly attendanceService = inject(AttendanceService);
@@ -102,8 +102,13 @@ export class ClassBoardView {
   protected readonly formRows = signal<ExerciseLogEntry[]>([{ exercise: '', notes: '' }]);
   protected readonly saving = signal(false);
 
-  constructor() {
+  // La primera carga va en ngOnInit, NO en el constructor: ahí el @Input gymId todavía es null y el super-admin pegaba al
+  // endpoint del admin del gimnasio (403) hasta que reintentaba a mano.
+  ngOnInit(): void {
     this.load(false);
+  }
+
+  constructor() {
     // Con la pestaña oculta no se consulta (el navegador la deja en segundo plano y nadie lo está mirando): al volver
     // a verla se recarga sola (onVisible).
     const timer = setInterval(() => {

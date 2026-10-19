@@ -1,0 +1,96 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/admin/gyms" text="Gimnasios" />
+    </ion-buttons>
+    <ion-title>Planes mygym</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="plans-content">
+  <p class="plans-intro">
+    Los planes que mygym le vende a cada gimnasio. De aquí salen la landing, las preguntas frecuentes y el plan que asignas al
+    activar un gimnasio. Los precios son netos (sin IVA). Si cambias el precio de un plan, los gimnasios que lo tienen
+    sin precio propio pagan el valor nuevo desde su próximo cobro; los que tienen un precio acordado lo mantienen.
+  </p>
+
+  @if (status() === 'loading') {
+    <div class="plans-loading" role="status"><ion-spinner name="crescent" aria-label="Cargando"></ion-spinner></div>
+  } @else if (status() === 'error') {
+    <div class="plans-error">
+      <ion-text color="danger"><p role="alert">No pudimos cargar los planes. Intenta nuevamente.</p></ion-text>
+      <ion-button fill="outline" size="small" (click)="load()">Reintentar</ion-button>
+    </div>
+  } @else {
+    <div class="plans-grid">
+      @for (plan of plans(); track plan.id) {
+        <article class="plan-card" [class.plan-card--off]="!plan.active" [class.plan-card--editing]="editingId() === plan.id">
+          <header class="plan-card__head">
+            <h2>{{ plan.name }}</h2>
+            <span class="plan-card__tags">
+              @if (plan.highlighted) { <span class="plan-tag">Más elegido</span> }
+              @if (!plan.active) { <span class="plan-tag plan-tag--off">Desactivado</span> }
+            </span>
+          </header>
+          <p class="plan-card__clients">{{ plan.clientsLabel }}</p>
+          <p class="plan-card__price">
+            {{ plan.priceClp ? clp(plan.priceClp) : 'A medida' }}@if (plan.priceClp) { <span> / mes + IVA</span> }
+          </p>
+          <p class="plan-card__limits">
+            {{ plan.maxUsers ? 'Cupo: ' + plan.maxUsers + ' socios' : 'Cupo de socios a definir por gimnasio' }} · {{ plan.maxProfesores }} profesores · {{ plan.maxAdmins }} administradores
+          </p>
+          <ul class="plan-card__features">
+            @for (f of plan.features; track f) { <li>{{ f }}</li> }
+          </ul>
+          <div class="plan-card__actions">
+            <ion-button size="small" fill="outline" (click)="startEdit(plan)">
+              <ion-icon name="create-outline" slot="start" aria-hidden="true"></ion-icon>
+              Editar
+            </ion-button>
+            <ion-button size="small" fill="clear" color="danger" (click)="remove(plan)" aria-label="Borrar plan {{ plan.name }}">
+              <ion-icon name="trash-outline" slot="icon-only" aria-hidden="true"></ion-icon>
+            </ion-button>
+          </div>
+        </article>
+      }
+    </div>
+
+    @if (editingId() === null) {
+      <ion-button class="plans-new" (click)="startNew()">
+        <ion-icon name="add-outline" slot="start" aria-hidden="true"></ion-icon>
+        Nuevo plan
+      </ion-button>
+    } @else {
+      <section class="plan-form" aria-label="Editar plan">
+        <h2>{{ isNew() ? 'Nuevo plan' : 'Editar plan' }}</h2>
+        <div class="plan-form__fields">
+          @if (isNew()) {
+            <ion-input label="Código (no se puede cambiar después)" labelPlacement="stacked" fill="outline" placeholder="Ej: PRO" maxlength="40" [value]="code()" (ionInput)="code.set(text($event))" />
+          }
+          <ion-input label="Nombre" labelPlacement="stacked" fill="outline" maxlength="60" [value]="name()" (ionInput)="name.set(text($event))" />
+          <ion-input label="Texto de socios" labelPlacement="stacked" fill="outline" placeholder="Hasta 100 socios" maxlength="80" [value]="clientsLabel()" (ionInput)="clientsLabel.set(text($event))" />
+          <ion-input type="number" inputmode="numeric" label="Precio mensual neto en CLP (vacío = a medida)" labelPlacement="stacked" fill="outline" [value]="price()" (ionInput)="price.set(text($event))" />
+          <ion-input type="number" inputmode="numeric" label="Cupo de socios (vacío = se define por gimnasio)" labelPlacement="stacked" fill="outline" [value]="maxUsers()" (ionInput)="maxUsers.set(text($event))" />
+          <ion-input type="number" inputmode="numeric" label="Máx. de profesores" labelPlacement="stacked" fill="outline" [value]="maxProfesores()" (ionInput)="maxProfesores.set(text($event))" />
+          <ion-input type="number" inputmode="numeric" label="Máx. de administradores" labelPlacement="stacked" fill="outline" [value]="maxAdmins()" (ionInput)="maxAdmins.set(text($event))" />
+          <ion-input type="number" inputmode="numeric" label="Orden en la landing" labelPlacement="stacked" fill="outline" [value]="sortOrder()" (ionInput)="sortOrder.set(text($event))" />
+        </div>
+        <ion-textarea label="Beneficios (uno por línea, máx. 12)" labelPlacement="stacked" fill="outline" rows="5" [value]="features()" (ionInput)="features.set(text($event))" />
+        <div class="plan-form__toggles">
+          <ion-toggle [checked]="highlighted()" (ionChange)="highlighted.set($any($event).detail.checked)">Destacado («Más elegido»)</ion-toggle>
+          <ion-toggle [checked]="active()" (ionChange)="active.set($any($event).detail.checked)">Activo (visible en la landing y asignable)</ion-toggle>
+        </div>
+        @if (formError()) {
+          <p class="plan-form__error" role="alert">{{ formError() }}</p>
+        }
+        <div class="plan-form__actions">
+          <ion-button [disabled]="saving()" (click)="save()">
+            @if (saving()) { <ion-spinner name="crescent" slot="start" aria-hidden="true"></ion-spinner> }
+            Guardar plan
+          </ion-button>
+          <ion-button fill="clear" (click)="cancel()">Cancelar</ion-button>
+        </div>
+      </section>
+    }
+  }
+</ion-content>

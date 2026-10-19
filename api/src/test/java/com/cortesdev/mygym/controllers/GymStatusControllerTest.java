@@ -40,6 +40,7 @@ class GymStatusControllerTest {
     @Mock private AppUserRepository appUserRepository;
     @Mock private GymClosureRepository gymClosureRepository;
     @Mock private ReservationRepository reservationRepository;
+    @Mock private com.cortesdev.mygym.repositories.GymSubscriptionRepository subscriptionRepository;
     @InjectMocks private GymStatusController controller;
 
     private final Jwt jwt = Jwt.withTokenValue("t")

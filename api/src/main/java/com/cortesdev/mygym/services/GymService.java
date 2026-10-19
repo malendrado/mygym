@@ -109,6 +109,7 @@ public class GymService {
     private final com.cortesdev.mygym.security.GymPauseGuard gymPauseGuard;
     private final org.springframework.context.ApplicationEventPublisher eventPublisher;
     private final PlanChangeService planChangeService;
+    private final GymSubscriptionService gymSubscriptionService;
 
     public GymResponse createGym(GymCreateRequest request) {
         if (gymRepository.existsBySlug(request.slug())) {
@@ -140,6 +141,8 @@ public class GymService {
                 .active(true)
                 .build();
         owner = appUserRepository.save(owner);
+        // Nace "sin iniciar" (en pausa) hasta que el super-admin lo active al recibir el primer pago a mygym.
+        gymSubscriptionService.createNotStarted(gym.getId());
         adminInviteEmailService.sendGymOwnerInvite(gym, owner);
 
         return toResponse(gym);
@@ -1074,7 +1077,8 @@ public class GymService {
                 early,
                 // Un pago que NO conserva la cadena descarta la cola y los días que quedaban del período actual.
                 early || scheduled ? 0 : MembershipPeriods.queuedMonths(member, ZonedDateTime.now(GYM_ZONE)),
-                // Con las funciones avanzadas escondidas no se muestra el aviso de días que se pierden (nadie renueva por adelantado).
+                // Un pago del mismo plan vigente (renovacion) siempre suma el mes al final: no se pierden dias. Solo el cambio de
+                // plan, escondido por ahora, descartaria los que quedan; mientras este apagado no se muestra ese aviso.
                 early || scheduled || !MembershipPeriods.ADVANCE_PLANS_ENABLED
                         ? 0
                         : MembershipPeriods.daysLeftInCurrent(member, ZonedDateTime.now(GYM_ZONE)),

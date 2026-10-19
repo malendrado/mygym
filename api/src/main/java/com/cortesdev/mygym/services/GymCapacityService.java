@@ -7,6 +7,7 @@ import com.cortesdev.mygym.models.dto.GymLimitsResponse;
 import com.cortesdev.mygym.models.dto.GymLimitsResponse.Usage;
 import com.cortesdev.mygym.repositories.AppUserRepository;
 import com.cortesdev.mygym.repositories.GymRepository;
+import com.cortesdev.mygym.repositories.GymSubscriptionRepository;
 import com.cortesdev.mygym.services.exception.GymLimitReachedException;
 import com.cortesdev.mygym.services.exception.GymLimitReachedException.Kind;
 import com.cortesdev.mygym.services.exception.GymNotFoundException;
@@ -22,8 +23,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Limites de un gimnasio: socios (cupo que fija el super-admin en Gym.maxUsers), 10 profesores y 5 administradores
- * (topes fijos). "Socio" es cualquier cuenta MEMBER del gimnasio, incluidos los invitados que todavia no activan su
+ * Limites de un gimnasio: socios (cupo que fija el plan o el super-admin en Gym.maxUsers), profesores y administradores
+ * (los que fija su plan de mygym; 10 y 5 si no tiene plan). "Socio" es cualquier cuenta MEMBER del gimnasio, incluidos los invitados que todavia no activan su
  * cuenta y los inactivos: si no, el admin podria invitar sin limite.
  */
 @Service
@@ -39,6 +40,7 @@ public class GymCapacityService {
 
     private final AppUserRepository appUserRepository;
     private final GymRepository gymRepository;
+    private final GymSubscriptionRepository subscriptionRepository;
     private final MemberLifecycleEmailService emailService;
 
     // Un correo al dia por gimnasio como maximo cuando alguien no pudo registrarse por falta de cupo. En memoria: la API
@@ -49,8 +51,8 @@ public class GymCapacityService {
         int maxUsers = gymRepository.findMaxUsersById(gymId).orElseThrow(() -> new GymNotFoundException(gymId));
         return new GymLimitsResponse(
                 Usage.of(appUserRepository.countByGymIdAndRole(gymId, Role.MEMBER), maxUsers),
-                Usage.of(appUserRepository.countByGymIdAndRole(gymId, Role.PROFESOR), MAX_PROFESORES),
-                Usage.of(appUserRepository.countByGymIdAndRole(gymId, Role.GYM_ADMIN), MAX_ADMINS));
+                Usage.of(appUserRepository.countByGymIdAndRole(gymId, Role.PROFESOR), maxProfesores(gymId)),
+                Usage.of(appUserRepository.countByGymIdAndRole(gymId, Role.GYM_ADMIN), maxAdmins(gymId)));
     }
 
     /** Cuantos socios mas caben ahora mismo (0 si ya se llego o se paso del cupo). */
@@ -89,19 +91,29 @@ public class GymCapacityService {
     @Transactional
     public void assertProfesorCapacity(Long gymId) {
         lockGymForCount(gymId);
-        if (appUserRepository.countByGymIdAndRole(gymId, Role.PROFESOR) >= MAX_PROFESORES) {
+        int max = maxProfesores(gymId);
+        if (appUserRepository.countByGymIdAndRole(gymId, Role.PROFESOR) >= max) {
             throw new GymLimitReachedException(
-                    Kind.PROFESORES, "Llegaste al máximo de " + MAX_PROFESORES + " profesores por gimnasio.");
+                    Kind.PROFESORES, "Llegaste al máximo de " + max + " profesores por gimnasio.");
         }
     }
 
     @Transactional
     public void assertAdminCapacity(Long gymId) {
         lockGymForCount(gymId);
-        if (appUserRepository.countByGymIdAndRole(gymId, Role.GYM_ADMIN) >= MAX_ADMINS) {
+        int max = maxAdmins(gymId);
+        if (appUserRepository.countByGymIdAndRole(gymId, Role.GYM_ADMIN) >= max) {
             throw new GymLimitReachedException(
-                    Kind.ADMINS, "Llegaste al máximo de " + MAX_ADMINS + " administradores por gimnasio.");
+                    Kind.ADMINS, "Llegaste al máximo de " + max + " administradores por gimnasio.");
         }
+    }
+
+    private int maxProfesores(Long gymId) {
+        return subscriptionRepository.findMaxProfesoresByGymId(gymId).orElse(MAX_PROFESORES);
+    }
+
+    private int maxAdmins(Long gymId) {
+        return subscriptionRepository.findMaxAdminsByGymId(gymId).orElse(MAX_ADMINS);
     }
 
     /**

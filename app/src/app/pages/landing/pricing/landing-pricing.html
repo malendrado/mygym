@@ -17,8 +17,8 @@
 
 <section class="pricing" id="precios" appReveal>
   <h2>Todas las funciones en todos los planes: pagas solo según cuántos socios tienes</h2>
-  <div class="pricing__grid">
-    @for (tier of pricingTiers; track tier.name) {
+  <div class="pricing__grid" [attr.aria-busy]="plansLoading()">
+    @for (tier of pricingTiers(); track tier.name) {
       <article class="pricing__card" [class.pricing__card--highlight]="tier.highlight">
         @if (tier.highlight) {
           <span class="pricing__badge">Más elegido</span>
@@ -35,6 +35,17 @@
           Pedir demo
         </button>
       </article>
+    } @empty {
+      @if (plansFailed()) {
+        <p class="pricing__fallback" role="status">
+          No pudimos cargar los precios ahora. Escríbenos y te contamos los planes vigentes.
+        </p>
+        <button class="button button--primary" type="button" (click)="contact.open('Hola, quiero conocer los planes y precios de mygym.')">
+          Hablar con mygym
+        </button>
+      } @else {
+        <p class="pricing__fallback" role="status">Cargando planes…</p>
+      }
     }
   </div>
   <div class="pricing__all">

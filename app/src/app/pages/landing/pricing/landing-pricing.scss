@@ -253,3 +253,10 @@
 @include reveal-section('.pricing');
 @include reveal-card('.states__card');
 @include no-reveal('.pricing', '.states__card');
+
+.pricing__fallback {
+  grid-column: 1 / -1;
+  margin: 0 0 0.75rem;
+  text-align: center;
+  color: var(--brand-text-dim);
+}
