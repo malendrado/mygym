@@ -18,6 +18,33 @@ ion-content {
   flex-direction: column;
 }
 
+// Fila de cierre: texto a la izquierda y acciones a la derecha; en celular las acciones bajan debajo del texto en vez de
+// aplastarlo contra el borde (la fecha se partía como "26-/10-2026").
+.closure-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.75rem;
+  width: 100%;
+  padding: 0.4rem 0;
+
+  .closure-item-label {
+    flex: 1 1 15rem;
+    min-width: 0;
+    white-space: normal;
+  }
+
+  .closure-item-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+
+    ion-button {
+      margin: 0;
+    }
+  }
+}
+
 .gym-admin-loading {
   display: flex;
   align-items: center;

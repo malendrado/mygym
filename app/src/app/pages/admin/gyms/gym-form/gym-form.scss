@@ -25,6 +25,33 @@
   flex-direction: column;
 }
 
+// Fila de cierre: texto a la izquierda y acciones a la derecha; en celular las acciones bajan debajo del texto en vez de
+// aplastarlo contra el borde (la fecha se partía como "26-/10-2026").
+.closure-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.75rem;
+  width: 100%;
+  padding: 0.4rem 0;
+
+  .closure-item-label {
+    flex: 1 1 15rem;
+    min-width: 0;
+    white-space: normal;
+  }
+
+  .closure-item-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+
+    ion-button {
+      margin: 0;
+    }
+  }
+}
+
 // Se ve mientras se resuelve el UUID opaco de la URL al gym real — antes de
 // esto el id ya estaba disponible sincrónicamente desde la URL, ahora hay
 // un round-trip HTTP de por medio (mismo patrón que .gym-admin-loading).
@@ -183,6 +210,47 @@
     margin: 0;
     font-size: 0.8125rem;
     color: var(--brand-text-dim);
+  }
+}
+
+// Fila de administrador: datos a la izquierda y estado + acciones a la derecha; en celular las acciones bajan a su propia
+// línea (antes los botones aplastaban el nombre y el texto de "Quitar acceso" se cortaba).
+.admin-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem 0.75rem;
+  width: 100%;
+  padding: 0.5rem 0;
+
+  &__info {
+    display: flex;
+    flex: 1 1 14rem;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  &__name {
+    font-weight: 600;
+  }
+
+  &__email {
+    font-size: 0.85rem;
+    color: var(--brand-text-dim);
+    overflow-wrap: anywhere;
+  }
+
+  &__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem 0.5rem;
+
+    ion-button {
+      margin: 0;
+      white-space: nowrap;
+    }
   }
 }
 

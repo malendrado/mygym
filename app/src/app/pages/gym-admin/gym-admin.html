@@ -1829,6 +1829,7 @@
           @for (closure of closures(); track closure.id) {
             <ion-item>
               <ion-icon name="ban-outline" slot="start" aria-hidden="true"></ion-icon>
+              <div class="closure-row">
               <ion-label class="closure-item-label">
                 {{ isoRange(closure.startDate, closure.endDate) }}
                 <ion-badge [color]="closureStatus(closure).color">{{ closureStatus(closure).label }}</ion-badge>
@@ -1846,6 +1847,7 @@
                   </ion-button>
                 </div>
               }
+              </div>
             </ion-item>
           } @empty {
             @if (closureList.loaded() && !closureList.error()) {

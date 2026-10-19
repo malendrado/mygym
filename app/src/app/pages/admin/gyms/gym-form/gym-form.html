@@ -307,15 +307,18 @@
                   {{ initials(admin.name) }}
                 </div>
               }
-              <ion-label>
-                {{ admin.name }}
-                <p>{{ admin.email }}</p>
-              </ion-label>
-              <ion-badge slot="end" [color]="admin.active ? 'success' : 'medium'">
+              <div class="admin-row">
+              <div class="admin-row__info">
+                <span class="admin-row__name">{{ admin.name }}</span>
+                <span class="admin-row__email">{{ admin.email }}</span>
+              </div>
+              <div class="admin-row__actions">
+              <ion-badge [color]="admin.active ? 'success' : 'medium'">
                 {{ admin.active ? 'Activo' : 'Inactivo' }}
               </ion-badge>
               <ion-button
                 fill="clear"
+                size="small"
                 [color]="admin.active ? 'danger' : 'success'"
                 [disabled]="togglingAdminId() === admin.id"
                 (click)="toggleAdminStatus(admin)"
@@ -336,6 +339,8 @@
                   <ion-icon name="trash-outline" slot="icon-only" aria-hidden="true"></ion-icon>
                 }
               </ion-button>
+              </div>
+              </div>
             </ion-item>
           } @empty {
             @if (adminsLoaded()) {
@@ -1965,6 +1970,7 @@
           @for (closure of closures(); track closure.id) {
             <ion-item>
               <ion-icon name="ban-outline" slot="start" aria-hidden="true"></ion-icon>
+              <div class="closure-row">
               <ion-label class="closure-item-label">
                 {{ isoRange(closure.startDate, closure.endDate) }}
                 <ion-badge [color]="closureStatus(closure).color">{{ closureStatus(closure).label }}</ion-badge>
@@ -1982,6 +1988,7 @@
                   </ion-button>
                 </div>
               }
+              </div>
             </ion-item>
           } @empty {
             @if (closureList.loaded() && !closureList.error()) {
