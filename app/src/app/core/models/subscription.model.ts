@@ -86,6 +86,11 @@ export interface GymSubscription {
   billing: BillingInfo;
   bank: BankTransferData;
   payments: SubscriptionPayment[];
+  /** Plan al que corresponde el monto mostrado (el del próximo pago): distinto de planName cuando el cambio de plan ya rige en la próxima renovación. */
+  chargePlanName?: string | null;
+  chargeClientsLabel?: string | null;
+  /** Neto mensual del plan de hoy (cuando hay cambio de plan en curso, para compararlo con netClp). */
+  currentNetClp?: number | null;
 }
 
 export interface ActivateSubscriptionRequest {

@@ -70,6 +70,15 @@ export function formatIsoDate(iso: string | null | undefined): string {
   return `${d} de ${MONTHS[m - 1]} de ${y}`;
 }
 
+/** "2026-10-20" -> "20 de octubre". */
+function dayMonth(iso: string | null | undefined): string {
+  if (!iso) {
+    return '—';
+  }
+  const [, m, d] = iso.slice(0, 10).split('-').map(Number);
+  return `${d} de ${MONTHS[m - 1]}`;
+}
+
 function shortDate(iso: string | null | undefined): string {
   if (!iso) {
     return '—';
@@ -173,6 +182,11 @@ export class GymSubscriptionCard implements OnInit, OnDestroy {
   protected readonly selectedActivationPlan = computed(() => this.plans().find((p) => p.id === this.activatePlanId()) ?? null);
   protected readonly selectedNewPlan = computed(() => this.plans().find((p) => p.id === this.newPlanId()) ?? null);
   protected readonly started = computed(() => this.sub()?.anchorDate != null);
+  /** El monto de la tarjeta ya es de otro plan (el cambio rige en la próxima renovación): se muestra "hoy / desde" en vez de mezclar los dos. */
+  protected readonly changing = computed(() => {
+    const s = this.sub();
+    return !!s?.planName && !!s.chargePlanName && s.chargePlanName !== s.planName;
+  });
   /** Lo que ya está guardado en el servidor (no lo que se está escribiendo): con eso el servidor deja o no pagar. */
   protected readonly billingComplete = computed(() => {
     const b = this.sub()?.billing;
@@ -200,6 +214,7 @@ export class GymSubscriptionCard implements OnInit, OnDestroy {
 
   protected readonly clp = formatClp;
   protected readonly longDate = formatIsoDate;
+  protected readonly dayMonth = dayMonth;
   protected readonly short = shortDate;
   protected readonly methodLabel = (m: PaymentMethod) => METHOD_LABEL[m];
   protected readonly paymentStatusLabel = (s: PaymentStatus) => PAYMENT_STATUS_LABEL[s];

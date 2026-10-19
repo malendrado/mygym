@@ -29,10 +29,23 @@
 
     <!-- Plan y montos -->
     @if (s.planName) {
-      <div class="gs__plan">
+      <div class="gs__plan" [class.gs__plan--changing]="changing()">
+        @if (changing()) {
+          <!-- Cambio de plan en la próxima renovación: se dice qué plan tiene hoy, y todo lo de abajo (nombre y montos) es del plan nuevo. -->
+          <p class="gs__change">
+            <ion-icon name="swap-horizontal-outline" aria-hidden="true"></ion-icon>
+            <span>
+              <strong>Cambio de plan el {{ dayMonth(s.pendingPlanFrom ?? s.dueDate) }}:</strong>
+              {{ s.planName }}@if (s.currentNetClp != null) { {{ clp(s.currentNetClp) }} }
+              <span class="gs__sr">pasa a</span><span class="gs__arrow" aria-hidden="true">→</span>
+              <strong>{{ s.chargePlanName }}@if (s.netClp != null) { {{ clp(s.netClp) }} }</strong>
+              @if (s.netClp != null) { + IVA }
+            </span>
+          </p>
+        }
         <div class="gs__plan-name">
-          <strong>{{ s.planName }}</strong>
-          <span>{{ s.clientsLabel }}</span>
+          <strong>{{ changing() ? s.chargePlanName : s.planName }}</strong>
+          <span>{{ changing() ? s.chargeClientsLabel : s.clientsLabel }}</span>
         </div>
         @if (s.netClp !== null) {
           <dl class="gs__amounts">
@@ -46,8 +59,8 @@
         } @else {
           <p class="gs__small">Plan a medida: el precio se acuerda con mygym.</p>
         }
-        @if (s.pendingPlanName) {
-          <p class="gs__small">Desde el {{ longDate(s.pendingPlanFrom) }} pasa al plan {{ s.pendingPlanName }}.</p>
+        @if (s.pendingPlanName && !changing()) {
+          <p class="gs__small">Cambio programado: desde el {{ longDate(s.pendingPlanFrom) }} pasas al plan {{ s.pendingPlanName }}.</p>
         }
       </div>
     }
@@ -65,7 +78,7 @@
             <ng-container *ngTemplateOutlet="billingBox"></ng-container>
           }
           <div class="gs__renew">
-            <p class="gs__renew-title">{{ s.status === 'ACTIVE' ? 'Renovar mi plan' : 'Pagar y reactivar' }}</p>
+            <p class="gs__renew-title">{{ s.status === 'ACTIVE' ? (changing() ? 'Renovar con el plan ' + s.chargePlanName : 'Renovar mi plan') : 'Pagar y reactivar' }}</p>
             @if (!billingComplete()) {
               <p class="gs__required" role="alert">
                 <ion-icon name="alert-circle-outline" aria-hidden="true"></ion-icon>

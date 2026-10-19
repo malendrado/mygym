@@ -103,6 +103,7 @@ public class GymSubscriptionService {
         GymBilling.Amounts amounts = target.netClp() == null ? null : GymBilling.amounts(target.netClp());
         LocalDate due = GymBilling.dueDate(sub);
         Integer maxUsers = sub.getMaxUsersOverride() != null ? sub.getMaxUsersOverride() : plan == null ? null : plan.getMaxUsers();
+        Integer currentNet = sub.getPriceOverrideClp() != null ? sub.getPriceOverrideClp() : plan == null ? null : plan.getPriceClp();
         List<PaymentItem> payments = paymentRepository.findTop50ByGymIdOrderByCreatedAtDescIdDesc(sub.getGymId()).stream()
                 .map(GymSubscriptionService::item)
                 .toList();
@@ -132,7 +133,10 @@ public class GymSubscriptionService {
                 sub.getPendingPlanFrom(),
                 new BillingInfo(sub.getBillingRut(), sub.getBillingName(), sub.getBillingGiro(), sub.getBillingAddress(), sub.getBillingEmail()),
                 bank(),
-                payments);
+                payments,
+                target.plan() == null ? null : target.plan().getName(),
+                target.plan() == null ? null : target.plan().getClientsLabel(),
+                currentNet);
     }
 
     private BankTransferInfo bank() {

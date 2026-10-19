@@ -116,6 +116,26 @@ describe('GymSubscriptionCard (administrador del gimnasio)', () => {
     expect(isDisabled(flow)).toBe(false);
   });
 
+  it('when the plan changes at renewal it says what the plan is today and shows the new plan with its own amounts', () => {
+    const { el } = render('admin', subscription({
+      daysToDue: 1, dueDate: '2026-10-20', canRenew: true,
+      pendingPlanId: 2, pendingPlanName: 'Crece', pendingPlanFrom: '2026-10-20',
+      chargePlanName: 'Crece', chargeClientsLabel: 'Hasta 200 socios', currentNetClp: 29990,
+      netClp: 59990, ivaClp: 11398, totalClp: 71388, flowFeeClp: 2455, flowTotalClp: 73843,
+    }));
+    expect(text(el)).toContain('Cambio de plan el 20 de octubre: Empieza $29.990 pasa a→Crece $59.990 + IVA');
+    expect(text(el)).toContain('CreceHasta 200 socios');
+    expect(text(el)).toContain('Renovar con el plan Crece');
+    expect(text(el)).toContain('Pagar con Flow · $73.843');
+    expect(text(el)).not.toContain('pasa al plan');
+  });
+
+  it('a change scheduled for later keeps the current plan and amounts and only announces the date', () => {
+    const { el } = render('admin', subscription({ pendingPlanId: 2, pendingPlanName: 'Crece', pendingPlanFrom: '2026-12-15' }));
+    expect(text(el)).not.toContain('Cambio de plan el');
+    expect(text(el)).toContain('Cambio programado: desde el 15 de diciembre de 2026 pasas al plan Crece');
+  });
+
   it('a suspended gym is told it is paused for non-payment and can pay to reactivate', () => {
     const { el } = render('admin', subscription({ status: 'SUSPENDED', daysToDue: -5, canRenew: true }));
     expect(text(el)).toContain('En pausa por falta de pago');

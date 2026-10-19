@@ -98,7 +98,12 @@ public final class GymSubscriptionDtos {
             LocalDate pendingPlanFrom,
             BillingInfo billing,
             BankTransferInfo bank,
-            List<PaymentItem> payments) {}
+            List<PaymentItem> payments,
+            /** Plan al que corresponde el monto de arriba (el del proximo pago): distinto de planName cuando hay un cambio de plan ya en curso. */
+            String chargePlanName,
+            String chargeClientsLabel,
+            /** Monto mensual neto del plan de HOY (distinto de netClp cuando ya rige un cambio de plan en la proxima renovacion). */
+            Integer currentNetClp) {}
 
     public record ActivateRequest(
             @NotNull Long planId,

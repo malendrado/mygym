@@ -122,6 +122,42 @@
     background: color-mix(in srgb, var(--brand-text) 6%, transparent);
   }
 
+  &__plan--changing {
+    border: 1px solid color-mix(in srgb, var(--brand-accent, #c6ff3d) 55%, transparent);
+  }
+
+  // Una sola línea (o dos en celular) con el cambio y los dos precios: hoy → desde la renovación.
+  &__change {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    margin: 0 0 0.6rem;
+    padding: 0.5rem 0.7rem;
+    border-radius: 0.6rem;
+    font-size: 0.88rem;
+    line-height: 1.4;
+    background: color-mix(in srgb, var(--brand-accent, #c6ff3d) 18%, transparent);
+
+    ion-icon {
+      flex-shrink: 0;
+      margin-top: 0.15rem;
+      font-size: 1.1rem;
+    }
+  }
+
+  &__arrow {
+    margin: 0 0.3rem;
+  }
+
+  &__sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
   &__plan-name {
     display: flex;
     flex-direction: column;
