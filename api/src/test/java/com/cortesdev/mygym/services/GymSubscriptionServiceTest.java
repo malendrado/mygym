@@ -49,6 +49,7 @@ class GymSubscriptionServiceTest {
     @Mock private MygymPlanRepository planRepository;
     @Mock private GymPauseGuard gymPauseGuard;
     @Mock private GymBillingNotifier notifier;
+    @Mock private com.cortesdev.mygym.repositories.AppUserRepository appUserRepository;
     @InjectMocks private GymSubscriptionService service;
 
     private final Gym gym = Gym.builder().id(GYM_ID).name("XaloGym").maxUsers(30).active(true).build();
@@ -107,6 +108,31 @@ class GymSubscriptionServiceTest {
     void theGymAdminMustFillEveryBillingField() {
         assertThrows(InvalidSubscriptionException.class,
                 () -> service.updateOwnBilling(GYM_ID, new com.cortesdev.mygym.models.dto.GymSubscriptionDtos.BillingInfoRequest("76.1-7", "Razón", " ", "Dir", "a@b.cl")));
+    }
+
+    // ---- El cupo nunca baja de los socios que ya hay
+
+    @Test
+    void activatingWithAPlanSmallerThanTheCurrentMembersIsRefusedInsteadOfLeavingTheGymOverQuota() {
+        gym.setMaxUsers(300);
+        lockedSubscription(GymSubscription.builder().gymId(GYM_ID).billingStatus("NOT_STARTED").build());
+        when(appUserRepository.countByGymIdAndRole(GYM_ID, com.cortesdev.mygym.models.Role.MEMBER)).thenReturn(129L);
+
+        assertThrows(InvalidSubscriptionException.class,
+                () -> service.activate(GYM_ID, new ActivateRequest(1L, LocalDate.of(2026, 10, 19), null, null, "TRANSFER", null, null), 99L));
+        assertEquals(300, gym.getMaxUsers());
+    }
+
+    @Test
+    void anOwnQuotaAboveTheMembersLetsTheSameGymBeActivated() {
+        gym.setMaxUsers(300);
+        GymSubscription sub = lockedSubscription(GymSubscription.builder().gymId(GYM_ID).billingStatus("NOT_STARTED").build());
+        when(appUserRepository.countByGymIdAndRole(GYM_ID, com.cortesdev.mygym.models.Role.MEMBER)).thenReturn(129L);
+
+        service.activate(GYM_ID, new ActivateRequest(1L, LocalDate.of(2026, 10, 19), null, 150, "TRANSFER", null, null), 99L);
+
+        assertEquals(150, gym.getMaxUsers());
+        assertEquals(150, sub.getMaxUsersOverride());
     }
 
     // ---- Activacion

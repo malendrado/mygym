@@ -5,6 +5,7 @@ import com.cortesdev.mygym.models.GymSubscription;
 import com.cortesdev.mygym.models.GymSubscriptionPayment;
 import com.cortesdev.mygym.models.GymSuspension;
 import com.cortesdev.mygym.models.MygymPlan;
+import com.cortesdev.mygym.models.Role;
 import com.cortesdev.mygym.models.dto.GymSubscriptionDtos.ActivateRequest;
 import com.cortesdev.mygym.models.dto.GymSubscriptionDtos.BankTransferInfo;
 import com.cortesdev.mygym.models.dto.GymSubscriptionDtos.BillingInfo;
@@ -15,6 +16,7 @@ import com.cortesdev.mygym.models.dto.GymSubscriptionDtos.PaymentItem;
 import com.cortesdev.mygym.models.dto.GymSubscriptionDtos.ReportTransferRequest;
 import com.cortesdev.mygym.models.dto.GymSubscriptionDtos.SubscriptionResponse;
 import com.cortesdev.mygym.models.dto.GymSubscriptionDtos.SubscriptionUpdateRequest;
+import com.cortesdev.mygym.repositories.AppUserRepository;
 import com.cortesdev.mygym.repositories.GymRepository;
 import com.cortesdev.mygym.repositories.GymSubscriptionPaymentRepository;
 import com.cortesdev.mygym.repositories.GymSubscriptionRepository;
@@ -49,6 +51,7 @@ public class GymSubscriptionService {
             GymSubscriptionPayment.FLOW, GymSubscriptionPayment.TRANSFER, GymSubscriptionPayment.MANUAL);
 
     private final GymRepository gymRepository;
+    private final AppUserRepository appUserRepository;
     private final GymSubscriptionRepository subscriptionRepository;
     private final GymSubscriptionPaymentRepository paymentRepository;
     private final GymSuspensionRepository suspensionRepository;
@@ -196,7 +199,7 @@ public class GymSubscriptionService {
         sub.setAnchorDate(start);
         sub.setPaidPeriods(1);
         sub.setExempt(false);
-        applyPlanLimits(gym, sub, plan);
+        applyPlanLimits(gym, sub, plan, true);
 
         GymBilling.Amounts amounts = GymBilling.amounts(price);
         GymSubscriptionPayment payment = newPayment(gymId, method, GymSubscriptionPayment.PAID, amounts);
@@ -232,7 +235,7 @@ public class GymSubscriptionService {
         }
         MygymPlan plan = sub.getPlanId() == null ? null : planRepository.findById(sub.getPlanId()).orElse(null);
         if (plan != null) {
-            applyPlanLimits(gym, sub, plan);
+            applyPlanLimits(gym, sub, plan, true);
         }
         refreshStatus(sub, GymBilling.today(), false);
         return view(sub);
@@ -251,7 +254,7 @@ public class GymSubscriptionService {
             sub.setPlanId(plan.getId());
             sub.setPriceOverrideClp(request.priceOverrideClp());
             sub.setMaxUsersOverride(null);
-            applyPlanLimits(gym, sub, plan);
+            applyPlanLimits(gym, sub, plan, true);
         } else if (plan.getId().equals(sub.getPlanId())) {
             sub.setPendingPlanId(null);
             sub.setPendingPriceOverrideClp(null);
@@ -482,7 +485,7 @@ public class GymSubscriptionService {
             sub.setPlanId(next.getId());
             sub.setPriceOverrideClp(sub.getPendingPriceOverrideClp());
             sub.setMaxUsersOverride(null);
-            applyPlanLimits(gym, sub, next);
+            applyPlanLimits(gym, sub, next, false);
         }
         sub.setPendingPlanId(null);
         sub.setPendingPriceOverrideClp(null);
@@ -604,12 +607,25 @@ public class GymSubscriptionService {
     }
 
     /** El cupo de socios del gimnasio sale de su plan, salvo que el super-admin fije uno propio. Escala sin cupo no lo toca. */
-    private void applyPlanLimits(Gym gym, GymSubscription sub, MygymPlan plan) {
+    private void applyPlanLimits(Gym gym, GymSubscription sub, MygymPlan plan, boolean strict) {
         Integer maxUsers = sub.getMaxUsersOverride() != null ? sub.getMaxUsersOverride() : plan.getMaxUsers();
-        if (maxUsers != null) {
-            gym.setMaxUsers(maxUsers);
-            gymRepository.save(gym);
+        if (maxUsers == null) {
+            return;
         }
+        // Nunca se achica el cupo por debajo de los socios que ya tiene: dejaria el gimnasio "129 de 100" y sin poder sumar a nadie.
+        if (maxUsers < gym.getMaxUsers()) {
+            long members = appUserRepository.countByGymIdAndRole(gym.getId(), Role.MEMBER);
+            if (members > maxUsers) {
+                if (strict) {
+                    throw new InvalidSubscriptionException("Este gimnasio ya tiene " + members + " socios y el cupo quedaría en " + maxUsers
+                            + ". Indica un cupo propio de al menos " + members + " o elige un plan con más cupo.");
+                }
+                log.warn("El gimnasio {} tiene {} socios y su plan deja el cupo en {}: se mantiene el cupo actual", gym.getId(), members, maxUsers);
+                return;
+            }
+        }
+        gym.setMaxUsers(maxUsers);
+        gymRepository.save(gym);
     }
 
     private static String blankToNull(String value) {

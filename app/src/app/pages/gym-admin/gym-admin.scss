@@ -510,6 +510,43 @@ ion-header ion-toolbar ion-title {
   gap: 0.35rem 0.4rem;
 }
 
+// Pantalla ancha: nombre, estado y vencimiento a la izquierda y las acciones a la derecha de la misma fila (en celular se
+// mantiene apilado). "Ver detalle" y el detalle abierto ocupan el ancho completo debajo.
+@media (min-width: 601px) {
+  .member-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: 1.25rem;
+
+    &__head {
+      grid-column: 1;
+      grid-row: 1;
+    }
+
+    &__key {
+      grid-column: 1;
+      grid-row: 2;
+    }
+
+    .member-actions {
+      grid-column: 2;
+      grid-row: 1 / span 2;
+      justify-content: flex-end;
+    }
+
+    &__toggle {
+      grid-column: 1 / -1;
+      grid-row: 3;
+      justify-self: start;
+    }
+
+    &__detail {
+      grid-column: 1 / -1;
+    }
+  }
+}
+
 .member-search-help {
   margin: -0.2rem 0 0.6rem;
   padding: 0 1rem;
