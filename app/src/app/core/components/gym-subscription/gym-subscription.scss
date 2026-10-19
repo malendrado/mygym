@@ -236,6 +236,44 @@
     margin-left: auto;
     font-weight: 400;
     color: var(--brand-text-dim);
+
+    // Dato obligatorio que falta: se lee por el texto y además se destaca.
+    &--missing {
+      padding: 0.1rem 0.55rem;
+      border-radius: 999px;
+      font-weight: 700;
+      color: var(--brand-text);
+      background: color-mix(in srgb, var(--ion-color-warning, #ffc409) 28%, transparent);
+    }
+  }
+
+  &__box--required {
+    padding: 0.75rem;
+    border: 1px solid color-mix(in srgb, var(--ion-color-warning, #ffc409) 65%, transparent);
+    border-radius: 0.75rem;
+    background: color-mix(in srgb, var(--ion-color-warning, #ffc409) 10%, transparent);
+
+    .gs__box-title {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+  }
+
+  &__required {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.45rem;
+    margin: 0 0 0.6rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+
+    ion-icon {
+      flex-shrink: 0;
+      margin-top: 0.1rem;
+      font-size: 1.1rem;
+      color: var(--ion-color-warning, #ffc409);
+    }
   }
 
   &__history {

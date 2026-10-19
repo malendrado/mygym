@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Injectable, inject, signal } from '@angular/core';
+import { Observable, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import {
   ActivateSubscriptionRequest,
@@ -47,8 +47,11 @@ export class SubscriptionService {
 
   // ---- Administrador del gimnasio (su propio gimnasio)
 
+  /** Última suscripción propia que llegó del servidor: la tarjeta y el aviso de vencimiento leen la misma, sin pedirla dos veces. */
+  readonly mine = signal<GymSubscription | null>(null);
+
   getMine(): Observable<GymSubscription> {
-    return this.http.get<GymSubscription>(`${this.api}/api/gym-admin/subscription`);
+    return this.http.get<GymSubscription>(`${this.api}/api/gym-admin/subscription`).pipe(tap((s) => this.mine.set(s)));
   }
 
   /** Arranca el pago con Flow: devuelve la URL a la que hay que llevar al administrador. */
@@ -57,11 +60,11 @@ export class SubscriptionService {
   }
 
   reportTransfer(request: ReportTransferRequest): Observable<GymSubscription> {
-    return this.http.post<GymSubscription>(`${this.api}/api/gym-admin/subscription/transfer-report`, request);
+    return this.http.post<GymSubscription>(`${this.api}/api/gym-admin/subscription/transfer-report`, request).pipe(tap((s) => this.mine.set(s)));
   }
 
   updateBillingMine(info: BillingInfo): Observable<GymSubscription> {
-    return this.http.put<GymSubscription>(`${this.api}/api/gym-admin/subscription/billing`, info);
+    return this.http.put<GymSubscription>(`${this.api}/api/gym-admin/subscription/billing`, info).pipe(tap((s) => this.mine.set(s)));
   }
 
   // ---- Super-admin (cualquier gimnasio)

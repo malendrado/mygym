@@ -82,7 +82,31 @@ class GymSubscriptionServiceTest {
                 .anchorDate(anchor)
                 .paidPeriods(periods)
                 .billingStatus(status)
+                .billingRut("76.123.456-7")
+                .billingName("Gimnasio SpA")
+                .billingGiro("Servicios deportivos")
+                .billingAddress("Av. Siempre Viva 123")
+                .billingEmail("facturas@gimnasio.cl")
                 .build();
+    }
+
+    // ---- Datos de factura obligatorios
+
+    @Test
+    void payingWithoutCompleteBillingDataIsRefused() {
+        GymSubscription sub = lockedSubscription(started(GymBilling.today().minusMonths(1).plusDays(2), 1, "ACTIVE"));
+        sub.setBillingGiro(null);
+
+        assertThrows(SubscriptionConflictException.class,
+                () -> service.reportTransfer(GYM_ID, 7L, new ReportTransferRequest(GymBilling.today(), "Banco Estado", null)));
+        assertThrows(SubscriptionConflictException.class, () -> service.startFlowPayment(GYM_ID));
+        verify(paymentRepository, never()).save(any());
+    }
+
+    @Test
+    void theGymAdminMustFillEveryBillingField() {
+        assertThrows(InvalidSubscriptionException.class,
+                () -> service.updateOwnBilling(GYM_ID, new com.cortesdev.mygym.models.dto.GymSubscriptionDtos.BillingInfoRequest("76.1-7", "Razón", " ", "Dir", "a@b.cl")));
     }
 
     // ---- Activacion

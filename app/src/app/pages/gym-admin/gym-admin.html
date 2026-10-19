@@ -102,6 +102,10 @@
   [style.--gym-panel-bg]="themeSurface().bg"
   [style.--gym-panel-card]="themeSurface().card"
 >
+  @if (!isProfesor() && !isDemoAdmin()) {
+    <app-billing-banner (renew)="openSubscription()" />
+  }
+
   <div class="admin-welcome">
     <ion-icon name="bulb-outline" aria-hidden="true"></ion-icon>
     <p><strong>Hola, {{ adminFirstName() }}.</strong> {{ tip }}</p>
@@ -121,7 +125,7 @@
   @if (section() === 'general') {
     @if (!isProfesor()) {
     @if (!isDemoAdmin()) {
-      <app-gym-subscription mode="admin" />
+      <app-gym-subscription id="subscription-card" mode="admin" />
     }
     @if (setupPending().length > 0) {
       <div class="setup-checklist">

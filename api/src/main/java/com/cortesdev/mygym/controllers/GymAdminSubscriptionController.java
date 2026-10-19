@@ -52,6 +52,6 @@ public class GymAdminSubscriptionController {
 
     @PutMapping("/billing")
     public SubscriptionResponse updateBilling(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody BillingInfoRequest request) {
-        return subscriptionService.updateBilling(AuthenticatedUser.from(jwt).gymId(), request);
+        return subscriptionService.updateOwnBilling(AuthenticatedUser.from(jwt).gymId(), request);
     }
 }

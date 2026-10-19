@@ -84,6 +84,7 @@ import {
 } from 'ionicons/icons';
 import { firstValueFrom } from 'rxjs';
 import { GymService } from '../../../../core/services/gym.service';
+import { SubscriptionService } from '../../../../core/services/subscription.service';
 import { MemberService } from '../../../../core/services/member.service';
 import { MemberListState } from '../../../../core/state/member-list.state';
 import { GymLimitsPanel } from '../../../../core/components/gym-limits/gym-limits';
@@ -409,6 +410,7 @@ export class GymForm implements OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly gymService = inject(GymService);
+  private readonly subscriptionService = inject(SubscriptionService);
   private readonly memberService = inject(MemberService);
   private readonly profesorService = inject(ProfesorService);
   private readonly toastController = inject(ToastController);
@@ -690,6 +692,8 @@ export class GymForm implements OnDestroy {
   protected readonly gym = signal<Gym | null>(null);
   /** Cupos usados y libres de este gimnasio (socios, profesores, administradores). */
   protected readonly limits = signal<GymLimits | null>(null);
+  /** Cupo de socios que fija el plan (o el cupo propio del super-admin en la suscripción). Null: sin plan, el cupo se edita aquí. */
+  protected readonly planCapacity = signal<{ max: number; plan: string | null } | null>(null);
   protected readonly gymName = computed(() => this.gym()?.name ?? '');
   protected readonly gymSlug = computed(() => this.gym()?.slug ?? '');
   // "Acceso a la demo" es solo para el/los gym de demo comercial (nombre con "Demo" explícito,
@@ -1063,6 +1067,7 @@ export class GymForm implements OnDestroy {
           this.themeColor.set(gym.themeColor);
         }
         this.themeMode.set(gym.themeMode ?? 'DARK');
+        this.loadPlanCapacity(id);
         this.identityForm.patchValue({
           tagline: gym.tagline ?? '',
           description: gym.description ?? '',
@@ -1157,7 +1162,26 @@ export class GymForm implements OnDestroy {
     const id = this.gymId();
     if (id !== null) {
       this.loadLimits(id);
+      this.loadPlanCapacity(id);
     }
+  }
+
+  /** Con plan vigente el cupo lo manda la suscripción: el campo de Configuración queda solo de lectura para no tener dos fuentes. */
+  private loadPlanCapacity(id: number): void {
+    this.subscriptionService.get(id).subscribe({
+      next: (s) => {
+        const control = this.configForm.controls.maxUsers;
+        if (!s.exempt && s.anchorDate && s.planId && s.maxUsers != null) {
+          this.planCapacity.set({ max: s.maxUsers, plan: s.planName });
+          control.setValue(s.maxUsers);
+          control.disable({ emitEvent: false });
+        } else {
+          this.planCapacity.set(null);
+          control.enable({ emitEvent: false });
+        }
+      },
+      error: () => undefined,
+    });
   }
 
   private loadLimits(id: number): void {

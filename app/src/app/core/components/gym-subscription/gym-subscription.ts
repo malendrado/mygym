@@ -1,3 +1,4 @@
+import { NgTemplateOutlet } from '@angular/common';
 import { Component, EventEmitter, Input, OnDestroy, OnInit, Output, computed, inject, signal } from '@angular/core';
 import { Observable } from 'rxjs';
 import {
@@ -97,7 +98,7 @@ function toInt(value: unknown): number | null {
  */
 @Component({
   selector: 'app-gym-subscription',
-  imports: [IonButton, IonIcon, IonInput, IonSelect, IonSelectOption, IonSpinner, IonToggle],
+  imports: [NgTemplateOutlet, IonButton, IonIcon, IonInput, IonSelect, IonSelectOption, IonSpinner, IonToggle],
   templateUrl: './gym-subscription.html',
   styleUrl: './gym-subscription.scss',
 })
@@ -143,6 +144,7 @@ export class GymSubscriptionCard implements OnInit, OnDestroy {
   protected readonly bGiro = signal('');
   protected readonly bAddress = signal('');
   protected readonly bEmail = signal('');
+  protected readonly billingError = signal<string | null>(null);
 
   protected readonly activatePlanId = signal<number | null>(null);
   protected readonly activateStart = signal(santiagoToday());
@@ -171,6 +173,16 @@ export class GymSubscriptionCard implements OnInit, OnDestroy {
   protected readonly selectedActivationPlan = computed(() => this.plans().find((p) => p.id === this.activatePlanId()) ?? null);
   protected readonly selectedNewPlan = computed(() => this.plans().find((p) => p.id === this.newPlanId()) ?? null);
   protected readonly started = computed(() => this.sub()?.anchorDate != null);
+  /** Lo que ya está guardado en el servidor (no lo que se está escribiendo): con eso el servidor deja o no pagar. */
+  protected readonly billingComplete = computed(() => {
+    const b = this.sub()?.billing;
+    return !!b && [b.rut, b.name, b.giro, b.address, b.email].every((v) => !!v && v.trim() !== '');
+  });
+  /** Faltan datos y el administrador puede renovar ahora: el formulario va arriba, antes de los botones de pago. */
+  protected readonly billingFirst = computed(() => {
+    const s = this.sub();
+    return !this.isSuper() && !!s && s.canRenew && s.status !== 'EXEMPT' && !s.transferPending && !this.billingComplete();
+  });
 
   protected readonly statusView = computed<StatusView | null>(() => {
     const s = this.sub();
@@ -337,6 +349,18 @@ export class GymSubscriptionCard implements OnInit, OnDestroy {
   }
 
   protected saveBilling(): void {
+    if (this.mode === 'admin') {
+      const missing = [this.bRut(), this.bName(), this.bGiro(), this.bAddress(), this.bEmail()].some((v) => !v.trim());
+      if (missing) {
+        this.billingError.set('Completa todos los datos: RUT, razón social, giro, dirección y correo.');
+        return;
+      }
+      if (!/^\S+@\S+\.\S+$/.test(this.bEmail().trim())) {
+        this.billingError.set('Revisa el correo: no parece válido.');
+        return;
+      }
+    }
+    this.billingError.set(null);
     const info: BillingInfo = {
       rut: this.bRut().trim() || null,
       name: this.bName().trim() || null,

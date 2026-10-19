@@ -1,0 +1,10 @@
+@if (view(); as v) {
+  <div class="bb" [class]="'bb bb--' + v.tone" [attr.role]="v.tone === 'danger' ? 'alert' : 'status'">
+    <ion-icon class="bb__icon" [name]="v.tone === 'danger' ? 'alert-circle-outline' : 'warning-outline'" aria-hidden="true"></ion-icon>
+    <div class="bb__text">
+      <strong>{{ v.title }}</strong>
+      <span>{{ v.detail }}</span>
+    </div>
+    <button type="button" class="bb__btn" (click)="renew.emit()">Renovar ahora</button>
+  </div>
+}

@@ -278,6 +278,26 @@ public class GymSubscriptionService {
         return view(sub);
     }
 
+    /** Datos de factura que escribe el administrador del gimnasio: los cinco son obligatorios (mygym emite la factura con ellos). */
+    public SubscriptionResponse updateOwnBilling(Long gymId, BillingInfoRequest request) {
+        if (isBlank(request.rut()) || isBlank(request.name()) || isBlank(request.giro()) || isBlank(request.address()) || isBlank(request.email())) {
+            throw new InvalidSubscriptionException("Completa todos los datos de la factura: RUT, razón social, giro, dirección y correo.");
+        }
+        return updateBilling(gymId, request);
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
+    }
+
+    /** Sin datos de factura completos no se puede pagar: asi nunca hay un pago que mygym no pueda facturar. */
+    private void requireBillingData(GymSubscription sub) {
+        if (isBlank(sub.getBillingRut()) || isBlank(sub.getBillingName()) || isBlank(sub.getBillingGiro())
+                || isBlank(sub.getBillingAddress()) || isBlank(sub.getBillingEmail())) {
+            throw new SubscriptionConflictException("Antes de pagar completa los datos para la factura (RUT, razón social, giro, dirección y correo).");
+        }
+    }
+
     /** Pago registrado a mano por el super-admin (sin aviso previo del gimnasio). Siempre se puede, aunque falten mas de 3 dias. */
     public SubscriptionResponse markPaid(Long gymId, ManualPaymentRequest request, Long userId) {
         Gym gym = gymRepository.findById(gymId).orElseThrow(() -> new GymNotFoundException(gymId));
@@ -365,6 +385,7 @@ public class GymSubscriptionService {
         GymSubscription sub = lock(gymId);
         LocalDate today = GymBilling.today();
         requireRenewable(sub, today);
+        requireBillingData(sub);
         if (paymentRepository.existsByGymIdAndStatus(gymId, GymSubscriptionPayment.REPORTED)) {
             throw new SubscriptionConflictException("Ya nos avisaste de una transferencia: la estamos revisando.");
         }
@@ -395,6 +416,7 @@ public class GymSubscriptionService {
         GymSubscription sub = lock(gymId);
         LocalDate today = GymBilling.today();
         requireRenewable(sub, today);
+        requireBillingData(sub);
         Target target = requireTarget(sub, today);
         GymBilling.Amounts amounts = GymBilling.amounts(target.netClp());
         GymSubscriptionPayment payment =

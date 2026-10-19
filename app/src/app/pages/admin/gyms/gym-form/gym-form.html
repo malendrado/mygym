@@ -472,9 +472,16 @@
             </ion-toggle>
           </ion-item>
 
-          <app-quantity-stepper label="Cupo máximo de usuarios *" formControlName="maxUsers" [min]="1" [max]="10000" />
-          @if (configForm.controls.maxUsers.invalid && (configForm.controls.maxUsers.dirty || configForm.controls.maxUsers.touched)) {
-            <ion-note color="danger" role="alert">El cupo debe ser mayor a 0.</ion-note>
+          @if (planCapacity(); as cap) {
+            <p class="item-hint">
+              <strong>Cupo de socios: {{ cap.max }}</strong> · lo define {{ cap.plan ? 'el plan ' + cap.plan : 'la suscripción' }}.
+              Para cambiarlo usa «Condiciones de este gimnasio» en la tarjeta de suscripción.
+            </p>
+          } @else {
+            <app-quantity-stepper label="Cupo máximo de usuarios *" formControlName="maxUsers" [min]="1" [max]="10000" />
+            @if (configForm.controls.maxUsers.invalid && (configForm.controls.maxUsers.dirty || configForm.controls.maxUsers.touched)) {
+              <ion-note color="danger" role="alert">El cupo debe ser mayor a 0.</ion-note>
+            }
           }
 
           <ion-item lines="none">

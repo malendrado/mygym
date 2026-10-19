@@ -85,6 +85,7 @@ import {
 } from 'ionicons/icons';
 import { InstallBanner } from '../member/install-banner/install-banner';
 import { GymLimitsPanel } from '../../core/components/gym-limits/gym-limits';
+import { BillingBanner } from '../../core/components/billing-banner/billing-banner';
 import { GymSubscriptionCard } from '../../core/components/gym-subscription/gym-subscription';
 import { GymPause } from '../../core/components/gym-pause/gym-pause';
 import { GymPauseService } from '../../core/services/gym-pause.service';
@@ -417,6 +418,7 @@ const THEMED_ROOT_PROPERTIES = [
     BookingRulesCard,
     InstallBanner,
     GymLimitsPanel,
+    BillingBanner,
     GymSubscriptionCard,
     GymPause,
     PushBell,
@@ -1270,6 +1272,23 @@ export class GymAdmin implements OnDestroy {
       ? { time: shortTime(soon.block.startTime), label: soon.block.label, minutes: soon.minutes }
       : null;
   });
+
+  /** "Renovar ahora" del aviso de vencimiento: lleva a la tarjeta de pago de la pestaña General. */
+  protected openSubscription(): void {
+    this.setSection('general');
+    setTimeout(async () => {
+      // scrollIntoView falla en iOS dentro de ion-content (ver scrollToMembersList): se usa la API de Ionic.
+      const card = document.getElementById('subscription-card');
+      const content = card?.closest('ion-content') as HTMLIonContentElement | null;
+      if (!card || !content) {
+        return;
+      }
+      const scrollEl = await content.getScrollElement();
+      const top = card.getBoundingClientRect().top - scrollEl.getBoundingClientRect().top + scrollEl.scrollTop - 8;
+      const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+      await content.scrollToPoint(0, Math.max(top, 0), reduce ? 0 : 300);
+    }, 50);
+  }
 
   protected openBoard(): void {
     this.setSection('members');

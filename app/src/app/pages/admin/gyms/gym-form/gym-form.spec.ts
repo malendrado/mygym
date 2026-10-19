@@ -11,6 +11,13 @@ function activatedRouteStub(id: string | null) {
   };
 }
 
+const planSubscription = {
+  gymId: 1, status: 'ACTIVE', exempt: false, planId: 2, planName: 'Crece', maxUsers: 200, anchorDate: '2026-10-01', dueDate: '2026-11-01',
+  suspensionDate: '2026-11-04', daysToDue: 20, canRenew: false, transferPending: false, payments: [],
+  billing: { rut: null, name: null, giro: null, address: null, email: null },
+  bank: { holder: '', rut: '', bank: '', accountType: '', accountNumber: '', email: '' },
+};
+
 describe('GymForm (creation mode)', () => {
   let httpMock: HttpTestingController;
 
@@ -134,12 +141,20 @@ describe('GymForm (edit mode)', () => {
     httpMock.expectNone('/api/gyms/1/blocks');
     expect(httpMock.match((r) => /\/(plans|photos|flow|closures|tv-screens|demo)/.test(r.url)).length).toBe(0);
     httpMock.match(() => true).forEach((r) => {
-      r.flush(r.request.url.includes('/members') ? { items: [], page: 0, size: 20, totalElements: 0, hasNext: false } : []);
+      if (r.request.url.endsWith('/api/gyms/1/subscription')) {
+        r.flush(planSubscription);
+      } else {
+        r.flush(r.request.url.includes('/members') ? { items: [], page: 0, size: 20, totalElements: 0, hasNext: false } : []);
+      }
     });
 
     const component = fixture.componentInstance;
     expect(component['gymName']()).toBe('Gold Gym');
-    expect(component['configForm'].value).toEqual({ active: true, maxUsers: 100, googleLoginEnabled: false, logoSvg: '' });
+    expect(component['configForm'].getRawValue()).toEqual({ active: true, maxUsers: 200, googleLoginEnabled: false, logoSvg: '' });
+    // Con plan vigente el cupo lo manda la suscripción: queda de solo lectura con el valor del plan.
+    expect(component['planCapacity']()).toEqual({ max: 200, plan: 'Crece' });
+    expect(component['configForm'].controls.maxUsers.disabled).toBe(true);
+    expect(component['configForm'].getRawValue().maxUsers).toBe(200);
 
     // Primera apertura de Clases: pide los bloques.
     component['setSection']('classes');

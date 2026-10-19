@@ -46,7 +46,9 @@ import com.cortesdev.mygym.repositories.GymBlockRepository;
 import com.cortesdev.mygym.repositories.GymPhotoRepository;
 import com.cortesdev.mygym.repositories.GymPlanRepository;
 import com.cortesdev.mygym.repositories.GymRepository;
+import com.cortesdev.mygym.repositories.GymSubscriptionRepository;
 import com.cortesdev.mygym.repositories.ManualPaymentRepository;
+import com.cortesdev.mygym.repositories.MygymPlanRepository;
 import com.cortesdev.mygym.repositories.ReservationRepository;
 import com.cortesdev.mygym.services.exception.AdminNotFoundException;
 import com.cortesdev.mygym.services.exception.AdminRemovalNotAllowedException;
@@ -101,6 +103,8 @@ public class GymService {
     private final AppUserRepository appUserRepository;
     private final ReservationRepository reservationRepository;
     private final ManualPaymentRepository manualPaymentRepository;
+    private final GymSubscriptionRepository gymSubscriptionRepository;
+    private final MygymPlanRepository mygymPlanRepository;
     private final AdminInviteEmailService adminInviteEmailService;
     private final MemberLifecycleEmailService memberLifecycleEmailService;
     private final DemoTourService demoTourService;
@@ -230,10 +234,25 @@ public class GymService {
                 hasFlowCredentials(gym));
     }
 
+    /** Gimnasio con cobro activo y un cupo de socios definido por su plan o por el cupo propio de la suscripcion. */
+    private boolean planSetsCapacity(Long gymId) {
+        var sub = gymSubscriptionRepository.findById(gymId).orElse(null);
+        if (sub == null || sub.isExempt() || sub.getAnchorDate() == null || sub.getPlanId() == null) {
+            return false;
+        }
+        if (sub.getMaxUsersOverride() != null) {
+            return true;
+        }
+        return mygymPlanRepository.findById(sub.getPlanId()).map(plan -> plan.getMaxUsers() != null).orElse(false);
+    }
+
     public GymResponse updateGymConfig(Long id, GymConfigUpdateRequest request) {
         Gym gym = findGymOrThrow(id);
         gym.setActive(request.active());
-        gym.setMaxUsers(request.maxUsers());
+        // Con plan vigente el cupo lo fija la suscripcion (plan o cupo propio): editarlo aqui lo dejaria distinto de lo que se cobra.
+        if (!planSetsCapacity(id)) {
+            gym.setMaxUsers(request.maxUsers());
+        }
         gym.setGoogleLoginEnabled(request.googleLoginEnabled());
         gym.setLogoSvg(validatedLogoOrNull(request.logoSvg()));
         GymResponse saved = toResponse(gymRepository.save(gym));

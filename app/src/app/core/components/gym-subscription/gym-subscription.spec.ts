@@ -34,7 +34,7 @@ function subscription(overrides: Partial<GymSubscription> = {}): GymSubscription
     pendingPlanId: null,
     pendingPlanName: null,
     pendingPlanFrom: null,
-    billing: { rut: null, name: null, giro: null, address: null, email: null },
+    billing: { rut: '76.123.456-7', name: 'Gimnasio SpA', giro: 'Servicios deportivos', address: 'Av. Siempre Viva 123', email: 'facturas@gimnasio.cl' },
     bank: { holder: 'Cortes Dev SpA', rut: '77.123.456-7', bank: 'Banco de Chile', accountType: 'Cuenta corriente', accountNumber: '123', email: 'contacto@mygym.cl' },
     payments: [],
     ...overrides,
@@ -68,6 +68,7 @@ function render(mode: 'admin' | 'super', sub: GymSubscription) {
   return { el: fixture.nativeElement as HTMLElement, http };
 }
 
+const isDisabled = (b: Element | undefined) => !!b && (b.hasAttribute('disabled') || (b as unknown as { disabled?: boolean }).disabled === true);
 const text = (el: HTMLElement) => (el.textContent ?? '').replace(/\s+/g, ' ').trim();
 
 describe('formatos', () => {
@@ -94,6 +95,25 @@ describe('GymSubscriptionCard (administrador del gimnasio)', () => {
     expect(text(el)).toContain('Pagar con Flow · $36.915');
     expect(text(el)).toContain('Ya transferí');
     expect(text(el)).toContain('Si pagas con Flow se suma su comisión');
+  });
+
+  it('without billing data the form is required first and both payment ways stay locked', () => {
+    const empty = { rut: null, name: null, giro: null, address: null, email: null };
+    const { el } = render('admin', subscription({ daysToDue: 2, canRenew: true, billing: empty }));
+    expect(text(el)).toContain('Datos para la factura (obligatorios)');
+    expect(text(el)).toContain('Para pagar primero completa los datos de la factura');
+    const buttons = Array.from(el.querySelectorAll('ion-button'));
+    const flow = buttons.find((b) => (b.textContent ?? '').includes('Pagar con Flow'));
+    const transfer = buttons.find((b) => (b.textContent ?? '').includes('Ya transferí'));
+    expect(isDisabled(flow)).toBe(true);
+    expect(isDisabled(transfer)).toBe(true);
+  });
+
+  it('with billing data complete the form is collapsed and payment is open', () => {
+    const { el } = render('admin', subscription({ daysToDue: 2, canRenew: true }));
+    expect(text(el)).not.toContain('(obligatorios)');
+    const flow = Array.from(el.querySelectorAll('ion-button')).find((b) => (b.textContent ?? '').includes('Pagar con Flow'));
+    expect(isDisabled(flow)).toBe(false);
   });
 
   it('a suspended gym is told it is paused for non-payment and can pay to reactivate', () => {
