@@ -30,48 +30,51 @@
       </button>
     }
   </div>
-  <p class="mark-paid-plans__label">¿Desde cuándo vale el plan?</p>
-  <div class="mark-paid-shortcuts">
-    @for (s of shortcuts; track s.date) {
-      <button
-        type="button"
-        class="mark-paid-chip"
-        [class.mark-paid-chip--on]="startDate() === s.date"
-        (click)="setStartDate(s.date)"
-      >
-        {{ s.label }}
-      </button>
-    }
-  </div>
-  <ion-item class="mark-paid-bank">
-    <ion-input
-      type="date"
-      label="Fecha de inicio"
-      labelPlacement="stacked"
-      [min]="minDate"
-      [max]="today"
-      [value]="startDate()"
-      (ionChange)="setStartDate($any($event.detail.value) ?? '')"
-    />
-  </ion-item>
-  <p class="item-hint">
-    Si el socio ya pagó antes (transferencia, efectivo o un trato directo), pon la fecha en que empezó. Hasta un mes
-    atrás.
-  </p>
-  @if (showRestartHint()) {
-    <p class="item-hint mark-paid-restart-hint">
-      Con una fecha distinta de hoy, el período se reinicia desde esa fecha y no se conservan los días que le quedaban.
-    </p>
-  }
-
-  @if (quota() !== null) {
-    <p class="mark-paid-plans__label">¿Cuántas clases ya usó?</p>
-    <div class="mark-paid-stepper" role="group" aria-label="Clases ya usadas">
-      <button type="button" class="mark-paid-step" aria-label="Una menos" [disabled]="usedClasses() <= 0" (click)="stepUsed(-1)">−</button>
-      <span class="mark-paid-stepper__value" aria-live="polite">{{ usedClasses() }} de {{ quota() }}</span>
-      <button type="button" class="mark-paid-step" aria-label="Una más" [disabled]="usedClasses() >= (quota() ?? 0)" (click)="stepUsed(1)">+</button>
+  <!-- Renovación por adelantado: el período nuevo parte solo al vencer el actual, no hay fecha ni clases que registrar atrás. -->
+  @if (!earlyRenewal()) {
+    <p class="mark-paid-plans__label">¿Desde cuándo vale el plan?</p>
+    <div class="mark-paid-shortcuts">
+      @for (s of shortcuts; track s.date) {
+        <button
+          type="button"
+          class="mark-paid-chip"
+          [class.mark-paid-chip--on]="startDate() === s.date"
+          (click)="setStartDate(s.date)"
+        >
+          {{ s.label }}
+        </button>
+      }
     </div>
-    <p class="item-hint">Clases que tomó fuera de la app desde esa fecha (sin reservar aquí).</p>
+    <ion-item class="mark-paid-bank">
+      <ion-input
+        type="date"
+        label="Fecha de inicio"
+        labelPlacement="stacked"
+        [min]="minDate"
+        [max]="today"
+        [value]="startDate()"
+        (ionChange)="setStartDate($any($event.detail.value) ?? '')"
+      />
+    </ion-item>
+    <p class="item-hint">
+      Si el socio ya pagó antes (transferencia, efectivo o un trato directo), pon la fecha en que empezó. Hasta un mes
+      atrás.
+    </p>
+    @if (showRestartHint()) {
+      <p class="item-hint mark-paid-restart-hint">
+        Con una fecha distinta de hoy, el período se reinicia desde esa fecha y no se conservan los días que le quedaban.
+      </p>
+    }
+
+    @if (quota() !== null) {
+      <p class="mark-paid-plans__label">¿Cuántas clases ya usó?</p>
+      <div class="mark-paid-stepper" role="group" aria-label="Clases ya usadas">
+        <button type="button" class="mark-paid-step" aria-label="Una menos" [disabled]="usedClasses() <= 0" (click)="stepUsed(-1)">−</button>
+        <span class="mark-paid-stepper__value" aria-live="polite">{{ usedClasses() }} de {{ quota() }}</span>
+        <button type="button" class="mark-paid-step" aria-label="Una más" [disabled]="usedClasses() >= (quota() ?? 0)" (click)="stepUsed(1)">+</button>
+      </div>
+      <p class="item-hint">Clases que tomó fuera de la app desde esa fecha (sin reservar aquí).</p>
+    }
   }
 
   <!-- Resumen en vivo: lo que quedaría al confirmar -->

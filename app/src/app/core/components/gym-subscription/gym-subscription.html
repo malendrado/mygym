@@ -78,7 +78,7 @@
             <ng-container *ngTemplateOutlet="billingBox"></ng-container>
           }
           <div class="gs__renew">
-            <p class="gs__renew-title">{{ s.status === 'ACTIVE' ? (changing() ? 'Renovar con el plan ' + s.chargePlanName : 'Renovar mi plan') : 'Pagar y reactivar' }}</p>
+            <p class="gs__renew-title">{{ s.status === 'ACTIVE' ? (changing() ? 'Renovar con el plan ' + s.chargePlanName : 'Renovar mi plan') : s.status === 'NOT_STARTED' ? 'Pagar y activar mi gimnasio' : 'Pagar y reactivar' }}</p>
             @if (!billingComplete()) {
               <p class="gs__required" role="alert">
                 <ion-icon name="alert-circle-outline" aria-hidden="true"></ion-icon>
@@ -166,8 +166,24 @@
         </div>
 
         <div class="gs__box">
-          <p class="gs__box-title">Activar gimnasio</p>
-          <p class="gs__small">Hazlo cuando recibas el primer pago (link de Flow o transferencia). Ese primer mes queda registrado como pagado.</p>
+          <p class="gs__box-title">Asignar plan</p>
+          <p class="gs__small">El gimnasio queda sin activar y su administrador paga desde su panel (Flow o transferencia); el primer pago lo activa.</p>
+          <div class="gs__fields">
+            <ion-select label="Plan" placeholder="Elige un plan" labelPlacement="stacked" fill="outline" interface="popover" [value]="newPlanId()" (ionChange)="newPlanId.set($any($event).detail.value)">
+              @for (p of activePlans(); track p.id) {
+                <ion-select-option [value]="p.id">{{ p.name }} · {{ p.priceClp ? clp(p.priceClp) + ' + IVA' : 'a medida' }}</ion-select-option>
+              }
+            </ion-select>
+            @if (selectedNewPlan(); as np) {
+              <ion-input type="number" inputmode="numeric" [label]="np.priceClp ? 'Precio mensual neto propio (opcional)' : 'Precio mensual neto (obligatorio)'" labelPlacement="stacked" fill="outline" [value]="newPlanPrice()" (ionInput)="newPlanPrice.set(text($event))" />
+            }
+          </div>
+          <ion-button size="small" [disabled]="busy() || !selectedNewPlan()" (click)="changePlan()">Asignar plan</ion-button>
+        </div>
+
+        <div class="gs__box">
+          <p class="gs__box-title">Activar gimnasio (pago recibido por fuera)</p>
+          <p class="gs__small">Úsalo solo si ya recibiste el primer pago fuera de la app. Ese primer mes queda registrado como pagado.</p>
           <div class="gs__fields">
             <ion-select label="Plan" placeholder="Elige un plan" labelPlacement="stacked" fill="outline" interface="popover" [value]="activatePlanId()" (ionChange)="activatePlanId.set($any($event).detail.value)">
               @for (p of activePlans(); track p.id) {

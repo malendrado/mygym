@@ -276,7 +276,7 @@ export class MarkPaidModal {
       planId,
       bank,
       startDate: this.startDate() === this.today ? null : this.startDate(),
-      usedClasses: this.quota() === null ? 0 : this.usedClasses(),
+      usedClasses: this.quota() === null || this.earlyRenewal() ? 0 : this.usedClasses(),
       ...(this.mustAckLoss() ? { confirmLoseQueuedMonths: true } : {}),
     });
   }

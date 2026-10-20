@@ -343,6 +343,26 @@ class GymSubscriptionServiceTest {
     }
 
     @Test
+    void assigningAPlanToAnExemptGymLeavesItWaitingForItsFirstPaymentAndThatPaymentActivatesIt() {
+        GymSubscription sub = lockedSubscription(GymSubscription.builder().gymId(GYM_ID).exempt(true).billingStatus("EXEMPT").build());
+
+        service.changePlan(GYM_ID, new ChangePlanRequest(2L, null));
+
+        assertEquals("NOT_STARTED", sub.getBillingStatus());
+        assertNull(sub.getAnchorDate());
+        assertTrue(GymBilling.canRenew(sub, GymBilling.today()));
+
+        GymSubscriptionPayment reported = GymSubscriptionPayment.builder().id(41L).gymId(GYM_ID).method("TRANSFER").status("REPORTED").build();
+        when(paymentRepository.findLockedByIdAndGymId(41L, GYM_ID)).thenReturn(Optional.of(reported));
+
+        service.confirmTransfer(GYM_ID, 41L, 99L);
+
+        assertEquals(GymBilling.today(), sub.getAnchorDate());
+        assertEquals(1, sub.getPaidPeriods());
+        assertEquals("ACTIVE", sub.getBillingStatus());
+    }
+
+    @Test
     void confirmingAReportedTransferCreditsTheMonth() {
         GymSubscription sub = lockedSubscription(started(GymBilling.today().minusMonths(1).plusDays(2), 1, "ACTIVE"));
         GymSubscriptionPayment reported = GymSubscriptionPayment.builder().id(40L).gymId(GYM_ID).method("TRANSFER").status("REPORTED").build();

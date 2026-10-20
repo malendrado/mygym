@@ -539,7 +539,7 @@ export class GymSubscriptionCard implements OnInit, OnDestroy {
     }
     this.run(
       this.service.changePlan(this._gymId!, plan.id, price),
-      'Plan cambiado. Rige desde el próximo período.',
+      this.started() ? 'Plan cambiado. Rige desde el próximo período.' : 'Plan asignado. El gimnasio se activa cuando pague.',
       () => this.newPlanId.set(null),
       true,
     );

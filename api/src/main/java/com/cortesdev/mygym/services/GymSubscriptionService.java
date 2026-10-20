@@ -262,6 +262,9 @@ public class GymSubscriptionService {
             sub.setPriceOverrideClp(request.priceOverrideClp());
             sub.setMaxUsersOverride(null);
             applyPlanLimits(gym, sub, plan, true);
+            // Asignar plan a un gimnasio sin activar (o exento) lo deja esperando su primer pago, no activo.
+            sub.setExempt(false);
+            refreshStatus(sub, today, false);
         } else if (plan.getId().equals(sub.getPlanId())) {
             sub.setPendingPlanId(null);
             sub.setPendingPriceOverrideClp(null);
@@ -547,10 +550,12 @@ public class GymSubscriptionService {
 
     /** Aplica un pago ya confirmado: mueve el periodo, recalcula el estado, reactiva si estaba en pausa y avisa. */
     private void applyConfirmed(Gym gym, GymSubscription sub, GymSubscriptionPayment payment, LocalDate today, Long userId) {
-        requireStarted(sub);
         payment.setPrevAnchorDate(sub.getAnchorDate());
         payment.setPrevPaidPeriods(sub.getPaidPeriods());
-        GymBilling.Applied applied = GymBilling.applyPayment(sub.getAnchorDate(), sub.getPaidPeriods(), today);
+        // Primer pago de un gimnasio con plan asignado y sin activar: hoy fija el dia de corte.
+        GymBilling.Applied applied = sub.getAnchorDate() == null
+                ? new GymBilling.Applied(today, 1)
+                : GymBilling.applyPayment(sub.getAnchorDate(), sub.getPaidPeriods(), today);
         sub.setAnchorDate(applied.anchor());
         sub.setPaidPeriods(applied.paidPeriods());
         payment.setPeriodStart(applied.anchor().plusMonths(applied.paidPeriods() - 1L));
@@ -599,7 +604,6 @@ public class GymSubscriptionService {
     }
 
     private void requireRenewable(GymSubscription sub, LocalDate today) {
-        requireStarted(sub);
         if (sub.isExempt()) {
             throw new SubscriptionConflictException("Este gimnasio no tiene cobro.");
         }

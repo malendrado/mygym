@@ -69,8 +69,12 @@ public final class GymBilling {
 
     /** ¿Se puede renovar ahora? Solo en los ultimos 3 dias, y mientras este vencido o suspendido. */
     public static boolean canRenew(GymSubscription s, LocalDate today) {
-        if (s.isExempt() || s.getAnchorDate() == null) {
+        if (s.isExempt()) {
             return false;
+        }
+        // Sin activar pero con plan asignado: el primer pago del gimnasio lo activa.
+        if (s.getAnchorDate() == null) {
+            return s.getPlanId() != null;
         }
         Long days = daysToDue(s, today);
         return days != null && days <= RENEW_WINDOW_DAYS;
