@@ -6,6 +6,9 @@ import {
   IonButton,
   IonIcon,
   IonInput,
+  IonLabel,
+  IonSegment,
+  IonSegmentButton,
   IonSelect,
   IonSelectOption,
   IonSpinner,
@@ -24,6 +27,7 @@ import {
 } from 'ionicons/icons';
 import {
   BillingInfo,
+  BillingKind,
   BillingStatus,
   GymSubscription,
   MygymPlan,
@@ -33,6 +37,8 @@ import {
 } from '../../models/subscription.model';
 import { GymPauseService } from '../../services/gym-pause.service';
 import { SubscriptionService } from '../../services/subscription.service';
+import { isValidBillingEmail, normalizeBillingEmail } from '../../utils/billing-email';
+import { cleanRut, formatRut, isValidRut } from '../../utils/rut';
 
 addIcons({
   'card-outline': cardOutline,
@@ -109,7 +115,7 @@ function toInt(value: unknown): number | null {
  */
 @Component({
   selector: 'app-gym-subscription',
-  imports: [NgTemplateOutlet, IonButton, IonIcon, IonInput, IonSelect, IonSelectOption, IonSpinner, IonToggle],
+  imports: [NgTemplateOutlet, IonButton, IonIcon, IonInput, IonLabel, IonSegment, IonSegmentButton, IonSelect, IonSelectOption, IonSpinner, IonToggle],
   templateUrl: './gym-subscription.html',
   styleUrl: './gym-subscription.scss',
 })
@@ -150,12 +156,63 @@ export class GymSubscriptionCard implements OnInit, OnDestroy {
   protected readonly transferError = signal<string | null>(null);
 
   protected readonly showBilling = signal(false);
+  protected readonly bKind = signal<BillingKind>('COMPANY');
   protected readonly bRut = signal('');
   protected readonly bName = signal('');
   protected readonly bGiro = signal('');
   protected readonly bAddress = signal('');
   protected readonly bEmail = signal('');
   protected readonly billingError = signal<string | null>(null);
+  /** Los errores por campo se muestran recién después del primer intento de guardar (no mientras se escribe). */
+  protected readonly billingTried = signal(false);
+
+  /** Mismos cinco datos para una empresa o una persona natural: solo cambian los títulos y las ayudas. */
+  protected readonly billingLabels = computed(() =>
+    this.bKind() === 'PERSON'
+      ? {
+          rut: 'RUT',
+          name: 'Nombre completo',
+          giro: 'Giro',
+          giroHelp: 'La actividad de tu inicio de actividades en el SII.',
+          address: 'Dirección',
+          email: 'Correo para la factura',
+        }
+      : {
+          rut: 'RUT de la empresa',
+          name: 'Razón social',
+          giro: 'Giro',
+          giroHelp: 'El giro que figura en el SII.',
+          address: 'Dirección comercial',
+          email: 'Correo para la factura',
+        },
+  );
+
+  /**
+   * Error de cada campo. Quien administra el gimnasio debe completar los cinco; el super-admin puede guardar de a poco, pero lo
+   * que escriba tiene que ser válido (RUT con dígito verificador, correo bien escrito). El servidor repite estas mismas reglas.
+   */
+  protected readonly billingErrors = computed(() => {
+    const required = !this.isSuper();
+    const person = this.bKind() === 'PERSON';
+    const rut = this.bRut().trim();
+    const email = this.bEmail().trim();
+    return {
+      rut: !rut ? (required ? 'Escribe el RUT.' : null) : isValidRut(rut) ? null : 'Revisa el RUT: el dígito verificador no coincide.',
+      name: this.bName().trim() ? null : required ? (person ? 'Escribe tu nombre completo.' : 'Escribe la razón social.') : null,
+      giro: this.bGiro().trim() ? null : required ? 'Escribe el giro.' : null,
+      address: this.bAddress().trim() ? null : required ? 'Escribe la dirección.' : null,
+      email: !email ? (required ? 'Escribe el correo.' : null) : isValidBillingEmail(email) ? null : 'Escribe un correo válido, como nombre@empresa.cl.',
+    };
+  });
+
+  /** Aviso (no bloquea): los RUT de empresa parten desde 50.000.000; uno menor suele ser de una persona. */
+  protected readonly rutKindHint = computed(() => {
+    const rut = this.bRut().trim();
+    if (this.bKind() !== 'COMPANY' || !rut || !isValidRut(rut)) {
+      return null;
+    }
+    return parseInt(cleanRut(rut).slice(0, -1), 10) < 50_000_000 ? 'Este RUT parece de una persona natural. Si es tu caso, elige "Persona natural".' : null;
+  });
 
   protected readonly activatePlanId = signal<number | null>(null);
   protected readonly activateStart = signal(santiagoToday());
@@ -267,6 +324,7 @@ export class GymSubscriptionCard implements OnInit, OnDestroy {
   /** Deja la pantalla con lo que respondió el servidor y rellena los formularios con sus valores actuales. */
   private apply(s: GymSubscription): void {
     this.sub.set(s);
+    this.bKind.set(s.billing.kind ?? 'COMPANY');
     this.bRut.set(s.billing.rut ?? '');
     this.bName.set(s.billing.name ?? '');
     this.bGiro.set(s.billing.giro ?? '');
@@ -394,25 +452,31 @@ export class GymSubscriptionCard implements OnInit, OnDestroy {
     );
   }
 
+  /** Al salir del campo RUT lo deja como 12.345.678-5 (si es válido; si no, lo deja como está y muestra el error al guardar). */
+  protected tidyRut(): void {
+    this.bRut.set(formatRut(this.bRut().trim()));
+  }
+
+  protected tidyEmail(): void {
+    this.bEmail.set(normalizeBillingEmail(this.bEmail()));
+  }
+
   protected saveBilling(): void {
-    if (this.mode === 'admin') {
-      const missing = [this.bRut(), this.bName(), this.bGiro(), this.bAddress(), this.bEmail()].some((v) => !v.trim());
-      if (missing) {
-        this.billingError.set('Completa todos los datos: RUT, razón social, giro, dirección y correo.');
-        return;
-      }
-      if (!/^\S+@\S+\.\S+$/.test(this.bEmail().trim())) {
-        this.billingError.set('Revisa el correo: no parece válido.');
-        return;
-      }
+    this.billingTried.set(true);
+    if (Object.values(this.billingErrors()).some((error) => error !== null)) {
+      this.billingError.set('Revisa los datos marcados.');
+      return;
     }
     this.billingError.set(null);
+    const rut = this.bRut().trim();
+    const email = this.bEmail().trim();
     const info: BillingInfo = {
-      rut: this.bRut().trim() || null,
+      kind: this.bKind(),
+      rut: rut ? formatRut(rut) : null,
       name: this.bName().trim() || null,
       giro: this.bGiro().trim() || null,
       address: this.bAddress().trim() || null,
-      email: this.bEmail().trim() || null,
+      email: email ? normalizeBillingEmail(email) : null,
     };
     const request =
       this.mode === 'admin' ? this.service.updateBillingMine(info) : this.service.updateBilling(this._gymId!, info);

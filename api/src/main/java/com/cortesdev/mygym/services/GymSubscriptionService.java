@@ -47,6 +47,9 @@ import org.springframework.transaction.annotation.Transactional;
 public class GymSubscriptionService {
 
     private static final Logger log = LoggerFactory.getLogger(GymSubscriptionService.class);
+    // Correo de la factura: un solo @, dominio con punto y terminacion de 2 letras o mas, sin puntos seguidos (misma regla que el front).
+    private static final java.util.regex.Pattern BILLING_EMAIL =
+            java.util.regex.Pattern.compile("^(?!.*\\.\\.)[a-z0-9._%+-]+@[a-z0-9-]+(\\.[a-z0-9-]+)*\\.[a-z]{2,}$");
     private static final Set<String> METHODS = Set.of(
             GymSubscriptionPayment.FLOW, GymSubscriptionPayment.TRANSFER, GymSubscriptionPayment.MANUAL);
 
@@ -131,7 +134,7 @@ public class GymSubscriptionService {
                 sub.getPendingPlanId(),
                 pending == null ? null : pending.getName(),
                 sub.getPendingPlanFrom(),
-                new BillingInfo(sub.getBillingRut(), sub.getBillingName(), sub.getBillingGiro(), sub.getBillingAddress(), sub.getBillingEmail()),
+                new BillingInfo(billingKindOf(sub), sub.getBillingRut(), sub.getBillingName(), sub.getBillingGiro(), sub.getBillingAddress(), sub.getBillingEmail()),
                 bank(),
                 payments,
                 target.plan() == null ? null : target.plan().getName(),
@@ -273,14 +276,22 @@ public class GymSubscriptionService {
         return view(sub);
     }
 
+    /**
+     * Datos de factura. Lo que venga escrito se valida y se normaliza (RUT con dígito verificador y formato 12.345.678-5, correo en
+     * minúsculas); lo que venga vacío queda vacío (el super-admin puede guardar de a poco).
+     */
     public SubscriptionResponse updateBilling(Long gymId, BillingInfoRequest request) {
         assertGymExists(gymId);
+        String kind = normalizeBillingKind(request.kind());
+        String rut = normalizeRut(request.rut());
+        String email = normalizeEmail(request.email());
         GymSubscription sub = lock(gymId);
-        sub.setBillingRut(blankToNull(request.rut()));
+        sub.setBillingKind(kind);
+        sub.setBillingRut(rut);
         sub.setBillingName(blankToNull(request.name()));
         sub.setBillingGiro(blankToNull(request.giro()));
         sub.setBillingAddress(blankToNull(request.address()));
-        sub.setBillingEmail(blankToNull(request.email()));
+        sub.setBillingEmail(email);
         subscriptionRepository.save(sub);
         return view(sub);
     }
@@ -288,9 +299,45 @@ public class GymSubscriptionService {
     /** Datos de factura que escribe el administrador del gimnasio: los cinco son obligatorios (mygym emite la factura con ellos). */
     public SubscriptionResponse updateOwnBilling(Long gymId, BillingInfoRequest request) {
         if (isBlank(request.rut()) || isBlank(request.name()) || isBlank(request.giro()) || isBlank(request.address()) || isBlank(request.email())) {
-            throw new InvalidSubscriptionException("Completa todos los datos de la factura: RUT, razón social, giro, dirección y correo.");
+            String name = GymSubscription.BILLING_PERSON.equals(request.kind()) ? "nombre" : "razón social";
+            throw new InvalidSubscriptionException("Completa todos los datos de la factura: RUT, " + name + ", giro, dirección y correo.");
         }
         return updateBilling(gymId, request);
+    }
+
+    private static String billingKindOf(GymSubscription sub) {
+        return sub.getBillingKind() == null ? GymSubscription.BILLING_COMPANY : sub.getBillingKind();
+    }
+
+    private static String normalizeBillingKind(String kind) {
+        if (isBlank(kind)) {
+            return GymSubscription.BILLING_COMPANY;
+        }
+        if (!GymSubscription.BILLING_COMPANY.equals(kind) && !GymSubscription.BILLING_PERSON.equals(kind)) {
+            throw new InvalidSubscriptionException("Elige si la factura es para una empresa o para una persona natural.");
+        }
+        return kind;
+    }
+
+    private static String normalizeRut(String rut) {
+        if (isBlank(rut)) {
+            return null;
+        }
+        if (!RutValidator.isValid(rut)) {
+            throw new InvalidSubscriptionException("El RUT de la factura no es válido: revisa el número y el dígito verificador.");
+        }
+        return RutValidator.format(rut);
+    }
+
+    private static String normalizeEmail(String email) {
+        if (isBlank(email)) {
+            return null;
+        }
+        String normalized = email.trim().toLowerCase(java.util.Locale.ROOT);
+        if (!BILLING_EMAIL.matcher(normalized).matches()) {
+            throw new InvalidSubscriptionException("El correo de la factura no es válido: escríbelo como nombre@empresa.cl.");
+        }
+        return normalized;
     }
 
     private static boolean isBlank(String value) {
@@ -301,7 +348,7 @@ public class GymSubscriptionService {
     private void requireBillingData(GymSubscription sub) {
         if (isBlank(sub.getBillingRut()) || isBlank(sub.getBillingName()) || isBlank(sub.getBillingGiro())
                 || isBlank(sub.getBillingAddress()) || isBlank(sub.getBillingEmail())) {
-            throw new SubscriptionConflictException("Antes de pagar completa los datos para la factura (RUT, razón social, giro, dirección y correo).");
+            throw new SubscriptionConflictException("Antes de pagar completa los datos para la factura (RUT, razón social o nombre, giro, dirección y correo).");
         }
     }
 

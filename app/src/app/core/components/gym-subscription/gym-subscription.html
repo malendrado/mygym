@@ -159,6 +159,13 @@
 
       @if (!started()) {
         <div class="gs__box">
+          <p class="gs__box-title">Cobro de mygym</p>
+          <p class="gs__small">Un gimnasio sin cobro no necesita plan, ni recibe avisos de vencimiento, ni se pausa por falta de pago.</p>
+          <ion-toggle [checked]="editExempt()" (ionChange)="editExempt.set($any($event).detail.checked)">Sin cobro (exento)</ion-toggle>
+          <ion-button size="small" [disabled]="busy() || editExempt() === s.exempt" (click)="saveSettings()">Guardar</ion-button>
+        </div>
+
+        <div class="gs__box">
           <p class="gs__box-title">Activar gimnasio</p>
           <p class="gs__small">Hazlo cuando recibas el primer pago (link de Flow o transferencia). Ese primer mes queda registrado como pagado.</p>
           <div class="gs__fields">
@@ -305,12 +312,55 @@
           </button>
         }
         @if (billingFirst() || showBilling()) {
+          <p class="gs__box-title gs__box-title--kind" id="gs-kind-label">¿A nombre de quién emitimos la factura?</p>
+          <ion-segment class="gs__kind" aria-labelledby="gs-kind-label" [value]="bKind()" (ionChange)="bKind.set($any($event.detail.value))">
+            <ion-segment-button value="COMPANY"><ion-label>Empresa</ion-label></ion-segment-button>
+            <ion-segment-button value="PERSON"><ion-label>Persona natural</ion-label></ion-segment-button>
+          </ion-segment>
+          @if (bKind() === 'PERSON') {
+            <p class="gs__small">Persona natural con inicio de actividades en el SII.</p>
+          }
+          @let labels = billingLabels();
+          @let errors = billingErrors();
+          <!-- El error de cada campo lo pinta este mismo componente (no el de Ionic): Ionic redibuja el campo que pierde el foco justo al tocar "Guardar" y le borra la marca de error. -->
           <div class="gs__fields">
-            <ion-input label="RUT" labelPlacement="stacked" fill="outline" maxlength="20" [required]="!isSuper()" [value]="bRut()" (ionInput)="bRut.set(text($event))" />
-            <ion-input label="Razón social" labelPlacement="stacked" fill="outline" maxlength="160" [required]="!isSuper()" [value]="bName()" (ionInput)="bName.set(text($event))" />
-            <ion-input label="Giro" labelPlacement="stacked" fill="outline" maxlength="160" [required]="!isSuper()" [value]="bGiro()" (ionInput)="bGiro.set(text($event))" />
-            <ion-input label="Dirección" labelPlacement="stacked" fill="outline" maxlength="240" [required]="!isSuper()" [value]="bAddress()" (ionInput)="bAddress.set(text($event))" />
-            <ion-input type="email" label="Correo para la factura" labelPlacement="stacked" fill="outline" maxlength="160" [required]="!isSuper()" [value]="bEmail()" (ionInput)="bEmail.set(text($event))" />
+            <div class="gs__field" [class.gs__field--invalid]="billingTried() && !!errors.rut">
+              <ion-input
+                [label]="labels.rut" labelPlacement="stacked" fill="outline" maxlength="20" autocomplete="off" inputmode="text"
+                [required]="!isSuper()" [value]="bRut()" (ionInput)="bRut.set(text($event))" (ionBlur)="tidyRut()"
+                [helperText]="rutKindHint() ?? 'Con puntos y guion o sin ellos.'"
+              />
+              @if (billingTried() && errors.rut) { <p class="gs__field-error">{{ errors.rut }}</p> }
+            </div>
+            <div class="gs__field" [class.gs__field--invalid]="billingTried() && !!errors.name">
+              <ion-input
+                [label]="labels.name" labelPlacement="stacked" fill="outline" maxlength="160"
+                [required]="!isSuper()" [value]="bName()" (ionInput)="bName.set(text($event))"
+              />
+              @if (billingTried() && errors.name) { <p class="gs__field-error">{{ errors.name }}</p> }
+            </div>
+            <div class="gs__field" [class.gs__field--invalid]="billingTried() && !!errors.giro">
+              <ion-input
+                [label]="labels.giro" labelPlacement="stacked" fill="outline" maxlength="160"
+                [required]="!isSuper()" [value]="bGiro()" (ionInput)="bGiro.set(text($event))" [helperText]="labels.giroHelp"
+              />
+              @if (billingTried() && errors.giro) { <p class="gs__field-error">{{ errors.giro }}</p> }
+            </div>
+            <div class="gs__field" [class.gs__field--invalid]="billingTried() && !!errors.address">
+              <ion-input
+                [label]="labels.address" labelPlacement="stacked" fill="outline" maxlength="240"
+                [required]="!isSuper()" [value]="bAddress()" (ionInput)="bAddress.set(text($event))"
+              />
+              @if (billingTried() && errors.address) { <p class="gs__field-error">{{ errors.address }}</p> }
+            </div>
+            <div class="gs__field" [class.gs__field--invalid]="billingTried() && !!errors.email">
+              <ion-input
+                type="email" [label]="labels.email" labelPlacement="stacked" fill="outline" maxlength="160" autocomplete="email"
+                [required]="!isSuper()" [value]="bEmail()" (ionInput)="bEmail.set(text($event))" (ionBlur)="tidyEmail()"
+                helperText="Ahí te enviamos la factura."
+              />
+              @if (billingTried() && errors.email) { <p class="gs__field-error">{{ errors.email }}</p> }
+            </div>
           </div>
           @if (billingError()) {
             <p class="gs__error" role="alert">{{ billingError() }}</p>

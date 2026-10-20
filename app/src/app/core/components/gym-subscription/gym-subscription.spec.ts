@@ -34,7 +34,7 @@ function subscription(overrides: Partial<GymSubscription> = {}): GymSubscription
     pendingPlanId: null,
     pendingPlanName: null,
     pendingPlanFrom: null,
-    billing: { rut: '76.123.456-7', name: 'Gimnasio SpA', giro: 'Servicios deportivos', address: 'Av. Siempre Viva 123', email: 'facturas@gimnasio.cl' },
+    billing: { kind: 'COMPANY', rut: '76.123.456-7', name: 'Gimnasio SpA', giro: 'Servicios deportivos', address: 'Av. Siempre Viva 123', email: 'facturas@gimnasio.cl' },
     bank: { holder: 'Cortes Dev SpA', rut: '77.123.456-7', bank: 'Banco de Chile', accountType: 'Cuenta corriente', accountNumber: '123', email: 'contacto@mygym.cl' },
     payments: [],
     ...overrides,
@@ -98,7 +98,7 @@ describe('GymSubscriptionCard (administrador del gimnasio)', () => {
   });
 
   it('without billing data the form is required first and both payment ways stay locked', () => {
-    const empty = { rut: null, name: null, giro: null, address: null, email: null };
+    const empty = { kind: 'COMPANY' as const, rut: null, name: null, giro: null, address: null, email: null };
     const { el } = render('admin', subscription({ daysToDue: 2, canRenew: true, billing: empty }));
     expect(text(el)).toContain('Datos para la factura (obligatorios)');
     expect(text(el)).toContain('Para pagar primero completa los datos de la factura');
@@ -107,6 +107,120 @@ describe('GymSubscriptionCard (administrador del gimnasio)', () => {
     const transfer = buttons.find((b) => (b.textContent ?? '').includes('Pagar por transferencia'));
     expect(isDisabled(flow)).toBe(true);
     expect(isDisabled(transfer)).toBe(true);
+  });
+
+  describe('datos de factura: empresa o persona natural', () => {
+    type BillingForm = {
+      bKind: { set(v: 'COMPANY' | 'PERSON'): void };
+      bRut: { set(v: string): void };
+      bName: { set(v: string): void };
+      bGiro: { set(v: string): void };
+      bAddress: { set(v: string): void };
+      bEmail: { set(v: string): void };
+      billingErrors(): Record<string, string | null>;
+      billingLabels(): Record<string, string>;
+      rutKindHint(): string | null;
+      saveBilling(): void;
+    };
+    const emptyBilling = { kind: 'COMPANY' as const, rut: null, name: null, giro: null, address: null, email: null };
+    const open = () => {
+      const r = render('admin', subscription({ daysToDue: 2, canRenew: true, billing: emptyBilling }));
+      return { ...r, form: r.fixture.componentInstance as unknown as BillingForm };
+    };
+    const fillValid = (form: BillingForm) => {
+      form.bRut.set('768315671');
+      form.bName.set('Gimnasio SpA');
+      form.bGiro.set('Servicios deportivos');
+      form.bAddress.set('Av. Siempre Viva 123');
+      form.bEmail.set('  Facturas@Gimnasio.CL ');
+    };
+
+    it('shows a selector and company titles by default', () => {
+      const { el, form } = open();
+      expect(text(el)).toContain('¿A nombre de quién emitimos la factura?');
+      expect(text(el)).toContain('EmpresaPersona natural');
+      expect(form.billingLabels()['rut']).toBe('RUT de la empresa');
+      expect(form.billingLabels()['name']).toBe('Razón social');
+      expect(form.billingLabels()['address']).toBe('Dirección comercial');
+    });
+
+    it('switching to natural person keeps the same five fields with person titles', () => {
+      const { el, form, fixture } = open();
+      form.bKind.set('PERSON');
+      fixture.detectChanges();
+      expect(form.billingLabels()['rut']).toBe('RUT');
+      expect(form.billingLabels()['name']).toBe('Nombre completo');
+      expect(form.billingLabels()['address']).toBe('Dirección');
+      expect(text(el)).toContain('Persona natural con inicio de actividades en el SII');
+      expect(el.querySelectorAll('ion-input')).toHaveLength(5);
+    });
+
+    it('marks every empty field and sends nothing', () => {
+      const { form, http } = open();
+      form.saveBilling();
+      expect(form.billingErrors()).toEqual({
+        rut: 'Escribe el RUT.',
+        name: 'Escribe la razón social.',
+        giro: 'Escribe el giro.',
+        address: 'Escribe la dirección.',
+        email: 'Escribe el correo.',
+      });
+      http.expectNone(`${API}/api/gym-admin/subscription/billing`);
+    });
+
+    it('refuses a RUT with a wrong check digit and a badly written email, each with its own message', () => {
+      const { form, http } = open();
+      fillValid(form);
+      form.bRut.set('76.831.567-9');
+      form.bEmail.set('juan@gimnasio');
+      form.saveBilling();
+      expect(form.billingErrors()['rut']).toBe('Revisa el RUT: el dígito verificador no coincide.');
+      expect(form.billingErrors()['email']).toBe('Escribe un correo válido, como nombre@empresa.cl.');
+      expect(form.billingErrors()['name']).toBeNull();
+      http.expectNone(`${API}/api/gym-admin/subscription/billing`);
+    });
+
+    it('person: asks for the name in words and still requires the address', () => {
+      const { form } = open();
+      form.bKind.set('PERSON');
+      form.saveBilling();
+      expect(form.billingErrors()['name']).toBe('Escribe tu nombre completo.');
+      expect(form.billingErrors()['address']).toBe('Escribe la dirección.');
+    });
+
+    it('warns, without blocking, when a company RUT looks like a natural person', () => {
+      const { form } = open();
+      form.bRut.set('12.345.678-5');
+      expect(form.rutKindHint()).toContain('parece de una persona natural');
+      form.bKind.set('PERSON');
+      expect(form.rutKindHint()).toBeNull();
+      form.bKind.set('COMPANY');
+      form.bRut.set('76.831.567-1');
+      expect(form.rutKindHint()).toBeNull();
+    });
+
+    it('sends the kind with the RUT formatted and the email in lower case', () => {
+      const { form, http } = open();
+      form.bKind.set('PERSON');
+      fillValid(form);
+      form.saveBilling();
+      const req = http.expectOne(`${API}/api/gym-admin/subscription/billing`);
+      expect(req.request.method).toBe('PUT');
+      expect(req.request.body).toEqual({
+        kind: 'PERSON',
+        rut: '76.831.567-1',
+        name: 'Gimnasio SpA',
+        giro: 'Servicios deportivos',
+        address: 'Av. Siempre Viva 123',
+        email: 'facturas@gimnasio.cl',
+      });
+    });
+
+    it('reopens in the saved mode', () => {
+      const { fixture } = render('admin', subscription({ daysToDue: 2, canRenew: true, billing: { ...emptyBilling, kind: 'PERSON', name: 'Ana Pérez' } }));
+      const form = fixture.componentInstance as unknown as BillingForm;
+      expect(form.billingLabels()['name']).toBe('Nombre completo');
+    });
   });
 
   it('with billing data complete the form is collapsed and payment is open', () => {
@@ -191,6 +305,22 @@ describe('GymSubscriptionCard (super-admin)', () => {
     const { el } = render('super', subscription({ status: 'NOT_STARTED', planId: null, planName: null, anchorDate: null, dueDate: null, daysToDue: null, netClp: null }));
     expect(text(el)).toContain('Activar gimnasio');
     expect(text(el)).toContain('Ese primer mes queda registrado como pagado');
+  });
+
+  it('an unstarted gym also offers the exempt switch, and saving it sends only the exemption', () => {
+    const { el, http, fixture } = render('super', subscription({ status: 'NOT_STARTED', planId: null, planName: null, anchorDate: null, dueDate: null, daysToDue: null, netClp: null }));
+    expect(text(el)).toContain('Cobro de mygym');
+    expect(text(el)).toContain('Sin cobro (exento)');
+    const save = () => Array.from(el.querySelectorAll('ion-button')).find((b) => (b.textContent ?? '').trim() === 'Guardar') as HTMLElement;
+    expect(isDisabled(save())).toBe(true); // sin cambios no se puede guardar
+    (fixture.componentInstance as unknown as { editExempt: { set(v: boolean): void } }).editExempt.set(true);
+    fixture.detectChanges();
+    expect(isDisabled(save())).toBe(false);
+    save().click();
+    const req = http.expectOne(`${API}/api/gyms/5/subscription`);
+    expect(req.request.method).toBe('PUT');
+    expect(req.request.body).toEqual({ priceOverrideClp: null, maxUsersOverride: null, anchorDate: null, exempt: true });
+    req.flush(subscription({ status: 'EXEMPT', exempt: true, planId: null, planName: null, anchorDate: null, dueDate: null, daysToDue: null, netClp: null }));
   });
 
   it('a transfer the gym reported gets confirm and reject actions', () => {

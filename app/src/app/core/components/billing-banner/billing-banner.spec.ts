@@ -33,7 +33,7 @@ function subscription(overrides: Partial<GymSubscription> = {}): GymSubscription
     pendingPlanId: null,
     pendingPlanName: null,
     pendingPlanFrom: null,
-    billing: { rut: null, name: null, giro: null, address: null, email: null },
+    billing: { kind: 'COMPANY', rut: null, name: null, giro: null, address: null, email: null },
     bank: { holder: '', rut: '', bank: '', accountType: '', accountNumber: '', email: 'contacto@mygym.cl' },
     payments: [],
     ...overrides,

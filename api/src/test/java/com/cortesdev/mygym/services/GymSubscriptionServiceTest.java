@@ -16,6 +16,7 @@ import com.cortesdev.mygym.models.GymSubscription;
 import com.cortesdev.mygym.models.GymSubscriptionPayment;
 import com.cortesdev.mygym.models.MygymPlan;
 import com.cortesdev.mygym.models.dto.GymSubscriptionDtos.ActivateRequest;
+import com.cortesdev.mygym.models.dto.GymSubscriptionDtos.BillingInfoRequest;
 import com.cortesdev.mygym.models.dto.GymSubscriptionDtos.ChangePlanRequest;
 import com.cortesdev.mygym.models.dto.GymSubscriptionDtos.ManualPaymentRequest;
 import com.cortesdev.mygym.models.dto.GymSubscriptionDtos.ReportTransferRequest;
@@ -104,10 +105,80 @@ class GymSubscriptionServiceTest {
         verify(paymentRepository, never()).save(any());
     }
 
+    private static BillingInfoRequest billing(String kind, String rut, String name, String giro, String address, String email) {
+        return new BillingInfoRequest(kind, rut, name, giro, address, email);
+    }
+
     @Test
     void theGymAdminMustFillEveryBillingField() {
         assertThrows(InvalidSubscriptionException.class,
-                () -> service.updateOwnBilling(GYM_ID, new com.cortesdev.mygym.models.dto.GymSubscriptionDtos.BillingInfoRequest("76.1-7", "Razón", " ", "Dir", "a@b.cl")));
+                () -> service.updateOwnBilling(GYM_ID, billing("COMPANY", "76.831.567-1", "Razón", " ", "Dir", "a@b.cl")));
+    }
+
+    @Test
+    void theMissingFieldsMessageSaysNameForANaturalPersonAndRazonSocialForACompany() {
+        InvalidSubscriptionException person = assertThrows(InvalidSubscriptionException.class,
+                () -> service.updateOwnBilling(GYM_ID, billing("PERSON", "76.831.567-1", "", "Giro", "Dir", "a@b.cl")));
+        InvalidSubscriptionException company = assertThrows(InvalidSubscriptionException.class,
+                () -> service.updateOwnBilling(GYM_ID, billing("COMPANY", "76.831.567-1", "", "Giro", "Dir", "a@b.cl")));
+        assertTrue(person.getMessage().contains("nombre"));
+        assertTrue(company.getMessage().contains("razón social"));
+    }
+
+    @Test
+    void anInvalidBillingRutIsRefusedAndNothingIsSaved() {
+        assertThrows(InvalidSubscriptionException.class,
+                () -> service.updateOwnBilling(GYM_ID, billing("COMPANY", "76.831.567-9", "Gimnasio SpA", "Deportes", "Av. 1", "facturas@gimnasio.cl")));
+        verify(subscriptionRepository, never()).save(any());
+    }
+
+    @Test
+    void invalidBillingEmailsAreRefused() {
+        for (String email : new String[] {"sin-arroba.cl", "juan@gimnasio", "a@b.c", "a b@gimnasio.cl", "juan@@gimnasio.cl", "juan..perez@gimnasio.cl", "juan@gimnasio..cl"}) {
+            assertThrows(InvalidSubscriptionException.class,
+                    () -> service.updateOwnBilling(GYM_ID, billing("COMPANY", "76.831.567-1", "Gimnasio SpA", "Deportes", "Av. 1", email)),
+                    email);
+        }
+        verify(subscriptionRepository, never()).save(any());
+    }
+
+    @Test
+    void validBillingDataIsSavedNormalizedAndKeepsTheKind() {
+        GymSubscription sub = lockedSubscription(GymSubscription.builder().gymId(GYM_ID).billingStatus("NOT_STARTED").build());
+
+        service.updateOwnBilling(GYM_ID, billing("PERSON", "768315671", "Ana Pérez", "Servicios deportivos", "Av. 1, Santiago", "  Facturas@Gimnasio.CL "));
+
+        assertEquals("PERSON", sub.getBillingKind());
+        assertEquals("76.831.567-1", sub.getBillingRut());
+        assertEquals("facturas@gimnasio.cl", sub.getBillingEmail());
+        assertEquals("Ana Pérez", sub.getBillingName());
+    }
+
+    @Test
+    void withoutAKindTheBillingIsACompany() {
+        GymSubscription sub = lockedSubscription(GymSubscription.builder().gymId(GYM_ID).billingStatus("NOT_STARTED").build());
+
+        service.updateOwnBilling(GYM_ID, billing(null, "76.831.567-1", "Gimnasio SpA", "Deportes", "Av. 1", "a@gimnasio.cl"));
+
+        assertEquals("COMPANY", sub.getBillingKind());
+    }
+
+    @Test
+    void anUnknownKindIsRefused() {
+        assertThrows(InvalidSubscriptionException.class,
+                () -> service.updateBilling(GYM_ID, billing("OTRO", "76.831.567-1", "Gimnasio SpA", "Deportes", "Av. 1", "a@gimnasio.cl")));
+    }
+
+    @Test
+    void theSuperAdminCanSaveBillingDataLittleByLittleButWhatIsWrittenMustBeValid() {
+        GymSubscription sub = lockedSubscription(GymSubscription.builder().gymId(GYM_ID).billingStatus("NOT_STARTED").build());
+
+        service.updateBilling(GYM_ID, billing("COMPANY", "76.831.567-1", null, null, null, null));
+        assertEquals("76.831.567-1", sub.getBillingRut());
+        assertNull(sub.getBillingEmail());
+
+        assertThrows(InvalidSubscriptionException.class,
+                () -> service.updateBilling(GYM_ID, billing("COMPANY", "1-1", null, null, null, null)));
     }
 
     // ---- El cupo nunca baja de los socios que ya hay

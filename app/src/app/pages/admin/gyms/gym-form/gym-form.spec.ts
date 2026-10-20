@@ -14,7 +14,7 @@ function activatedRouteStub(id: string | null) {
 const planSubscription = {
   gymId: 1, status: 'ACTIVE', exempt: false, planId: 2, planName: 'Crece', maxUsers: 200, anchorDate: '2026-10-01', dueDate: '2026-11-01',
   suspensionDate: '2026-11-04', daysToDue: 20, canRenew: false, transferPending: false, payments: [],
-  billing: { rut: null, name: null, giro: null, address: null, email: null },
+  billing: { kind: 'COMPANY', rut: null, name: null, giro: null, address: null, email: null },
   bank: { holder: '', rut: '', bank: '', accountType: '', accountNumber: '', email: '' },
 };
 

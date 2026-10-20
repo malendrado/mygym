@@ -189,7 +189,9 @@ public class GymBillingNotifier {
     }
 
     private static String billingBlock(GymSubscription sub) {
-        return "RUT: " + esc(or(sub.getBillingRut())) + "<br>Razón social: " + esc(or(sub.getBillingName())) + "<br>Giro: " + esc(or(sub.getBillingGiro()))
+        boolean person = GymSubscription.BILLING_PERSON.equals(sub.getBillingKind());
+        return (person ? "Persona natural con inicio de actividades" : "Empresa") + "<br>RUT: " + esc(or(sub.getBillingRut()))
+                + "<br>" + (person ? "Nombre" : "Razón social") + ": " + esc(or(sub.getBillingName())) + "<br>Giro: " + esc(or(sub.getBillingGiro()))
                 + "<br>Dirección: " + esc(or(sub.getBillingAddress())) + "<br>Correo: " + esc(or(sub.getBillingEmail()));
     }
 

@@ -5,6 +5,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -46,7 +47,8 @@ public final class GymSubscriptionDtos {
 
     // ---- Suscripcion --------------------------------------------------------------------------------------------------
 
-    public record BillingInfo(String rut, String name, String giro, String address, String email) {}
+    /** `kind`: COMPANY (empresa) o PERSON (persona natural con inicio de actividades). */
+    public record BillingInfo(String kind, String rut, String name, String giro, String address, String email) {}
 
     public record BankTransferInfo(
             String holder, String rut, String bank, String accountType, String accountNumber, String email) {}
@@ -138,6 +140,7 @@ public final class GymSubscriptionDtos {
     public record RejectTransferRequest(@Size(max = 240) String reason) {}
 
     public record BillingInfoRequest(
+            @Pattern(regexp = "COMPANY|PERSON") String kind,
             @Size(max = 20) String rut,
             @Size(max = 160) String name,
             @Size(max = 160) String giro,

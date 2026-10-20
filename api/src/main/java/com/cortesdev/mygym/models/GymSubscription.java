@@ -32,6 +32,8 @@ public class GymSubscription {
     public static final String GRACE = "GRACE";
     public static final String SUSPENDED = "SUSPENDED";
     public static final String EXEMPT = "EXEMPT";
+    public static final String BILLING_COMPANY = "COMPANY";
+    public static final String BILLING_PERSON = "PERSON";
 
     @Id
     private Long gymId;
@@ -60,6 +62,10 @@ public class GymSubscription {
     private String billingStatus;
 
     private Instant suspendedAt;
+
+    /** COMPANY (empresa) o PERSON (persona natural con inicio de actividades): solo cambia los titulos de los datos de factura. */
+    @Builder.Default
+    private String billingKind = BILLING_COMPANY;
 
     private String billingRut;
 

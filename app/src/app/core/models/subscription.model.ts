@@ -41,7 +41,11 @@ export interface SubscriptionPayment {
   note: string | null;
 }
 
+/** A quién emite mygym la factura: una empresa, o una persona natural con inicio de actividades. */
+export type BillingKind = 'COMPANY' | 'PERSON';
+
 export interface BillingInfo {
+  kind: BillingKind;
   rut: string | null;
   name: string | null;
   giro: string | null;

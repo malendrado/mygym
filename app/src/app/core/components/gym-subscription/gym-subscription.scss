@@ -240,6 +240,37 @@
     margin: 0.5rem 0 0.75rem;
   }
 
+  &__field {
+    min-width: 0;
+
+    &--invalid ion-input {
+      --border-color: var(--ion-color-danger);
+      --highlight-color-focused: var(--ion-color-danger);
+    }
+  }
+
+  &__field-error {
+    margin: 0.25rem 0 0;
+    padding-inline: 1rem;
+    font-size: 0.75rem;
+    color: var(--ion-color-danger);
+  }
+
+  &__box-title--kind {
+    margin: 0.9rem 0 0.4rem;
+  }
+
+  &__kind {
+    margin-bottom: 0.6rem;
+
+    // En celular "Persona natural" no cabe en una línea: que baje a dos en vez de cortarse con "…".
+    ion-label {
+      white-space: normal;
+      line-height: 1.2;
+      text-align: center;
+    }
+  }
+
   &__transfer-title {
     margin: 0;
     font-size: 0.85rem;
