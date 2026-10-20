@@ -149,7 +149,7 @@ public final class PushMessages {
     public static PushMessage billingSuspended() {
         return new PushMessage(
                 "Tu gimnasio está en pausa",
-                "Renueva tu plan mygym y se reactiva al instante.",
+                "Renueva tu plan mygym y lo reactivamos apenas se confirme el pago.",
                 "billing",
                 STAFF_URL,
                 MAX_TTL_SECONDS,

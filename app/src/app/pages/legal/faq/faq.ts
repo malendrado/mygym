@@ -104,7 +104,7 @@ export class LegalFaq {
         {
           question: '¿Qué pasa si mi gimnasio queda en pausa?',
           answer:
-            'Tus socios y tu equipo pueden entrar, pero ven un aviso tranquilo con los datos de contacto, no se puede reservar ni editar nada, la pantalla de TV muestra "Volvemos pronto" y se detienen los avisos automáticos. Tus datos se conservan y todo vuelve a la normalidad apenas el gimnasio se reactiva.',
+            'Tus socios y tu equipo pueden entrar, pero ven un aviso tranquilo con los datos de contacto, no se puede reservar ni editar nada, la pantalla de TV muestra "Volvemos pronto" y se detienen los avisos automáticos. Tus datos se conservan y todo vuelve a la normalidad apenas el gimnasio se reactiva. La pausa puede deberse a un plan mygym sin pagar pasados los 2 días de gracia (ver "¿Qué pasa si no pago a tiempo?").',
         },
         {
           question: '¿Tengo que cargar a mano todos mis socios?',
@@ -135,6 +135,16 @@ export class LegalFaq {
           question: '¿mygym cobra alguna comisión sobre lo que pagan mis socios?',
           answer:
             'No. mygym no cobra comisión por socio ni por transacción — pagas un valor fijo mensual según el plan que corresponda a la cantidad de socios de tu gimnasio: Empieza (hasta 100 socios, $29.990/mes + IVA), Crece (hasta 200 socios, $59.990/mes + IVA) o Escala (más de 200 socios, precio a medida). Puedes subir o bajar de plan cuando lo necesites.',
+        },
+        {
+          question: '¿Cómo me avisan que mi plan mygym está por vencer?',
+          answer:
+            'Desde 3 días antes del vencimiento aparece un aviso fijo arriba de tu panel de administración, con un botón para renovar, y te llegan avisos al correo y al celular (si los activaste) 3, 2 y 1 días antes y el día del vencimiento. El aviso desaparece apenas tu plan queda al día. Pagas con Flow o por transferencia, y renovar no cambia tu día de corte.',
+        },
+        {
+          question: '¿Qué pasa si no pago a tiempo?',
+          answer:
+            'No se corta de inmediato. El día del vencimiento todo sigue funcionando y tienes 2 días de gracia, en los que tu gimnasio opera normal y te seguimos avisando. Si al tercer día sigue sin pago, el gimnasio queda en pausa: tus socios y tu equipo pueden entrar, pero nadie puede reservar ni editar. Tú sí puedes entrar a tu panel para pagar, y el gimnasio se reactiva apenas se confirma el pago: al instante si pagas con Flow, y si pagas por transferencia, cuando nosotros la confirmamos y lo reactivamos. Tus datos no se borran.',
         },
       ],
     },

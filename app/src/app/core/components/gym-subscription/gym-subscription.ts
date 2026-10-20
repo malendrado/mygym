@@ -565,7 +565,7 @@ export class GymSubscriptionCard implements OnInit, OnDestroy {
         return {
           label: 'En pausa por falta de pago',
           tone: 'danger',
-          hint: forAdmin ? `Venció el ${due}. Paga y se reactiva al instante.` : `Venció el ${due}. Se reactiva al registrar el pago.`,
+          hint: forAdmin ? `Venció el ${due}. Con Flow se reactiva al instante; con transferencia, cuando la confirmemos.` : `Venció el ${due}. Se reactiva al registrar el pago.`,
         };
       default: {
         const days = s.daysToDue;

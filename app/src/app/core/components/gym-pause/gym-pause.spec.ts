@@ -125,7 +125,7 @@ describe('GymPause por falta de pago del plan mygym', () => {
   it('the administrator of a suspended gym sees the payment card inside the notice', () => {
     const el = renderBilling('GYM_ADMIN', 'SUSPENDED');
     expect(text(el)).toContain('El plan mygym de XaloGym está vencido');
-    expect(text(el)).toContain('Paga tu plan y tu gimnasio se reactiva al instante');
+    expect(text(el)).toContain('Paga con Flow y tu gimnasio se reactiva al instante; si transfieres, se reactiva cuando confirmemos el pago');
     expect(el.querySelector('app-gym-subscription')).not.toBeNull();
   });
 
