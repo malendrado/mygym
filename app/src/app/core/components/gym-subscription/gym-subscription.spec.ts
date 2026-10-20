@@ -65,7 +65,7 @@ function render(mode: 'admin' | 'super', sub: GymSubscription) {
     http.expectOne(`${API}/api/gym-admin/subscription`).flush(sub);
   }
   fixture.detectChanges();
-  return { el: fixture.nativeElement as HTMLElement, http };
+  return { el: fixture.nativeElement as HTMLElement, http, fixture };
 }
 
 const isDisabled = (b: Element | undefined) => !!b && (b.hasAttribute('disabled') || (b as unknown as { disabled?: boolean }).disabled === true);
@@ -93,7 +93,7 @@ describe('GymSubscriptionCard (administrador del gimnasio)', () => {
     const { el } = render('admin', subscription({ daysToDue: 2, dueDate: '2026-10-21', canRenew: true }));
     expect(text(el)).toContain('Vence en 2 días');
     expect(text(el)).toContain('Pagar con Flow · $36.915');
-    expect(text(el)).toContain('Ya transferí');
+    expect(text(el)).toContain('Pagar por transferencia');
     expect(text(el)).toContain('Si pagas con Flow se suma su comisión');
   });
 
@@ -104,7 +104,7 @@ describe('GymSubscriptionCard (administrador del gimnasio)', () => {
     expect(text(el)).toContain('Para pagar primero completa los datos de la factura');
     const buttons = Array.from(el.querySelectorAll('ion-button'));
     const flow = buttons.find((b) => (b.textContent ?? '').includes('Pagar con Flow'));
-    const transfer = buttons.find((b) => (b.textContent ?? '').includes('Ya transferí'));
+    const transfer = buttons.find((b) => (b.textContent ?? '').includes('Pagar por transferencia'));
     expect(isDisabled(flow)).toBe(true);
     expect(isDisabled(transfer)).toBe(true);
   });
@@ -114,6 +114,25 @@ describe('GymSubscriptionCard (administrador del gimnasio)', () => {
     expect(text(el)).not.toContain('(obligatorios)');
     const flow = Array.from(el.querySelectorAll('ion-button')).find((b) => (b.textContent ?? '').includes('Pagar con Flow'));
     expect(isDisabled(flow)).toBe(false);
+  });
+
+  it('"Copiar todos los datos" puts the whole account on the clipboard, one labelled line per field', async () => {
+    const writeText = vi.fn(async () => undefined);
+    vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
+    const { el, fixture } = render('admin', subscription({ daysToDue: 2, canRenew: true }));
+    (fixture.componentInstance as unknown as { toastController: unknown }).toastController = {
+      create: async () => ({ present: async () => undefined }),
+    };
+    const transfer = Array.from(el.querySelectorAll('ion-button')).find((b) => (b.textContent ?? '').includes('Pagar por transferencia'));
+    (transfer as HTMLElement).click();
+    fixture.detectChanges();
+    const copyAll = Array.from(el.querySelectorAll('ion-button')).find((b) => (b.textContent ?? '').includes('Copiar todos los datos'));
+    (copyAll as HTMLElement).click();
+    await fixture.whenStable();
+    expect(writeText).toHaveBeenCalledWith(
+      'Nombre: Cortes Dev SpA\nRUT: 77.123.456-7\nBanco: Banco de Chile\nTipo de cuenta: Cuenta corriente\nNúmero de cuenta: 123\nCorreo: contacto@mygym.cl',
+    );
+    vi.unstubAllGlobals();
   });
 
   it('when the plan changes at renewal it says what the plan is today and shows the new plan with its own amounts', () => {

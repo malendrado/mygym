@@ -96,7 +96,7 @@
               </ion-button>
               <ion-button fill="outline" [disabled]="s.netClp === null || !billingComplete()" (click)="showTransfer.set(!showTransfer())">
                 <ion-icon slot="start" name="swap-horizontal-outline" aria-hidden="true"></ion-icon>
-                Ya transferí
+                Pagar por transferencia
               </ion-button>
             </div>
             @if (s.netClp === null) {
@@ -105,15 +105,24 @@
 
             @if (showTransfer() && billingComplete()) {
               <div class="gs__transfer">
-                <p class="gs__small">Transfiere <strong>{{ clp(s.totalClp) }}</strong> (plan + IVA) a esta cuenta y cuéntanos los datos:</p>
+                <p class="gs__transfer-title">1. Transfiere <strong>{{ clp(s.totalClp) }}</strong> (plan + IVA) a esta cuenta</p>
                 <dl class="gs__bank">
                   @if (s.bank.holder) { <div><dt>Titular</dt><dd>{{ s.bank.holder }}</dd></div> }
-                  @if (s.bank.rut) { <div><dt>RUT</dt><dd>{{ s.bank.rut }}</dd></div> }
+                  @if (s.bank.rut) {
+                    <div><dt>RUT</dt><dd>{{ s.bank.rut }}<button type="button" class="gs__copy" aria-label="Copiar RUT" (click)="copy(s.bank.rut)">Copiar</button></dd></div>
+                  }
                   @if (s.bank.bank) { <div><dt>Banco</dt><dd>{{ s.bank.bank }}</dd></div> }
                   @if (s.bank.accountType) { <div><dt>Tipo</dt><dd>{{ s.bank.accountType }}</dd></div> }
-                  @if (s.bank.accountNumber) { <div><dt>N.º de cuenta</dt><dd>{{ s.bank.accountNumber }}</dd></div> }
+                  @if (s.bank.accountNumber) {
+                    <div><dt>N.º de cuenta</dt><dd>{{ s.bank.accountNumber }}<button type="button" class="gs__copy" aria-label="Copiar número de cuenta" (click)="copy(s.bank.accountNumber)">Copiar</button></dd></div>
+                  }
                   @if (s.bank.email) { <div><dt>Correo</dt><dd>{{ s.bank.email }}</dd></div> }
                 </dl>
+                <ion-button fill="outline" size="small" (click)="copyAllBank(s.bank)">
+                  <ion-icon slot="start" name="copy-outline" aria-hidden="true"></ion-icon>
+                  Copiar todos los datos
+                </ion-button>
+                <p class="gs__transfer-title gs__transfer-title--next">2. Cuando transfieras, avísanos</p>
                 <div class="gs__fields">
                   <ion-input type="date" label="Fecha de la transferencia" labelPlacement="stacked" fill="outline" [max]="transferDate()" [value]="transferDate()" (ionInput)="transferDate.set(text($event))" />
                   <ion-input label="Banco desde el que transferiste" labelPlacement="stacked" fill="outline" maxlength="80" [value]="transferBank()" (ionInput)="transferBank.set(text($event))" />
@@ -122,7 +131,7 @@
                 @if (transferError()) {
                   <p class="gs__error" role="alert">{{ transferError() }}</p>
                 }
-                <ion-button [disabled]="busy()" (click)="submitTransfer()">Avisar a mygym</ion-button>
+                <ion-button [disabled]="busy()" (click)="submitTransfer()">Ya transferí, avisar a mygym</ion-button>
               </div>
             }
           </div>

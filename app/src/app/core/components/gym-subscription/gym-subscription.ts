@@ -17,6 +17,7 @@ import {
   alertCircleOutline,
   cardOutline,
   checkmarkCircleOutline,
+  copyOutline,
   receiptOutline,
   swapHorizontalOutline,
   timeOutline,
@@ -37,6 +38,7 @@ addIcons({
   'card-outline': cardOutline,
   'swap-horizontal-outline': swapHorizontalOutline,
   'checkmark-circle-outline': checkmarkCircleOutline,
+  'copy-outline': copyOutline,
   'alert-circle-outline': alertCircleOutline,
   'time-outline': timeOutline,
   'receipt-outline': receiptOutline,
@@ -343,6 +345,35 @@ export class GymSubscriptionCard implements OnInit, OnDestroy {
         void this.toast(err.message || 'No pudimos iniciar el pago. Intenta nuevamente.', 'danger');
       },
     });
+  }
+
+  /** Todos los datos de la cuenta, una línea por dato: varias apps de banco los leen del portapapeles al agregar un destinatario. */
+  protected copyAllBank(bank: GymSubscription['bank']): Promise<void> {
+    const lines = [
+      ['Nombre', bank.holder],
+      ['RUT', bank.rut],
+      ['Banco', bank.bank],
+      ['Tipo de cuenta', bank.accountType],
+      ['Número de cuenta', bank.accountNumber],
+      ['Correo', bank.email],
+    ]
+      .filter(([, value]) => !!value)
+      .map(([label, value]) => `${label}: ${value}`);
+    return this.copy(lines.join('\n'));
+  }
+
+  protected async copy(value: string | null | undefined): Promise<void> {
+    if (!value) {
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(value);
+      const toast = await this.toastController.create({ message: 'Copiado', duration: 1500, position: 'bottom', color: 'success' });
+      await toast.present();
+    } catch {
+      const toast = await this.toastController.create({ message: 'No pudimos copiar. Cópialo a mano.', duration: 2500, position: 'bottom', color: 'danger' });
+      await toast.present();
+    }
   }
 
   protected submitTransfer(): void {

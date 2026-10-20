@@ -240,6 +240,35 @@
     margin: 0.5rem 0 0.75rem;
   }
 
+  &__transfer-title {
+    margin: 0;
+    font-size: 0.85rem;
+
+    &--next {
+      margin-top: 0.9rem;
+      font-weight: 700;
+    }
+  }
+
+  &__bank div {
+    align-items: center;
+  }
+
+  // "Copiar" junto al dato: área táctil de 44 px de alto; el margen negativo evita que la fila crezca.
+  &__copy {
+    margin: -0.7rem 0 -0.7rem 0.4rem;
+    min-height: 44px;
+    padding: 0 0.5rem;
+    border: 0;
+    background: none;
+    color: var(--brand-accent);
+    font: inherit;
+    font-family: var(--brand-font-body, inherit);
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
   &__fields {
     display: grid;
     grid-template-columns: 1fr;
