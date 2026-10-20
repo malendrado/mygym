@@ -1,0 +1,120 @@
+.avisos-content {
+  --background: var(--brand-ink);
+  --padding-start: 1.25rem;
+  --padding-end: 1.25rem;
+  --padding-top: 1.5rem;
+  --padding-bottom: 3rem;
+}
+
+.avisos-hero {
+  margin-bottom: 2rem;
+
+  &__eyebrow {
+    margin: 0 0 0.25rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--brand-accent);
+  }
+
+  h1 {
+    margin: 0;
+    font-family: var(--brand-font-heading);
+    font-size: 1.75rem;
+  }
+
+  &__subtitle {
+    max-width: 70ch;
+    margin: 0.5rem 0 0;
+    line-height: 1.5;
+    color: var(--brand-text-dim);
+  }
+}
+
+.grupo {
+  margin-bottom: 2.25rem;
+
+  h2 {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin: 0;
+    font-family: var(--brand-font-heading);
+    font-size: 1.15rem;
+  }
+
+  &__count {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--brand-text-dim);
+    border: 1px solid var(--brand-ink-surface-2);
+    border-radius: 999px;
+    padding: 0.05rem 0.55rem;
+  }
+
+  &__subtitle {
+    margin: 0.2rem 0 0.9rem;
+    font-size: 0.875rem;
+    color: var(--brand-text-dim);
+  }
+
+  // Ancho completo en escritorio: tantas columnas como quepan, nunca una columna angosta centrada.
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
+    gap: 0.85rem;
+  }
+}
+
+.aviso {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  border: 1px solid var(--brand-ink-surface-2);
+  border-radius: 14px;
+  padding: 0.9rem 1rem;
+  background: var(--brand-ink-surface);
+
+  // Imita cómo se ve el aviso en el teléfono: título en negrita y cuerpo debajo.
+  &__push {
+    border-radius: 10px;
+    padding: 0.65rem 0.8rem;
+    background: var(--brand-ink-surface-2);
+  }
+
+  &__title {
+    margin: 0;
+    font-weight: 700;
+    font-size: 0.9375rem;
+  }
+
+  &__body {
+    margin: 0.2rem 0 0;
+    font-size: 0.875rem;
+    line-height: 1.4;
+    color: var(--brand-text-dim);
+  }
+
+  &__when {
+    margin: 0;
+    font-size: 0.875rem;
+    line-height: 1.5;
+  }
+}
+
+.chip {
+  display: inline-block;
+  margin-right: 0.35rem;
+  border-radius: 999px;
+  padding: 0.05rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+
+  &--urgent {
+    color: var(--ion-color-danger);
+    border: 1px solid var(--ion-color-danger);
+  }
+}

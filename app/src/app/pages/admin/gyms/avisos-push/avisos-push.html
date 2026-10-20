@@ -1,0 +1,42 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/admin/gyms" text="Gimnasios" />
+    </ion-buttons>
+    <ion-title>Avisos push</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="avisos-content">
+  <div class="avisos-hero">
+    <p class="avisos-hero__eyebrow">Referencia · super-admin</p>
+    <h1>Los {{ total }} avisos al celular</h1>
+    <p class="avisos-hero__subtitle">
+      Qué texto recibe cada persona y cuándo sale. Los marcados como <span class="chip chip--urgent">Inmediato</span> llegan
+      de inmediato aunque el teléfono esté en ahorro de batería. Los textos no llevan correo ni montos.
+    </p>
+  </div>
+
+  @for (grupo of grupos; track grupo.title) {
+    <section class="grupo" [attr.aria-label]="grupo.title">
+      <h2>{{ grupo.title }} <span class="grupo__count">{{ grupo.avisos.length }}</span></h2>
+      <p class="grupo__subtitle">{{ grupo.subtitle }}</p>
+      <div class="grupo__grid">
+        @for (aviso of grupo.avisos; track aviso.title) {
+          <article class="aviso">
+            <div class="aviso__push">
+              <p class="aviso__title">{{ aviso.title }}</p>
+              <p class="aviso__body">{{ aviso.body }}</p>
+            </div>
+            <p class="aviso__when">
+              @if (aviso.urgent) {
+                <span class="chip chip--urgent">Inmediato</span>
+              }
+              {{ aviso.when }}
+            </p>
+          </article>
+        }
+      </div>
+    </section>
+  }
+</ion-content>

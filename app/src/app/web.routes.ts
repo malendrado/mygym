@@ -112,6 +112,11 @@ export const webRoutes: Routes = [
         loadComponent: () => import('./pages/admin/gyms/admins-list/admins-list').then((m) => m.AdminsList),
       },
       {
+        path: 'avisos',
+        title: 'Avisos push · mygym',
+        loadComponent: () => import('./pages/admin/gyms/avisos-push/avisos-push').then((m) => m.AvisosPush),
+      },
+      {
         path: ':publicId',
         loadComponent: () => import('./pages/admin/gyms/gym-form/gym-form').then((m) => m.GymForm),
       },
