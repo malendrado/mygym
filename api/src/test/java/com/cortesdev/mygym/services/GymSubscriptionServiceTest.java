@@ -51,6 +51,7 @@ class GymSubscriptionServiceTest {
     @Mock private GymPauseGuard gymPauseGuard;
     @Mock private GymBillingNotifier notifier;
     @Mock private com.cortesdev.mygym.repositories.AppUserRepository appUserRepository;
+    @Mock private com.cortesdev.mygym.repositories.GymContractAcceptanceRepository contractAcceptanceRepository;
     @InjectMocks private GymSubscriptionService service;
 
     private final Gym gym = Gym.builder().id(GYM_ID).name("XaloGym").maxUsers(30).active(true).build();
@@ -70,6 +71,8 @@ class GymSubscriptionServiceTest {
         org.mockito.Mockito.lenient().when(planRepository.findById(3L)).thenReturn(Optional.of(escala));
         org.mockito.Mockito.lenient().when(paymentRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         org.mockito.Mockito.lenient().when(subscriptionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        // Por defecto el gimnasio ya firmo el contrato: los casos de abajo prueban otras reglas de pago.
+        org.mockito.Mockito.lenient().when(contractAcceptanceRepository.existsByGymIdAndContractVersion(any(), any())).thenReturn(true);
     }
 
     private GymSubscription lockedSubscription(GymSubscription sub) {
@@ -103,6 +106,21 @@ class GymSubscriptionServiceTest {
                 () -> service.reportTransfer(GYM_ID, 7L, new ReportTransferRequest(GymBilling.today(), "Banco Estado", null)));
         assertThrows(SubscriptionConflictException.class, () -> service.startFlowPayment(GYM_ID));
         verify(paymentRepository, never()).save(any());
+    }
+
+    // ---- Contrato firmado obligatorio
+
+    @Test
+    void payingWithoutTheSignedContractIsRefused() {
+        GymSubscription sub = lockedSubscription(started(GymBilling.today().minusMonths(1).plusDays(2), 1, "ACTIVE"));
+        when(contractAcceptanceRepository.existsByGymIdAndContractVersion(GYM_ID, ContractService.VERSION)).thenReturn(false);
+
+        SubscriptionConflictException transfer = assertThrows(SubscriptionConflictException.class,
+                () -> service.reportTransfer(GYM_ID, 7L, new ReportTransferRequest(GymBilling.today(), "Banco Estado", null)));
+        assertEquals("Antes de pagar firma el contrato de servicios.", transfer.getMessage());
+        assertThrows(SubscriptionConflictException.class, () -> service.startFlowPayment(GYM_ID));
+        verify(paymentRepository, never()).save(any());
+        assertEquals(1L, sub.getPlanId());
     }
 
     private static BillingInfoRequest billing(String kind, String rut, String name, String giro, String address, String email) {

@@ -4,13 +4,13 @@
 
 ## 1. Quiénes somos
 
-mygym.cl es operado por **ASESORES Y CONSULTORES EN INFORMÁTICA INFORMATICA LUIS CORTES ALVAREZ EIRL**, RUT 76.831.567-1 ("mygym", "nosotros"). Esta política aplica a los dueños de gimnasios que contratan mygym (los "administradores") y a los socios de esos gimnasios (los "socios") que usan la plataforma para reservar clases y pagar sus membresías.
+mygym.cl es operado por **INFORMÁTICA LUIS CORTÉS ÁLVAREZ E.I.R.L.**, RUT 76.831.567-1 ("mygym", "nosotros"). Esta política aplica a los dueños de gimnasios que contratan mygym (los "administradores") y a los socios de esos gimnasios (los "socios") que usan la plataforma para reservar clases y pagar sus membresías.
 
 Respecto de los datos personales de los socios, **el gimnasio es el responsable del tratamiento** y mygym actúa como su proveedor tecnológico (encargado del tratamiento): los trata solo por cuenta del gimnasio y según sus instrucciones, en los términos del contrato de servicios que firma cada gimnasio y de su anexo de tratamiento de datos. Respecto de los datos de los administradores y de la facturación del contrato, mygym es quien los trata, solo para administrar ese contrato.
 
 ## 2. Qué información recopilamos
 
-**De los administradores de gimnasio:** nombre, correo electrónico, y los datos de tu propia cuenta de pago online (Flow.cl) — RUT y razón social de tu empresa, giro, dirección comercial, condición frente al IVA, datos de tu representante legal, datos de contacto, y tus datos bancarios (banco, tipo y número de cuenta, RUT y nombre del titular). La API key y secret key de tu cuenta Flow se guardan cifradas en nuestra base de datos, nunca en texto plano.
+**De los administradores de gimnasio:** nombre, correo electrónico, y los datos de tu propia cuenta de pago online (Flow.cl) — RUT y razón social de tu empresa, giro, dirección comercial, condición frente al IVA, datos de tu representante legal, datos de contacto, y tus datos bancarios (banco, tipo y número de cuenta, RUT y nombre del titular). La API key y secret key de tu cuenta Flow se guardan cifradas en nuestra base de datos, nunca en texto plano. Al firmar el contrato de servicios guardamos además tu nombre, RUT y la calidad en que firmas, la fecha y hora, tu dirección IP y el navegador que usaste, como constancia de la firma electrónica.
 
 **De los profesores:** nombre y correo electrónico.
 
@@ -63,7 +63,7 @@ Cuando un administrador decide desvincular su gimnasio de mygym de forma definit
 
 1. Antes de eliminar cualquier dato, le enviamos por correo dos archivos descargables: uno con sus socios (nombre, email, plan, RUT, dirección, fecha de nacimiento, teléfono y cantidad de reservas) y otro con el historial de pagos. Es la copia que le entregamos: el gimnasio es quien conserva su cartera de socios.
 2. Solo si ese envío se confirma exitosamente, eliminamos de nuestros sistemas los datos del gimnasio (socios con sus datos de contacto y de emergencia, reservas, asistencia, pagos, rutinas, clases fijas, planes, horarios y fotos) dentro de los plazos que fija el contrato. Las copias de respaldo que los contengan se eliminan después, al rotar según su ciclo normal, y mientras tanto no se usan para ningún otro fin.
-3. Conservamos únicamente un registro interno de la eliminación, con conteos (cuántos socios, pagos, reservas, etc.), y la información del propio administrador que la ley nos obligue a guardar, como la de facturación, por los plazos legales.
+3. Conservamos únicamente un registro interno de la eliminación, con conteos (cuántos socios, pagos, reservas, etc.), la constancia de la firma del contrato de servicios y la información del propio administrador que la ley nos obligue a guardar, como la de facturación, por los plazos legales.
 
 Si el envío del correo al administrador falla por cualquier motivo, la eliminación no se ejecuta.
 

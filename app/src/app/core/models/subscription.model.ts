@@ -95,6 +95,42 @@ export interface GymSubscription {
   chargeClientsLabel?: string | null;
   /** Neto mensual del plan de hoy (cuando hay cambio de plan en curso, para compararlo con netClp). */
   currentNetClp?: number | null;
+  /** Firma del contrato de servicios (se exige antes de pagar). */
+  contract?: ContractSummary;
+}
+
+export type SignerCapacity = 'PERSON_OWNER' | 'LEGAL_REP' | 'ATTORNEY';
+
+export interface ContractSummary {
+  required: boolean;
+  signed: boolean;
+  version: string;
+  signedAt: string | null;
+  signerName: string | null;
+  signerCapacity: SignerCapacity | null;
+  /** Plan Escala facturado a una empresa: mygym pide además el certificado de vigencia por correo. */
+  certificateNeeded: boolean;
+}
+
+/** Lo que muestra la pantalla de firma. `blockedReason` no nulo = todavía no se puede firmar. */
+export interface ContractView {
+  version: string;
+  signed: boolean;
+  signedAt: string | null;
+  signerName: string | null;
+  signerCapacity: SignerCapacity | null;
+  text: string | null;
+  blockedReason: string | null;
+  maskedEmail: string | null;
+  certificateNeeded: boolean;
+}
+
+export interface ContractCodeRequest {
+  signerName: string;
+  signerRut: string;
+  capacity: SignerCapacity;
+  adult: boolean;
+  powers: boolean;
 }
 
 export interface ActivateSubscriptionRequest {

@@ -208,6 +208,18 @@
     font-weight: 700;
   }
 
+  &__contract {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem 0.75rem;
+    margin: 0.5rem 0 0;
+
+    .gs__small {
+      margin: 0;
+    }
+  }
+
   &__renew,
   &__box {
     margin-top: 0.75rem;

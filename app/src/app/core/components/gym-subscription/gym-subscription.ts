@@ -21,6 +21,7 @@ import {
   cardOutline,
   checkmarkCircleOutline,
   copyOutline,
+  documentTextOutline,
   receiptOutline,
   swapHorizontalOutline,
   timeOutline,
@@ -31,10 +32,12 @@ import {
   BillingStatus,
   GymSubscription,
   MygymPlan,
+  SignerCapacity,
   PaymentMethod,
   PaymentStatus,
   SubscriptionPayment,
 } from '../../models/subscription.model';
+import { ContractSign } from '../contract-sign/contract-sign';
 import { GymPauseService } from '../../services/gym-pause.service';
 import { SubscriptionService } from '../../services/subscription.service';
 import { isValidBillingEmail, normalizeBillingEmail } from '../../utils/billing-email';
@@ -48,6 +51,7 @@ addIcons({
   'alert-circle-outline': alertCircleOutline,
   'time-outline': timeOutline,
   'receipt-outline': receiptOutline,
+  'document-text-outline': documentTextOutline,
 });
 
 type Tone = 'ok' | 'warn' | 'danger' | 'neutral';
@@ -115,7 +119,7 @@ function toInt(value: unknown): number | null {
  */
 @Component({
   selector: 'app-gym-subscription',
-  imports: [NgTemplateOutlet, IonButton, IonIcon, IonInput, IonLabel, IonSegment, IonSegmentButton, IonSelect, IonSelectOption, IonSpinner, IonToggle],
+  imports: [NgTemplateOutlet, ContractSign, IonButton, IonIcon, IonInput, IonLabel, IonSegment, IonSegmentButton, IonSelect, IonSelectOption, IonSpinner, IonToggle],
   templateUrl: './gym-subscription.html',
   styleUrl: './gym-subscription.scss',
 })
@@ -250,6 +254,11 @@ export class GymSubscriptionCard implements OnInit, OnDestroy {
   protected readonly billingComplete = computed(() => {
     const b = this.sub()?.billing;
     return !!b && [b.rut, b.name, b.giro, b.address, b.email].every((v) => !!v && v.trim() !== '');
+  });
+  /** Sin firmar el contrato (versión vigente) no se puede pagar: el servidor lo exige igual. */
+  protected readonly contractSigned = computed(() => {
+    const c = this.sub()?.contract;
+    return !c || !c.required || c.signed;
   });
   /** Faltan datos y el administrador puede renovar ahora: el formulario va arriba, antes de los botones de pago. */
   protected readonly billingFirst = computed(() => {
@@ -545,7 +554,11 @@ export class GymSubscriptionCard implements OnInit, OnDestroy {
     );
   }
 
-  protected markPaid(): void {
+  protected async markPaid(): Promise<void> {
+    const contract = this.sub()?.contract;
+    if (contract?.required && !contract.signed && !(await this.confirmUnsignedPayment())) {
+      return;
+    }
     this.run(
       this.service.markPaid(this._gymId!, this.payMethod(), this.payOperation().trim() || null, this.payNote().trim() || null),
       'Pago registrado.',
@@ -556,6 +569,45 @@ export class GymSubscriptionCard implements OnInit, OnDestroy {
       },
       true,
     );
+  }
+
+  /** El super-admin puede registrar un pago aunque no haya contrato firmado, pero se lo hacemos notar. */
+  private async confirmUnsignedPayment(): Promise<boolean> {
+    const alert = await this.alertController.create({
+      header: 'Contrato sin firmar',
+      message: 'Este gimnasio todavía no firmó el contrato de servicios. ¿Registrar el pago igual?',
+      buttons: [
+        { text: 'Cancelar', role: 'cancel' },
+        { text: 'Registrar igual', role: 'confirm' },
+      ],
+    });
+    await alert.present();
+    return (await alert.onDidDismiss()).role === 'confirm';
+  }
+
+  protected onContractSigned(): void {
+    this.load();
+  }
+
+  protected capacityLabel(capacity: SignerCapacity | null | undefined): string {
+    return capacity === 'PERSON_OWNER' ? 'titular' : capacity === 'LEGAL_REP' ? 'representante legal' : capacity === 'ATTORNEY' ? 'apoderado' : '—';
+  }
+
+  /** La hora de la firma viene en UTC: la fecha que se muestra es la de Chile. */
+  protected contractDate(iso: string | null | undefined): string {
+    return iso ? formatIsoDate(new Date(iso).toLocaleDateString('en-CA', { timeZone: 'America/Santiago' })) : '—';
+  }
+
+  /** Abre la constancia (HTML) en otra pestaña (la del gimnasio propio si es el administrador); el servidor exige sesión, por eso se pide con la petición y no con un enlace. */
+  protected openContractCopy(): void {
+    this.service.getContractCopy(this.mode === 'super' ? this._gymId! : undefined).subscribe({
+      next: (html) => {
+        const url = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }));
+        window.open(url, '_blank');
+        setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      },
+      error: () => void this.toast('No pudimos abrir la constancia. Intenta nuevamente.', 'danger'),
+    });
   }
 
   protected confirmTransfer(payment: SubscriptionPayment): void {

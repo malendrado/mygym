@@ -1,0 +1,108 @@
+<section class="cs" aria-labelledby="cs-title">
+  <p class="cs__title" id="cs-title">
+    <ion-icon name="document-text-outline" aria-hidden="true"></ion-icon>
+    Firma el contrato de servicios
+  </p>
+
+  @if (loading()) {
+    <p class="cs__small"><ion-spinner name="crescent" aria-hidden="true"></ion-spinner> Cargando el contrato…</p>
+  } @else if (loadError() || !view()) {
+    <p class="cs__required" role="alert">
+      <ion-icon name="alert-circle-outline" aria-hidden="true"></ion-icon>
+      No pudimos cargar el contrato. Recarga la página e intenta de nuevo.
+    </p>
+  } @else {
+    @let v = view()!;
+    @if (v.blockedReason) {
+      <p class="cs__required" role="alert">
+        <ion-icon name="alert-circle-outline" aria-hidden="true"></ion-icon>
+        {{ v.blockedReason }}
+      </p>
+    } @else {
+      <p class="cs__small">Para pagar tu plan primero firma el contrato. Léelo completo y firma con un código que te enviamos a tu correo.</p>
+      <pre class="cs__text" tabindex="0" role="region" aria-label="Texto del contrato">{{ v.text }}</pre>
+
+      @if (v.certificateNeeded) {
+        <p class="cs__small">Como tu plan es Escala, mygym te pedirá además por correo un certificado de vigencia de tu sociedad con las facultades de quien firma.</p>
+      }
+
+      <div class="cs__fields">
+        <ion-input
+          label="Nombre completo de quien firma"
+          labelPlacement="stacked"
+          fill="outline"
+          maxlength="120"
+          autocomplete="name"
+          [value]="name()"
+          (ionInput)="name.set(text($event))"
+        />
+        <ion-input
+          label="RUT de quien firma"
+          labelPlacement="stacked"
+          fill="outline"
+          maxlength="12"
+          inputmode="text"
+          placeholder="12.345.678-5"
+          [value]="rut()"
+          [class.cs__invalid]="rutInvalid()"
+          (ionInput)="rut.set(text($event))"
+          (ionBlur)="onRutBlur()"
+        />
+        @if (rutInvalid()) {
+          <p class="cs__error" role="alert">El RUT no es válido: revisa el número y el dígito verificador.</p>
+        }
+        <ion-select
+          label="Calidad en que firma"
+          labelPlacement="stacked"
+          fill="outline"
+          interface="popover"
+          [value]="capacity()"
+          (ionChange)="capacity.set($any($event).detail.value)"
+        >
+          @for (c of capacities(); track c.value) {
+            <ion-select-option [value]="c.value">{{ c.label }}</ion-select-option>
+          }
+        </ion-select>
+        <ion-checkbox labelPlacement="end" justify="start" [checked]="adult()" (ionChange)="adult.set($any($event).detail.checked)">
+          Declaro que soy mayor de edad.
+        </ion-checkbox>
+        <ion-checkbox labelPlacement="end" justify="start" [checked]="powers()" (ionChange)="powers.set($any($event).detail.checked)">
+          Declaro que tengo facultades para obligar al gimnasio y que leí y acepto este contrato.
+        </ion-checkbox>
+      </div>
+
+      <div class="cs__actions">
+        <ion-button [disabled]="!canSend()" (click)="sendCode()">
+          @if (busy() && !codeSent()) {
+            <ion-spinner name="crescent" slot="start" aria-hidden="true"></ion-spinner>
+          } @else {
+            <ion-icon slot="start" name="mail-outline" aria-hidden="true"></ion-icon>
+          }
+          {{ codeSent() ? (cooldown() > 0 ? 'Reenviar código en ' + cooldown() + ' s' : 'Reenviar código') : 'Enviarme el código' + (v.maskedEmail ? ' a ' + v.maskedEmail : '') }}
+        </ion-button>
+      </div>
+
+      @if (codeSent()) {
+        <div class="cs__code">
+          <p class="cs__small" role="status">Revisa tu correo ({{ maskedEmail() }}) e ingresa el código de 6 dígitos.</p>
+          <ion-input
+            label="Código de 6 dígitos"
+            labelPlacement="stacked"
+            fill="outline"
+            inputmode="numeric"
+            autocomplete="one-time-code"
+            maxlength="6"
+            [value]="code()"
+            (ionInput)="onCode($event)"
+          />
+          <ion-button [disabled]="!canSign()" (click)="sign()">
+            @if (busy()) {
+              <ion-spinner name="crescent" slot="start" aria-hidden="true"></ion-spinner>
+            }
+            Firmar contrato
+          </ion-button>
+        </div>
+      }
+    }
+  }
+</section>

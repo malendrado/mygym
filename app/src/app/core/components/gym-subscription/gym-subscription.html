@@ -19,6 +19,15 @@
       <p class="gs__chip-line"><span class="gs__chip" [class]="'gs__chip gs__chip--' + st.tone">{{ st.label }}</span></p>
     }
     <p class="gs__hint">{{ st.hint }}</p>
+    @if (!isSuper() && !overlay && s.contract?.signed) {
+      <p class="gs__contract">
+        <ion-button size="small" fill="outline" [disabled]="busy()" (click)="openContractCopy()">
+          <ion-icon slot="start" name="document-text-outline" aria-hidden="true"></ion-icon>
+          Ver contrato firmado
+        </ion-button>
+        <span class="gs__small">Firmado el {{ contractDate(s.contract?.signedAt) }}</span>
+      </p>
+    }
 
     @if (confirmingPayment()) {
       <p class="gs__notice" role="status">
@@ -85,8 +94,11 @@
                 Para pagar primero completa los datos de la factura: son obligatorios.
               </p>
             }
+            @if (billingComplete() && !contractSigned()) {
+              <app-contract-sign [kind]="s.billing.kind" (signed)="onContractSigned()" />
+            }
             <div class="gs__actions">
-              <ion-button [disabled]="busy() || s.netClp === null || !billingComplete()" (click)="payWithFlow()">
+              <ion-button [disabled]="busy() || s.netClp === null || !billingComplete() || !contractSigned()" (click)="payWithFlow()">
                 @if (busy()) {
                   <ion-spinner name="crescent" slot="start" aria-hidden="true"></ion-spinner>
                 } @else {
@@ -94,7 +106,7 @@
                 }
                 Pagar con Flow · {{ clp(s.flowTotalClp) }}
               </ion-button>
-              <ion-button fill="outline" [disabled]="s.netClp === null || !billingComplete()" (click)="showTransfer.set(!showTransfer())">
+              <ion-button fill="outline" [disabled]="s.netClp === null || !billingComplete() || !contractSigned()" (click)="showTransfer.set(!showTransfer())">
                 <ion-icon slot="start" name="swap-horizontal-outline" aria-hidden="true"></ion-icon>
                 Pagar por transferencia
               </ion-button>
@@ -103,7 +115,7 @@
               <p class="gs__small">Tu plan es a medida: escríbenos a {{ s.bank.email }} para coordinar el pago.</p>
             }
 
-            @if (showTransfer() && billingComplete()) {
+            @if (showTransfer() && billingComplete() && contractSigned()) {
               <div class="gs__transfer">
                 <p class="gs__transfer-title">1. Transfiere <strong>{{ clp(s.totalClp) }}</strong> (plan + IVA) a esta cuenta</p>
                 <dl class="gs__bank">
@@ -254,6 +266,23 @@
           </div>
           <ion-button size="small" fill="outline" [disabled]="busy() || !selectedNewPlan()" (click)="changePlan()">Cambiar plan</ion-button>
         </div>
+
+        @if (s.contract?.required) {
+          <div class="gs__box">
+            <p class="gs__box-title">Contrato de servicios</p>
+            @if (s.contract?.signed) {
+              <p class="gs__small">
+                Firmado el {{ contractDate(s.contract?.signedAt) }} por {{ s.contract?.signerName }} ({{ capacityLabel(s.contract?.signerCapacity) }}).
+              </p>
+              <ion-button size="small" fill="outline" [disabled]="busy()" (click)="openContractCopy()">Ver constancia</ion-button>
+            } @else {
+              <p class="gs__small">Todavía no firma el contrato. No puede pagar en la plataforma hasta firmar.</p>
+            }
+            @if (s.contract?.certificateNeeded) {
+              <p class="gs__small">Plan Escala: pídele por correo el certificado de vigencia de la sociedad con las facultades de quien firma.</p>
+            }
+          </div>
+        }
 
         <div class="gs__box">
           <p class="gs__box-title">Registrar un pago</p>

@@ -50,18 +50,22 @@ public class AuthRateLimitFilter extends OncePerRequestFilter {
     private static final Rule MEDIUM = new Rule(20, false);
 
     // Rutas exactas (POST). El resto de las rutas con variable en el medio van en ruleFor.
-    private static final Map<String, Rule> EXACT_RULES = Map.of(
-            "/api/auth/google", STRICT,
-            "/api/public/auth/login", STRICT,
-            "/api/public/auth/register", STRICT,
-            "/api/public/auth/forgot-password", STRICT,
-            "/api/public/auth/activate", MEDIUM,
+    private static final Map<String, Rule> EXACT_RULES = Map.ofEntries(
+            Map.entry("/api/auth/google", STRICT),
+            Map.entry("/api/public/auth/login", STRICT),
+            Map.entry("/api/public/auth/register", STRICT),
+            Map.entry("/api/public/auth/forgot-password", STRICT),
+            Map.entry("/api/public/auth/activate", MEDIUM),
             // Cada llamada inserta una fila que nadie purga.
-            "/api/public/tv/pairing", MEDIUM,
+            Map.entry("/api/public/tv/pairing", MEDIUM),
             // Detrás del wifi de un gimnasio muchos socios comparten IP: más holgado.
-            "/api/public/analytics/visit", new Rule(120, false),
+            Map.entry("/api/public/analytics/visit", new Rule(120, false)),
             // Se cuenta por socio (no por IP: todo un gimnasio comparte wifi). Un socio legítimo escanea 1-2 veces.
-            "/api/me/checkin", new Rule(15, true));
+            Map.entry("/api/me/checkin", new Rule(15, true)),
+            // Firma del contrato: por administrador. El código de 6 dígitos solo se puede adivinar a este ritmo con suerte
+            // de 1 en 100 mil, y el servicio además lo invalida a los 5 intentos.
+            Map.entry("/api/gym-admin/subscription/contract/code", new Rule(10, true)),
+            Map.entry("/api/gym-admin/subscription/contract/sign", new Rule(10, true)));
 
     // POST /api/public/gyms/{slug}/join — llena el cupo de socios del gimnasio con cuentas de Google.
     private static final Pattern JOIN_PATH = Pattern.compile("^/api/public/gyms/[^/]+/join$");
@@ -219,7 +223,7 @@ public class AuthRateLimitFilter extends OncePerRequestFilter {
     // le habló al final de la lista, así que la ÚNICA entrada confiable es la última: las anteriores las
     // escribe el propio cliente y rotándolas se evadía el límite por completo. Si el proxy de borde
     // sobrescribe el header en vez de agregarlo, hay una sola entrada y da igual.
-    private String clientIp(HttpServletRequest request) {
+    public static String clientIp(HttpServletRequest request) {
         String forwarded = request.getHeader("X-Forwarded-For");
         if (forwarded != null && !forwarded.isBlank()) {
             String[] parts = forwarded.split(",");

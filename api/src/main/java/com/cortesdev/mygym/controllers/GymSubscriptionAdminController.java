@@ -8,6 +8,7 @@ import com.cortesdev.mygym.models.dto.GymSubscriptionDtos.RejectTransferRequest;
 import com.cortesdev.mygym.models.dto.GymSubscriptionDtos.SubscriptionResponse;
 import com.cortesdev.mygym.models.dto.GymSubscriptionDtos.SubscriptionUpdateRequest;
 import com.cortesdev.mygym.security.AuthenticatedUser;
+import com.cortesdev.mygym.services.ContractService;
 import com.cortesdev.mygym.services.GymSubscriptionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +29,13 @@ import org.springframework.web.bind.annotation.RestController;
 public class GymSubscriptionAdminController {
 
     private final GymSubscriptionService subscriptionService;
+    private final ContractService contractService;
+
+    /** Constancia del contrato firmado por el gimnasio (pagina HTML). */
+    @GetMapping("/contract/copy")
+    public org.springframework.http.ResponseEntity<String> contractCopy(@PathVariable Long gymId) {
+        return GymAdminContractController.html(contractService.copyHtml(gymId));
+    }
 
     @GetMapping
     public SubscriptionResponse get(@PathVariable Long gymId) {

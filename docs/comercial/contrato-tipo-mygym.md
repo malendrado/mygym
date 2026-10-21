@@ -4,7 +4,7 @@
 
 En [ciudad], a [día] de [mes] de [año], entre:
 
-**(1) ASESORES Y CONSULTORES EN INFORMÁTICA LUIS CORTÉS ÁLVAREZ E.I.R.L.** [verificar razón social exacta según escritura], RUT 76.831.567-1, representada por don/doña [nombre], cédula de identidad N° [●], ambos con domicilio en [dirección], comuna de [●], en adelante **"mygym"** o **"el Proveedor"**; y
+**(1) INFORMÁTICA LUIS CORTÉS ÁLVAREZ E.I.R.L.**, RUT 76.831.567-1, representada por don/doña [nombre], cédula de identidad N° [●], ambos con domicilio en [dirección], comuna de [●], en adelante **"mygym"** o **"el Proveedor"**; y
 
 **(2) [RAZÓN SOCIAL DEL GIMNASIO]**, RUT [●], giro [●], representada por don/doña [nombre], cédula de identidad N° [●], ambos con domicilio en [dirección], comuna de [●], en adelante **"el Cliente"**;
 

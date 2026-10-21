@@ -1,0 +1,112 @@
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { TestBed } from '@angular/core/testing';
+import { describe, expect, it } from 'vitest';
+import { environment } from '../../../../environments/environment';
+import { ContractView } from '../../models/subscription.model';
+import { ContractSign } from './contract-sign';
+
+const API = `${environment.apiUrl}/api/gym-admin/subscription/contract`;
+
+const view: ContractView = {
+  version: 'v1',
+  signed: false,
+  signedAt: null,
+  signerName: null,
+  signerCapacity: null,
+  text: 'CONTRATO DE SERVICIOS MYGYM',
+  blockedReason: null,
+  maskedEmail: 'a***@gimnasio.cl',
+  certificateNeeded: false,
+};
+
+type Form = {
+  name: { set(v: string): void };
+  rut: { set(v: string): void };
+  capacity(): string;
+  adult: { set(v: boolean): void };
+  powers: { set(v: boolean): void };
+  code: { set(v: string): void; (): string };
+  canSend(): boolean;
+  canSign(): boolean;
+  capacities(): { value: string }[];
+  sendCode(): void;
+  sign(): void;
+  onCode(e: Event): void;
+};
+
+function setup(kind: 'COMPANY' | 'PERSON' = 'COMPANY', loaded: ContractView = view) {
+  TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
+  const http = TestBed.inject(HttpTestingController);
+  const fixture = TestBed.createComponent(ContractSign);
+  fixture.componentInstance.kind = kind;
+  fixture.detectChanges();
+  http.expectOne(API).flush(loaded);
+  fixture.detectChanges();
+  const form = fixture.componentInstance as unknown as Form;
+  const fill = () => {
+    form.name.set('Ana Admin');
+    form.rut.set('12.345.678-5');
+    form.adult.set(true);
+    form.powers.set(true);
+  };
+  return { fixture, http, form, fill, el: fixture.nativeElement as HTMLElement };
+}
+
+describe('ContractSign', () => {
+  it('shows the contract text and offers only the capacities that fit the kind of invoice', () => {
+    const company = setup('COMPANY');
+    expect(company.el.textContent).toContain('CONTRATO DE SERVICIOS MYGYM');
+    expect(company.form.capacity()).toBe('LEGAL_REP');
+    expect(company.form.capacities().map((c) => c.value)).toEqual(['LEGAL_REP', 'ATTORNEY']);
+    TestBed.resetTestingModule();
+    const person = setup('PERSON');
+    expect(person.form.capacity()).toBe('PERSON_OWNER');
+    expect(person.form.capacities().map((c) => c.value)).toEqual(['PERSON_OWNER', 'ATTORNEY']);
+  });
+
+  it('the code can only be requested with name, a valid RUT and both declarations', () => {
+    const { form, fill } = setup();
+    expect(form.canSend()).toBe(false);
+    fill();
+    expect(form.canSend()).toBe(true);
+    form.rut.set('12.345.678-9');
+    expect(form.canSend()).toBe(false);
+    form.rut.set('12.345.678-5');
+    form.powers.set(false);
+    expect(form.canSend()).toBe(false);
+  });
+
+  it('sends the declared data, then signs with the six digits and tells the parent', () => {
+    const { fixture, form, fill, http } = setup();
+    let signedEvents = 0;
+    fixture.componentInstance.signed.subscribe(() => signedEvents++);
+    fill();
+    form.sendCode();
+    const sent = http.expectOne(`${API}/code`);
+    expect(sent.request.body).toEqual({ signerName: 'Ana Admin', signerRut: '12.345.678-5', capacity: 'LEGAL_REP', adult: true, powers: true });
+    sent.flush({ maskedEmail: 'a***@gimnasio.cl' });
+
+    // Solo dígitos: lo que no es número se descarta al escribir.
+    form.onCode({ detail: { value: '12a3-456' } } as unknown as Event);
+    expect(form.code()).toBe('123456');
+    form.code.set('12345');
+    expect(form.canSign()).toBe(false);
+    form.code.set('123456');
+    form.sign();
+    const sign = http.expectOne(`${API}/sign`);
+    expect(sign.request.body).toEqual({ code: '123456' });
+    sign.flush({ required: true, signed: true, version: 'v1', signedAt: '2026-10-21T15:00:00Z', signerName: 'Ana Admin', signerCapacity: 'LEGAL_REP', certificateNeeded: false });
+    expect(signedEvents).toBe(1);
+  });
+
+  it('when the server says it is not ready yet it shows the reason and no form', () => {
+    const { el } = setup('COMPANY', {
+      ...view,
+      text: null,
+      blockedReason: 'Completa primero los datos de la factura (RUT, nombre o razón social y dirección).',
+    });
+    expect(el.textContent).toContain('Completa primero los datos de la factura');
+    expect(el.querySelector('ion-input')).toBeNull();
+  });
+});

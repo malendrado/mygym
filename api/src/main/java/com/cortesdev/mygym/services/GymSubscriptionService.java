@@ -17,6 +17,7 @@ import com.cortesdev.mygym.models.dto.GymSubscriptionDtos.ReportTransferRequest;
 import com.cortesdev.mygym.models.dto.GymSubscriptionDtos.SubscriptionResponse;
 import com.cortesdev.mygym.models.dto.GymSubscriptionDtos.SubscriptionUpdateRequest;
 import com.cortesdev.mygym.repositories.AppUserRepository;
+import com.cortesdev.mygym.repositories.GymContractAcceptanceRepository;
 import com.cortesdev.mygym.repositories.GymRepository;
 import com.cortesdev.mygym.repositories.GymSubscriptionPaymentRepository;
 import com.cortesdev.mygym.repositories.GymSubscriptionRepository;
@@ -61,6 +62,7 @@ public class GymSubscriptionService {
     private final MygymPlanRepository planRepository;
     private final GymPauseGuard gymPauseGuard;
     private final GymBillingNotifier notifier;
+    private final GymContractAcceptanceRepository contractAcceptanceRepository;
 
     // Cuenta de mygym (Cortes Dev) a la que transfieren los gimnasios. Variables de entorno, nunca escritas en el codigo.
     @Value("${app.mygym-bank.holder:}")
@@ -139,7 +141,10 @@ public class GymSubscriptionService {
                 payments,
                 target.plan() == null ? null : target.plan().getName(),
                 target.plan() == null ? null : target.plan().getClientsLabel(),
-                currentNet);
+                currentNet,
+                ContractService.summaryOf(
+                        contractAcceptanceRepository.findFirstByGymIdAndContractVersionOrderByIdDesc(sub.getGymId(), ContractService.VERSION).orElse(null),
+                        sub, plan));
     }
 
     private BankTransferInfo bank() {
@@ -355,6 +360,13 @@ public class GymSubscriptionService {
         }
     }
 
+    /** Sin el contrato firmado (version vigente) no se puede pagar: el pago del gimnasio a mygym siempre parte de un contrato aceptado. */
+    private void requireSignedContract(GymSubscription sub) {
+        if (!contractAcceptanceRepository.existsByGymIdAndContractVersion(sub.getGymId(), ContractService.VERSION)) {
+            throw new SubscriptionConflictException("Antes de pagar firma el contrato de servicios.");
+        }
+    }
+
     /** Pago registrado a mano por el super-admin (sin aviso previo del gimnasio). Siempre se puede, aunque falten mas de 3 dias. */
     public SubscriptionResponse markPaid(Long gymId, ManualPaymentRequest request, Long userId) {
         Gym gym = gymRepository.findById(gymId).orElseThrow(() -> new GymNotFoundException(gymId));
@@ -443,6 +455,7 @@ public class GymSubscriptionService {
         LocalDate today = GymBilling.today();
         requireRenewable(sub, today);
         requireBillingData(sub);
+        requireSignedContract(sub);
         if (paymentRepository.existsByGymIdAndStatus(gymId, GymSubscriptionPayment.REPORTED)) {
             throw new SubscriptionConflictException("Ya nos avisaste de una transferencia: la estamos revisando.");
         }
@@ -474,6 +487,7 @@ public class GymSubscriptionService {
         LocalDate today = GymBilling.today();
         requireRenewable(sub, today);
         requireBillingData(sub);
+        requireSignedContract(sub);
         Target target = requireTarget(sub, today);
         GymBilling.Amounts amounts = GymBilling.amounts(target.netClp());
         GymSubscriptionPayment payment =

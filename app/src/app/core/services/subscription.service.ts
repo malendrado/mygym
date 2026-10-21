@@ -5,6 +5,9 @@ import { environment } from '../../../environments/environment';
 import {
   ActivateSubscriptionRequest,
   BillingInfo,
+  ContractCodeRequest,
+  ContractSummary,
+  ContractView,
   GymSubscription,
   MygymPlan,
   MygymPlanRequest,
@@ -65,6 +68,26 @@ export class SubscriptionService {
 
   updateBillingMine(info: BillingInfo): Observable<GymSubscription> {
     return this.http.put<GymSubscription>(`${this.api}/api/gym-admin/subscription/billing`, info).pipe(tap((s) => this.mine.set(s)));
+  }
+
+  // ---- Firma del contrato (administrador del gimnasio)
+
+  getContract(): Observable<ContractView> {
+    return this.http.get<ContractView>(`${this.api}/api/gym-admin/subscription/contract`);
+  }
+
+  sendContractCode(request: ContractCodeRequest): Observable<{ maskedEmail: string }> {
+    return this.http.post<{ maskedEmail: string }>(`${this.api}/api/gym-admin/subscription/contract/code`, request);
+  }
+
+  signContract(code: string): Observable<ContractSummary> {
+    return this.http.post<ContractSummary>(`${this.api}/api/gym-admin/subscription/contract/sign`, { code });
+  }
+
+  /** Constancia del contrato firmado (HTML). `gymId` solo lo usa el super-admin; el administrador lee la de su gimnasio. */
+  getContractCopy(gymId?: number): Observable<string> {
+    const url = gymId === undefined ? `${this.api}/api/gym-admin/subscription/contract/copy` : `${this.base(gymId)}/contract/copy`;
+    return this.http.get(url, { responseType: 'text' });
   }
 
   // ---- Super-admin (cualquier gimnasio)

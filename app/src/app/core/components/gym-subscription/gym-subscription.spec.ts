@@ -79,6 +79,76 @@ describe('formatos', () => {
   });
 });
 
+describe('contrato de servicios', () => {
+  const unsigned = { required: true, signed: false, version: 'v1', signedAt: null, signerName: null, signerCapacity: null, certificateNeeded: false };
+  const signed = { ...unsigned, signed: true, signedAt: '2026-10-21T15:00:00Z', signerName: 'Ana Admin', signerCapacity: 'LEGAL_REP' as const };
+  const contractView = {
+    version: 'v1',
+    signed: false,
+    signedAt: null,
+    signerName: null,
+    signerCapacity: null,
+    text: 'CONTRATO DE SERVICIOS MYGYM',
+    blockedReason: null,
+    maskedEmail: 'a***@gimnasio.cl',
+    certificateNeeded: false,
+  };
+  const payButtons = (el: HTMLElement) => {
+    const buttons = Array.from(el.querySelectorAll('ion-button'));
+    return {
+      flow: buttons.find((b) => (b.textContent ?? '').includes('Pagar con Flow')),
+      transfer: buttons.find((b) => (b.textContent ?? '').includes('Pagar por transferencia')),
+    };
+  };
+
+  it('without the signed contract both payment ways stay locked and the signing box shows up', () => {
+    const { el, http, fixture } = render('admin', subscription({ daysToDue: 2, canRenew: true, contract: unsigned }));
+    http.expectOne(`${API}/api/gym-admin/subscription/contract`).flush(contractView);
+    fixture.detectChanges();
+    expect(text(el)).toContain('Firma el contrato de servicios');
+    expect(text(el)).toContain('CONTRATO DE SERVICIOS MYGYM');
+    const { flow, transfer } = payButtons(el);
+    expect(isDisabled(flow)).toBe(true);
+    expect(isDisabled(transfer)).toBe(true);
+  });
+
+  it('with the contract signed the payment ways are open and no signing box is asked for', () => {
+    const { el, http } = render('admin', subscription({ daysToDue: 2, canRenew: true, contract: signed }));
+    http.expectNone(`${API}/api/gym-admin/subscription/contract`);
+    expect(text(el)).not.toContain('Firma el contrato de servicios');
+    const { flow, transfer } = payButtons(el);
+    expect(isDisabled(flow)).toBe(false);
+    expect(isDisabled(transfer)).toBe(false);
+  });
+
+  it('the gym admin gets a button at the top to see the signed contract, from its own gym endpoint', () => {
+    const { el, http } = render('admin', subscription({ contract: signed }));
+    expect(text(el)).toContain('Firmado el 21 de octubre de 2026');
+    const button = Array.from(el.querySelectorAll('ion-button')).find((b) => (b.textContent ?? '').includes('Ver contrato firmado'));
+    expect(button).toBeTruthy();
+    const open = vi.spyOn(window, 'open').mockReturnValue(null);
+    button!.dispatchEvent(new Event('click'));
+    http.expectOne(`${API}/api/gym-admin/subscription/contract/copy`).flush('<html></html>');
+    expect(open).toHaveBeenCalledTimes(1);
+    open.mockRestore();
+  });
+
+  it('there is no such button for an unsigned contract', () => {
+    const { el } = render('admin', subscription({ contract: unsigned }));
+    expect(text(el)).not.toContain('Ver contrato firmado');
+  });
+
+  it('the super-admin sees whether the gym signed, and the Escala reminder for the certificate', () => {
+    const pending = render('super', subscription({ contract: { ...unsigned, certificateNeeded: true } }));
+    expect(text(pending.el)).toContain('Todavía no firma el contrato');
+    expect(text(pending.el)).toContain('certificado de vigencia');
+    TestBed.resetTestingModule();
+    const done = render('super', subscription({ contract: signed }));
+    expect(text(done.el)).toContain('Firmado el 21 de octubre de 2026 por Ana Admin (representante legal)');
+    expect(text(done.el)).toContain('Ver constancia');
+  });
+});
+
 describe('GymSubscriptionCard (administrador del gimnasio)', () => {
   it('shows an up-to-date plan without a renew button, only a hint about the last 3 days', () => {
     const { el } = render('admin', subscription());

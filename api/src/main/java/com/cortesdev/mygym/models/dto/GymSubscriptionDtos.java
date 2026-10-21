@@ -105,7 +105,9 @@ public final class GymSubscriptionDtos {
             String chargePlanName,
             String chargeClientsLabel,
             /** Monto mensual neto del plan de HOY (distinto de netClp cuando ya rige un cambio de plan en la proxima renovacion). */
-            Integer currentNetClp) {}
+            Integer currentNetClp,
+            /** Firma del contrato de servicios (se exige antes del pago). */
+            GymContractDtos.ContractSummary contract) {}
 
     public record ActivateRequest(
             @NotNull Long planId,
