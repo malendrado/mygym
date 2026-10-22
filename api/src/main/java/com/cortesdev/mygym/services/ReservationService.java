@@ -191,7 +191,8 @@ public class ReservationService {
                         block.getCapacity(),
                         block.getCategory(),
                         block.getInstructorName(),
-                        block.getInstructorPhoto(),
+                        // Sin foto: el calendario del socio no la muestra y repetirla en cada ocurrencia (hasta 400 KB cada una) pesaba decenas de MB.
+                        null,
                         taken,
                         bookable,
                         past,

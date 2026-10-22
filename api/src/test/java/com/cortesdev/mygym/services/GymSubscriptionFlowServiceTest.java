@@ -22,10 +22,14 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
+import org.springframework.transaction.support.TransactionOperations;
 import org.springframework.web.client.RestClientException;
 
 /** Pago con Flow de la suscripcion: el aviso de Flow acredita el mes UNA sola vez y solo si Flow confirma el pago de verdad. */
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class GymSubscriptionFlowServiceTest {
 
     private static final Long GYM_ID = 5L;
@@ -42,7 +46,7 @@ class GymSubscriptionFlowServiceTest {
     void setUp() {
         service = new GymSubscriptionFlowService(
                 flowApiClient, subscriptionService, paymentRepository, gymRepository, appUserRepository,
-                "key", "secret", "https://api/return", "https://api/webhook");
+                TransactionOperations.withoutTransaction(), "key", "secret", "https://api/return", "https://api/webhook");
     }
 
     private GymSubscriptionPayment pending() {
@@ -55,6 +59,7 @@ class GymSubscriptionFlowServiceTest {
     void aPaidNoticeCreditsTheMonthOnce() {
         GymSubscriptionPayment payment = pending();
         when(paymentRepository.findLockedByFlowToken("tok")).thenReturn(Optional.of(payment));
+        when(paymentRepository.findByFlowToken("tok")).thenReturn(Optional.of(payment));
         when(flowApiClient.get(eq("/payment/getStatus"), eq(Map.of("token", "tok")), eq("key"), eq("secret")))
                 .thenReturn(Map.of("status", 2, "commerceOrder", "mygymsub-30"));
 
@@ -68,6 +73,7 @@ class GymSubscriptionFlowServiceTest {
         GymSubscriptionPayment payment = pending();
         payment.setStatus("PAID");
         when(paymentRepository.findLockedByFlowToken("tok")).thenReturn(Optional.of(payment));
+        when(paymentRepository.findByFlowToken("tok")).thenReturn(Optional.of(payment));
 
         service.handleWebhook("tok");
 
@@ -88,6 +94,7 @@ class GymSubscriptionFlowServiceTest {
     void aPaymentStillPendingAtFlowIsLeftAloneUntilTheNextNotice() {
         GymSubscriptionPayment payment = pending();
         when(paymentRepository.findLockedByFlowToken("tok")).thenReturn(Optional.of(payment));
+        when(paymentRepository.findByFlowToken("tok")).thenReturn(Optional.of(payment));
         when(flowApiClient.get(any(), any(), any(), any())).thenReturn(Map.of("status", 1));
 
         service.handleWebhook("tok");
@@ -100,6 +107,7 @@ class GymSubscriptionFlowServiceTest {
     void aRejectedPaymentIsMarkedAndNeverCredited() {
         GymSubscriptionPayment payment = pending();
         when(paymentRepository.findLockedByFlowToken("tok")).thenReturn(Optional.of(payment));
+        when(paymentRepository.findByFlowToken("tok")).thenReturn(Optional.of(payment));
         when(flowApiClient.get(any(), any(), any(), any())).thenReturn(Map.of("status", 3));
 
         service.handleWebhook("tok");
@@ -112,6 +120,7 @@ class GymSubscriptionFlowServiceTest {
     void anOrderThatDoesNotMatchIsNeverCredited() {
         GymSubscriptionPayment payment = pending();
         when(paymentRepository.findLockedByFlowToken("tok")).thenReturn(Optional.of(payment));
+        when(paymentRepository.findByFlowToken("tok")).thenReturn(Optional.of(payment));
         when(flowApiClient.get(any(), any(), any(), any())).thenReturn(Map.of("status", 2, "commerceOrder", "otra-orden"));
 
         service.handleWebhook("tok");
@@ -123,6 +132,7 @@ class GymSubscriptionFlowServiceTest {
     void ifFlowCannotBeReachedNothingIsDecided() {
         GymSubscriptionPayment payment = pending();
         when(paymentRepository.findLockedByFlowToken("tok")).thenReturn(Optional.of(payment));
+        when(paymentRepository.findByFlowToken("tok")).thenReturn(Optional.of(payment));
         when(flowApiClient.get(any(), any(), any(), any())).thenThrow(new RestClientException("caído"));
 
         service.handleWebhook("tok");
@@ -134,7 +144,7 @@ class GymSubscriptionFlowServiceTest {
     @Test
     void withoutMygymFlowKeysThereIsNoCheckoutAndTheNoticeIsIgnored() {
         GymSubscriptionFlowService unconfigured = new GymSubscriptionFlowService(
-                flowApiClient, subscriptionService, paymentRepository, gymRepository, appUserRepository, "", "", "r", "w");
+                flowApiClient, subscriptionService, paymentRepository, gymRepository, appUserRepository, TransactionOperations.withoutTransaction(), "", "", "r", "w");
 
         assertThrows(InvalidSubscriptionException.class, () -> unconfigured.startCheckout(GYM_ID, 7L));
         unconfigured.handleWebhook("tok");

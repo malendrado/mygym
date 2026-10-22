@@ -31,6 +31,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.transaction.support.TransactionOperations;
 
 /** Webhook de Flow con renovación anticipada: conserva días con el plan vigente y es idempotente (Mockito, sin DB). */
 @ExtendWith(MockitoExtension.class)
@@ -63,13 +64,14 @@ class FlowEarlyRenewalTest {
     void setUp() {
         service = new FlowPaymentService(
                 flowApiClient, appUserRepository, gymPlanRepository, gymRepository, paymentRepository, emailService,
-                eventPublisher, planChangeService, "http://return", "http://webhook");
+                eventPublisher, planChangeService, TransactionOperations.withoutTransaction(), "http://return", "http://webhook");
         payment = Payment.builder().id(1L).memberId(MEMBER_ID).planId(PLAN_ID).commerceOrder("mygym-1")
                 .amountClp(25_700).status("PENDING").flowToken(TOKEN).build();
         member = AppUser.builder().id(MEMBER_ID).gymId(GYM_ID).role(Role.MEMBER).build();
         gym = Gym.builder().id(GYM_ID).flowApiKey("k").flowSecretKey("s").build();
         plan = GymPlan.builder().id(PLAN_ID).gymId(GYM_ID).name("Plan").priceClp(25_000).monthlyClasses(8).active(true).build();
         when(paymentRepository.findLockedByFlowToken(TOKEN)).thenReturn(Optional.of(payment));
+        when(paymentRepository.findByFlowToken(TOKEN)).thenReturn(Optional.of(payment));
         when(appUserRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
         when(appUserRepository.findGymIdById(MEMBER_ID)).thenReturn(Optional.of(GYM_ID));
         when(appUserRepository.findLockedByIdAndGymId(MEMBER_ID, GYM_ID)).thenReturn(Optional.of(member));
@@ -163,6 +165,7 @@ class FlowEarlyRenewalTest {
         Payment second = Payment.builder().id(2L).memberId(MEMBER_ID).planId(PLAN_ID).commerceOrder("mygym-2")
                 .amountClp(25_700).status("PENDING").flowToken("tok-456").build();
         when(paymentRepository.findLockedByFlowToken("tok-456")).thenReturn(Optional.of(second));
+        when(paymentRepository.findByFlowToken("tok-456")).thenReturn(Optional.of(second));
         when(flowApiClient.get(eq("/payment/getStatus"), anyMap(), any(), any()))
                 .thenReturn(Map.of("status", 2, "commerceOrder", "mygym-2", "amount", "25700"));
 

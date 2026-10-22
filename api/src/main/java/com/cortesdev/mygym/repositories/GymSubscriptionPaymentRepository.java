@@ -15,6 +15,8 @@ public interface GymSubscriptionPaymentRepository extends JpaRepository<GymSubsc
 
     Optional<GymSubscriptionPayment> findByIdAndGymId(Long id, Long gymId);
 
+    Optional<GymSubscriptionPayment> findByFlowToken(String flowToken);
+
     /** Fila bloqueada: dos avisos simultaneos del mismo pago (webhook repetido) se acreditan una sola vez. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<GymSubscriptionPayment> findLockedByFlowToken(String flowToken);

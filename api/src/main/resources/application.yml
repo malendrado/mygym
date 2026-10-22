@@ -7,8 +7,10 @@ spring:
     username: ${SUPABASE_DB_USER}
     password: ${SUPABASE_DB_PASSWORD}
     hikari:
-      maximum-pool-size: 5
-      minimum-idle: 2
+      # 10 (antes 5): en la hora punta 5 socios reservando la misma clase ocupaban todo el pool y la TV, /me y el check-in hacían cola.
+      # Con 1 instancia de Railway queda bajo el pool por defecto del pooler de Supabase (15); con 2 instancias bajarlo por variable.
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+      minimum-idle: 3
       # Con 25 hilos de Tomcat y 5 conexiones, quien espera una conexión no debe colgarse 30 s (el valor por defecto).
       connection-timeout: 5000
   # Todas las llamadas salientes que usan RestClient.Builder (Resend, Flow, Gemini) tienen tope de espera: antes un
@@ -42,6 +44,9 @@ server:
     min-response-size: 1024
 
 app:
+  # false = no corre ninguna tarea programada (copia de respaldo conectada a la base real). Por defecto activas.
+  scheduling:
+    enabled: ${SCHEDULING_ENABLED:true}
   jwt:
     secret: ${APP_JWT_SECRET}
   google:

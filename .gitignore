@@ -1,0 +1,11 @@
+graphify-out/
+
+# secretos y llaves: nunca al repo
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+service-account*.json

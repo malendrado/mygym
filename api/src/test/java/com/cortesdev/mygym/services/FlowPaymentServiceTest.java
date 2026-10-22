@@ -30,6 +30,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.transaction.support.TransactionOperations;
 
 /** Webhook de Flow: lo cobrado tiene que coincidir con lo pedido, un pago pendiente no es un rechazo y un pago se
  *  acredita una sola vez (auditoría 2026-10-17). */
@@ -59,13 +60,14 @@ class FlowPaymentServiceTest {
     void setUp() {
         service = new FlowPaymentService(
                 flowApiClient, appUserRepository, gymPlanRepository, gymRepository, paymentRepository, emailService,
-                eventPublisher, planChangeService, "http://return", "http://webhook");
+                eventPublisher, planChangeService, TransactionOperations.withoutTransaction(), "http://return", "http://webhook");
         payment = Payment.builder().id(1L).memberId(MEMBER_ID).planId(PLAN_ID).commerceOrder("mygym-1")
                 .amountClp(25_700).status("PENDING").flowToken(TOKEN).build();
         member = AppUser.builder().id(MEMBER_ID).gymId(GYM_ID).role(Role.MEMBER).build();
         Gym gym = Gym.builder().id(GYM_ID).flowApiKey("k").flowSecretKey("s").build();
         GymPlan plan = GymPlan.builder().id(PLAN_ID).gymId(GYM_ID).name("Plan").priceClp(25_000).active(true).build();
         when(paymentRepository.findLockedByFlowToken(TOKEN)).thenReturn(Optional.of(payment));
+        when(paymentRepository.findByFlowToken(TOKEN)).thenReturn(Optional.of(payment));
         when(appUserRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
         when(appUserRepository.findGymIdById(MEMBER_ID)).thenReturn(Optional.of(GYM_ID));
         when(appUserRepository.findLockedByIdAndGymId(MEMBER_ID, GYM_ID)).thenReturn(Optional.of(member));
@@ -165,5 +167,19 @@ class FlowPaymentServiceTest {
                 .isInstanceOf(GymPlanNotFoundException.class);
 
         verify(paymentRepository, never()).save(any(Payment.class));
+    }
+    @Test
+    void ifFlowFailsWhenCreatingTheCheckoutThePendingPaymentIsMarkedRejectedAndTheErrorPropagates() {
+        GymPlan plan = GymPlan.builder().id(PLAN_ID).gymId(GYM_ID).name("Plan").priceClp(25_000).active(true).build();
+        when(gymPlanRepository.findByIdAndGymId(PLAN_ID, GYM_ID)).thenReturn(Optional.of(plan));
+        when(appUserRepository.findByIdAndGymId(MEMBER_ID, GYM_ID)).thenReturn(Optional.of(member));
+        when(paymentRepository.save(any(Payment.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(flowApiClient.post(eq("/payment/create"), anyMap(), any(), any())).thenThrow(new IllegalStateException("Flow caído"));
+
+        assertThatThrownBy(() -> service.startCheckout(GYM_ID, MEMBER_ID, PLAN_ID))
+                .isInstanceOf(IllegalStateException.class);
+
+        verify(paymentRepository, org.mockito.Mockito.atLeastOnce())
+                .save(org.mockito.ArgumentMatchers.argThat((Payment p) -> "REJECTED".equals(p.getStatus())));
     }
 }

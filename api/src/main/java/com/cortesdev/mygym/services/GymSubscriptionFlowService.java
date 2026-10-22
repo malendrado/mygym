@@ -13,7 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionOperations;
 import org.springframework.web.client.RestClientException;
 
 /**
@@ -22,7 +22,6 @@ import org.springframework.web.client.RestClientException;
  * webhook de socios: nunca se confia en el cuerpo del aviso, solo en lo que Flow responde al reconsultar el token.
  */
 @Service
-@Transactional
 public class GymSubscriptionFlowService {
 
     private static final Logger log = LoggerFactory.getLogger(GymSubscriptionFlowService.class);
@@ -32,6 +31,7 @@ public class GymSubscriptionFlowService {
     private final GymSubscriptionPaymentRepository paymentRepository;
     private final GymRepository gymRepository;
     private final AppUserRepository appUserRepository;
+    private final TransactionOperations tx;
     private final String apiKey;
     private final String secretKey;
     private final String returnUrl;
@@ -43,6 +43,7 @@ public class GymSubscriptionFlowService {
             GymSubscriptionPaymentRepository paymentRepository,
             GymRepository gymRepository,
             AppUserRepository appUserRepository,
+            TransactionOperations tx,
             @Value("${app.mygym-flow.api-key:}") String apiKey,
             @Value("${app.mygym-flow.secret-key:}") String secretKey,
             @Value("${app.mygym-flow.return-url:}") String returnUrl,
@@ -52,6 +53,7 @@ public class GymSubscriptionFlowService {
         this.paymentRepository = paymentRepository;
         this.gymRepository = gymRepository;
         this.appUserRepository = appUserRepository;
+        this.tx = tx;
         this.apiKey = apiKey;
         this.secretKey = secretKey;
         this.returnUrl = returnUrl;
@@ -82,7 +84,16 @@ public class GymSubscriptionFlowService {
         params.put("email", email);
         params.put("urlConfirmation", webhookUrl);
         params.put("urlReturn", returnUrl);
-        Map<String, Object> response = flowApiClient.post("/payment/create", params, apiKey, secretKey);
+        // Sin transacción: un Flow lento (hasta 20 s) no puede retener una de las 5 conexiones del pool.
+        Map<String, Object> response;
+        try {
+            response = flowApiClient.post("/payment/create", params, apiKey, secretKey);
+        } catch (RuntimeException e) {
+            // Antes la transacción entera se deshacía y el pago pendiente desaparecía; ahora se marca como rechazado.
+            payment.setStatus(GymSubscriptionPayment.REJECTED);
+            paymentRepository.save(payment);
+            throw e;
+        }
         String url = stringOf(response.get("url"));
         String token = stringOf(response.get("token"));
         payment.setFlowToken(token);
@@ -96,19 +107,20 @@ public class GymSubscriptionFlowService {
         if (token == null || token.isBlank() || !isConfigured()) {
             return;
         }
-        GymSubscriptionPayment payment = paymentRepository.findLockedByFlowToken(token).orElse(null);
-        if (payment == null) {
+        // Fase 1, sin transacción ni bloqueo: la consulta a Flow no retiene conexión ni la fila del pago.
+        GymSubscriptionPayment pending = paymentRepository.findByFlowToken(token).orElse(null);
+        if (pending == null) {
             log.warn("Webhook de Flow de suscripción con un token desconocido");
             return;
         }
-        if (!GymSubscriptionPayment.PENDING.equals(payment.getStatus())) {
+        if (!GymSubscriptionPayment.PENDING.equals(pending.getStatus())) {
             return; // ya acreditado o rechazado: Flow puede repetir el aviso
         }
         Map<String, Object> status;
         try {
             status = flowApiClient.get("/payment/getStatus", Map.of("token", token), apiKey, secretKey);
         } catch (RestClientException e) {
-            log.error("No se pudo confirmar con Flow el pago de suscripción {}: {}", payment.getId(), e.getMessage());
+            log.error("No se pudo confirmar con Flow el pago de suscripción {}: {}", pending.getId(), e.getMessage());
             return;
         }
         String statusCode = stringOf(status.get("status"));
@@ -117,6 +129,15 @@ public class GymSubscriptionFlowService {
         }
         boolean paid = "2".equals(statusCode) || "paid".equalsIgnoreCase(statusCode);
         String order = stringOf(status.get("commerceOrder"));
+        tx.executeWithoutResult(txStatus -> applyFlowResult(token, paid, order));
+    }
+
+    /** Fase 2, en transacción corta y con la fila bloqueada: dos avisos simultáneos acreditan una sola vez. */
+    private void applyFlowResult(String token, boolean paid, String order) {
+        GymSubscriptionPayment payment = paymentRepository.findLockedByFlowToken(token).orElse(null);
+        if (payment == null || !GymSubscriptionPayment.PENDING.equals(payment.getStatus())) {
+            return;
+        }
         if (paid && order != null && payment.getCommerceOrder() != null && !order.equals(payment.getCommerceOrder())) {
             log.error("Flow confirmó una orden distinta a la del pago de suscripción {}: no se acredita", payment.getId());
             return;

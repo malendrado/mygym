@@ -23,7 +23,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionOperations;
 import org.springframework.web.client.RestClientException;
 
 /**
@@ -40,7 +40,6 @@ import org.springframework.web.client.RestClientException;
  * hosteado de Flow — eso se prueba recién cuando esto esté deployado.
  */
 @Service
-@Transactional
 public class FlowPaymentService {
 
     private static final Logger log = LoggerFactory.getLogger(FlowPaymentService.class);
@@ -62,6 +61,7 @@ public class FlowPaymentService {
     private final MemberLifecycleEmailService memberLifecycleEmailService;
     private final ApplicationEventPublisher eventPublisher;
     private final PlanChangeService planChangeService;
+    private final TransactionOperations tx;
     private final String returnUrl;
     private final String webhookUrl;
 
@@ -74,6 +74,7 @@ public class FlowPaymentService {
             MemberLifecycleEmailService memberLifecycleEmailService,
             ApplicationEventPublisher eventPublisher,
             PlanChangeService planChangeService,
+            TransactionOperations tx,
             @Value("${app.flow.return-url}") String returnUrl,
             @Value("${app.flow.webhook-url}") String webhookUrl) {
         this.flowApiClient = flowApiClient;
@@ -84,6 +85,7 @@ public class FlowPaymentService {
         this.memberLifecycleEmailService = memberLifecycleEmailService;
         this.eventPublisher = eventPublisher;
         this.planChangeService = planChangeService;
+        this.tx = tx;
         this.returnUrl = returnUrl;
         this.webhookUrl = webhookUrl;
     }
@@ -92,6 +94,32 @@ public class FlowPaymentService {
      *  navegador completo para que el socio pague (con el medio que prefiera: tarjeta, Webpay,
      *  MACH, Khipu, etc. — Flow decide qué ofrecerle, no elegimos un medio nosotros). */
     public String startCheckout(Long gymId, Long memberId, Long planId) {
+        // La llamada a Flow va SIN transacción: con el pool de 5 conexiones, un Flow lento (hasta 20 s) no puede retener una.
+        Checkout checkout = tx.execute(status -> prepareCheckout(gymId, memberId, planId));
+        Map<String, Object> response;
+        try {
+            response = flowApiClient.post("/payment/create", checkout.params(), checkout.apiKey(), checkout.secretKey());
+        } catch (RuntimeException e) {
+            // Antes la transacción entera se deshacía y el pago pendiente desaparecía; ahora se marca como rechazado.
+            tx.executeWithoutResult(status -> {
+                checkout.payment().setStatus("REJECTED");
+                paymentRepository.save(checkout.payment());
+            });
+            throw e;
+        }
+        String url = stringOf(response.get("url"));
+        String token = stringOf(response.get("token"));
+        tx.executeWithoutResult(status -> {
+            checkout.payment().setFlowToken(token);
+            checkout.payment().setFlowOrder(stringOf(response.get("flowOrder")));
+            paymentRepository.save(checkout.payment());
+        });
+        return url + "?token=" + token;
+    }
+
+    private record Checkout(Payment payment, Map<String, String> params, String apiKey, String secretKey) {}
+
+    private Checkout prepareCheckout(Long gymId, Long memberId, Long planId) {
         Gym gym = gymRepository.findById(gymId).orElseThrow(() -> new GymNotFoundException(gymId));
         if (isBlank(gym.getFlowApiKey()) || isBlank(gym.getFlowSecretKey())) {
             throw new FlowNotConfiguredException(gymId);
@@ -135,17 +163,7 @@ public class FlowPaymentService {
         params.put("urlConfirmation", webhookUrl);
         params.put("urlReturn", returnUrl);
 
-        Map<String, Object> response =
-                flowApiClient.post("/payment/create", params, gym.getFlowApiKey(), gym.getFlowSecretKey());
-        String url = stringOf(response.get("url"));
-        String token = stringOf(response.get("token"));
-        String flowOrder = stringOf(response.get("flowOrder"));
-
-        payment.setFlowToken(token);
-        payment.setFlowOrder(flowOrder);
-        paymentRepository.save(payment);
-
-        return url + "?token=" + token;
+        return new Checkout(payment, params, gym.getFlowApiKey(), gym.getFlowSecretKey());
     }
 
     /** Llamado por el webhook público — nunca confía en el body del POST, siempre re-consulta a
@@ -154,31 +172,26 @@ public class FlowPaymentService {
         if (token == null || token.isBlank()) {
             return;
         }
-        // Fila del pago bloqueada hasta el commit: un segundo webhook simultáneo del mismo pago espera y recién ahí ve PAID
-        // (antes ambos pasaban la revisión de abajo y acreditaban dos veces, con correos duplicados).
-        Payment payment = paymentRepository.findLockedByFlowToken(token).orElse(null);
-        if (payment == null) {
+        // Fase 1, sin transacción ni bloqueo: la consulta a Flow (hasta 20 s) no puede retener una de las 5 conexiones del pool
+        // ni la fila del pago. La idempotencia no depende de esto: se vuelve a revisar con la fila bloqueada en la fase 2.
+        Payment pending = paymentRepository.findByFlowToken(token).orElse(null);
+        if (pending == null) {
             log.warn("Webhook de Flow con un token desconocido (no coincide con ningún pago local)");
             return;
         }
-        if ("PAID".equals(payment.getStatus())) {
+        if ("PAID".equals(pending.getStatus())) {
             return; // idempotencia — Flow puede reintentar el mismo webhook más de una vez.
         }
-
-        // Solo el gimnasio del socio, sin cargar ni bloquear su fila todavía: se bloquea más abajo, después de la llamada HTTP
-        // a Flow (no se retiene el bloqueo del socio mientras se espera a un tercero) y siendo la primera lectura de la
-        // entidad en esta transacción, para no trabajar con un estado viejo. Orden de bloqueos: pago -> socio (el pago
-        // por token ya está bloqueado arriba); ningún otro camino bloquea un pago estando con el socio bloqueado.
-        Long memberGymId = appUserRepository.findGymIdById(payment.getMemberId()).orElse(null);
+        Long memberGymId = appUserRepository.findGymIdById(pending.getMemberId()).orElse(null);
         if (memberGymId == null) {
-            log.error("Webhook de Flow para el pago {} pero no se encontró el socio local", payment.getId());
+            log.error("Webhook de Flow para el pago {} pero no se encontró el socio local", pending.getId());
             return;
         }
         Gym gym = gymRepository.findById(memberGymId).orElse(null);
         if (gym == null || isBlank(gym.getFlowApiKey()) || isBlank(gym.getFlowSecretKey())) {
             log.error(
                     "No se pudo confirmar el pago {}: el gimnasio {} no tiene cuenta Flow configurada",
-                    payment.getId(),
+                    pending.getId(),
                     memberGymId);
             return;
         }
@@ -188,15 +201,25 @@ public class FlowPaymentService {
             status = flowApiClient.get(
                     "/payment/getStatus", Map.of("token", token), gym.getFlowApiKey(), gym.getFlowSecretKey());
         } catch (RestClientException e) {
-            log.error("No se pudo confirmar con Flow el pago {}: {}", payment.getId(), e.getMessage());
+            log.error("No se pudo confirmar con Flow el pago {}: {}", pending.getId(), e.getMessage());
             return;
         }
-
         // Flow documenta status numérico: 1=pendiente, 2=pagada, 3=rechazada, 4=anulada.
         String statusCode = stringOf(status.get("status"));
-        boolean paid = "2".equals(statusCode) || "paid".equalsIgnoreCase(statusCode);
         // Aún pendiente (el socio sigue en el checkout): no es un rechazo, se deja como está hasta el próximo aviso.
         if ("1".equals(statusCode) || "pending".equalsIgnoreCase(statusCode)) {
+            return;
+        }
+        boolean paid = "2".equals(statusCode) || "paid".equalsIgnoreCase(statusCode);
+        tx.executeWithoutResult(txStatus -> applyFlowResult(token, status, paid, gym, memberGymId));
+    }
+
+    /** Fase 2, en transacción corta: con la fila del pago bloqueada hasta el commit, un segundo webhook simultáneo del
+     *  mismo pago espera y recién ahí ve PAID (antes ambos acreditaban dos veces, con correos duplicados). Orden de
+     *  bloqueos: pago -> socio; ningún otro camino bloquea un pago estando con el socio bloqueado. */
+    private void applyFlowResult(String token, Map<String, Object> status, boolean paid, Gym gym, Long memberGymId) {
+        Payment payment = paymentRepository.findLockedByFlowToken(token).orElse(null);
+        if (payment == null || "PAID".equals(payment.getStatus())) {
             return;
         }
         // La orden la inventamos nosotros ("mygym-<id>") y Flow la devuelve tal cual: si no coincide, no es este pago.
