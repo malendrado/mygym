@@ -110,7 +110,8 @@ public class ContractService {
         String blocked = sub == null ? NO_PLAN : blockedReason(sub);
         String text = accepted != null ? accepted.getRenderedText()
                 : blocked != null ? null
-                : render(fields(sub, GymBilling.today(), "____________________", "____________", "____________________", ""));
+                // Los datos de quien firma quedan como marcadores: el front los reemplaza mientras se escriben; el texto que se firma lo arma sendCode.
+                : render(fields(sub, GymBilling.today(), "{{signerName}}", "{{signerRut}}", "{{signerCapacity}}", user == null ? "" : user.getEmail()));
         return new ContractView(
                 VERSION,
                 accepted != null,
@@ -272,8 +273,9 @@ public class ContractService {
         if (target.netClp() == null) {
             return "Tu plan es a medida y todavía no tiene precio: escríbenos a contacto@mygym.cl.";
         }
-        if (isBlank(sub.getBillingRut()) || isBlank(sub.getBillingName()) || isBlank(sub.getBillingAddress())) {
-            return "Completa primero los datos de la factura (RUT, nombre o razón social y dirección).";
+        if (isBlank(sub.getBillingRut()) || isBlank(sub.getBillingName()) || isBlank(sub.getBillingGiro())
+                || isBlank(sub.getBillingAddress()) || isBlank(sub.getBillingEmail())) {
+            return "Completa primero los datos del contrato y la factura (RUT, razón social o nombre, giro, dirección y correo).";
         }
         return null;
     }

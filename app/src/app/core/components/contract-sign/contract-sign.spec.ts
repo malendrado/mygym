@@ -23,7 +23,6 @@ const view: ContractView = {
 type Form = {
   name: { set(v: string): void };
   rut: { set(v: string): void };
-  capacity(): string;
   adult: { set(v: boolean): void };
   powers: { set(v: boolean): void };
   code: { set(v: string): void; (): string };
@@ -33,6 +32,7 @@ type Form = {
   sendCode(): void;
   sign(): void;
   onCode(e: Event): void;
+  capacity: { set(v: string): void; (): string };
 };
 
 function setup(kind: 'COMPANY' | 'PERSON' = 'COMPANY', loaded: ContractView = view) {
@@ -49,6 +49,7 @@ function setup(kind: 'COMPANY' | 'PERSON' = 'COMPANY', loaded: ContractView = vi
     form.rut.set('12.345.678-5');
     form.adult.set(true);
     form.powers.set(true);
+    fixture.detectChanges();
   };
   return { fixture, http, form, fill, el: fixture.nativeElement as HTMLElement };
 }
@@ -104,9 +105,40 @@ describe('ContractSign', () => {
     const { el } = setup('COMPANY', {
       ...view,
       text: null,
-      blockedReason: 'Completa primero los datos de la factura (RUT, nombre o razón social y dirección).',
+      blockedReason: 'Completa primero los datos del contrato y la factura (RUT, razón social o nombre, giro, dirección y correo).',
     });
-    expect(el.textContent).toContain('Completa primero los datos de la factura');
+    expect(el.textContent).toContain('Completa primero los datos del contrato y la factura');
     expect(el.querySelector('ion-input')).toBeNull();
+  });
+  it('shows the signer data in the contract as it is typed, with brackets for what is still missing', () => {
+    const { fixture, form, el } = setup('COMPANY', {
+      ...view,
+      text: 'representada por {{signerName}}, RUT {{signerRut}}, {{signerCapacity}} (el Cliente), correo a@gimnasio.cl. Administrador: {{signerName}}',
+    });
+    const text = () => el.querySelector('.cs__text')!.textContent;
+    expect(text()).toContain('representada por [nombre de quien firma], RUT [RUT de quien firma], en calidad de representante legal');
+    expect(text()).not.toContain('____');
+
+    form.name.set('  Ana   Admin ');
+    form.rut.set('123456785');
+    fixture.detectChanges();
+    expect(text()).toContain('representada por Ana Admin, RUT 12.345.678-5, en calidad de representante legal (el Cliente), correo a@gimnasio.cl. Administrador: Ana Admin');
+
+    form.capacity.set('ATTORNEY');
+    fixture.detectChanges();
+    expect(text()).toContain('en calidad de apoderado');
+  });
+
+  it('a code requested before editing the signer data stops being usable: a new one has to be requested', () => {
+    const { fixture, form, fill, http, el } = setup();
+    fill();
+    form.sendCode();
+    http.expectOne(`${API}/code`).flush({ maskedEmail: 'a***@gimnasio.cl' });
+    fixture.detectChanges();
+    expect(el.querySelector('.cs__code')).not.toBeNull();
+
+    form.name.set('Otra Persona');
+    fixture.detectChanges();
+    expect(el.querySelector('.cs__code')).toBeNull();
   });
 });

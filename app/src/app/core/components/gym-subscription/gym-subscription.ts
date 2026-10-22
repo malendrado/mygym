@@ -260,11 +260,13 @@ export class GymSubscriptionCard implements OnInit, OnDestroy {
     const c = this.sub()?.contract;
     return !c || !c.required || c.signed;
   });
-  /** Faltan datos y el administrador puede renovar ahora: el formulario va arriba, antes de los botones de pago. */
+  /** Mientras falten datos o el contrato no esté firmado (y se pueda renovar), los datos del contrato y la factura van arriba, antes de la firma y los botones de pago. */
   protected readonly billingFirst = computed(() => {
     const s = this.sub();
-    return !this.isSuper() && !!s && s.canRenew && s.status !== 'EXEMPT' && !s.transferPending && !this.billingComplete();
+    return !this.isSuper() && !!s && s.canRenew && s.status !== 'EXEMPT' && !s.transferPending && (!this.billingComplete() || !this.contractSigned());
   });
+  /** Faltan datos: el formulario va abierto y es obligatorio; si ya están completos, queda un resumen plegado. */
+  protected readonly billingForm = computed(() => this.billingFirst() && !this.billingComplete());
 
   protected readonly statusView = computed<StatusView | null>(() => {
     const s = this.sub();

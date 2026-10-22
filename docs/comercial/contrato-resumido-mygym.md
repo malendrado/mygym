@@ -63,7 +63,7 @@ Cada parte responde de los perjuicios directos que cause a la otra por incumplir
 
 ## 11. Cambios, comunicaciones y ley aplicable
 
-Toda modificación debe constar por escrito. Si mygym actualiza sus condiciones generales, avisa con 30 días de anticipación y, si el cambio perjudica al Cliente, este puede rechazarlo y terminar el contrato sin costo. Las comunicaciones se hacen por correo a las direcciones indicadas arriba y a contacto@mygym.cl. El contrato puede firmarse con firma electrónica (Ley N° 19.799), reemplaza cualquier acuerdo anterior y prevalece sobre lo publicado en mygym.cl (preguntas frecuentes, folleto). Se rige por la ley chilena y las partes fijan domicilio en [Santiago], sometiéndose a sus tribunales ordinarios, sin perjuicio de los derechos irrenunciables que la ley otorgue al Cliente.
+Toda modificación debe constar por escrito. Si mygym actualiza sus condiciones generales, avisa con 30 días de anticipación y, si el cambio perjudica al Cliente, este puede rechazarlo y terminar el contrato sin costo. Las comunicaciones se hacen por correo a las direcciones indicadas arriba y a contacto@mygym.cl. El contrato puede firmarse con firma electrónica (Ley N° 19.799), reemplaza cualquier acuerdo anterior y prevalece sobre lo publicado en mygym.cl (preguntas frecuentes, folleto). Se rige por la ley chilena y las partes fijan domicilio en [Valparaíso], sometiéndose a sus tribunales ordinarios, sin perjuicio de los derechos irrenunciables que la ley otorgue al Cliente.
 
 ---
 

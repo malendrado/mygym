@@ -71,7 +71,8 @@ class ContractServiceTest {
         org.springframework.test.util.ReflectionTestUtils.setField(service, "mygymEmail", "contacto@mygym.cl");
         sub = GymSubscription.builder()
                 .gymId(GYM_ID).planId(1L).billingStatus(GymSubscription.NOT_STARTED).billingKind(GymSubscription.BILLING_COMPANY)
-                .billingRut("76.123.456-7").billingName("Gimnasio SpA").billingAddress("Av. Siempre Viva 123").build();
+                .billingRut("76.123.456-7").billingName("Gimnasio SpA").billingAddress("Av. Siempre Viva 123")
+                .billingGiro("Servicios deportivos").billingEmail("facturas@xalogym.cl").build();
         lenient().when(gymRepository.findById(GYM_ID)).thenReturn(Optional.of(gym));
         lenient().when(subscriptionRepository.findLockedByGymId(GYM_ID)).thenReturn(Optional.of(sub));
         lenient().when(subscriptionService.target(any(), any())).thenReturn(new GymSubscriptionService.Target(empieza, 29_990, false));
@@ -106,6 +107,27 @@ class ContractServiceTest {
         code.setId(1L);
         lenient().when(codeRepository.findFirstByGymIdAndUserIdAndUsedAtIsNullOrderByIdDesc(GYM_ID, USER_ID)).thenReturn(Optional.of(code));
         return code;
+    }
+
+    @Test
+    void theViewLeavesMarkersForTheSignerDataAndFillsEverythingElse() {
+        when(subscriptionRepository.findById(GYM_ID)).thenReturn(Optional.of(sub));
+
+        String text = service.view(GYM_ID, USER_ID).text();
+
+        assertTrue(text.contains("{{signerName}}") && text.contains("{{signerRut}}") && text.contains("{{signerCapacity}}"));
+        assertFalse(text.contains("____"));
+        assertTrue(text.contains("Gimnasio SpA") && text.contains("76.123.456-7") && text.contains("admin@xalogym.cl"));
+    }
+
+    @Test
+    void withoutTheFullBillingDataTheCodeIsNotSent() {
+        sub.setBillingGiro(null);
+
+        InvalidSubscriptionException e = assertThrows(InvalidSubscriptionException.class, () -> service.sendCode(GYM_ID, USER_ID, request("LEGAL_REP")));
+
+        assertTrue(e.getMessage().contains("datos del contrato y la factura"));
+        verify(emailService, never()).sendNotice(any(), any(), any(), any(), any(), any(), any(), any(), any());
     }
 
     @Test

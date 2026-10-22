@@ -91,7 +91,7 @@
             @if (!billingComplete()) {
               <p class="gs__required" role="alert">
                 <ion-icon name="alert-circle-outline" aria-hidden="true"></ion-icon>
-                Para pagar primero completa los datos de la factura: son obligatorios.
+                Para firmar el contrato y pagar primero completa los datos del contrato y la factura: son obligatorios.
               </p>
             }
             @if (billingComplete() && !contractSigned()) {
@@ -340,23 +340,23 @@
     }
 
     <ng-template #billingBox>
-      <div class="gs__box" [class.gs__box--required]="billingFirst()">
-        @if (billingFirst()) {
+      <div class="gs__box" [class.gs__box--required]="billingForm()">
+        @if (billingForm()) {
           <p class="gs__box-title">
             <ion-icon name="receipt-outline" aria-hidden="true"></ion-icon>
-            Datos para la factura (obligatorios)
+            Datos del contrato y la factura (obligatorios)
           </p>
-          <p class="gs__small">mygym emite tu factura con estos datos. Complétalos para poder pagar.</p>
+          <p class="gs__small">Son los datos que aparecen en tu contrato de servicios y en la factura de mygym. Complétalos para poder firmar y pagar.</p>
         } @else {
           <button type="button" class="gs__toggle" [attr.aria-expanded]="showBilling()" (click)="showBilling.set(!showBilling())">
             <ion-icon name="receipt-outline" aria-hidden="true"></ion-icon>
-            Datos para la factura
+            Datos del contrato y la factura
             <span class="gs__toggle-state" [class.gs__toggle-state--missing]="!billingComplete() && !isSuper()">{{
               billingComplete() ? s.billing.name || s.billing.rut : isSuper() ? 'Sin completar' : 'Obligatorio · sin completar'
             }}</span>
           </button>
         }
-        @if (billingFirst() || showBilling()) {
+        @if (billingForm() || showBilling()) {
           <p class="gs__box-title gs__box-title--kind" id="gs-kind-label">¿A nombre de quién emitimos la factura?</p>
           <ion-segment class="gs__kind" aria-labelledby="gs-kind-label" [value]="bKind()" (ionChange)="bKind.set($any($event.detail.value))">
             <ion-segment-button value="COMPANY"><ion-label>Empresa</ion-label></ion-segment-button>

@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnDestroy, OnInit, Output, computed, inject, signal } from '@angular/core';
+import { Component, EventEmitter, Input, OnDestroy, OnInit, Output, computed, effect, inject, signal, untracked } from '@angular/core';
 import {
   IonButton,
   IonCheckbox,
@@ -20,6 +20,13 @@ addIcons({ 'alert-circle-outline': alertCircleOutline, 'document-text-outline': 
 
 /** Segundos que hay que esperar para pedir otro código (el servidor aplica el mismo mínimo). */
 const RESEND_SECONDS = 60;
+
+/** Cómo queda escrita la calidad en el contrato (igual que en el servidor). */
+const CAPACITY_PHRASE: Record<SignerCapacity, string> = {
+  PERSON_OWNER: 'en calidad de titular',
+  LEGAL_REP: 'en calidad de representante legal',
+  ATTORNEY: 'en calidad de apoderado',
+};
 
 /**
  * Firma del contrato de servicios por el administrador del gimnasio: lee el texto, declara quién es y en qué calidad firma, pide un
@@ -67,11 +74,40 @@ export class ContractSign implements OnInit, OnDestroy {
           { value: 'ATTORNEY', label: 'Apoderado' },
         ],
   );
+  /** El texto con lo que quien firma va escribiendo; los datos que aún no escribe quedan entre corchetes. Igual al que arma el servidor al pedir el código. */
+  protected readonly contractText = computed(() => {
+    const text = this.view()?.text;
+    if (!text) {
+      return '';
+    }
+    const name = this.name().trim().replace(/\s+/g, ' ');
+    const rut = this.rut().trim();
+    const capacity = this.capacities().find((c) => c.value === this.capacity())?.value;
+    return text
+      .replaceAll('{{signerName}}', () => name || '[nombre de quien firma]')
+      .replaceAll('{{signerRut}}', () => (rut ? (isValidRut(rut) ? formatRut(rut) : rut) : '[RUT de quien firma]'))
+      .replaceAll('{{signerCapacity}}', () => (capacity ? CAPACITY_PHRASE[capacity] : '[calidad en que firma]'));
+  });
   protected readonly rutInvalid = computed(() => this.rut().trim() !== '' && !isValidRut(this.rut()));
   protected readonly canSend = computed(
     () => !this.busy() && this.cooldown() === 0 && this.name().trim().length >= 3 && isValidRut(this.rut()) && this.adult() && this.powers(),
   );
   protected readonly canSign = computed(() => !this.busy() && /^\d{6}$/.test(this.code()));
+
+  constructor() {
+    // Si cambia nombre, RUT o calidad después de pedir el código, ese código firmaba otro texto: hay que pedir uno nuevo.
+    effect(() => {
+      this.name();
+      this.rut();
+      this.capacity();
+      untracked(() => {
+        if (this.codeSent()) {
+          this.codeSent.set(false);
+          this.code.set('');
+        }
+      });
+    });
+  }
 
   ngOnInit(): void {
     this.capacity.set(this.kind === 'PERSON' ? 'PERSON_OWNER' : 'LEGAL_REP');

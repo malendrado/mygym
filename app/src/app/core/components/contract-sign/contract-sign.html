@@ -20,7 +20,7 @@
       </p>
     } @else {
       <p class="cs__small">Para pagar tu plan primero firma el contrato. Léelo completo y firma con un código que te enviamos a tu correo.</p>
-      <pre class="cs__text" tabindex="0" role="region" aria-label="Texto del contrato">{{ v.text }}</pre>
+      <pre class="cs__text" tabindex="0" role="region" aria-label="Texto del contrato">{{ contractText() }}</pre>
 
       @if (v.certificateNeeded) {
         <p class="cs__small">Como tu plan es Escala, mygym te pedirá además por correo un certificado de vigencia de tu sociedad con las facultades de quien firma.</p>

@@ -158,7 +158,7 @@ Las comunicaciones entre las Partes se harán por correo electrónico a las dire
 
 ## DÉCIMO OCTAVO. Ley aplicable y domicilio
 
-Este Contrato se rige por la ley chilena. Para todos sus efectos, las Partes fijan domicilio en la comuna de [Santiago] y se someten a la competencia de sus tribunales ordinarios de justicia, sin perjuicio de los derechos que la ley irrenunciablemente le confiera al Cliente.
+Este Contrato se rige por la ley chilena. Para todos sus efectos, las Partes fijan domicilio en la comuna de [Valparaíso] y se someten a la competencia de sus tribunales ordinarios de justicia, sin perjuicio de los derechos que la ley irrenunciablemente le confiera al Cliente.
 
 ---
 

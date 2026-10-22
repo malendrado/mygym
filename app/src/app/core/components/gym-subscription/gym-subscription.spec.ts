@@ -170,8 +170,8 @@ describe('GymSubscriptionCard (administrador del gimnasio)', () => {
   it('without billing data the form is required first and both payment ways stay locked', () => {
     const empty = { kind: 'COMPANY' as const, rut: null, name: null, giro: null, address: null, email: null };
     const { el } = render('admin', subscription({ daysToDue: 2, canRenew: true, billing: empty }));
-    expect(text(el)).toContain('Datos para la factura (obligatorios)');
-    expect(text(el)).toContain('Para pagar primero completa los datos de la factura');
+    expect(text(el)).toContain('Datos del contrato y la factura (obligatorios)');
+    expect(text(el)).toContain('Para firmar el contrato y pagar primero completa los datos del contrato y la factura');
     const buttons = Array.from(el.querySelectorAll('ion-button'));
     const flow = buttons.find((b) => (b.textContent ?? '').includes('Pagar con Flow'));
     const transfer = buttons.find((b) => (b.textContent ?? '').includes('Pagar por transferencia'));
