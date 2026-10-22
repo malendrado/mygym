@@ -29,6 +29,18 @@ echo "Versión: v$BUILD_DATE · $BUILD_COMMIT (dirty=$BUILD_DIRTY)"
 echo "1/4 — build de Angular (landing)..."
 npx ng build landing
 
+# La CSP de vercel.json permite el unico manejador inline que genera Angular (onload del <link> de estilos) por su hash. Si una
+# actualizacion de Angular lo cambia, la pagina quedaria SIN estilos: se corta el deploy antes de subirla.
+node -e "
+const fs = require('fs'), c = require('crypto');
+const html = fs.readFileSync('dist/landing/browser/index.html', 'utf8');
+const hashes = [...html.matchAll(/\son(?:load|error|click)=\"([^\"]*)\"/g)].map((m) => 'sha256-' + c.createHash('sha256').update(m[1]).digest('base64'));
+const vercel = fs.readFileSync('vercel-landing/vercel.json', 'utf8');
+const missing = hashes.filter((h) => !vercel.includes(h));
+if (missing.length) { console.error('La CSP de vercel.json no incluye el hash del manejador inline del build (' + missing.join(', ') + '). Actualiza vercel.json antes de desplegar.'); process.exit(1); }
+console.log('CSP al dia (' + hashes.length + ' hash del build presentes en vercel.json)');
+"
+
 cd vercel-landing
 echo "2/4 — regenerando public/ desde el build..."
 rm -rf public
