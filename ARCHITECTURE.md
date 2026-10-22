@@ -128,6 +128,8 @@ Variables de entorno requeridas por el backend: `SUPABASE_DB_URL` (con
 obligatorias, el contexto de Spring no levanta ni para tests que no tocan esos
 módulos (se resuelven vía `@Value` al construir los beans).
 
+> **Para mudar la API, la base de datos o el front a otro proveedor:** ver `docs/operaciones/portabilidad-infraestructura.md` (inventario completo, variables, estado en memoria, pasos y lista de verificación). Esta sección quedó resumida y parte de ella (pooler, variables) está ahí actualizada.
+
 ## Dónde está el detalle día a día
 
 Este documento es el mapa de arquitectura. Las decisiones puntuales, gotchas

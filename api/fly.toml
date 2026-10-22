@@ -1,0 +1,35 @@
+# API de respaldo de mygym en Fly.io (plan de recuperación si Railway deja de estar disponible).
+# Guía completa: docs/operaciones/portabilidad-infraestructura.md (sección 9).
+#
+# POR DEFECTO ES UNA COPIA EN ESPERA: se enciende sola si alguien la llama y se apaga al quedar inactiva, y NO corre tareas programadas
+# (SCHEDULING_ENABLED=false) para no duplicar correos, avisos ni cobros mientras Railway sigue siendo la API principal.
+# Para convertirla en la API principal en una emergencia: ver "Conmutación" en la guía (SCHEDULING_ENABLED=true, min_machines_running=1, DNS).
+
+app = "mygym-api-respaldo"
+primary_region = "gru" # São Paulo: Fly ya no tiene Santiago y es la única región de Sudamérica.
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  SCHEDULING_ENABLED = "false"
+  JAVA_OPTS = "-XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    method = "GET"
+    path = "/actuator/health"
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "90s"
+
+[[vm]]
+  memory = "1gb"
+  cpu_kind = "shared"
+  cpus = 1

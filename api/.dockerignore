@@ -1,0 +1,13 @@
+# Fuera de la imagen: salidas de compilación, control de versiones y cualquier archivo con secretos.
+target/
+.git/
+.gitignore
+.idea/
+.vscode/
+*.iml
+*.md
+.env
+.env.*
+*.pem
+*.key
+*.log
