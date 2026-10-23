@@ -103,7 +103,7 @@ Tiempo estimado con unas decenas de MB de datos: unos 30 minutos, casi todos de 
 
 ## 9. Plan de recuperación si Railway deja de estar disponible
 
-**Dónde corre hoy (23-oct-2026):** la API en Railway, región **us-west2 (California), 1 réplica** (antes iad/Virginia); la base de Supabase está en AWS us-west-2 (Oregon). Debe haber UNA sola réplica: las tareas programadas, el límite de peticiones y las cachés viven en memoria. Ojo con : `railway scale us-west=1 us-east=0` dejó 2 réplicas (Virginia seguía en 1 porque "us-east" no es la región `iad`); se corrige con `railway scale iad=0 us-west=1` y se confirma con `railway status --json` (multiRegionConfig y numReplicas). `api/railway.toml` declara el chequeo de salud (`/actuator/health`).
+**Dónde corre hoy (23-oct-2026):** la API en Railway, región **us-west2 (California), 1 réplica** (antes iad/Virginia); la base de Supabase está en AWS us-west-2 (Oregon). Debe haber UNA sola réplica: las tareas programadas, el límite de peticiones y las cachés viven en memoria. Ojo con el comando `railway scale`: `railway scale us-west=1 us-east=0` dejó 2 réplicas (Virginia seguía en 1 porque "us-east" no es la región `iad`); se corrige con `railway scale iad=0 us-west=1` y se confirma con `railway status --json` (multiRegionConfig y numReplicas). `api/railway.toml` declara el chequeo de salud (`/actuator/health`).
 
 Supabase solo aloja la base de datos: no corre aplicaciones Java. Cualquier servidor con Java 21 e internet sirve para la API, y mudarla **no toca los datos**. Opciones (verificar precios y regiones al momento de elegir; todas cuestan pocos dólares al mes para una API chica):
 
