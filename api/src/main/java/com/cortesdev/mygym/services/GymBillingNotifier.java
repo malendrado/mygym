@@ -13,7 +13,6 @@ import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 /**
@@ -34,8 +33,7 @@ public class GymBillingNotifier {
     private final MemberLifecycleEmailService emailService;
     private final PushNotificationService pushService;
 
-    @Value("${app.contact.email:contacto@mygym.cl}")
-    private String mygymEmail;
+    private final MygymSettingsService mygymSettings;
 
     // ---- Al gimnasio ---------------------------------------------------------------------------------------------------
 
@@ -126,13 +124,13 @@ public class GymBillingNotifier {
     public void transferRejected(Gym gym, String reason) {
         toAdmins(
                 gym,
-                PushMessages.billingTransferRejected(),
+                PushMessages.billingTransferRejected(mygymSettings.email()),
                 "No pudimos confirmar tu transferencia",
                 "Transferencia",
                 "No pudimos confirmar tu transferencia",
                 p("Revisamos el aviso de transferencia de <strong style=\"color:#eaf6f7;\">" + esc(gym.getName()) + "</strong> y no pudimos confirmarla."
                         + (reason == null || reason.isBlank() ? "" : " Motivo: " + esc(reason) + ".")
-                        + " Revisa los datos y vuelve a avisarnos, o escríbenos a contacto@mygym.cl."),
+                        + " Revisa los datos y vuelve a avisarnos, o escríbenos a " + esc(mygymSettings.email()) + "."),
                 "Ir a mi suscripción");
     }
 
@@ -178,7 +176,7 @@ public class GymBillingNotifier {
     private void toMygym(Gym gym, String subject, String badge, String headline, String bodyHtml) {
         try {
             emailService.sendNotice(
-                    gym, mygymEmail, subject, badge, headline, bodyHtml, "Abrir el panel", SUPER_PANEL_URL, "Aviso interno de mygym.");
+                    gym, mygymSettings.email(), subject, badge, headline, bodyHtml, "Abrir el panel", SUPER_PANEL_URL, "Aviso interno de mygym.");
         } catch (RuntimeException e) {
             log.warn("No se pudo avisar a mygym sobre el gimnasio {}: {}", gym.getId(), e.getMessage());
         }

@@ -38,7 +38,6 @@ import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -78,7 +77,6 @@ public class ContractService {
     private static final Pattern PLACEHOLDER = Pattern.compile("\\{\\{(\\w+)}}");
     private static final String TEMPLATE = loadTemplate();
     private static final String LOGIN_URL = "https://www.mygym.cl/login";
-    private static final String NO_PLAN = "Todavía no tienes un plan asignado: escríbenos a contacto@mygym.cl.";
 
     private final GymRepository gymRepository;
     private final GymSubscriptionRepository subscriptionRepository;
@@ -88,8 +86,7 @@ public class ContractService {
     private final GymContractCodeRepository codeRepository;
     private final MemberLifecycleEmailService emailService;
 
-    @Value("${app.contact.email:contacto@mygym.cl}")
-    private String mygymEmail;
+    private final MygymSettingsService mygymSettings;
 
     private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
     private final SecureRandom random = new SecureRandom();
@@ -97,7 +94,8 @@ public class ContractService {
     /** Datos que se rellenan en el texto. Los del firmante van en blanco en la vista previa. */
     private record Fields(
             String date, String gymName, String gymRut, String gymAddress, String signerName, String signerRut,
-            String capacity, String signerEmail, String planName, String clientsLabel, String netPrice) {}
+            String capacity, String signerEmail, String planName, String clientsLabel, String netPrice,
+            MygymSettingsService.Company company, String contactEmail) {}
 
     // ---- Lectura -------------------------------------------------------------------------------------------------------
 
@@ -107,7 +105,7 @@ public class ContractService {
         AppUser user = appUserRepository.findById(userId).orElse(null);
         GymContractAcceptance accepted = acceptanceRepository.findFirstByGymIdAndContractVersionOrderByIdDesc(gymId, VERSION).orElse(null);
         MygymPlan plan = sub == null ? null : subscriptionService.target(sub, GymBilling.today()).plan();
-        String blocked = sub == null ? NO_PLAN : blockedReason(sub);
+        String blocked = sub == null ? noPlan() : blockedReason(sub);
         String text = accepted != null ? accepted.getRenderedText()
                 : blocked != null ? null
                 // Los datos de quien firma quedan como marcadores: el front los reemplaza mientras se escriben; el texto que se firma lo arma sendCode.
@@ -161,7 +159,7 @@ public class ContractService {
 
     public CodeResponse sendCode(Long gymId, Long userId, CodeRequest request) {
         Gym gym = gymRepository.findById(gymId).orElseThrow(() -> new GymNotFoundException(gymId));
-        GymSubscription sub = subscriptionRepository.findLockedByGymId(gymId).orElseThrow(() -> new InvalidSubscriptionException(NO_PLAN));
+        GymSubscription sub = subscriptionRepository.findLockedByGymId(gymId).orElseThrow(() -> new InvalidSubscriptionException(noPlan()));
         requireNotSigned(gymId);
         String blocked = blockedReason(sub);
         if (blocked != null) {
@@ -208,7 +206,7 @@ public class ContractService {
     @Transactional(noRollbackFor = InvalidSubscriptionException.class)
     public ContractSummary sign(Long gymId, Long userId, String code, String ip, String userAgent) {
         Gym gym = gymRepository.findById(gymId).orElseThrow(() -> new GymNotFoundException(gymId));
-        GymSubscription sub = subscriptionRepository.findLockedByGymId(gymId).orElseThrow(() -> new InvalidSubscriptionException(NO_PLAN));
+        GymSubscription sub = subscriptionRepository.findLockedByGymId(gymId).orElseThrow(() -> new InvalidSubscriptionException(noPlan()));
         requireNotSigned(gymId);
         GymContractCode pending = codeRepository.findFirstByGymIdAndUserIdAndUsedAtIsNullOrderByIdDesc(gymId, userId)
                 .orElseThrow(() -> new InvalidSubscriptionException("Pide un código para firmar."));
@@ -265,13 +263,17 @@ public class ContractService {
     }
 
     /** Motivo por el que todavia no se puede firmar (faltan plan, precio o datos de factura), o null si esta listo. */
+    private String noPlan() {
+        return "Todavía no tienes un plan asignado: escríbenos a " + mygymSettings.email() + ".";
+    }
+
     private String blockedReason(GymSubscription sub) {
         GymSubscriptionService.Target target = subscriptionService.target(sub, GymBilling.today());
         if (target.plan() == null) {
-            return NO_PLAN;
+            return noPlan();
         }
         if (target.netClp() == null) {
-            return "Tu plan es a medida y todavía no tiene precio: escríbenos a contacto@mygym.cl.";
+            return "Tu plan es a medida y todavía no tiene precio: escríbenos a " + mygymSettings.email() + ".";
         }
         if (isBlank(sub.getBillingRut()) || isBlank(sub.getBillingName()) || isBlank(sub.getBillingGiro())
                 || isBlank(sub.getBillingAddress()) || isBlank(sub.getBillingEmail())) {
@@ -285,7 +287,8 @@ public class ContractService {
         return new Fields(
                 LONG_DATE.format(date), sub.getBillingName(), sub.getBillingRut(), sub.getBillingAddress(), signerName, signerRut,
                 capacity, signerEmail, target.plan().getName(), target.plan().getClientsLabel(),
-                "$" + NumberFormat.getIntegerInstance(ES_CL).format(target.netClp()));
+                "$" + NumberFormat.getIntegerInstance(ES_CL).format(target.netClp()),
+                mygymSettings.company(), mygymSettings.email());
     }
 
     /** Un solo recorrido: lo que se inserta no se vuelve a escanear, asi un nombre con "{{...}}" no inyecta otro campo. */
@@ -294,7 +297,10 @@ public class ContractService {
                 Map.entry("date", f.date()), Map.entry("gymName", f.gymName()), Map.entry("gymRut", f.gymRut()),
                 Map.entry("gymAddress", f.gymAddress()), Map.entry("signerName", f.signerName()), Map.entry("signerRut", f.signerRut()),
                 Map.entry("signerCapacity", f.capacity()), Map.entry("signerEmail", f.signerEmail()), Map.entry("planName", f.planName()),
-                Map.entry("clientsLabel", f.clientsLabel()), Map.entry("netPrice", f.netPrice()));
+                Map.entry("clientsLabel", f.clientsLabel()), Map.entry("netPrice", f.netPrice()),
+                Map.entry("companyName", f.company().name()), Map.entry("companyRut", f.company().rut()),
+                Map.entry("legalRepName", f.company().legalRepName()), Map.entry("legalRepRut", f.company().legalRepRut()),
+                Map.entry("companyAddress", f.company().address()), Map.entry("contactEmail", f.contactEmail()));
         Matcher m = PLACEHOLDER.matcher(TEMPLATE);
         StringBuilder out = new StringBuilder();
         while (m.find()) {
@@ -334,7 +340,7 @@ public class ContractService {
         String body = "<p style=\"margin:0 0 12px;\">Quedó firmado el contrato de servicios de <strong>" + esc(a.getGymName())
                 + "</strong>. Guarda este correo: es tu constancia.</p>" + proofBlock(a)
                 + "<div style=\"white-space:pre-wrap;font-size:12px;line-height:1.5;margin-top:12px;\">" + esc(a.getRenderedText()) + "</div>";
-        for (String to : new String[] {a.getSignerEmail(), mygymEmail}) {
+        for (String to : new String[] {a.getSignerEmail(), mygymSettings.email()}) {
             emailService.sendNotice(gym, to, "Constancia de firma del contrato mygym", "Contrato", "Contrato firmado", body,
                     "Volver a mygym", LOGIN_URL, "Constancia de firma electrónica simple (Ley N° 19.799).");
         }

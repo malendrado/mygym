@@ -67,7 +67,7 @@ public class SecurityConfig {
                         // por si algún día se habilita sin querer.
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
                         .hasRole("SUPER_ADMIN")
-                        .requestMatchers("/api/gyms/**", "/api/mygym-plans/**")
+                        .requestMatchers("/api/gyms/**", "/api/mygym-plans/**", "/api/mygym-settings/**")
                         .hasRole("SUPER_ADMIN")
                         // DEMO_ADMIN es de solo-lectura: el matcher de GET tiene que ir ANTES del
                         // genérico de abajo (Spring Security usa el PRIMER matcher que hace match,

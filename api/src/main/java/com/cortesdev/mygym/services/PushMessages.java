@@ -166,10 +166,10 @@ public final class PushMessages {
                 Urgency.NORMAL);
     }
 
-    public static PushMessage billingTransferRejected() {
+    public static PushMessage billingTransferRejected(String contactEmail) {
         return new PushMessage(
                 "No pudimos confirmar tu transferencia",
-                "Revisa los datos o escríbenos a contacto@mygym.cl.",
+                "Revisa los datos o escríbenos a " + contactEmail + ".",
                 "billing",
                 STAFF_URL,
                 MAX_TTL_SECONDS,

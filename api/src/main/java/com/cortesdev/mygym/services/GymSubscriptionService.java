@@ -34,7 +34,6 @@ import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -63,25 +62,7 @@ public class GymSubscriptionService {
     private final GymPauseGuard gymPauseGuard;
     private final GymBillingNotifier notifier;
     private final GymContractAcceptanceRepository contractAcceptanceRepository;
-
-    // Cuenta de mygym (Cortes Dev) a la que transfieren los gimnasios. Variables de entorno, nunca escritas en el codigo.
-    @Value("${app.mygym-bank.holder:}")
-    private String bankHolder;
-
-    @Value("${app.mygym-bank.rut:}")
-    private String bankRut;
-
-    @Value("${app.mygym-bank.bank:}")
-    private String bankName;
-
-    @Value("${app.mygym-bank.account-type:}")
-    private String bankAccountType;
-
-    @Value("${app.mygym-bank.account-number:}")
-    private String bankAccountNumber;
-
-    @Value("${app.mygym-bank.email:contacto@mygym.cl}")
-    private String bankEmail;
+    private final MygymSettingsService mygymSettings;
 
     /** Plan y monto neto que corresponden al PROXIMO pago (si hay un cambio de plan pendiente que ya rige para ese periodo, el nuevo). */
     public record Target(MygymPlan plan, Integer netClp, boolean fromPending) {}
@@ -149,7 +130,8 @@ public class GymSubscriptionService {
     }
 
     private BankTransferInfo bank() {
-        return new BankTransferInfo(bankHolder, bankRut, bankName, bankAccountType, bankAccountNumber, bankEmail);
+        MygymSettingsService.Bank b = mygymSettings.bank();
+        return new BankTransferInfo(b.holder(), b.rut(), b.bank(), b.accountType(), b.accountNumber(), b.email());
     }
 
     private static PaymentItem item(GymSubscriptionPayment p) {
@@ -603,7 +585,7 @@ public class GymSubscriptionService {
             throw new InvalidSubscriptionException("Este gimnasio aún no tiene un plan asignado.");
         }
         if (target.netClp() == null) {
-            throw new InvalidSubscriptionException("Tu plan es a medida y todavía no tiene precio: escríbenos a contacto@mygym.cl.");
+            throw new InvalidSubscriptionException("Tu plan es a medida y todavía no tiene precio: escríbenos a " + mygymSettings.email() + ".");
         }
         return target;
     }

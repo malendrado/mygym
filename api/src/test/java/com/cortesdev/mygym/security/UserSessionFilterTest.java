@@ -39,6 +39,7 @@ class UserSessionFilterTest {
 
     @Mock private AppUserRepository appUserRepository;
     @Mock private FilterChain chain;
+    @Mock private LastSeenTracker lastSeenTracker;
 
     private final ObjectMapper mapper = new ObjectMapper();
 
@@ -49,7 +50,7 @@ class UserSessionFilterTest {
     }
 
     private UserSessionFilter filter() {
-        return new UserSessionFilter(new UserSessionGuard(appUserRepository), mapper);
+        return new UserSessionFilter(new UserSessionGuard(appUserRepository), lastSeenTracker, mapper);
     }
 
     private void login(String role, Long gymId) {
@@ -112,6 +113,18 @@ class UserSessionFilterTest {
 
         assertEquals(200, response.getStatus());
         verify(chain).doFilter(any(), any());
+        // Una sesión válida cuenta como actividad: el tracker decide si toca la base (una vez por hora).
+        verify(lastSeenTracker).touch(USER_ID, "GYM_ADMIN", "/api/gym-admin/gym");
+    }
+
+    @Test
+    void aRevokedSessionIsNeverRecordedAsActivity() throws Exception {
+        when(appUserRepository.findSessionViewById(USER_ID)).thenReturn(Optional.empty());
+        login("GYM_ADMIN", GYM_ID);
+
+        assertRevoked(run());
+
+        verify(lastSeenTracker, never()).touch(any(), any(), any());
     }
 
     @Test

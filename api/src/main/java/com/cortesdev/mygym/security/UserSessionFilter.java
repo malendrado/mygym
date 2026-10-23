@@ -37,6 +37,7 @@ public class UserSessionFilter extends OncePerRequestFilter {
     private static final List<String> PUBLIC_PREFIXES = List.of("/api/auth/", "/api/public/", "/actuator/");
 
     private final UserSessionGuard guard;
+    private final LastSeenTracker lastSeenTracker;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -68,6 +69,7 @@ public class UserSessionFilter extends OncePerRequestFilter {
                 respondRevoked(response);
                 return;
             }
+            lastSeenTracker.touch(userId.longValue(), jwtAuth.getToken().getClaimAsString("role"), request.getRequestURI());
         }
         filterChain.doFilter(request, response);
     }

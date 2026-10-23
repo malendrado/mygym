@@ -669,6 +669,7 @@ public class GymService {
                             admin.getPhotoUrl(),
                             admin.getCreatedAt(),
                             admin.getLastLoginAt(),
+                            admin.getLastSeenAt(),
                             admin.getGymId(),
                             gym != null ? gym.getName() : null,
                             gym != null ? gym.getSlug() : null);
@@ -1243,6 +1244,7 @@ public class GymService {
                 admin.getPhotoUrl(),
                 admin.getCreatedAt(),
                 admin.getLastLoginAt(),
+                admin.getLastSeenAt(),
                 adminTourStep,
                 memberTourStep);
     }

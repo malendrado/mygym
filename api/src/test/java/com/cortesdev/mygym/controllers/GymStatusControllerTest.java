@@ -41,6 +41,7 @@ class GymStatusControllerTest {
     @Mock private GymClosureRepository gymClosureRepository;
     @Mock private ReservationRepository reservationRepository;
     @Mock private com.cortesdev.mygym.repositories.GymSubscriptionRepository subscriptionRepository;
+    @org.mockito.Spy private com.cortesdev.mygym.services.MygymSettingsService mygymSettings = com.cortesdev.mygym.services.TestMygymSettings.defaults();
     @InjectMocks private GymStatusController controller;
 
     private final Jwt jwt = Jwt.withTokenValue("t")
@@ -55,8 +56,6 @@ class GymStatusControllerTest {
 
     @BeforeEach
     void config() {
-        ReflectionTestUtils.setField(controller, "mygymWhatsapp", "56964641042");
-        ReflectionTestUtils.setField(controller, "mygymEmail", "contacto@mygym.cl");
     }
 
     @Test

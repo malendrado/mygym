@@ -57,7 +57,6 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class GymDisconnectionService {
 
-    private static final String MYGYM_CONTACT_EMAIL = "contacto@mygym.cl";
     private static final DateTimeFormatter DATE_FORMAT =
             DateTimeFormatter.ofPattern("dd/MM/yyyy").withZone(ZoneId.of("America/Santiago"));
 
@@ -71,6 +70,7 @@ public class GymDisconnectionService {
     private final ManualPaymentRepository manualPaymentRepository;
     private final GymDeletionAuditRepository gymDeletionAuditRepository;
     private final GymDisconnectionEmailService emailService;
+    private final MygymSettingsService mygymSettings;
     // Solo para reusar periodEnd(user) — la misma cuenta de "1 mes calendario desde paidAt" que
     // ya usan ReservationService.book() y MembershipReminderJob, para no duplicarla acá (ver el
     // comentario en MemberService sobre por qué nunca se repite ese cálculo).
@@ -144,7 +144,7 @@ public class GymDisconnectionService {
 
         // Best-effort: es solo la notificación interna de mygym, no implica pérdida de datos
         // para nadie — no aborta la desvinculación si Resend falla acá.
-        emailService.sendSummaryToSuperAdmin(MYGYM_CONTACT_EMAIL, gym, audit);
+        emailService.sendSummaryToSuperAdmin(mygymSettings.email(), gym, audit);
 
         return toResponse(audit);
     }

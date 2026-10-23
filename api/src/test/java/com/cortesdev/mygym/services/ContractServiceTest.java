@@ -57,6 +57,7 @@ class ContractServiceTest {
     @Mock private GymContractAcceptanceRepository acceptanceRepository;
     @Mock private GymContractCodeRepository codeRepository;
     @Mock private MemberLifecycleEmailService emailService;
+    @org.mockito.Spy private com.cortesdev.mygym.services.MygymSettingsService mygymSettings = com.cortesdev.mygym.services.TestMygymSettings.defaults();
     @InjectMocks private ContractService service;
 
     private final Gym gym = Gym.builder().id(GYM_ID).name("XaloGym").build();
@@ -68,7 +69,6 @@ class ContractServiceTest {
 
     @BeforeEach
     void stubs() {
-        org.springframework.test.util.ReflectionTestUtils.setField(service, "mygymEmail", "contacto@mygym.cl");
         sub = GymSubscription.builder()
                 .gymId(GYM_ID).planId(1L).billingStatus(GymSubscription.NOT_STARTED).billingKind(GymSubscription.BILLING_COMPANY)
                 .billingRut("76.123.456-7").billingName("Gimnasio SpA").billingAddress("Av. Siempre Viva 123")
@@ -118,6 +118,31 @@ class ContractServiceTest {
         assertTrue(text.contains("{{signerName}}") && text.contains("{{signerRut}}") && text.contains("{{signerCapacity}}"));
         assertFalse(text.contains("____"));
         assertTrue(text.contains("Gimnasio SpA") && text.contains("76.123.456-7") && text.contains("admin@xalogym.cl"));
+    }
+
+    @Test
+    void theCompanyAndTheContactEmailInTheContractComeFromTheSettingsOfMygym() {
+        when(subscriptionRepository.findById(GYM_ID)).thenReturn(Optional.of(sub));
+        org.mockito.Mockito.doReturn(new MygymSettingsService.Company("MYGYM NUEVA SPA", "77.111.222-3", "Ana Representante", "11.111.111-1", "Av. Nueva 10, Valparaíso"))
+                .when(mygymSettings).company();
+        org.mockito.Mockito.doReturn("hola@nuevo.cl").when(mygymSettings).email();
+
+        String text = service.view(GYM_ID, USER_ID).text();
+
+        assertTrue(text.contains("MYGYM NUEVA SPA, RUT 77.111.222-3, representada por don Ana Representante, RUT 11.111.111-1, con domicilio en Av. Nueva 10, Valparaíso"));
+        assertTrue(text.contains("Por mygym: Ana Representante, RUT 11.111.111-1, representante legal."));
+        assertTrue(text.contains("hola@nuevo.cl"));
+        assertFalse(text.contains("contacto@mygym.cl") || text.contains("INFORMÁTICA LUIS CORTÉS") || text.contains("{{".concat("company")));
+    }
+
+    @Test
+    void withNothingConfiguredTheContractKeepsThePreviousProviderText() {
+        when(subscriptionRepository.findById(GYM_ID)).thenReturn(Optional.of(sub));
+
+        String text = service.view(GYM_ID, USER_ID).text();
+
+        assertTrue(text.contains("INFORMÁTICA LUIS CORTÉS ÁLVAREZ E.I.R.L., RUT 76.831.567-1, representada por don Luis René Cortés Álvarez, RUT 16.302.718-6, con domicilio en La Unión 102, comuna de Puchuncaví"));
+        assertTrue(text.contains("soporte por correo a contacto@mygym.cl"));
     }
 
     @Test

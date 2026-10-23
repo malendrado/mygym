@@ -57,11 +57,13 @@ public class MemberLifecycleEmailService {
     private final String template;
     private final JwtService jwtService;
     private final Executor emailExecutor;
+    private final MygymSettingsService mygymSettings;
 
     public MemberLifecycleEmailService(
             RestClient.Builder restClientBuilder,
             JwtService jwtService,
             @Qualifier("emailExecutor") Executor emailExecutor,
+            MygymSettingsService mygymSettings,
             @Value("${app.resend.api-key}") String apiKey,
             @Value("${app.resend.from}") String from) {
         this.restClient = restClientBuilder.baseUrl("https://api.resend.com").build();
@@ -70,6 +72,7 @@ public class MemberLifecycleEmailService {
         this.template = loadTemplate();
         this.jwtService = jwtService;
         this.emailExecutor = emailExecutor;
+        this.mygymSettings = mygymSettings;
     }
 
     public void sendMemberWelcome(Gym gym, AppUser member) {
@@ -271,7 +274,7 @@ public class MemberLifecycleEmailService {
         String body = "<p style=\"margin:0 0 12px;\">Tu gimnasio tiene hoy sus <strong style=\"color:#eaf6f7;\">" + maxUsers
                 + " cupos de socios</strong> ocupados. Alguien intentó registrarse y no pudimos crear su cuenta; le avisamos que "
                 + "se comunique con ustedes.</p>"
-                + "<p style=\"margin:0;\">Si quieres ampliar tu cupo, escríbenos a contacto@mygym.cl y lo vemos juntos.</p>";
+                + "<p style=\"margin:0;\">Si quieres ampliar tu cupo, escríbenos a " + escapeHtml(mygymSettings.email()) + " y lo vemos juntos.</p>";
         for (String adminEmail : adminEmails) {
             send(
                     gym,

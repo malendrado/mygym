@@ -53,6 +53,7 @@ class GymDisconnectionOrderTest {
     @Mock private GymDeletionAuditRepository gymDeletionAuditRepository;
     @Mock private GymDisconnectionEmailService emailService;
     @Mock private MemberService memberService;
+    @org.mockito.Spy private com.cortesdev.mygym.services.MygymSettingsService mygymSettings = com.cortesdev.mygym.services.TestMygymSettings.defaults();
     @InjectMocks private GymDisconnectionService service;
 
     private final Gym gym = Gym.builder().id(GYM_ID).name("XaloGym").slug("xalogym").build();

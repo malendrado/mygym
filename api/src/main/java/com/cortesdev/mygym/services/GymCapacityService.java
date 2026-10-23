@@ -42,6 +42,7 @@ public class GymCapacityService {
     private final GymRepository gymRepository;
     private final GymSubscriptionRepository subscriptionRepository;
     private final MemberLifecycleEmailService emailService;
+    private final MygymSettingsService mygymSettings;
 
     // Un correo al dia por gimnasio como maximo cuando alguien no pudo registrarse por falta de cupo. En memoria: la API
     // corre en una sola instancia (igual que los crons); si se reinicia, a lo sumo se repite un aviso ese dia.
@@ -68,7 +69,7 @@ public class GymCapacityService {
         if (freeMemberSlots(gym) < toAdd) {
             throw new GymLimitReachedException(
                     Kind.MEMBERS,
-                    "Tu gimnasio llegó al límite de " + gym.getMaxUsers() + " socios. Escríbenos a contacto@mygym.cl para ampliar tu cupo.");
+                    "Tu gimnasio llegó al límite de " + gym.getMaxUsers() + " socios. Escríbenos a " + mygymSettings.email() + " para ampliar tu cupo.");
         }
     }
 

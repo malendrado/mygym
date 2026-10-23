@@ -13,6 +13,7 @@ public record GymAdminListItemResponse(
         String photoUrl,
         Instant createdAt,
         Instant lastLoginAt,
+        Instant lastSeenAt,
         Long gymId,
         String gymName,
         String gymSlug) {}

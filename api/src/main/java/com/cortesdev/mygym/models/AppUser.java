@@ -111,6 +111,10 @@ public class AppUser {
      *  foto de Google), así que updatedAt no sirve para saber "cuándo entró por última vez". */
     private Instant lastLoginAt;
 
+    /** Última actividad real de un GYM_ADMIN (LastSeenTracker, como mucho una vez por hora): lastLoginAt solo cambia al iniciar sesión y
+     *  la sesión dura ~30 días, así que no dice si el admin sigue usando la app. Se escribe con un UPDATE directo, sin tocar updatedAt. */
+    private Instant lastSeenAt;
+
     /** Los datos de contacto y el contacto de emergencia cargados (los admins no los necesitan, ver ReservationService.book). */
     public boolean isProfileComplete() {
         return notBlank(rut) && notBlank(address) && notBlank(phone) && birthDate != null

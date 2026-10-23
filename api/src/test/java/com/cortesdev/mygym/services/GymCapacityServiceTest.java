@@ -37,6 +37,7 @@ class GymCapacityServiceTest {
     @Mock private GymRepository gymRepository;
     @Mock private GymSubscriptionRepository subscriptionRepository;
     @Mock private MemberLifecycleEmailService emailService;
+    @org.mockito.Spy private com.cortesdev.mygym.services.MygymSettingsService mygymSettings = com.cortesdev.mygym.services.TestMygymSettings.defaults();
     @InjectMocks private GymCapacityService service;
 
     private Gym gym(int maxUsers) {

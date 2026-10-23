@@ -52,6 +52,7 @@ class GymSubscriptionServiceTest {
     @Mock private GymBillingNotifier notifier;
     @Mock private com.cortesdev.mygym.repositories.AppUserRepository appUserRepository;
     @Mock private com.cortesdev.mygym.repositories.GymContractAcceptanceRepository contractAcceptanceRepository;
+    @org.mockito.Spy private com.cortesdev.mygym.services.MygymSettingsService mygymSettings = com.cortesdev.mygym.services.TestMygymSettings.defaults();
     @InjectMocks private GymSubscriptionService service;
 
     private final Gym gym = Gym.builder().id(GYM_ID).name("XaloGym").maxUsers(30).active(true).build();

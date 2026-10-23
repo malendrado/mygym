@@ -9,6 +9,7 @@ import com.cortesdev.mygym.repositories.AppUserRepository;
 import com.cortesdev.mygym.repositories.GymClosureRepository;
 import com.cortesdev.mygym.repositories.GymRepository;
 import com.cortesdev.mygym.repositories.GymSubscriptionRepository;
+import com.cortesdev.mygym.services.MygymSettingsService;
 import com.cortesdev.mygym.repositories.ReservationRepository;
 import com.cortesdev.mygym.security.AuthenticatedUser;
 import com.cortesdev.mygym.services.exception.GymNotFoundException;
@@ -59,11 +60,7 @@ public class GymStatusController {
     private final ReservationRepository reservationRepository;
     private final GymSubscriptionRepository subscriptionRepository;
 
-    @Value("${app.contact.whatsapp:56964641042}")
-    private String mygymWhatsapp;
-
-    @Value("${app.contact.email:contacto@mygym.cl}")
-    private String mygymEmail;
+    private final MygymSettingsService mygymSettings;
 
     /**
      * La respuesta depende solo del gimnasio (no de quien pregunta) y cada app abierta la consulta cada ~45 s: con cientos de
@@ -121,7 +118,7 @@ public class GymStatusController {
                 true,
                 gym.getName(),
                 new Contact(gym.getWhatsappNumber(), ownerEmail, gym.getInstagramUrl()),
-                new Contact(mygymWhatsapp, mygymEmail, null),
+                new Contact(mygymSettings.whatsapp(), mygymSettings.email(), null),
                 null,
                 null,
                 pauseReason,

@@ -3,14 +3,25 @@ package com.cortesdev.mygym.repositories;
 import com.cortesdev.mygym.models.AppUser;
 import com.cortesdev.mygym.models.Role;
 import jakarta.persistence.LockModeType;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 public interface AppUserRepository extends JpaRepository<AppUser, Long> {
 
     Optional<AppUser> findByEmail(String email);
+
+    /** Anota la última actividad solo si pasó el umbral (o nunca se anotó); devuelve las filas tocadas (0 o 1). No toca updatedAt. */
+    @Transactional
+    @Modifying
+    @Query("update AppUser u set u.lastSeenAt = :now where u.id = :id and (u.lastSeenAt is null or u.lastSeenAt < :threshold)")
+    int touchLastSeen(@Param("id") Long id, @Param("now") Instant now, @Param("threshold") Instant threshold);
 
     boolean existsByEmail(String email);
 

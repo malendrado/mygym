@@ -44,6 +44,7 @@ class SecurityHeadersAndCorsTest {
     @MockitoBean private GymClosureService gymClosureService;
     @MockitoBean private GymCapacityService gymCapacityService;
     @MockitoBean private UserSessionGuard userSessionGuard;
+    @MockitoBean private LastSeenTracker lastSeenTracker;
     @MockitoBean private GymPauseGuard gymPauseGuard;
     @MockitoBean private AppUserRepository appUserRepository;
     @MockitoBean private DemoAccessService demoAccessService;
