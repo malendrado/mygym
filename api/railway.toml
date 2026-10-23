@@ -1,0 +1,5 @@
+# Configuración de despliegue de la API en Railway (se aplica con `railway up`, ver docs/operaciones/portabilidad-infraestructura.md).
+# Con chequeo de salud Railway no cambia el tráfico a la versión nueva hasta que /actuator/health responde UP (despliegue sin corte).
+[deploy]
+healthcheckPath = "/actuator/health"
+healthcheckTimeout = 180
