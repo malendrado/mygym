@@ -1211,170 +1211,178 @@
             </button>
           </div>
         }
-        <ion-list lines="full" [attr.aria-busy]="memberList.loading()">
-          @if (memberList.loading()) {
-            <div class="member-skeleton" role="status">
-              <span class="member-skeleton__sr">Cargando socios…</span>
-              @for (i of memberSkeletonRows; track i) {
-                <div class="member-skeleton__row" aria-hidden="true"></div>
-              }
-            </div>
-          } @else if (memberList.error()) {
-            <ion-item lines="none">
-              <ion-label color="danger">No pudimos cargar los socios.</ion-label>
-              <ion-button slot="end" fill="outline" size="small" (click)="memberList.reload()">Reintentar</ion-button>
-            </ion-item>
-          }
-          @if (!memberList.loading()) {
-            @for (member of filteredMembers(); track member.id) {
-              <ion-item>
-                @if (member.photoUrl) {
-                  <img [src]="member.photoUrl" alt="" slot="start" class="member-avatar" loading="lazy" />
-                } @else {
-                  <ion-icon name="person-circle-outline" slot="start" aria-hidden="true"></ion-icon>
+        <div class="load-bar" [class.load-bar--on]="memberList.loading()" aria-hidden="true"></div>
+        <div class="list-wrap" [class.list-wrap--refreshing]="memberList.loading() && memberList.loaded() && !memberList.stale()">
+          <ion-list lines="full" [attr.aria-busy]="memberList.loading()">
+            @if (!memberList.loaded()) {
+              <div class="member-skeleton" role="status">
+                <span class="member-skeleton__sr">Cargando socios…</span>
+                @for (i of memberSkeletonRows; track i) {
+                  <div class="member-skeleton__row" aria-hidden="true"></div>
                 }
-                <ion-label>
-                  @let key = memberKey(member);
-                  <div class="member-row-wrapper">
-                  <div class="member-row">
-                    <span class="member-row__name">{{ member.name }}</span>
-                    <ion-badge [color]="statusColor(member.membershipStatus)">
-                      {{ statusLabel(member.membershipStatus) }}
-                    </ion-badge>
-                    <p class="member-row__key" [class.member-row__key--warn]="key.tone === 'warn'" [class.member-row__key--danger]="key.tone === 'danger'">
-                      @if (key.tone === 'warn' || key.tone === 'danger') {
-                        <ion-icon name="alert-circle-outline" aria-hidden="true"></ion-icon>
-                      }
-                      {{ key.text }}
-                    </p>
-                  </div>
-
-                  <div class="member-actions">
-                  @if (memberWhatsapp(member); as wa) {
-                    <ion-button
-                      fill="outline"
-                      size="small"
-                      color="success"
-                      class="member-action-btn"
-                      [href]="wa"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      [attr.aria-label]="'Escribir a ' + member.name + ' por WhatsApp'"
-                    >
-                      <ion-icon name="logo-whatsapp" slot="icon-only" aria-hidden="true"></ion-icon>
-                    </ion-button>
+              </div>
+            } @else if (memberList.error()) {
+              <ion-item lines="none">
+                <ion-label color="danger">No pudimos cargar los socios.</ion-label>
+                <ion-button slot="end" fill="outline" size="small" (click)="memberList.reload()">Reintentar</ion-button>
+              </ion-item>
+            }
+            @if (memberList.loaded()) {
+              @for (member of filteredMembers(); track member.id) {
+                <ion-item>
+                  @if (member.photoUrl) {
+                    <img [src]="member.photoUrl" alt="" slot="start" class="member-avatar" loading="lazy" />
+                  } @else {
+                    <ion-icon name="person-circle-outline" slot="start" aria-hidden="true"></ion-icon>
                   }
-                  @if (needsPrimaryAction(member)) {
-                    <ion-button
-                      fill="outline"
-                      size="small"
-                      color="primary"
-                      class="member-action-btn member-row__primary"
-                      [disabled]="markingPaidId() === member.id"
-                      (click)="markMemberPaid(member)"
-                    >
-                      @if (markingPaidId() === member.id) {
-                        <ion-spinner name="crescent" slot="start"></ion-spinner>
-                      } @else {
-                        <ion-icon [name]="member.planId ? 'refresh-outline' : 'checkmark-circle-outline'" slot="start" aria-hidden="true"></ion-icon>
-                      }
-                      {{ member.planId ? 'Renovar' : 'Marcar pago' }}
-                    </ion-button>
-                  }
-                    <ion-button
-                      fill="outline"
-                      size="small"
-                      class="member-action-btn member-actions__more"
-                      [attr.aria-label]="'Acciones para ' + member.name"
-                      (click)="openMemberActions(member)"
-                    >
-                      <ion-icon name="ellipsis-horizontal" slot="start" aria-hidden="true"></ion-icon>
-                      Acciones
-                    </ion-button>
-                    <button
-                      type="button"
-                      class="member-row__toggle"
-                      [attr.aria-expanded]="expandedMemberIds().has(member.id)"
-                      [attr.aria-controls]="'member-detail-' + member.id"
-                      [attr.aria-label]="(expandedMemberIds().has(member.id) ? 'Ocultar detalle de ' : 'Ver detalle de ') + member.name"
-                      (click)="toggleMemberDetail(member.id)"
-                    >
-                      <ion-icon [name]="expandedMemberIds().has(member.id) ? 'chevron-up-outline' : 'chevron-down-outline'" aria-hidden="true"></ion-icon>
-                      {{ expandedMemberIds().has(member.id) ? 'Ocultar detalle' : 'Ver detalle' }}
-                    </button>
-                  </div>
-                  </div>
-                  <div class="member-row__detail" [id]="'member-detail-' + member.id" [hidden]="!expandedMemberIds().has(member.id)">
-                    @if (expandedMemberIds().has(member.id)) {
-                    <span class="member-plan-info__item">
-                      <ion-icon name="mail-outline" aria-hidden="true"></ion-icon>
-                      {{ member.email }}
-                    </span>
-                    @if (member.inviteStatus) {
-                      <span
-                        class="member-invite-badge"
-                        [class.member-invite-badge--registered]="member.inviteStatus === 'REGISTERED'"
+                  <ion-label>
+                    @let key = memberKey(member);
+                    <div class="member-row-wrapper">
+                    <div class="member-row">
+                      <span class="member-row__name">{{ member.name }}</span>
+                      <ion-badge [color]="statusColor(member.membershipStatus)">
+                        {{ statusLabel(member.membershipStatus) }}
+                      </ion-badge>
+                      <p class="member-row__key" [class.member-row__key--warn]="key.tone === 'warn'" [class.member-row__key--danger]="key.tone === 'danger'">
+                        @if (key.tone === 'warn' || key.tone === 'danger') {
+                          <ion-icon name="alert-circle-outline" aria-hidden="true"></ion-icon>
+                        }
+                        {{ key.text }}
+                      </p>
+                    </div>
+  
+                    <div class="member-actions">
+                    @if (memberWhatsapp(member); as wa) {
+                      <ion-button
+                        fill="outline"
+                        size="small"
+                        color="success"
+                        class="member-action-btn"
+                        [href]="wa"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        [attr.aria-label]="'Escribir a ' + member.name + ' por WhatsApp'"
                       >
-                        <ion-icon
-                          [name]="member.inviteStatus === 'REGISTERED' ? 'logo-google' : 'paper-plane-outline'"
-                          aria-hidden="true"
-                        ></ion-icon>
-                        {{ inviteStatusLabel(member.inviteStatus) }}
-                      </span>
+                        <ion-icon name="logo-whatsapp" slot="icon-only" aria-hidden="true"></ion-icon>
+                      </ion-button>
                     }
-                    @if (member.planId) {
+                    @if (needsPrimaryAction(member)) {
+                      <ion-button
+                        fill="outline"
+                        size="small"
+                        color="primary"
+                        class="member-action-btn member-row__primary"
+                        [disabled]="markingPaidId() === member.id"
+                        (click)="markMemberPaid(member)"
+                      >
+                        @if (markingPaidId() === member.id) {
+                          <ion-spinner name="crescent" slot="start"></ion-spinner>
+                        } @else {
+                          <ion-icon [name]="member.planId ? 'refresh-outline' : 'checkmark-circle-outline'" slot="start" aria-hidden="true"></ion-icon>
+                        }
+                        {{ member.planId ? 'Renovar' : 'Marcar pago' }}
+                      </ion-button>
+                    }
+                      <ion-button
+                        fill="outline"
+                        size="small"
+                        class="member-action-btn member-actions__more"
+                        [attr.aria-label]="'Acciones para ' + member.name"
+                        (click)="openMemberActions(member)"
+                      >
+                        <ion-icon name="ellipsis-horizontal" slot="start" aria-hidden="true"></ion-icon>
+                        Acciones
+                      </ion-button>
+                      <button
+                        type="button"
+                        class="member-row__toggle"
+                        [attr.aria-expanded]="expandedMemberIds().has(member.id)"
+                        [attr.aria-controls]="'member-detail-' + member.id"
+                        [attr.aria-label]="(expandedMemberIds().has(member.id) ? 'Ocultar detalle de ' : 'Ver detalle de ') + member.name"
+                        (click)="toggleMemberDetail(member.id)"
+                      >
+                        <ion-icon [name]="expandedMemberIds().has(member.id) ? 'chevron-up-outline' : 'chevron-down-outline'" aria-hidden="true"></ion-icon>
+                        {{ expandedMemberIds().has(member.id) ? 'Ocultar detalle' : 'Ver detalle' }}
+                      </button>
+                    </div>
+                    </div>
+                    <div class="member-row__detail" [id]="'member-detail-' + member.id" [hidden]="!expandedMemberIds().has(member.id)">
+                      @if (expandedMemberIds().has(member.id)) {
                       <span class="member-plan-info__item">
-                        <ion-icon name="barbell-outline" aria-hidden="true"></ion-icon>
-                        {{ member.monthlyClasses ? member.sessionsRemaining + '/' + member.monthlyClasses + ' sesiones' : 'Ilimitado' }}
+                        <ion-icon name="mail-outline" aria-hidden="true"></ion-icon>
+                        {{ member.email }}
                       </span>
-                      <span class="member-plan-info__item">
-                        <ion-icon name="calendar-outline" aria-hidden="true"></ion-icon>
-                        {{ formatDate(member.paidAt) }} → {{ formatDate(member.planEndDate) }}
-                      </span>
-                      @if (member.queuedPeriodEnd) {
-                        <span class="member-plan-info__item member-plan-info__item--queued">
-                          <ion-icon name="checkmark-circle-outline" aria-hidden="true"></ion-icon>
-                          Renovado por adelantado
+                      @if (member.inviteStatus) {
+                        <span
+                          class="member-invite-badge"
+                          [class.member-invite-badge--registered]="member.inviteStatus === 'REGISTERED'"
+                        >
+                          <ion-icon
+                            [name]="member.inviteStatus === 'REGISTERED' ? 'logo-google' : 'paper-plane-outline'"
+                            aria-hidden="true"
+                          ></ion-icon>
+                          {{ inviteStatusLabel(member.inviteStatus) }}
                         </span>
                       }
-                    }
-                    @if (member.phone) {
-                      <span class="member-plan-info__item">
-                        <ion-icon name="call-outline" aria-hidden="true"></ion-icon>
-                        {{ formatMobile(member.phone) }}
-                      </span>
-                    }
-                    @if (!member.profileComplete) {
-                      <span class="member-plan-info__item member-plan-info__item--pending">
-                        <ion-icon name="alert-circle-outline" aria-hidden="true"></ion-icon>
-                        Datos pendientes
-                      </span>
-                    }
-                    @if (member.fixedClassesSummary) {
-                      <span class="member-plan-info__item">
-                        <ion-icon name="repeat-outline" aria-hidden="true"></ion-icon>
-                        Fija: {{ member.fixedClassesSummary }}
-                      </span>
-                    }
-                    }
-                  </div>
-                </ion-label>
-              </ion-item>
-            } @empty {
-              @if (memberList.loaded() && !memberList.error()) {
-                <ion-item lines="none">
-                  <ion-label>
-                    {{
-                      memberStatusFilter() || memberInviteFilter() || memberSearch()
-                        ? 'No hay socios que calcen con este filtro/búsqueda.'
-                        : 'Todavía no hay socios cargados.'
-                    }}
+                      @if (member.planId) {
+                        <span class="member-plan-info__item">
+                          <ion-icon name="barbell-outline" aria-hidden="true"></ion-icon>
+                          {{ member.monthlyClasses ? member.sessionsRemaining + '/' + member.monthlyClasses + ' sesiones' : 'Ilimitado' }}
+                        </span>
+                        <span class="member-plan-info__item">
+                          <ion-icon name="calendar-outline" aria-hidden="true"></ion-icon>
+                          {{ formatDate(member.paidAt) }} → {{ formatDate(member.planEndDate) }}
+                        </span>
+                        @if (member.queuedPeriodEnd) {
+                          <span class="member-plan-info__item member-plan-info__item--queued">
+                            <ion-icon name="checkmark-circle-outline" aria-hidden="true"></ion-icon>
+                            Renovado por adelantado
+                          </span>
+                        }
+                      }
+                      @if (member.phone) {
+                        <span class="member-plan-info__item">
+                          <ion-icon name="call-outline" aria-hidden="true"></ion-icon>
+                          {{ formatMobile(member.phone) }}
+                        </span>
+                      }
+                      @if (!member.profileComplete) {
+                        <span class="member-plan-info__item member-plan-info__item--pending">
+                          <ion-icon name="alert-circle-outline" aria-hidden="true"></ion-icon>
+                          Datos pendientes
+                        </span>
+                      }
+                      @if (member.fixedClassesSummary) {
+                        <span class="member-plan-info__item">
+                          <ion-icon name="repeat-outline" aria-hidden="true"></ion-icon>
+                          Fija: {{ member.fixedClassesSummary }}
+                        </span>
+                      }
+                      }
+                    </div>
                   </ion-label>
                 </ion-item>
+              } @empty {
+                @if (memberList.loaded() && !memberList.error()) {
+                  <ion-item lines="none">
+                    <ion-label>
+                      {{
+                        memberStatusFilter() || memberInviteFilter() || memberSearch()
+                          ? 'No hay socios que calcen con este filtro/búsqueda.'
+                          : 'Todavía no hay socios cargados.'
+                      }}
+                    </ion-label>
+                  </ion-item>
+                }
               }
             }
+          </ion-list>
+          @if (memberList.slow()) {
+            <div class="list-loader">
+              <app-gym-loader [compact]="true" [logo]="null" message="Buscando socios…" />
+            </div>
           }
-        </ion-list>
+        </div>
         @if (memberList.totalPages() > 1) {
           <app-pagination-bar
             [page]="memberList.page()"

@@ -19,6 +19,7 @@ export interface PagedQuery {
  */
 export class PagedListState<T> {
   private static readonly SEARCH_DEBOUNCE_MS = 300;
+  static readonly SLOW_AFTER_MS = 1200;
 
   readonly items = signal<T[]>([]);
   readonly page = signal(0);
@@ -26,6 +27,8 @@ export class PagedListState<T> {
   readonly hasNext = signal(false);
   /** Hay un pedido en vuelo — la lista se mantiene visible (atenuada), nunca se vacía. */
   readonly loading = signal(false);
+  /** La espera ya se nota (más de SLOW_AFTER_MS): la pantalla puede mostrar el loader con logo y pesa. */
+  readonly slow = signal(false);
   /** Ya llegó al menos una respuesta — antes de eso se muestra "cargando", no "vacío". */
   readonly loaded = signal(false);
   readonly error = signal(false);
@@ -36,6 +39,7 @@ export class PagedListState<T> {
 
   private sub?: Subscription;
   private searchTimer?: ReturnType<typeof setTimeout>;
+  private slowTimer?: ReturnType<typeof setTimeout>;
 
   constructor(
     private readonly fetch: (query: PagedQuery) => Observable<Page<T>>,
@@ -44,6 +48,7 @@ export class PagedListState<T> {
   ) {
     inject(DestroyRef).onDestroy(() => {
       clearTimeout(this.searchTimer);
+      clearTimeout(this.slowTimer);
       this.sub?.unsubscribe();
     });
   }
@@ -80,6 +85,9 @@ export class PagedListState<T> {
     this.sub?.unsubscribe();
     this.loading.set(true);
     this.error.set(false);
+    clearTimeout(this.slowTimer);
+    this.slow.set(false);
+    this.slowTimer = setTimeout(() => this.slow.set(this.loading()), PagedListState.SLOW_AFTER_MS);
     const requestedPage = this.page();
     this.sub = this.fetch({ q: this.searchQuery().trim(), page: requestedPage, size: this.pageSize }).subscribe({
       next: (result) => {
@@ -93,7 +101,7 @@ export class PagedListState<T> {
         this.totalElements.set(result.totalElements);
         this.hasNext.set(result.hasNext);
         this.loaded.set(true);
-        this.loading.set(false);
+        this.finishLoading();
       },
       error: () => {
         // En 'append' un "Cargar más" fallido no debe perder el avance de página.
@@ -102,8 +110,14 @@ export class PagedListState<T> {
         }
         this.error.set(true);
         this.loaded.set(true);
-        this.loading.set(false);
+        this.finishLoading();
       },
     });
+  }
+
+  private finishLoading(): void {
+    clearTimeout(this.slowTimer);
+    this.slow.set(false);
+    this.loading.set(false);
   }
 }

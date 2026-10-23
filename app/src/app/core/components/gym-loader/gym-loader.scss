@@ -1,0 +1,129 @@
+:host {
+  display: block;
+}
+
+.gym-loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 1.5rem 1rem;
+  text-align: center;
+  color: var(--brand-text, #eaf6f7);
+
+  &__badge {
+    position: relative;
+    width: 4rem;
+    height: 4rem;
+    display: grid;
+    place-items: center;
+  }
+
+  &__ring {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    animation: gym-loader-spin 1.1s linear infinite;
+  }
+
+  &__ring-track,
+  &__ring-arc {
+    fill: none;
+    stroke-width: 3.5;
+  }
+
+  &__ring-track {
+    stroke: color-mix(in srgb, var(--brand-text, #eaf6f7) 14%, transparent);
+  }
+
+  &__ring-arc {
+    stroke: var(--brand-accent, #c6ff3d);
+    stroke-linecap: round;
+    // un cuarto del perímetro (2π·28 ≈ 176): el arco gira y se nota que trabaja
+    stroke-dasharray: 44 132;
+  }
+
+  &__logo {
+    width: 2.2rem;
+    height: 2.2rem;
+    object-fit: contain;
+  }
+
+  &__bell {
+    width: 3.6rem;
+    height: auto;
+    fill: var(--brand-accent, #c6ff3d);
+    transform-origin: 50% 70%;
+    animation: gym-loader-lift 1s cubic-bezier(0.77, 0, 0.175, 1) infinite;
+  }
+
+  &__message {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+  }
+
+  &__tip {
+    margin: 0;
+    min-height: 1.2em;
+    font-size: 0.82rem;
+    color: var(--brand-text-dim, rgba(234, 246, 247, 0.7));
+    animation: gym-loader-tip 2.4s ease-in-out infinite;
+  }
+
+  // Encima de una lista: solo anillo y pesa, más chicos.
+  &--compact {
+    gap: 0.4rem;
+    padding: 0.75rem;
+
+    .gym-loader__badge {
+      width: 2.9rem;
+      height: 2.9rem;
+    }
+
+    .gym-loader__logo {
+      width: 1.5rem;
+      height: 1.5rem;
+    }
+
+    .gym-loader__bell {
+      width: 2.6rem;
+    }
+  }
+}
+
+@keyframes gym-loader-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// La pesa sube (esfuerzo) y baja (descanso): ease-in-out porque se mueve en pantalla, no entra ni sale.
+@keyframes gym-loader-lift {
+  0%,
+  100% {
+    transform: translateY(2px) scaleY(1);
+  }
+  50% {
+    transform: translateY(-5px) scaleY(1.04);
+  }
+}
+
+@keyframes gym-loader-tip {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  20%,
+  80% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gym-loader__bell,
+  .gym-loader__tip {
+    animation: none;
+  }
+}

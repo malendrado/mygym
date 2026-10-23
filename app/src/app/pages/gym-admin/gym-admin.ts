@@ -90,6 +90,7 @@ import { GymSubscriptionCard } from '../../core/components/gym-subscription/gym-
 import { GymPause } from '../../core/components/gym-pause/gym-pause';
 import { GymPauseService } from '../../core/services/gym-pause.service';
 import { MygymContactService } from '../../core/services/mygym-contact.service';
+import { GymLoader } from '../../core/components/gym-loader/gym-loader';
 import { PushBell } from '../../core/components/push-bell/push-bell';
 import { PushPrompt } from '../../core/components/push-prompt/push-prompt';
 import { BookingRulesCard } from '../../core/components/booking-rules-card/booking-rules-card';
@@ -371,6 +372,7 @@ const THEMED_ROOT_PROPERTIES = [
 @Component({
   selector: 'app-gym-admin',
   imports: [
+    GymLoader,
     VersionTag,
     ReactiveFormsModule,
     IonHeader,
@@ -548,6 +550,9 @@ export class GymAdmin implements OnDestroy {
   // Lista paginada de socios — búsqueda, filtros y conteos de las calugas viven en el servidor
   // (ver MemberListState). `members` es solo la página visible; las calugas leen los conteos del
   // gym completo, no cuentan filas del navegador.
+  /** Frases de la pantalla de carga inicial del panel (rotan mientras llega el gimnasio). */
+  protected readonly loaderTips = ['Calentando motores…', 'Cargando las pesas…', 'Una serie más y listo…'] as const;
+
   protected readonly memberList = new MemberListState(
     (query) => this.memberService.listPage(query),
     () => this.memberService.summary(),

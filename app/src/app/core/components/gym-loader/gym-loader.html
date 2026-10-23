@@ -1,0 +1,25 @@
+<div class="gym-loader" [class.gym-loader--compact]="compact()" role="status" aria-live="polite" [attr.aria-label]="message()">
+  <div class="gym-loader__badge" aria-hidden="true">
+    <svg class="gym-loader__ring" viewBox="0 0 64 64" focusable="false">
+      <circle class="gym-loader__ring-track" cx="32" cy="32" r="28" />
+      <circle class="gym-loader__ring-arc" cx="32" cy="32" r="28" />
+    </svg>
+    <img class="gym-loader__logo" [src]="logo() ?? 'favicon.svg'" alt="" />
+  </div>
+
+  <!-- Pesa: la barra sube y baja con los discos a cada lado -->
+  <svg class="gym-loader__bell" viewBox="0 0 72 28" aria-hidden="true" focusable="false">
+    <rect x="18" y="12.5" width="36" height="3" rx="1.5" />
+    <rect x="12" y="5" width="5" height="18" rx="2" />
+    <rect x="55" y="5" width="5" height="18" rx="2" />
+    <rect x="6" y="9" width="5" height="10" rx="2" />
+    <rect x="61" y="9" width="5" height="10" rx="2" />
+  </svg>
+
+  @if (!compact()) {
+    <p class="gym-loader__message">{{ message() }}</p>
+    @if (tips().length > 0) {
+      <p class="gym-loader__tip" aria-hidden="true">{{ tips()[tipIndex()] }}</p>
+    }
+  }
+</div>

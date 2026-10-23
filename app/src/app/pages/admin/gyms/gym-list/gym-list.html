@@ -42,6 +42,9 @@
   </div>
 
   @if (!gymList.loaded()) {
+    @if (gymList.slow()) {
+      <app-gym-loader message="Cargando gimnasios…" [tips]="loaderTips" />
+    }
     <div class="gyms-skeleton" role="status" aria-busy="true">
       <span class="gyms-skeleton__sr">Cargando gimnasios…</span>
       <div class="gyms-stats" aria-hidden="true">

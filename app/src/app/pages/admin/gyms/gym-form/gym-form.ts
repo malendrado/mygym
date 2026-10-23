@@ -91,6 +91,7 @@ import { GymLimitsPanel } from '../../../../core/components/gym-limits/gym-limit
 import { GymSubscriptionCard } from '../../../../core/components/gym-subscription/gym-subscription';
 import { PaginationBar } from '../../../../core/components/pagination-bar/pagination-bar';
 import { PagedListState } from '../../../../core/state/paged-list.state';
+import { GymLoader } from '../../../../core/components/gym-loader/gym-loader';
 import {
   Admin,
   BANK_ACCOUNT_TYPES,
@@ -351,6 +352,7 @@ function slugify(name: string): string {
 @Component({
   selector: 'app-gym-form',
   imports: [
+    GymLoader,
     GymLimitsPanel,
     GymSubscriptionCard,
     VersionTag,

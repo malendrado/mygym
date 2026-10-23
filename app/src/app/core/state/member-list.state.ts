@@ -13,6 +13,11 @@ import { Page } from '../models/page.model';
 export class MemberListState {
   static readonly PAGE_SIZE = 25;
   private static readonly SEARCH_DEBOUNCE_MS = 300;
+  /** Desde cuándo una espera cuenta como "larga". */
+  static readonly SLOW_AFTER_MS = 1200;
+  /** Cuánto vale una respuesta guardada para volver a mostrarla al instante al repetir un filtro o una página. */
+  static readonly CACHE_TTL_MS = 30_000;
+  private static readonly CACHE_MAX = 24;
 
   /** Socios de la página visible (ya filtrados/buscados por el servidor). */
   readonly members = signal<Member[]>([]);
@@ -20,6 +25,10 @@ export class MemberListState {
   readonly totalElements = signal(0);
   /** Hay un pedido en vuelo — la lista se mantiene visible (atenuada), nunca se vacía. */
   readonly loading = signal(false);
+  /** La espera ya se nota (más de SLOW_AFTER_MS): la pantalla muestra el loader con logo y pesa encima de la lista. */
+  readonly slow = signal(false);
+  /** Se está mostrando una respuesta guardada (de hace <30 s) mientras se confirma con el servidor: no hace falta atenuar la lista. */
+  readonly stale = signal(false);
   /** Ya llegó al menos una respuesta — antes de eso se muestra el estado "cargando", no "vacío". */
   readonly loaded = signal(false);
   readonly error = signal(false);
@@ -46,6 +55,8 @@ export class MemberListState {
   private summarySub?: Subscription;
   private summaryInFlight = false;
   private searchTimer?: ReturnType<typeof setTimeout>;
+  private slowTimer?: ReturnType<typeof setTimeout>;
+  private readonly cache = new Map<string, { at: number; page: Page<Member> }>();
 
   constructor(
     private readonly fetchPage: (query: MemberPageQuery) => Observable<Page<Member>>,
@@ -53,6 +64,7 @@ export class MemberListState {
   ) {
     inject(DestroyRef).onDestroy(() => {
       clearTimeout(this.searchTimer);
+      clearTimeout(this.slowTimer);
       this.pageSub?.unsubscribe();
       this.summarySub?.unsubscribe();
     });
@@ -60,6 +72,7 @@ export class MemberListState {
 
   /** Página actual + conteos — para la primera carga y después de cualquier cambio (pago, baja, alta). */
   reload(): void {
+    this.cache.clear();
     this.load();
     this.loadSummary();
   }
@@ -120,33 +133,71 @@ export class MemberListState {
     // Un pedido nuevo cancela el anterior — evita que una respuesta lenta pise a una más reciente
     // (ej. escribir rápido en el buscador).
     this.pageSub?.unsubscribe();
-    this.loading.set(true);
-    this.error.set(false);
-    this.pageSub = this.fetchPage({
+    const query: MemberPageQuery = {
       q: this.searchQuery().trim(),
       status: this.statusFilter(),
       invite: this.inviteFilter(),
       page: this.page(),
       size: MemberListState.PAGE_SIZE,
-    }).subscribe({
+    };
+    const key = JSON.stringify(query);
+    this.loading.set(true);
+    this.error.set(false);
+    // Respuesta guardada hace poco: se muestra al instante y se confirma con el servidor por debajo (sin atenuar la lista).
+    const cached = this.cache.get(key);
+    if (cached && Date.now() - cached.at < MemberListState.CACHE_TTL_MS) {
+      this.applyPage(cached.page);
+      this.stale.set(true);
+    } else {
+      this.stale.set(false);
+    }
+    this.startSlowTimer();
+    this.pageSub = this.fetchPage(query).subscribe({
       next: (result) => {
         // Si se borró el último socio de la última página, esa página queda vacía: retroceder una.
         if (result.items.length === 0 && result.page > 0 && result.totalElements > 0) {
+          this.cache.delete(key);
           this.goTo(result.page - 1);
           return;
         }
-        this.members.set(result.items);
-        this.page.set(result.page);
-        this.totalElements.set(result.totalElements);
-        this.loaded.set(true);
-        this.loading.set(false);
+        this.remember(key, result);
+        this.applyPage(result);
+        this.finishLoading();
       },
       error: () => {
         this.error.set(true);
         this.loaded.set(true);
-        this.loading.set(false);
+        this.finishLoading();
       },
     });
+  }
+
+  private applyPage(result: Page<Member>): void {
+    this.members.set(result.items);
+    this.page.set(result.page);
+    this.totalElements.set(result.totalElements);
+    this.loaded.set(true);
+  }
+
+  private remember(key: string, result: Page<Member>): void {
+    this.cache.delete(key);
+    this.cache.set(key, { at: Date.now(), page: result });
+    if (this.cache.size > MemberListState.CACHE_MAX) {
+      this.cache.delete(this.cache.keys().next().value as string);
+    }
+  }
+
+  private startSlowTimer(): void {
+    clearTimeout(this.slowTimer);
+    this.slow.set(false);
+    this.slowTimer = setTimeout(() => this.slow.set(this.loading()), MemberListState.SLOW_AFTER_MS);
+  }
+
+  private finishLoading(): void {
+    clearTimeout(this.slowTimer);
+    this.slow.set(false);
+    this.stale.set(false);
+    this.loading.set(false);
   }
 
   private loadSummary(): void {

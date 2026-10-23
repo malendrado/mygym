@@ -34,6 +34,7 @@ import {
 import { GymService } from '../../../../core/services/gym.service';
 import { AnalyticsSummary, GymStats, GymSummary } from '../../../../core/models/gym.model';
 import { PagedListState } from '../../../../core/state/paged-list.state';
+import { GymLoader } from '../../../../core/components/gym-loader/gym-loader';
 import { PaginationBar } from '../../../../core/components/pagination-bar/pagination-bar';
 import { AuthService } from '../../../../core/services/auth.service';
 import { toLogoImgSrc } from '../../../../core/utils/logo-src';
@@ -60,6 +61,7 @@ type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
 @Component({
   selector: 'app-gym-list',
   imports: [
+    GymLoader,
     RouterLink,
     IonHeader,
     IonToolbar,
@@ -90,6 +92,8 @@ export class GymList implements ViewWillEnter {
   // los gimnasios (stats), no cuentan las tarjetas de la página visible.
   // El estado también lo filtra el servidor (parámetro `active`): un filtro en cliente solo vería la página cargada.
   protected readonly statusFilter = signal<StatusFilter>('ALL');
+  protected readonly loaderTips = ['Calentando motores…', 'Cargando las pesas…', 'Una serie más y listo…'] as const;
+
   protected readonly gymList = new PagedListState<GymSummary>(
     (query) =>
       this.gymService.listPage({
