@@ -6,7 +6,7 @@
 # Para convertirla en la API principal en una emergencia: ver "Conmutación" en la guía (SCHEDULING_ENABLED=true, min_machines_running=1, DNS).
 
 app = "mygym-api-respaldo"
-primary_region = "gru" # São Paulo: Fly ya no tiene Santiago y es la única región de Sudamérica.
+primary_region = "sjc" # San José (California): la base de Supabase está en AWS us-west-2 (Oregon), así que cada consulta tarda poco. Fly ya no tiene Santiago; São Paulo (gru) dejaría la base a ~170 ms por consulta.
 
 [build]
   dockerfile = "Dockerfile"
