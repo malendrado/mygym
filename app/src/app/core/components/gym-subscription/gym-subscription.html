@@ -58,7 +58,7 @@
         }
         <div class="gs__plan-name">
           <strong>{{ changing() ? s.chargePlanName : s.planName }}</strong>
-          <span>{{ changing() ? s.chargeClientsLabel : s.clientsLabel }}</span>
+          <span>{{ changing() ? (s.pendingMaxUsers != null ? 'Hasta ' + s.pendingMaxUsers + ' socios' : s.chargeClientsLabel) : (s.maxUsers != null ? 'Hasta ' + s.maxUsers + ' socios' : s.clientsLabel) }}</span>
         </div>
         @if (s.netClp !== null) {
           <dl class="gs__amounts">

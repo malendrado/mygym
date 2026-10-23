@@ -380,6 +380,14 @@ describe('GymSubscriptionCard (administrador del gimnasio)', () => {
     expect(el.querySelector('[aria-current="step"]')?.textContent).toContain('1 · Datos');
   });
 
+  it('the plan card states the capacity the gym really has, not only the plan label (a custom plan has its own)', () => {
+    const { el } = render('admin', subscription({ planName: 'Escala', clientsLabel: 'Más de 200 socios', maxUsers: 250 }));
+    expect(text(el)).toContain('Hasta 250 socios');
+    TestBed.resetTestingModule();
+    const changing = render('admin', subscription({ pendingPlanId: 3, pendingPlanName: 'Escala', pendingPlanFrom: '2026-12-15', pendingMaxUsers: 500, chargePlanName: 'Escala', chargeClientsLabel: 'Más de 200 socios', daysToDue: 2, canRenew: true }));
+    expect(text(changing.el)).toContain('Hasta 500 socios');
+  });
+
   it('an exempt gym says it has no charge', () => {
     const { el } = render('admin', subscription({ status: 'EXEMPT', exempt: true }));
     expect(text(el)).toContain('Sin cobro');

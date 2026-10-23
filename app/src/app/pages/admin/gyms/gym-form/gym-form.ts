@@ -1178,6 +1178,11 @@ export class GymForm implements OnDestroy {
         } else {
           this.planCapacity.set(null);
           control.enable({ emitEvent: false });
+          // Plan ya asignado pero gimnasio aún sin activar: el servidor ya dejó el cupo del plan en el gimnasio; sin esto el campo
+          // conserva el valor viejo y un "Guardar" lo devolvería a él, desfasado de lo que se cobra.
+          if (!s.exempt && s.planId && s.maxUsers != null) {
+            control.setValue(s.maxUsers);
+          }
         }
       },
       error: () => undefined,
