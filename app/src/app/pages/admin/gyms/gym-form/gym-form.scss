@@ -680,11 +680,17 @@ ion-segment-button.segment-button-checked {
 .member-stat {
   border: 1px solid var(--brand-ink-surface-2);
   border-radius: 14px;
-  padding: 0.75rem 0.9rem;
+  padding: 0.5rem 0.9rem;
   background: var(--brand-ink-surface);
-  text-align: center;
   cursor: pointer;
   transition: border-color 0.15s ease, transform 0.15s ease;
+  // Compacta: icono a la izquierda y número + etiqueta a su lado (antes tres líneas apiladas de ~105 px).
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas: 'icon value' 'icon label';
+  column-gap: 0.65rem;
+  align-items: center;
+  text-align: left;
 
   @media (hover: hover) and (pointer: fine) {
     &:hover {
@@ -701,8 +707,21 @@ ion-segment-button.segment-button-checked {
   }
 
   ion-icon {
-    font-size: 1.3rem;
-    margin-bottom: 0.25rem;
+    grid-area: icon;
+    font-size: 1.5rem;
+    margin: 0;
+  }
+
+  &__value {
+    grid-area: value;
+    margin: 0;
+    line-height: 1.15;
+  }
+
+  &__label {
+    grid-area: label;
+    margin: 0;
+    line-height: 1.15;
   }
 
   &--active ion-icon {

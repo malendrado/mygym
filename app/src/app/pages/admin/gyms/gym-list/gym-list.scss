@@ -11,7 +11,25 @@
 // una página de conversión. Antes esta página arrancaba directo con un
 // ion-card plano, sin ningún encabezado propio.
 .gyms-hero {
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.25rem;
+
+  // Pantalla ancha: el botón "Nuevo gimnasio" va a la derecha del saludo en vez de una línea más debajo.
+  @media (min-width: 768px) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 1.5rem;
+    align-items: center;
+
+    > * {
+      grid-column: 1;
+    }
+
+    .gyms-hero__cta {
+      grid-column: 2;
+      grid-row: 1 / span 3;
+      margin: 0;
+    }
+  }
 
   &__eyebrow {
     margin: 0 0 0.25rem;
@@ -41,36 +59,47 @@
 
 .gyms-stats {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.75rem;
   margin-bottom: 1.75rem;
 
   @media (min-width: 640px) {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 
 .gyms-stat {
   border: 1px solid var(--brand-ink-surface-2);
   border-radius: 14px;
-  padding: 0.9rem 1rem;
+  padding: 0.55rem 1rem;
   background: var(--brand-ink-surface);
+  // Compacta: icono a la izquierda y número + etiqueta a su lado (antes tres líneas apiladas de ~110 px).
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas: 'icon value' 'icon label';
+  column-gap: 0.7rem;
+  align-items: center;
 
   ion-icon {
-    font-size: 1.2rem;
+    grid-area: icon;
+    font-size: 1.5rem;
     color: var(--brand-accent);
   }
 
   &__value {
-    margin: 0.4rem 0 0.1rem;
+    grid-area: value;
+    margin: 0;
     font-family: var(--brand-font-mono);
-    font-size: 1.4rem;
+    font-size: 1.25rem;
     font-weight: 700;
+    line-height: 1.15;
   }
 
   &__label {
+    grid-area: label;
     margin: 0;
     font-size: 0.8125rem;
+    line-height: 1.15;
     color: var(--brand-text-dim);
   }
 }
@@ -204,17 +233,18 @@
   font-size: 1.1rem;
 }
 
+// minmax(0, 1fr): con 1fr a secas la columna no baja del ancho del nombre más largo y en celular las tarjetas se salían 5 px de la pantalla.
 .gym-grid {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.75rem;
 
   @media (min-width: 640px) {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   @media (min-width: 1024px) {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
@@ -403,7 +433,16 @@
 
 // Cabecera del super admin: a 360px los 3 botones con texto se desbordaban y tapaban el título.
 // En móvil quedan solo con ícono (cada uno con aria-label).
+// 6 × 44 = 264 px: a 360 px ya no cabe el texto "mygym" junto a los botones (se montaba sobre los íconos): en celular el título queda
+// solo con el logo. Si se agrega otro botón, verificar a 360 px.
 @media (max-width: 600px) {
+  .brand-name {
+    display: none;
+  }
+}
+
+// Hasta 960 px los botones van solo con ícono: con el texto, seis botones no caben antes de ~960 px y se montaban sobre el título.
+@media (max-width: 960px) {
   .hdr-btn__label {
     display: none;
   }
@@ -413,7 +452,6 @@
   }
 
   // Área táctil de 44x44 (antes ~35 px de ancho): sin relleno lateral, el ancho lo da min-width.
-  // 5 × 44 = 220 px: el título "mygym" debe seguir cabiendo a 360 px (verificar al agregar otro botón).
   .hdr-btn {
     --padding-start: 0;
     --padding-end: 0;
@@ -439,7 +477,7 @@
   animation: gyms-skel-pulse 1.4s ease-in-out infinite;
 
   &--stat {
-    min-height: 6.4rem;
+    min-height: 3.6rem;
   }
 
   &--card {

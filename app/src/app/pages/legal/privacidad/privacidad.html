@@ -161,7 +161,7 @@
 
     <section class="legal-page__section">
       <h2 id="privacidad-seccion-10">10. Contacto</h2>
-      <p>Para consultas sobre esta política o sobre tus datos, escríbenos a <a href="mailto:contacto@mygym.cl">contacto&#64;mygym.cl</a>.</p>
+      <p>Para consultas sobre esta política o sobre tus datos, escríbenos a <a [href]="'mailto:' + contact.email()">{{ contact.email() }}</a>.</p>
       <p>
         Si eres socio de un gimnasio y quieres acceder a tus datos, corregirlos o pedir su eliminación, dirígete primero a
         tu gimnasio, que es el responsable de ellos. Si nos escribes a nosotros, derivaremos tu solicitud al gimnasio y te

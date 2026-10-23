@@ -26,6 +26,7 @@ import * as XLSX from 'xlsx';
 import { trackDirty } from '../../../../core/utils/dirty-tracker';
 import { GymPlan } from '../../../../core/models/gym.model';
 import { MemberImportRow, MemberImportRowResult } from '../../../../core/models/member.model';
+import { MygymContactService } from '../../../../core/services/mygym-contact.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { errorText } from '../../../../core/utils/error-text';
 import { addressError, birthDateError, normalizeMobile, parseBirthDateCell } from '../../../../core/utils/member-profile';
@@ -171,6 +172,7 @@ export class ImportMembersModal {
 
   private readonly memberService = inject(MemberService);
   private readonly authService = inject(AuthService);
+  protected readonly mygymContact = inject(MygymContactService);
 
   // El backend ya bloquea de verdad cualquier escritura de un DEMO_ADMIN (403 real, ver
   // SecurityConfig — ningún endpoint bajo /api/gym-admin/** que no sea GET admite ese rol). Acá

@@ -22,6 +22,7 @@ import {
   businessOutline,
   checkmarkCircleOutline,
   closeCircleOutline,
+  storefrontOutline,
   documentTextOutline,
   eyeOutline,
   logOutOutline,
@@ -39,6 +40,7 @@ import { toLogoImgSrc } from '../../../../core/utils/logo-src';
 
 addIcons({
   'business-outline': businessOutline,
+  'storefront-outline': storefrontOutline,
   'barbell-outline': barbellOutline,
   add: addOutline,
   'log-out-outline': logOutOutline,

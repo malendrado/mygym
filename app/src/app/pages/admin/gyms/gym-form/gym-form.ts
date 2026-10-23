@@ -1300,7 +1300,13 @@ export class GymForm implements OnDestroy {
     if (!admin.lastLoginAt) {
       return 'Nunca entró';
     }
-    return `Entró hace ${this.durationLabel(Date.now() - new Date(admin.lastLoginAt).getTime())}`;
+    // La última actividad real manda si es más reciente que el último inicio de sesión (la sesión dura ~30 días).
+    const seen = admin.lastSeenAt ? new Date(admin.lastSeenAt).getTime() : 0;
+    const login = new Date(admin.lastLoginAt).getTime();
+    if (seen > login) {
+      return `Activo hace ${this.durationLabel(Date.now() - seen)}`;
+    }
+    return `Entró hace ${this.durationLabel(Date.now() - login)}`;
   }
 
   // Desde que el tour pasó a ser un mini-tour por sección (ver sectionTours en gym-admin.ts /

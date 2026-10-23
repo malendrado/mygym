@@ -1,0 +1,100 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/admin/gyms" text="Gimnasios" />
+    </ion-buttons>
+    <ion-title>Datos de mygym</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="settings-content">
+  <p class="settings-intro">
+    Los datos de mygym como empresa. Son la única fuente: el pop-up de bloqueo, el contrato, los correos de cobro, la landing, las
+    preguntas frecuentes y la política de privacidad leen de aquí.
+  </p>
+
+  @if (status() === 'loading') {
+    <div class="settings-loading" role="status"><ion-spinner name="crescent" aria-label="Cargando"></ion-spinner></div>
+  } @else if (status() === 'error') {
+    <div class="settings-error">
+      <ion-text color="danger"><p role="alert">No pudimos cargar los datos. Intenta nuevamente.</p></ion-text>
+      <ion-button fill="outline" size="small" (click)="load()">Reintentar</ion-button>
+    </div>
+  } @else {
+    @let e = errors();
+    <form (submit)="$event.preventDefault(); save()" novalidate>
+      <div class="settings-grid">
+      <section class="settings-card" aria-labelledby="set-contacto">
+        <h2 id="set-contacto">Contacto</h2>
+        <p class="settings-card__hint">Lo que ven los gimnasios cuando necesitan escribirte (pop-up de bloqueo, contrato, correos y la web).</p>
+        <ion-input
+          label="WhatsApp"
+          labelPlacement="stacked"
+          fill="outline"
+          inputmode="numeric"
+          maxlength="15"
+          placeholder="56912345678"
+          [value]="whatsapp()"
+          (ionInput)="whatsapp.set(text($event))"
+        />
+        @if (tried() && e.whatsapp) { <p class="settings-error-text" role="alert">{{ e.whatsapp }}</p> }
+        <ion-input
+          label="Correo de contacto"
+          labelPlacement="stacked"
+          fill="outline"
+          type="email"
+          maxlength="160"
+          [value]="contactEmail()"
+          (ionInput)="contactEmail.set(text($event))"
+        />
+        @if (tried() && e.contactEmail) { <p class="settings-error-text" role="alert">{{ e.contactEmail }}</p> }
+      </section>
+
+      <section class="settings-card" aria-labelledby="set-empresa">
+        <h2 id="set-empresa">Empresa que contrata</h2>
+        <p class="settings-card__hint">
+          Aparece en el contrato de servicios de los gimnasios nuevos. Los contratos ya firmados no cambian: guardan el texto exacto
+          que firmó cada uno. Si cambias la razón social o el representante, revisa con tu abogado si corresponde una versión nueva del contrato.
+        </p>
+        <ion-input label="Razón social" labelPlacement="stacked" fill="outline" maxlength="160" [value]="companyName()" (ionInput)="companyName.set(text($event))" />
+        @if (tried() && e.companyName) { <p class="settings-error-text" role="alert">{{ e.companyName }}</p> }
+        <ion-input label="RUT de la empresa" labelPlacement="stacked" fill="outline" maxlength="20" [value]="companyRut()" (ionInput)="companyRut.set(text($event))" />
+        @if (tried() && e.companyRut) { <p class="settings-error-text" role="alert">{{ e.companyRut }}</p> }
+        <ion-input label="Representante legal" labelPlacement="stacked" fill="outline" maxlength="120" [value]="legalRepName()" (ionInput)="legalRepName.set(text($event))" />
+        @if (tried() && e.legalRepName) { <p class="settings-error-text" role="alert">{{ e.legalRepName }}</p> }
+        <ion-input label="RUT del representante" labelPlacement="stacked" fill="outline" maxlength="20" [value]="legalRepRut()" (ionInput)="legalRepRut.set(text($event))" />
+        @if (tried() && e.legalRepRut) { <p class="settings-error-text" role="alert">{{ e.legalRepRut }}</p> }
+        <ion-input label="Domicilio" labelPlacement="stacked" fill="outline" maxlength="240" [value]="companyAddress()" (ionInput)="companyAddress.set(text($event))" />
+        @if (tried() && e.companyAddress) { <p class="settings-error-text" role="alert">{{ e.companyAddress }}</p> }
+      </section>
+
+      <section class="settings-card" aria-labelledby="set-banco">
+        <h2 id="set-banco">Cuenta para transferencias</h2>
+        <p class="settings-card__hint">
+          A esta cuenta transfieren los gimnasios que no pagan con Flow. Un campo vacío usa el valor de respaldo del servidor
+          (variables de Railway).
+        </p>
+        <ion-input label="Titular" labelPlacement="stacked" fill="outline" maxlength="160" [value]="bankHolder()" (ionInput)="bankHolder.set(text($event))" />
+        <ion-input label="RUT del titular" labelPlacement="stacked" fill="outline" maxlength="20" [value]="bankRut()" (ionInput)="bankRut.set(text($event))" />
+        @if (tried() && e.bankRut) { <p class="settings-error-text" role="alert">{{ e.bankRut }}</p> }
+        <ion-input label="Banco" labelPlacement="stacked" fill="outline" maxlength="80" [value]="bankName()" (ionInput)="bankName.set(text($event))" />
+        <ion-input label="Tipo de cuenta" labelPlacement="stacked" fill="outline" maxlength="40" placeholder="Cuenta Corriente" [value]="bankAccountType()" (ionInput)="bankAccountType.set(text($event))" />
+        <ion-input label="Número de cuenta" labelPlacement="stacked" fill="outline" maxlength="40" inputmode="numeric" [value]="bankAccountNumber()" (ionInput)="bankAccountNumber.set(text($event))" />
+        <ion-input label="Correo para avisar el pago" labelPlacement="stacked" fill="outline" type="email" maxlength="160" [value]="bankEmail()" (ionInput)="bankEmail.set(text($event))" />
+        @if (tried() && e.bankEmail) { <p class="settings-error-text" role="alert">{{ e.bankEmail }}</p> }
+      </section>
+      </div>
+
+      <div class="settings-actions">
+        @if (saveError()) { <p class="settings-error-text" role="alert">{{ saveError() }}</p> }
+        <ion-button type="submit" [disabled]="saving()">
+          @if (saving()) { <ion-spinner name="crescent" slot="start" aria-hidden="true"></ion-spinner> }
+          Guardar datos
+        </ion-button>
+        @if (updatedLabel(); as when) {
+          <p class="settings-actions__meta">Última modificación: {{ when }}</p>
+        }
+      </div>
+    </form>
+  }
+</ion-content>

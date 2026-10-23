@@ -158,7 +158,7 @@ export class AvisosPush {
         },
         {
           title: 'No pudimos confirmar tu transferencia',
-          body: 'Revisa los datos o escríbenos a contacto@mygym.cl.',
+          body: 'Revisa los datos o escríbenos a [correo de contacto de «Datos de mygym»].',
           when: 'El super admin rechaza una transferencia.',
           urgent: true,
         },

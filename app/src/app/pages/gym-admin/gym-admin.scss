@@ -1,3 +1,16 @@
+// Oculta un texto a la vista pero lo deja para lectores de pantalla (el control conserva su nombre accesible).
+@mixin visually-hidden-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
 ion-content {
   --background: var(--gym-panel-bg, var(--brand-ink));
 }
@@ -542,7 +555,7 @@ ion-header ion-toolbar ion-title {
 @media (min-width: 601px) {
   .member-row {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto auto;
     align-items: center;
     column-gap: 1.25rem;
 
@@ -563,14 +576,58 @@ ion-header ion-toolbar ion-title {
     }
 
     &__toggle {
-      grid-column: 1 / -1;
-      grid-row: 3;
-      justify-self: start;
+      grid-column: 3;
+      grid-row: 1 / span 2;
+      justify-self: end;
     }
 
     &__detail {
       grid-column: 1 / -1;
+      grid-row: 3;
     }
+  }
+}
+
+// Celular: "Ver detalle" comparte la línea del plan (antes tenía una línea propia de 44 px) y el texto de "Acciones" y de
+// "Ver detalle" se oculta (los controles siguen con su nombre accesible). Renovar, WhatsApp y Acciones quedan en una sola línea.
+@media (max-width: 600px) {
+  .member-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: 0.4rem;
+
+    &__head,
+    &__detail {
+      grid-column: 1 / -1;
+    }
+
+    &__key {
+      grid-column: 1;
+      grid-row: 2;
+    }
+
+    // Línea del plan: el control de detalle va a su derecha (no cabe junto a Renovar + WhatsApp + Acciones en 300 px).
+    &__toggle {
+      grid-column: 2;
+      grid-row: 2;
+      justify-self: end;
+      min-width: 44px;
+      justify-content: center;
+    }
+
+    .member-actions {
+      grid-column: 1 / -1;
+      grid-row: 3;
+    }
+
+    &__toggle-label {
+      @include visually-hidden-label;
+    }
+  }
+
+  .member-actions__label {
+    @include visually-hidden-label;
   }
 }
 
@@ -614,11 +671,17 @@ ion-header ion-toolbar ion-title {
 .member-stat {
   border: 1px solid var(--brand-ink-surface-2);
   border-radius: 14px;
-  padding: 0.75rem 0.9rem;
+  padding: 0.5rem 0.9rem;
   background: var(--gym-panel-card, var(--brand-ink-surface-2));
-  text-align: center;
   cursor: pointer;
   position: relative;
+  // Compacta: icono a la izquierda y número + etiqueta a su lado (antes tres líneas apiladas de ~105 px).
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas: 'icon value' 'icon label';
+  column-gap: 0.65rem;
+  align-items: center;
+  text-align: left;
   transition: border-color 0.15s ease, transform 0.15s ease;
 
   @media (hover: hover) and (pointer: fine) {
@@ -658,8 +721,20 @@ ion-header ion-toolbar ion-title {
   }
 
   ion-icon {
-    font-size: 1.3rem;
-    margin-bottom: 0.25rem;
+    grid-area: icon;
+    font-size: 1.5rem;
+    margin: 0;
+  }
+
+  .member-stat__value {
+    grid-area: value;
+    margin: 0;
+    line-height: 1.15;
+  }
+
+  .member-stat__label {
+    grid-area: label;
+    line-height: 1.15;
   }
 
   &--active ion-icon {
@@ -782,6 +857,18 @@ ion-header ion-toolbar ion-title {
   flex-direction: column;
   gap: 0.4rem;
 
+  // Pantalla ancha: los pasos pendientes van en una fila en vez de una columna de botones de ancho completo.
+  @media (min-width: 900px) {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.25rem 1.75rem;
+
+    button {
+      width: auto;
+      padding-right: 0.6rem;
+    }
+  }
+
   button {
     display: flex;
     align-items: center;
@@ -819,7 +906,7 @@ ion-header ion-toolbar ion-title {
 .member-stat__value {
   margin: 0 0 0.15rem;
   font-family: var(--brand-font-mono);
-  font-size: 1.4rem;
+  font-size: 1.25rem;
   font-weight: 700;
 }
 

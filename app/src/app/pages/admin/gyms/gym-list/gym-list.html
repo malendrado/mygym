@@ -1,7 +1,11 @@
 <ion-header>
   <ion-toolbar>
-    <ion-title><img src="favicon.svg" class="brand-icon" alt="" /> mygym</ion-title>
+    <ion-title><img src="favicon.svg" class="brand-icon" alt="" /> <span class="brand-name">mygym</span></ion-title>
     <ion-buttons slot="end">
+      <ion-button class="hdr-btn" routerLink="/admin/gyms/mygym" aria-label="Datos de mygym">
+        <ion-icon name="storefront-outline" slot="start" aria-hidden="true"></ion-icon>
+        <span class="hdr-btn__label">Datos mygym</span>
+      </ion-button>
       <ion-button class="hdr-btn" routerLink="/admin/gyms/plans" aria-label="Planes mygym">
         <ion-icon name="pricetag-outline" slot="start" aria-hidden="true"></ion-icon>
         <span class="hdr-btn__label">Planes</span>

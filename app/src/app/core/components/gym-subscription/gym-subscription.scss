@@ -115,7 +115,9 @@
     }
   }
 
+  // Ancho legible: en pantalla ancha el precio quedaba a 1.800 px de su etiqueta.
   &__plan {
+    max-width: 34rem;
     margin-bottom: 0.75rem;
     padding: 0.7rem 0.8rem;
     border-radius: 0.75rem;
@@ -350,6 +352,11 @@
 
     @media (min-width: 640px) {
       grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    // Pantalla ancha: columnas de ancho acotado (antes dos campos de 920 px para escribir un número o elegir un plan).
+    @media (min-width: 1024px) {
+      grid-template-columns: repeat(auto-fill, minmax(16rem, 22rem));
     }
   }
 

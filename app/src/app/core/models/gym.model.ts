@@ -282,6 +282,8 @@ export interface Admin {
   createdAt: string;
   /** Null si nunca entró con Google. */
   lastLoginAt: string | null;
+  /** Última actividad real en la app (solo admins de gimnasio, como mucho una vez por hora); null si aún no hay registro. */
+  lastSeenAt?: string | null;
   /** Paso más alto alcanzado en cada tour guiado de la demo — null si todavía no lo abrió.
    *  Solo aplica a un DEMO_ADMIN, siempre null para un admin real. */
   adminTourStep: number | null;
@@ -299,6 +301,7 @@ export interface GymAdminListItem {
   photoUrl: string | null;
   createdAt: string;
   lastLoginAt: string | null;
+  lastSeenAt?: string | null;
   gymId: number | null;
   gymName: string | null;
   gymSlug: string | null;

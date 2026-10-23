@@ -1,4 +1,5 @@
-import { Component, Input, computed, signal } from '@angular/core';
+import { Component, Input, computed, inject, signal } from '@angular/core';
+import { MygymContactService } from '../../services/mygym-contact.service';
 import { GymLimits, LimitUsage } from '../../models/gym.model';
 
 interface LimitRow {
@@ -20,6 +21,7 @@ interface LimitRow {
   styleUrl: './gym-limits.scss',
 })
 export class GymLimitsPanel {
+  private readonly mygymContact = inject(MygymContactService);
   private readonly _limits = signal<GymLimits | null>(null);
   private readonly _audience = signal<'admin' | 'super'>('admin');
 
@@ -62,7 +64,7 @@ export class GymLimitsPanel {
     const membersFull =
       audience === 'super'
         ? 'Cupo completo · puedes ampliarlo en Configuración'
-        : 'Cupo completo · escríbenos a contacto@mygym.cl para ampliarlo';
+        : `Cupo completo · escríbenos a ${this.mygymContact.email()} para ampliarlo`;
     return [
       row('members', 'Socios', limits.members, 'cupo', membersFull),
       row('profesores', 'Profesores', limits.profesores, 'cupo', 'Llegaste al máximo de profesores'),

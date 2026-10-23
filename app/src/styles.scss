@@ -344,3 +344,21 @@ h3 {
     animation-iteration-count: infinite !important;
   }
 }
+
+// Formularios largos de un campo por fila (cuenta Pago Online, transferencia bancaria): en pantalla ancha los campos se reparten en
+// columnas en vez de estirarse a 1.900 px; títulos, avisos de error y botones ocupan la fila completa. En celular queda una columna.
+form.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
+  column-gap: 1rem;
+  align-items: start;
+
+  > ion-list-header,
+  > ion-note,
+  > ion-button,
+  > ion-text,
+  > p,
+  > .form-grid__full {
+    grid-column: 1 / -1;
+  }
+}

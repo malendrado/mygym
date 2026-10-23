@@ -148,6 +148,27 @@ export class AdminsList {
     return (first + last).toUpperCase();
   }
 
+  /** "hace 3 d", "hace 2 h"…: se compara de un vistazo; la fecha exacta queda en el tooltip de la celda. */
+  protected relative(value: string | null): string {
+    if (!value) {
+      return '—';
+    }
+    const minutes = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 60000));
+    if (minutes < 60) {
+      return 'hace minutos';
+    }
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) {
+      return `hace ${hours} h`;
+    }
+    const days = Math.floor(hours / 24);
+    if (days < 30) {
+      return `hace ${days} d`;
+    }
+    const months = Math.floor(days / 30);
+    return months < 12 ? `hace ${months} ${months === 1 ? 'mes' : 'meses'}` : `hace ${Math.floor(months / 12)} a`;
+  }
+
   protected formatDate(value: string | null): string {
     if (!value) {
       return 'Nunca entró';

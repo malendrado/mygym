@@ -7,11 +7,11 @@
   </ion-toolbar>
   <ion-toolbar>
     <ion-segment [value]="tab()" (ionChange)="setTab($any($event.detail.value))">
-      <ion-segment-button value="super">
+      <ion-segment-button value="super" layout="icon-start">
         <ion-icon name="shield-checkmark-outline" aria-hidden="true"></ion-icon>
         <ion-label>Super-admins ({{ superAdmins().length }})</ion-label>
       </ion-segment-button>
-      <ion-segment-button value="gym">
+      <ion-segment-button value="gym" layout="icon-start">
         <ion-icon name="people-outline" aria-hidden="true"></ion-icon>
         <ion-label>Admins de gimnasios ({{ gymAdmins().length }})</ion-label>
       </ion-segment-button>
@@ -50,7 +50,10 @@
         <ion-button fill="outline" size="small" (click)="clearQuery()">Limpiar</ion-button>
       </div>
     } @else {
-      <div class="admin-list">
+      <div class="admin-list admin-list--super">
+        <div class="admin-head" aria-hidden="true">
+          <span></span><span>Administrador</span><span>Último ingreso</span>
+        </div>
         @for (admin of visibleSuper(); track admin.id) {
           <div class="admin-card">
             @if (admin.photoUrl) {
@@ -61,7 +64,11 @@
             <div class="admin-card__info">
               <p class="admin-card__name">{{ admin.name }}</p>
               <p class="admin-card__email">{{ admin.email }}</p>
-              <p class="admin-card__meta">{{ admin.lastLoginAt ? ('Entró por última vez: ' + formatDate(admin.lastLoginAt)) : 'Nunca entró' }}</p>
+            </div>
+            <div class="admin-card__cols">
+              <p class="admin-card__col" [class.admin-card__col--none]="!admin.lastLoginAt" [attr.title]="admin.lastLoginAt ? formatDate(admin.lastLoginAt) : null" data-label="Ingreso">
+                {{ admin.lastLoginAt ? relative(admin.lastLoginAt) : 'Nunca entró' }}
+              </p>
             </div>
           </div>
         }
@@ -83,7 +90,10 @@
         <ion-button fill="outline" size="small" (click)="clearQuery()">Limpiar</ion-button>
       </div>
     } @else {
-      <div class="admin-list">
+      <div class="admin-list admin-list--gym">
+        <div class="admin-head" aria-hidden="true">
+          <span></span><span>Administrador</span><span>Gimnasio</span><span>Último ingreso</span><span>Última actividad</span>
+        </div>
         @for (admin of visibleGym(); track admin.id) {
           <div class="admin-card" [class.admin-card--inactive]="!admin.active">
             @if (admin.photoUrl) {
@@ -99,13 +109,20 @@
                 }
               </p>
               <p class="admin-card__email">{{ admin.email }}</p>
-              <p class="admin-card__meta">
+            </div>
+            <div class="admin-card__cols">
+              <p class="admin-card__col admin-card__col--gym">
                 @if (admin.gymName) {
                   <span class="admin-card__gym">{{ admin.gymName }}</span>
                 } @else {
                   <span class="admin-card__gym-missing">Sin gimnasio asignado</span>
                 }
-                · {{ admin.lastLoginAt ? ('entró por última vez ' + formatDate(admin.lastLoginAt)) : 'nunca entró' }}
+              </p>
+              <p class="admin-card__col" [class.admin-card__col--none]="!admin.lastLoginAt" [attr.title]="admin.lastLoginAt ? formatDate(admin.lastLoginAt) : null" data-label="Ingreso">
+                {{ admin.lastLoginAt ? relative(admin.lastLoginAt) : 'Nunca entró' }}
+              </p>
+              <p class="admin-card__col" [class.admin-card__col--none]="!admin.lastSeenAt" [attr.title]="admin.lastSeenAt ? formatDate(admin.lastSeenAt) : null" data-label="Actividad">
+                {{ admin.lastSeenAt ? relative(admin.lastSeenAt) : '—' }}
               </p>
             </div>
           </div>

@@ -1,0 +1,70 @@
+.settings-content {
+  --background: var(--brand-ink);
+  --padding-start: 1.25rem;
+  --padding-end: 1.25rem;
+  --padding-top: 1.5rem;
+  --padding-bottom: 3rem;
+}
+
+.settings-intro {
+  margin: 0 0 1.5rem;
+  max-width: 62ch;
+  color: var(--brand-text-dim);
+}
+
+.settings-loading {
+  display: flex;
+  justify-content: center;
+  padding: 3rem 0;
+}
+
+// Tres tarjetas: en pantalla ancha van en columnas, en celular una bajo otra.
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+
+.settings-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1.1rem 1.2rem 1.25rem;
+  border-radius: 1rem;
+  background: var(--brand-ink-surface);
+  border: 1px solid var(--brand-ink-surface-2);
+  color: var(--brand-text);
+
+  h2 {
+    margin: 0;
+    font-size: 1.05rem;
+  }
+
+  &__hint {
+    margin: 0 0 0.25rem;
+    font-size: 0.85rem;
+    line-height: 1.45;
+    color: var(--brand-text-dim);
+  }
+}
+
+.settings-error-text {
+  margin: -0.35rem 0 0;
+  font-size: 0.82rem;
+  color: var(--ion-color-danger);
+}
+
+.settings-actions {
+  margin-top: 1.25rem;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+
+  &__meta {
+    margin: 0;
+    font-size: 0.82rem;
+    color: var(--brand-text-dim);
+  }
+}

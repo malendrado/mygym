@@ -89,6 +89,7 @@ import { BillingBanner } from '../../core/components/billing-banner/billing-bann
 import { GymSubscriptionCard } from '../../core/components/gym-subscription/gym-subscription';
 import { GymPause } from '../../core/components/gym-pause/gym-pause';
 import { GymPauseService } from '../../core/services/gym-pause.service';
+import { MygymContactService } from '../../core/services/mygym-contact.service';
 import { PushBell } from '../../core/components/push-bell/push-bell';
 import { PushPrompt } from '../../core/components/push-prompt/push-prompt';
 import { BookingRulesCard } from '../../core/components/booking-rules-card/booking-rules-card';
@@ -878,11 +879,11 @@ export class GymAdmin implements OnDestroy {
     }
   }
 
-  // Mismo número que WHATSAPP_NUMBER en landing.ts — duplicado a propósito, no vale la pena
-  // compartir una constante de 10 dígitos entre dos páginas que nunca se importan entre sí.
-  protected readonly demoWhatsappUrl = `https://wa.me/56964641042?text=${encodeURIComponent(
-    'Hola! Vi la demo de mygym y quiero esto para mi gimnasio.',
-  )}`;
+  // El número sale de «Datos de mygym» (panel de super admin), igual que en la landing.
+  private readonly mygymContact = inject(MygymContactService);
+  protected readonly demoWhatsappUrl = computed(() =>
+    this.mygymContact.whatsappUrl('Hola! Vi la demo de mygym y quiero esto para mi gimnasio.'),
+  );
 
   // Tour guiado por sección — antes era un único recorrido de 11 pasos que saltaba de pestaña
   // en pestaña (beforeShow + setSection); el usuario pidió partirlo: cada pestaña tiene su

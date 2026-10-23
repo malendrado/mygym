@@ -166,7 +166,7 @@
         <ion-card-content>
           <p class="demo-cta-card__title">¿Quieres esto para tu gimnasio?</p>
           <p class="item-hint">Escríbenos y lo conversamos — sin compromiso.</p>
-          <ion-button class="demo-cta-card__link" [href]="demoWhatsappUrl" target="_blank" rel="noopener">
+          <ion-button class="demo-cta-card__link" [href]="demoWhatsappUrl()" target="_blank" rel="noopener">
             <ion-icon name="logo-whatsapp" slot="start" aria-hidden="true"></ion-icon>
             Quiero esto para mi gimnasio
           </ion-button>
@@ -374,7 +374,7 @@
             </p>
           </ion-text>
         }
-        <form [formGroup]="flowAccountForm" (ngSubmit)="saveFlowAccount()">
+        <form class="form-grid" [formGroup]="flowAccountForm" (ngSubmit)="saveFlowAccount()">
           <ion-list-header>
             <ion-label>Empresa</ion-label>
           </ion-list-header>
@@ -493,7 +493,7 @@
           Si los completas, tus socios podrán pagar transfiriendo directo a esta cuenta en vez de usar Flow. Tú
           confirmas el pago a mano desde la pestaña Socios, igual que hoy.
         </p>
-        <form [formGroup]="bankTransferForm" (ngSubmit)="saveBankTransfer()">
+        <form class="form-grid" [formGroup]="bankTransferForm" (ngSubmit)="saveBankTransfer()">
           <ion-item>
             <ion-select label-placement="stacked" label="Banco" formControlName="bankName" placeholder="Selecciona tu banco">
               @for (bank of chileBanks; track bank) {
@@ -1272,7 +1272,7 @@
                         (click)="openMemberActions(member)"
                       >
                         <ion-icon name="ellipsis-horizontal" slot="start" aria-hidden="true"></ion-icon>
-                        Acciones
+                        <span class="member-actions__label">Acciones</span>
                       </ion-button>
                     </div>
                     <button
@@ -1280,9 +1280,10 @@
                       class="member-row__toggle"
                       [attr.aria-expanded]="!!openMemberDetails()[member.id]"
                       [attr.aria-controls]="'member-detail-' + member.id"
+                      [attr.aria-label]="'Ver detalle de ' + member.name"
                       (click)="toggleMemberDetail(member.id)"
                     >
-                      Ver detalle
+                      <span class="member-row__toggle-label">Ver detalle</span>
                       <ion-icon name="chevron-down-outline" aria-hidden="true"></ion-icon>
                     </button>
                     @if (openMemberDetails()[member.id]) {

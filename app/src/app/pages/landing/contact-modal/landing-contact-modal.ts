@@ -1,12 +1,12 @@
-import { Component, ElementRef, HostListener, effect, inject, viewChild } from '@angular/core';
+import { Component, ElementRef, HostListener, computed, effect, inject, viewChild } from '@angular/core';
 import { IonIcon } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { logoWhatsapp } from 'ionicons/icons';
+import { MygymContactService } from '../../../core/services/mygym-contact.service';
 import { ContactModalService } from '../shared/contact-modal.service';
 
 addIcons({ 'logo-whatsapp': logoWhatsapp });
 
-const WHATSAPP_NUMBER = '56964641042';
 const WHATSAPP_DEFAULT_MESSAGE = 'Hola! Quiero pedir una demo de mygym para mi gimnasio.';
 
 @Component({
@@ -21,7 +21,8 @@ export class LandingContactModal {
 
   private readonly closeButton = viewChild<ElementRef<HTMLElement>>('modalCloseButton');
 
-  protected readonly whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_DEFAULT_MESSAGE)}`;
+  private readonly mygymContact = inject(MygymContactService);
+  protected readonly whatsappUrl = computed(() => this.mygymContact.whatsappUrl(WHATSAPP_DEFAULT_MESSAGE));
 
   constructor() {
     // Al abrir el modal y tras enviar, el foco vuelve al botón de cerrar (cuando ya existe en el DOM).

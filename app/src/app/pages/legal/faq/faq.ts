@@ -2,6 +2,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { IonContent } from '@ionic/angular';
 import { MygymPlan } from '../../../core/models/subscription.model';
+import { MygymContactService } from '../../../core/services/mygym-contact.service';
 import { SubscriptionService } from '../../../core/services/subscription.service';
 import { scrollToSection } from '../scroll-to-section';
 
@@ -40,6 +41,7 @@ export class LegalFaq {
   protected readonly goTo = scrollToSection;
   private readonly subscriptionService = inject(SubscriptionService);
   private readonly plans = signal<MygymPlan[]>([]);
+  private readonly mygymContact = inject(MygymContactService);
 
   constructor() {
     this.subscriptionService.listPublicPlans().subscribe({ next: (plans) => this.plans.set(plans), error: () => undefined });
@@ -48,7 +50,10 @@ export class LegalFaq {
   protected readonly sections = computed<FaqSection[]>(() =>
     this.baseSections.map((section) => ({
       ...section,
-      items: section.items.map((item) => (item.question === PRICE_QUESTION ? { ...item, answer: priceAnswer(this.plans()) } : item)),
+      items: section.items.map((item) => ({
+        ...item,
+        answer: (item.question === PRICE_QUESTION ? priceAnswer(this.plans()) : item.answer).replaceAll('[[correo]]', this.mygymContact.email()),
+      })),
     })),
   );
 
@@ -163,7 +168,7 @@ export class LegalFaq {
         {
           question: '¿Qué pasa si quiero dejar de usar mygym después de los 6 meses?',
           answer:
-            'Cumplido el plazo mínimo, el contrato sigue mes a mes y puedes terminarlo cuando quieras, sin costo: cierras tu gimnasio dentro de la plataforma o nos avisas a contacto@mygym.cl. El término rige al final del mes ya pagado.',
+            'Cumplido el plazo mínimo, el contrato sigue mes a mes y puedes terminarlo cuando quieras, sin costo: cierras tu gimnasio dentro de la plataforma o nos avisas a [[correo]]. El término rige al final del mes ya pagado.',
         },
         {
           question: '¿Dónde quedan las condiciones completas del servicio?',
@@ -202,7 +207,7 @@ export class LegalFaq {
       items: [
         {
           question: '¿Cómo los contacto si tengo un problema?',
-          answer: 'Escríbenos a contacto@mygym.cl.',
+          answer: 'Escríbenos a [[correo]].',
         },
       ],
     },
