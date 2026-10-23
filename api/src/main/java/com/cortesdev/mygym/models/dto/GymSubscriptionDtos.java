@@ -98,6 +98,8 @@ public final class GymSubscriptionDtos {
             Long pendingPlanId,
             String pendingPlanName,
             LocalDate pendingPlanFrom,
+            /** Cupo de socios que regirá con el plan pendiente (el propio o el del plan). Null si no hay cambio pendiente. */
+            Integer pendingMaxUsers,
             BillingInfo billing,
             BankTransferInfo bank,
             List<PaymentItem> payments,
@@ -125,7 +127,11 @@ public final class GymSubscriptionDtos {
             LocalDate anchorDate,
             Boolean exempt) {}
 
-    public record ChangePlanRequest(@NotNull Long planId, @Min(1) @Max(100_000_000) Integer priceOverrideClp) {}
+    /** Cupo propio del plan nuevo: rige al instante si el gimnasio no está activado y desde el corte si ya paga. Obligatorio en planes a medida. */
+    public record ChangePlanRequest(
+            @NotNull Long planId,
+            @Min(1) @Max(100_000_000) Integer priceOverrideClp,
+            @Min(1) @Max(1_000_000) Integer maxUsersOverride) {}
 
     /** Pago registrado a mano por el super-admin (sin aviso previo del gimnasio). */
     public record ManualPaymentRequest(

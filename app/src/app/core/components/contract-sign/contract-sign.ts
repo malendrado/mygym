@@ -56,6 +56,12 @@ export class ContractSign implements OnInit, OnDestroy {
   protected readonly capacity = signal<SignerCapacity>('LEGAL_REP');
   protected readonly adult = signal(false);
   protected readonly powers = signal(false);
+
+  /** Una sola casilla cubre las dos declaraciones (mayor de edad y facultades), que el servidor guarda por separado en la constancia. */
+  protected accept(checked: boolean): void {
+    this.adult.set(checked);
+    this.powers.set(checked);
+  }
   protected readonly codeSent = signal(false);
   protected readonly maskedEmail = signal('');
   protected readonly code = signal('');
@@ -89,6 +95,24 @@ export class ContractSign implements OnInit, OnDestroy {
       .replaceAll('{{signerCapacity}}', () => (capacity ? CAPACITY_PHRASE[capacity] : '[calidad en que firma]'));
   });
   protected readonly rutInvalid = computed(() => this.rut().trim() !== '' && !isValidRut(this.rut()));
+  /** Qué falta para poder pedir el código: un botón apagado sin motivo deja al usuario sin salida. */
+  protected readonly missingHint = computed(() => {
+    const missing: string[] = [];
+    if (this.name().trim().length < 3) {
+      missing.push('tu nombre completo');
+    }
+    if (!isValidRut(this.rut())) {
+      missing.push(this.rut().trim() === '' ? 'tu RUT' : 'un RUT válido');
+    }
+    if (!(this.adult() && this.powers())) {
+      missing.push('aceptar el contrato');
+    }
+    if (missing.length === 0) {
+      return null;
+    }
+    const last = missing.pop()!;
+    return 'Para continuar falta: ' + (missing.length > 0 ? missing.join(', ') + ' y ' : '') + last + '.';
+  });
   protected readonly canSend = computed(
     () => !this.busy() && this.cooldown() === 0 && this.name().trim().length >= 3 && isValidRut(this.rut()) && this.adult() && this.powers(),
   );

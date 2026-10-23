@@ -31,6 +31,13 @@
     color: var(--ion-color-danger, #eb445a);
   }
 
+  // La declaración es larga: sin esto el texto no corta línea, se sale de la pantalla en celular y empuja toda la tarjeta hacia el lado.
+  &__check {
+    &::part(label) {
+      white-space: normal;
+    }
+  }
+
   // El contrato es largo: se lee dentro de un cuadro con scroll propio, sin estirar la página.
   &__text {
     box-sizing: border-box;
@@ -43,6 +50,12 @@
     line-height: 1.5;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
+
+    // Dentro del pop-up de bloqueo ya scrollea la tarjeta: un segundo scroll dentro del contrato atrapa el dedo en celular.
+    :host-context(.gym-pause__card) & {
+      max-height: none;
+      overflow: visible;
+    }
     border: 1px solid color-mix(in srgb, var(--brand-text) 18%, transparent);
     border-radius: 0.5rem;
     background: color-mix(in srgb, var(--brand-text) 5%, transparent);

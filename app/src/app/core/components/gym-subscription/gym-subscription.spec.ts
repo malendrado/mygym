@@ -147,6 +147,20 @@ describe('contrato de servicios', () => {
     expect(text(done.el)).toContain('Firmado el 21 de octubre de 2026 por Ana Admin (representante legal)');
     expect(text(done.el)).toContain('Ver constancia');
   });
+
+  it('the super-admin cannot activate a gym until it signed the contract, but can register later payments with a warning', () => {
+    const buttonOf = (el: HTMLElement, label: string) => Array.from(el.querySelectorAll('ion-button')).find((b) => (b.textContent ?? '').trim() === label) as HTMLIonButtonElement;
+    const notStarted = { status: 'NOT_STARTED' as const, anchorDate: null, dueDate: null, daysToDue: null };
+    const pending = render('super', subscription({ ...notStarted, contract: unsigned }));
+    expect(buttonOf(pending.el, 'Activar gimnasio').disabled).toBe(true);
+    expect(text(pending.el)).toContain('sin contrato firmado no se activa el gimnasio');
+    TestBed.resetTestingModule();
+    const signedGym = render('super', subscription({ ...notStarted, contract: signed }));
+    expect(buttonOf(signedGym.el, 'Activar gimnasio').disabled).toBe(false);
+    TestBed.resetTestingModule();
+    const paying = render('super', subscription({ contract: unsigned }));
+    expect(buttonOf(paying.el, 'Registrar pago').disabled).toBe(false);
+  });
 });
 
 describe('GymSubscriptionCard (administrador del gimnasio)', () => {
@@ -354,8 +368,16 @@ describe('GymSubscriptionCard (administrador del gimnasio)', () => {
   it('an unstarted gym has no payment actions, just an honest message', () => {
     const { el } = render('admin', subscription({ status: 'NOT_STARTED', planId: null, planName: null, anchorDate: null, dueDate: null, daysToDue: null, netClp: null, canRenew: false }));
     expect(text(el)).toContain('Sin activar');
-    expect(text(el)).toContain('Se activa cuando mygym recibe tu primer pago');
+    expect(text(el)).toContain('Aún no te asignamos un plan');
     expect(text(el)).not.toContain('Pagar con Flow');
+  });
+
+  it('a never-activated gym with a plan shows the 3 steps, and the panel inside the pause overlay drops the repeated status text', () => {
+    const { el } = render('admin', subscription({ status: 'NOT_STARTED', anchorDate: null, dueDate: null, daysToDue: null, canRenew: true, contract: { required: true, signed: false, version: 'v1', signedAt: null, signerName: null, signerCapacity: null, certificateNeeded: false }, billing: { kind: 'COMPANY', rut: null, name: null, giro: null, address: null, email: null } }));
+    expect(text(el)).toContain('1 · Datos');
+    expect(text(el)).toContain('2 · Firma');
+    expect(text(el)).toContain('3 · Pago');
+    expect(el.querySelector('[aria-current="step"]')?.textContent).toContain('1 · Datos');
   });
 
   it('an exempt gym says it has no charge', () => {

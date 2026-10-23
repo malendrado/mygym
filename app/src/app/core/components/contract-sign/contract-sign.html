@@ -19,13 +19,7 @@
         {{ v.blockedReason }}
       </p>
     } @else {
-      <p class="cs__small">Para pagar tu plan primero firma el contrato. Léelo completo y firma con un código que te enviamos a tu correo.</p>
-      <pre class="cs__text" tabindex="0" role="region" aria-label="Texto del contrato">{{ contractText() }}</pre>
-
-      @if (v.certificateNeeded) {
-        <p class="cs__small">Como tu plan es Escala, mygym te pedirá además por correo un certificado de vigencia de tu sociedad con las facultades de quien firma.</p>
-      }
-
+      <p class="cs__small">Para pagar tu plan primero firma el contrato. Escribe tus datos: aparecen en el contrato de abajo. Léelo completo y firma con un código que te enviamos a tu correo.</p>
       <div class="cs__fields">
         <ion-input
           label="Nombre completo de quien firma"
@@ -63,16 +57,22 @@
             <ion-select-option [value]="c.value">{{ c.label }}</ion-select-option>
           }
         </ion-select>
-        <ion-checkbox labelPlacement="end" justify="start" [checked]="adult()" (ionChange)="adult.set($any($event).detail.checked)">
-          Declaro que soy mayor de edad.
-        </ion-checkbox>
-        <ion-checkbox labelPlacement="end" justify="start" [checked]="powers()" (ionChange)="powers.set($any($event).detail.checked)">
-          Declaro que tengo facultades para obligar al gimnasio y que leí y acepto este contrato.
+      </div>
+
+      <pre class="cs__text" tabindex="0" role="region" aria-label="Texto del contrato">{{ contractText() }}</pre>
+
+      @if (v.certificateNeeded) {
+        <p class="cs__small">Como tu plan es Escala, mygym te pedirá además por correo un certificado de vigencia de tu sociedad con las facultades de quien firma.</p>
+      }
+
+      <div class="cs__fields">
+        <ion-checkbox class="cs__check ion-text-wrap" labelPlacement="end" justify="start" [checked]="adult() && powers()" (ionChange)="accept($any($event).detail.checked)">
+          Leí y acepto este contrato. Declaro que soy mayor de edad y que puedo firmar en nombre del gimnasio.
         </ion-checkbox>
       </div>
 
       <div class="cs__actions">
-        <ion-button [disabled]="!canSend()" (click)="sendCode()">
+        <ion-button [disabled]="!canSend()" (click)="sendCode()" aria-describedby="cs-missing">
           @if (busy() && !codeSent()) {
             <ion-spinner name="crescent" slot="start" aria-hidden="true"></ion-spinner>
           } @else {
@@ -81,6 +81,9 @@
           {{ codeSent() ? (cooldown() > 0 ? 'Reenviar código en ' + cooldown() + ' s' : 'Reenviar código') : 'Enviarme el código' + (v.maskedEmail ? ' a ' + v.maskedEmail : '') }}
         </ion-button>
       </div>
+      @if (!codeSent() && missingHint(); as hint) {
+        <p class="cs__small" id="cs-missing">{{ hint }}</p>
+      }
 
       @if (codeSent()) {
         <div class="cs__code">

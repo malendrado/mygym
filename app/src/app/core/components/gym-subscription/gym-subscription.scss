@@ -225,6 +225,36 @@
     margin-top: 0.75rem;
   }
 
+  // Pasos del cliente nuevo (datos → firma → pago): el actual resalta, los hechos se apagan.
+  &__steps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin: 0.75rem 0 0;
+    padding: 0;
+    list-style: none;
+    font-size: 0.78rem;
+    font-weight: 700;
+
+    li {
+      padding: 0.25rem 0.65rem;
+      border-radius: 999px;
+      border: 1px solid color-mix(in srgb, var(--brand-text, #eaf6f7) 25%, transparent);
+      color: var(--brand-text-dim);
+    }
+
+    // Más específico que "li": si no, el color atenuado pisa el texto oscuro sobre el fondo de acento.
+    li.gs__step--current {
+      color: var(--brand-ink, #101c20);
+      background: var(--brand-accent, #c6ff3d);
+      border-color: var(--brand-accent, #c6ff3d);
+    }
+
+    li.gs__step--done {
+      opacity: 0.6;
+    }
+  }
+
   &__box {
     padding-top: 0.75rem;
     border-top: 1px solid color-mix(in srgb, var(--brand-text) 12%, transparent);

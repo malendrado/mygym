@@ -39,6 +39,11 @@
     color: var(--brand-text, #eaf6f7);
     border: 1px solid color-mix(in srgb, var(--brand-accent, #c6ff3d) 30%, transparent);
     box-shadow: 0 1.5rem 3rem -1rem rgba(0, 0, 0, 0.55);
+
+    // El administrador que debe leer el contrato y pagar necesita una tarjeta ancha para el texto.
+    &--wide {
+      width: min(100%, 48rem);
+    }
   }
 
   &__icon {

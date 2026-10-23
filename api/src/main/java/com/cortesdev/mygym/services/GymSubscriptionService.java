@@ -136,6 +136,7 @@ public class GymSubscriptionService {
                 sub.getPendingPlanId(),
                 pending == null ? null : pending.getName(),
                 sub.getPendingPlanFrom(),
+                pending == null ? null : sub.getPendingMaxUsersOverride() != null ? sub.getPendingMaxUsersOverride() : pending.getMaxUsers(),
                 new BillingInfo(billingKindOf(sub), sub.getBillingRut(), sub.getBillingName(), sub.getBillingGiro(), sub.getBillingAddress(), sub.getBillingEmail()),
                 bank(),
                 payments,
@@ -263,21 +264,30 @@ public class GymSubscriptionService {
         }
         LocalDate today = GymBilling.today();
         if (sub.getAnchorDate() == null || sub.getPlanId() == null) {
+            // Un plan a medida no trae cupo: se fija junto con el precio para que lo cobrado y lo usable queden definidos a la vez.
+            if (request.maxUsersOverride() == null && plan.getMaxUsers() == null) {
+                throw new InvalidSubscriptionException("Este plan es a medida: indica el cupo de socios de este gimnasio.");
+            }
             sub.setPlanId(plan.getId());
             sub.setPriceOverrideClp(request.priceOverrideClp());
-            sub.setMaxUsersOverride(null);
+            sub.setMaxUsersOverride(request.maxUsersOverride());
             applyPlanLimits(gym, sub, plan, true);
             // Asignar plan a un gimnasio sin activar (o exento) lo deja esperando su primer pago, no activo.
             sub.setExempt(false);
             refreshStatus(sub, today, false);
-        } else if (plan.getId().equals(sub.getPlanId())) {
-            sub.setPendingPlanId(null);
-            sub.setPendingPriceOverrideClp(null);
-            sub.setPendingPlanFrom(null);
+        } else if (plan.getId().equals(sub.getPlanId()) && request.maxUsersOverride() == null) {
+            // Mismo plan sin tocar el cupo: solo se corrige el precio propio y se descarta un cambio pendiente.
+            clearPendingPlan(sub);
             sub.setPriceOverrideClp(request.priceOverrideClp());
         } else {
+            // Otro plan, o el mismo plan a medida con un cupo distinto (p. ej. de 200 a 500): precio, cupo y plan rigen juntos desde el
+            // corte, para que el gimnasio no use más socios de los que paga.
+            if (request.maxUsersOverride() == null && plan.getMaxUsers() == null) {
+                throw new InvalidSubscriptionException("Este plan es a medida: indica el cupo de socios de este gimnasio.");
+            }
             sub.setPendingPlanId(plan.getId());
             sub.setPendingPriceOverrideClp(request.priceOverrideClp());
+            sub.setPendingMaxUsersOverride(request.maxUsersOverride());
             sub.setPendingPlanFrom(GymBilling.nextCutAfter(sub.getAnchorDate(), today));
         }
         subscriptionRepository.save(sub);
@@ -552,11 +562,16 @@ public class GymSubscriptionService {
         if (next != null) {
             sub.setPlanId(next.getId());
             sub.setPriceOverrideClp(sub.getPendingPriceOverrideClp());
-            sub.setMaxUsersOverride(null);
+            sub.setMaxUsersOverride(sub.getPendingMaxUsersOverride());
             applyPlanLimits(gym, sub, next, false);
         }
+        clearPendingPlan(sub);
+    }
+
+    private static void clearPendingPlan(GymSubscription sub) {
         sub.setPendingPlanId(null);
         sub.setPendingPriceOverrideClp(null);
+        sub.setPendingMaxUsersOverride(null);
         sub.setPendingPlanFrom(null);
     }
 

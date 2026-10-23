@@ -6,6 +6,7 @@
     <ion-button fill="outline" size="small" (click)="reload()">Reintentar</ion-button>
   } @else if (sub(); as s) {
     @let st = statusView()!;
+    @let activating = overlay && s.status === 'NOT_STARTED' && !!s.planName;
 
     @if (!overlay) {
       <header class="gs__head">
@@ -15,10 +16,12 @@
         </h3>
         <span class="gs__chip" [class]="'gs__chip gs__chip--' + st.tone">{{ st.label }}</span>
       </header>
-    } @else {
+    } @else if (!activating) {
       <p class="gs__chip-line"><span class="gs__chip" [class]="'gs__chip gs__chip--' + st.tone">{{ st.label }}</span></p>
     }
-    <p class="gs__hint">{{ st.hint }}</p>
+    @if (!activating) {
+      <p class="gs__hint">{{ st.hint }}</p>
+    }
     @if (!isSuper() && !overlay && s.contract?.signed) {
       <p class="gs__contract">
         <ion-button size="small" fill="outline" [disabled]="busy()" (click)="openContractCopy()">
@@ -49,6 +52,7 @@
               <span class="gs__sr">pasa a</span><span class="gs__arrow" aria-hidden="true">→</span>
               <strong>{{ s.chargePlanName }}@if (s.netClp != null) { {{ clp(s.netClp) }} }</strong>
               @if (s.netClp != null) { + IVA }
+              @if (s.pendingMaxUsers != null) { · hasta {{ s.pendingMaxUsers }} socios }
             </span>
           </p>
         }
@@ -69,7 +73,7 @@
           <p class="gs__small">Plan a medida: el precio se acuerda con mygym.</p>
         }
         @if (s.pendingPlanName && !changing()) {
-          <p class="gs__small">Cambio programado: desde el {{ longDate(s.pendingPlanFrom) }} pasas al plan {{ s.pendingPlanName }}.</p>
+          <p class="gs__small">Cambio programado: desde el {{ longDate(s.pendingPlanFrom) }} pasas al plan {{ s.pendingPlanName }}@if (s.pendingMaxUsers != null) { (hasta {{ s.pendingMaxUsers }} socios) }.</p>
         }
       </div>
     }
@@ -84,6 +88,11 @@
           </p>
         } @else {
           @if (billingFirst()) {
+            <ol class="gs__steps" aria-label="Pasos para activar tu plan">
+              <li [class.gs__step--current]="step() === 1" [class.gs__step--done]="step() > 1" [attr.aria-current]="step() === 1 ? 'step' : null">1 · Datos</li>
+              <li [class.gs__step--current]="step() === 2" [class.gs__step--done]="step() > 2" [attr.aria-current]="step() === 2 ? 'step' : null">2 · Firma</li>
+              <li>3 · Pago</li>
+            </ol>
             <ng-container *ngTemplateOutlet="billingBox"></ng-container>
           }
           <div class="gs__renew">
@@ -183,11 +192,14 @@
           <div class="gs__fields">
             <ion-select label="Plan" placeholder="Elige un plan" labelPlacement="stacked" fill="outline" interface="popover" [value]="newPlanId()" (ionChange)="newPlanId.set($any($event).detail.value)">
               @for (p of activePlans(); track p.id) {
-                <ion-select-option [value]="p.id">{{ p.name }} · {{ p.priceClp ? clp(p.priceClp) + ' + IVA' : 'a medida' }}</ion-select-option>
+                <ion-select-option [value]="p.id">{{ p.name }} · {{ p.priceClp ? clp(p.priceClp) + ' + IVA' : 'a medida' }} · {{ p.clientsLabel }}</ion-select-option>
               }
             </ion-select>
             @if (selectedNewPlan(); as np) {
               <ion-input type="number" inputmode="numeric" [label]="np.priceClp ? 'Precio mensual neto propio (opcional)' : 'Precio mensual neto (obligatorio)'" labelPlacement="stacked" fill="outline" [value]="newPlanPrice()" (ionInput)="newPlanPrice.set(text($event))" />
+              @if (needsOwnCapacity()) {
+                <ion-input type="number" inputmode="numeric" label="Cupo de socios (obligatorio)" labelPlacement="stacked" fill="outline" placeholder="Ej: 350" [value]="newPlanMaxUsers()" (ionInput)="newPlanMaxUsers.set(text($event))" />
+              }
             }
           </div>
           <ion-button size="small" [disabled]="busy() || !selectedNewPlan()" (click)="changePlan()">Asignar plan</ion-button>
@@ -199,7 +211,7 @@
           <div class="gs__fields">
             <ion-select label="Plan" placeholder="Elige un plan" labelPlacement="stacked" fill="outline" interface="popover" [value]="activatePlanId()" (ionChange)="activatePlanId.set($any($event).detail.value)">
               @for (p of activePlans(); track p.id) {
-                <ion-select-option [value]="p.id">{{ p.name }} · {{ p.priceClp ? clp(p.priceClp) + ' + IVA' : 'a medida' }}</ion-select-option>
+                <ion-select-option [value]="p.id">{{ p.name }} · {{ p.priceClp ? clp(p.priceClp) + ' + IVA' : 'a medida' }} · {{ p.clientsLabel }}</ion-select-option>
               }
             </ion-select>
             <ion-input type="date" label="Fecha de inicio (define el día de corte)" labelPlacement="stacked" fill="outline" [value]="activateStart()" (ionInput)="activateStart.set(text($event))" />
@@ -234,14 +246,37 @@
           @if (activateError()) {
             <p class="gs__error" role="alert">{{ activateError() }}</p>
           }
-          <ion-button [disabled]="busy()" (click)="activate()">
+          @if (payBlockedByContract()) {
+            <p class="gs__small">Primero debe firmar el contrato: sin contrato firmado no se activa el gimnasio.</p>
+          }
+          <ion-button [disabled]="busy() || payBlockedByContract()" (click)="activate()">
             @if (busy()) { <ion-spinner name="crescent" slot="start" aria-hidden="true"></ion-spinner> }
             Activar gimnasio
           </ion-button>
         </div>
       } @else {
         <div class="gs__box">
-          <p class="gs__box-title">Condiciones de este gimnasio</p>
+          <p class="gs__box-title">Cambiar de plan</p>
+          <p class="gs__small">Rige desde el próximo período, sin prorrateo.</p>
+          <div class="gs__fields">
+            <ion-select label="Nuevo plan" placeholder="Elige un plan" labelPlacement="stacked" fill="outline" interface="popover" [value]="newPlanId()" (ionChange)="newPlanId.set($any($event).detail.value)">
+              @for (p of activePlans(); track p.id) {
+                <ion-select-option [value]="p.id">{{ p.name }} · {{ p.priceClp ? clp(p.priceClp) + ' + IVA' : 'a medida' }} · {{ p.clientsLabel }}</ion-select-option>
+              }
+            </ion-select>
+            @if (selectedNewPlan(); as np) {
+              <ion-input type="number" inputmode="numeric" [label]="np.priceClp ? 'Precio mensual neto propio (opcional)' : 'Precio mensual neto (obligatorio)'" labelPlacement="stacked" fill="outline" [value]="newPlanPrice()" (ionInput)="newPlanPrice.set(text($event))" />
+              @if (needsOwnCapacity()) {
+                <ion-input type="number" inputmode="numeric" label="Cupo de socios (obligatorio)" labelPlacement="stacked" fill="outline" placeholder="Ej: 500" [value]="newPlanMaxUsers()" (ionInput)="newPlanMaxUsers.set(text($event))" />
+              }
+            }
+          </div>
+          <ion-button size="small" fill="outline" [disabled]="busy() || !selectedNewPlan()" (click)="changePlan()">Cambiar plan</ion-button>
+        </div>
+
+        <div class="gs__box">
+          <p class="gs__box-title">Ajustes de este gimnasio (rigen desde ahora)</p>
+          <p class="gs__small">Para un descuento, un cupo extra o la fecha de corte. Para cambiar de plan usa «Cambiar de plan» más abajo.</p>
           <div class="gs__fields">
             <ion-input type="number" inputmode="numeric" label="Precio mensual neto propio (vacío = el del plan)" labelPlacement="stacked" fill="outline" [value]="editPrice()" (ionInput)="editPrice.set(text($event))" />
             <ion-input type="number" inputmode="numeric" label="Cupo de socios propio (vacío = el del plan)" labelPlacement="stacked" fill="outline" [value]="editMaxUsers()" (ionInput)="editMaxUsers.set(text($event))" />
@@ -249,22 +284,6 @@
           </div>
           <ion-toggle [checked]="editExempt()" (ionChange)="editExempt.set($any($event).detail.checked)">Sin cobro (exento)</ion-toggle>
           <ion-button size="small" [disabled]="busy()" (click)="saveSettings()">Guardar</ion-button>
-        </div>
-
-        <div class="gs__box">
-          <p class="gs__box-title">Cambiar de plan</p>
-          <p class="gs__small">Rige desde el próximo período, sin prorrateo.</p>
-          <div class="gs__fields">
-            <ion-select label="Nuevo plan" placeholder="Elige un plan" labelPlacement="stacked" fill="outline" interface="popover" [value]="newPlanId()" (ionChange)="newPlanId.set($any($event).detail.value)">
-              @for (p of activePlans(); track p.id) {
-                <ion-select-option [value]="p.id">{{ p.name }} · {{ p.priceClp ? clp(p.priceClp) + ' + IVA' : 'a medida' }}</ion-select-option>
-              }
-            </ion-select>
-            @if (selectedNewPlan(); as np) {
-              <ion-input type="number" inputmode="numeric" [label]="np.priceClp ? 'Precio mensual neto propio (opcional)' : 'Precio mensual neto (obligatorio)'" labelPlacement="stacked" fill="outline" [value]="newPlanPrice()" (ionInput)="newPlanPrice.set(text($event))" />
-            }
-          </div>
-          <ion-button size="small" fill="outline" [disabled]="busy() || !selectedNewPlan()" (click)="changePlan()">Cambiar plan</ion-button>
         </div>
 
         @if (s.contract?.required) {

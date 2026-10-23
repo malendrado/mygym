@@ -135,10 +135,18 @@ describe('GymPause por falta de pago del plan mygym', () => {
     expect(el.querySelector('app-gym-subscription')).toBeNull();
   });
 
-  it('a gym that was never activated says so, without asking anyone to pay inside the app', () => {
+  it('a gym that was never activated says so and gives its admin the plan panel to complete the data, sign and pay', () => {
     const el = renderBilling('GYM_ADMIN', 'NOT_STARTED');
+    expect(text(el)).toContain('Activa la cuenta de XaloGym');
+    expect(el.querySelector('app-gym-subscription')).not.toBeNull();
+    expect(el.querySelector('.gym-pause__card--wide')).not.toBeNull();
+  });
+
+  it('a professor of a never-activated gym only sees the notice, not the payment panel', () => {
+    const el = renderBilling('PROFESOR', 'NOT_STARTED');
     expect(text(el)).toContain('todavía no está activada');
     expect(el.querySelector('app-gym-subscription')).toBeNull();
+    expect(el.querySelector('.gym-pause__card--wide')).toBeNull();
   });
 
   it('members keep the calm message of any pause: they never hear about the gym\'s billing', () => {

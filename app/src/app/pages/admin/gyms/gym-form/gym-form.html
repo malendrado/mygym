@@ -480,7 +480,7 @@
           @if (planCapacity(); as cap) {
             <p class="item-hint">
               <strong>Cupo de socios: {{ cap.max }}</strong> · lo define {{ cap.plan ? 'el plan ' + cap.plan : 'la suscripción' }}.
-              Para cambiarlo usa «Condiciones de este gimnasio» en la tarjeta de suscripción.
+              Para cambiarlo usa «Ajustes de este gimnasio» en la tarjeta de suscripción.
             </p>
           } @else {
             <app-quantity-stepper label="Cupo máximo de usuarios *" formControlName="maxUsers" [min]="1" [max]="10000" />

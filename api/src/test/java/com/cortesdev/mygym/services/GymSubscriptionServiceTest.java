@@ -364,7 +364,7 @@ class GymSubscriptionServiceTest {
     void assigningAPlanToAnExemptGymLeavesItWaitingForItsFirstPaymentAndThatPaymentActivatesIt() {
         GymSubscription sub = lockedSubscription(GymSubscription.builder().gymId(GYM_ID).exempt(true).billingStatus("EXEMPT").build());
 
-        service.changePlan(GYM_ID, new ChangePlanRequest(2L, null));
+        service.changePlan(GYM_ID, new ChangePlanRequest(2L, null, null));
 
         assertEquals("NOT_STARTED", sub.getBillingStatus());
         assertNull(sub.getAnchorDate());
@@ -378,6 +378,25 @@ class GymSubscriptionServiceTest {
         assertEquals(GymBilling.today(), sub.getAnchorDate());
         assertEquals(1, sub.getPaidPeriods());
         assertEquals("ACTIVE", sub.getBillingStatus());
+    }
+
+    @Test
+    void aCustomPlanNeedsAnOwnCapacityWhenAssignedToAGymNotYetStarted() {
+        GymSubscription sub = lockedSubscription(GymSubscription.builder().gymId(GYM_ID).billingStatus("NOT_STARTED").build());
+
+        assertThrows(InvalidSubscriptionException.class, () -> service.changePlan(GYM_ID, new ChangePlanRequest(3L, 75_990, null)));
+        assertNull(sub.getPlanId());
+    }
+
+    @Test
+    void aCustomPlanTakesItsCapacityFromTheOwnValueGivenAtAssignment() {
+        GymSubscription sub = lockedSubscription(GymSubscription.builder().gymId(GYM_ID).billingStatus("NOT_STARTED").build());
+
+        service.changePlan(GYM_ID, new ChangePlanRequest(3L, 75_990, 300));
+
+        assertEquals(3L, sub.getPlanId());
+        assertEquals(300, sub.getMaxUsersOverride());
+        assertEquals(300, gym.getMaxUsers());
     }
 
     @Test
@@ -455,7 +474,7 @@ class GymSubscriptionServiceTest {
         LocalDate anchor = GymBilling.today().minusDays(10);
         GymSubscription sub = lockedSubscription(started(anchor, 1, "ACTIVE"));
 
-        service.changePlan(GYM_ID, new ChangePlanRequest(2L, null));
+        service.changePlan(GYM_ID, new ChangePlanRequest(2L, null, null));
 
         assertEquals(1L, sub.getPlanId()); // sigue con el plan actual hasta el corte
         assertEquals(2L, sub.getPendingPlanId());
@@ -463,6 +482,40 @@ class GymSubscriptionServiceTest {
         GymSubscriptionService.Target next = service.target(sub, GymBilling.today());
         assertTrue(next.fromPending());
         assertEquals(59_990, next.netClp());
+    }
+
+    @Test
+    void aCustomPlanChangeOnAPayingGymKeepsItsNewCapacityPendingUntilTheCut() {
+        LocalDate anchor = GymBilling.today().minusDays(10);
+        GymSubscription sub = lockedSubscription(started(anchor, 1, "ACTIVE"));
+
+        assertThrows(InvalidSubscriptionException.class, () -> service.changePlan(GYM_ID, new ChangePlanRequest(3L, 120_000, null)));
+
+        service.changePlan(GYM_ID, new ChangePlanRequest(3L, 120_000, 500));
+
+        assertEquals(1L, sub.getPlanId());
+        assertEquals(3L, sub.getPendingPlanId());
+        assertEquals(500, sub.getPendingMaxUsersOverride());
+        assertNull(sub.getMaxUsersOverride());
+        assertEquals(30, gym.getMaxUsers()); // el cupo del gimnasio no cambia hasta el corte
+    }
+
+    @Test
+    void thePendingCapacityIsAppliedTogetherWithThePlanAtTheCut() {
+        GymSubscription sub = started(GymBilling.today().minusMonths(1), 2, "ACTIVE");
+        sub.setPendingPlanId(3L);
+        sub.setPendingPriceOverrideClp(120_000);
+        sub.setPendingMaxUsersOverride(500);
+        sub.setPendingPlanFrom(GymBilling.today());
+
+        service.promotePendingPlanIfDue(sub, gym, GymBilling.today());
+
+        assertEquals(3L, sub.getPlanId());
+        assertEquals(120_000, sub.getPriceOverrideClp());
+        assertEquals(500, sub.getMaxUsersOverride());
+        assertEquals(500, gym.getMaxUsers());
+        assertNull(sub.getPendingPlanId());
+        assertNull(sub.getPendingMaxUsersOverride());
     }
 
     @Test
@@ -479,7 +532,7 @@ class GymSubscriptionServiceTest {
     void aGymNotStartedGetsTheNewPlanImmediately() {
         GymSubscription sub = lockedSubscription(GymSubscription.builder().gymId(GYM_ID).billingStatus("NOT_STARTED").build());
 
-        service.changePlan(GYM_ID, new ChangePlanRequest(2L, null));
+        service.changePlan(GYM_ID, new ChangePlanRequest(2L, null, null));
 
         assertEquals(2L, sub.getPlanId());
         assertEquals(200, gym.getMaxUsers());

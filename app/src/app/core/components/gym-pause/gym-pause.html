@@ -1,9 +1,15 @@
 @if (pause.paused()) {
   <div class="gym-pause" role="alertdialog" aria-modal="true" aria-labelledby="gym-pause-title" aria-describedby="gym-pause-text">
-    <div class="gym-pause__card">
+    <div class="gym-pause__card" [class.gym-pause__card--wide]="canPay()">
       <ion-icon class="gym-pause__icon" name="pause-circle-outline" aria-hidden="true"></ion-icon>
 
-      @if (audience === 'staff' && notStarted()) {
+      @if (audience === 'staff' && notStarted() && canPay()) {
+        <h2 id="gym-pause-title" class="gym-pause__title" tabindex="-1">Activa la cuenta de {{ status()?.gymName }}</h2>
+        <p id="gym-pause-text" class="gym-pause__text">
+          Sigue los pasos de abajo para empezar. Si ya pagaste o tienes dudas, escríbenos al final.
+        </p>
+        <app-gym-subscription mode="admin" [overlay]="true" />
+      } @else if (audience === 'staff' && notStarted()) {
         <h2 id="gym-pause-title" class="gym-pause__title" tabindex="-1">La cuenta de {{ status()?.gymName }} todavía no está activada</h2>
         <p id="gym-pause-text" class="gym-pause__text">
           Se activa apenas mygym recibe tu primer pago. Si ya pagaste o tienes dudas, escríbenos:

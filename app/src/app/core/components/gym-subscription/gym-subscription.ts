@@ -234,6 +234,9 @@ export class GymSubscriptionCard implements OnInit, OnDestroy {
 
   protected readonly newPlanId = signal<number | null>(null);
   protected readonly newPlanPrice = signal('');
+  protected readonly newPlanMaxUsers = signal('');
+  /** Un plan a medida no trae cupo: se pide junto con el precio, tanto al asignarlo como al programar el cambio. */
+  protected readonly needsOwnCapacity = computed(() => this.selectedNewPlan() !== null && this.selectedNewPlan()?.maxUsers == null);
 
   protected readonly payMethod = signal<PaymentMethod>('TRANSFER');
   protected readonly payOperation = signal('');
@@ -266,6 +269,8 @@ export class GymSubscriptionCard implements OnInit, OnDestroy {
     return !this.isSuper() && !!s && s.canRenew && s.status !== 'EXEMPT' && !s.transferPending && (!this.billingComplete() || !this.contractSigned());
   });
   /** Faltan datos: el formulario va abierto y es obligatorio; si ya están completos, queda un resumen plegado. */
+  /** Paso del cliente nuevo: 1 datos de factura, 2 firma del contrato, 3 pago. */
+  protected readonly step = computed(() => (!this.billingComplete() ? 1 : !this.contractSigned() ? 2 : 3));
   protected readonly billingForm = computed(() => this.billingFirst() && !this.billingComplete());
 
   protected readonly statusView = computed<StatusView | null>(() => {
@@ -497,6 +502,9 @@ export class GymSubscriptionCard implements OnInit, OnDestroy {
   // ---- Super-admin
 
   protected activate(): void {
+    if (this.payBlockedByContract()) {
+      return;
+    }
     const plan = this.selectedActivationPlan();
     if (!plan) {
       this.activateError.set('Elige un plan.');
@@ -548,13 +556,27 @@ export class GymSubscriptionCard implements OnInit, OnDestroy {
       void this.toast('Este plan es a medida: indica el precio mensual neto.', 'danger');
       return;
     }
+    const maxUsers = this.needsOwnCapacity() ? toInt(this.newPlanMaxUsers()) : null;
+    if (this.needsOwnCapacity() && maxUsers == null) {
+      void this.toast('Este plan es a medida: indica el cupo de socios.', 'danger');
+      return;
+    }
     this.run(
-      this.service.changePlan(this._gymId!, plan.id, price),
+      this.service.changePlan(this._gymId!, plan.id, price, maxUsers),
       this.started() ? 'Plan cambiado. Rige desde el próximo período.' : 'Plan asignado. El gimnasio se activa cuando pague.',
-      () => this.newPlanId.set(null),
+      () => {
+        this.newPlanId.set(null);
+        this.newPlanMaxUsers.set('');
+      },
       true,
     );
   }
+
+  /** El primer pago activa el gimnasio: sin contrato firmado no se activa. Los pagos siguientes solo piden confirmar. */
+  protected readonly payBlockedByContract = computed(() => {
+    const contract = this.sub()?.contract;
+    return !!contract?.required && !contract.signed;
+  });
 
   protected async markPaid(): Promise<void> {
     const contract = this.sub()?.contract;
@@ -573,7 +595,7 @@ export class GymSubscriptionCard implements OnInit, OnDestroy {
     );
   }
 
-  /** El super-admin puede registrar un pago aunque no haya contrato firmado, pero se lo hacemos notar. */
+  /** Un pago posterior se puede registrar sin contrato firmado (p. ej. un gym anterior al contrato), pero se lo hacemos notar. */
   private async confirmUnsignedPayment(): Promise<boolean> {
     const alert = await this.alertController.create({
       header: 'Contrato sin firmar',
@@ -701,7 +723,9 @@ export class GymSubscriptionCard implements OnInit, OnDestroy {
           label: 'Sin activar',
           tone: 'warn',
           hint: forAdmin
-            ? 'Tu cuenta todavía no está activada. Se activa cuando mygym recibe tu primer pago.'
+            ? s.planName
+              ? 'Tu cuenta todavía no está activada. Se activa cuando mygym recibe tu primer pago.'
+              : 'Aún no te asignamos un plan. Escríbenos y lo dejamos listo para que actives tu cuenta.'
             : 'En pausa hasta recibir el primer pago. Actívalo cuando llegue.',
         };
       case 'GRACE':

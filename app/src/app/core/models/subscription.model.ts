@@ -87,6 +87,8 @@ export interface GymSubscription {
   pendingPlanId: number | null;
   pendingPlanName: string | null;
   pendingPlanFrom: string | null;
+  /** Cupo de socios que regirá con el plan pendiente. Null si no hay cambio pendiente. */
+  pendingMaxUsers?: number | null;
   billing: BillingInfo;
   bank: BankTransferData;
   payments: SubscriptionPayment[];

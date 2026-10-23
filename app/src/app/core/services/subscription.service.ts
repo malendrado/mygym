@@ -104,8 +104,8 @@ export class SubscriptionService {
     return this.http.put<GymSubscription>(this.base(gymId), request);
   }
 
-  changePlan(gymId: number, planId: number, priceOverrideClp: number | null): Observable<GymSubscription> {
-    return this.http.put<GymSubscription>(`${this.base(gymId)}/plan`, { planId, priceOverrideClp });
+  changePlan(gymId: number, planId: number, priceOverrideClp: number | null, maxUsersOverride: number | null = null): Observable<GymSubscription> {
+    return this.http.put<GymSubscription>(`${this.base(gymId)}/plan`, { planId, priceOverrideClp, maxUsersOverride });
   }
 
   updateBilling(gymId: number, info: BillingInfo): Observable<GymSubscription> {

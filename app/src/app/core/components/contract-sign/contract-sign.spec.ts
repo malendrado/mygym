@@ -66,6 +66,17 @@ describe('ContractSign', () => {
     expect(person.form.capacities().map((c) => c.value)).toEqual(['PERSON_OWNER', 'ATTORNEY']);
   });
 
+  it('says what is missing while the send button is off, and stops saying it once everything is filled', () => {
+    const { form, fill, fixture, el } = setup();
+    expect(el.querySelector('#cs-missing')?.textContent).toContain('Para continuar falta: tu nombre completo, tu RUT y aceptar el contrato.');
+    form.name.set('Ana Admin');
+    form.rut.set('1234');
+    fixture.detectChanges();
+    expect(el.querySelector('#cs-missing')?.textContent).toContain('falta: un RUT válido y aceptar el contrato.');
+    fill();
+    expect(el.querySelector('#cs-missing')).toBeNull();
+  });
+
   it('the code can only be requested with name, a valid RUT and both declarations', () => {
     const { form, fill } = setup();
     expect(form.canSend()).toBe(false);

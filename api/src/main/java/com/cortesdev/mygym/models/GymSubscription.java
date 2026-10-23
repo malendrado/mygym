@@ -55,6 +55,9 @@ public class GymSubscription {
 
     private Integer pendingPriceOverrideClp;
 
+    /** Cupo propio que rige junto al plan pendiente. Null = el cupo del plan pendiente. */
+    private Integer pendingMaxUsersOverride;
+
     private LocalDate pendingPlanFrom;
 
     private boolean exempt;
