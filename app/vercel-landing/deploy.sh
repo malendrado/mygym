@@ -51,6 +51,7 @@ mkdir -p public/brochure
 cp brochure-src/index.html public/brochure/index.html
 cp brochure-src/og-image.png public/brochure/og-image.png
 cp brochure-src/og-image.jpg public/brochure/og-image.jpg
+cp brochure-src/og-logo.jpg public/brochure/og-logo.jpg
 
 echo "4/4 — deploy a Vercel..."
 npx vercel --prod --yes --scope gvegasc-1191s-projects
