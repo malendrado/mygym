@@ -2,6 +2,7 @@
   "outputDirectory": "public",
   "rewrites": [
     { "source": "/brochure", "destination": "/brochure/index.html" },
+    { "source": "/planes.md", "destination": "/api/planes" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [

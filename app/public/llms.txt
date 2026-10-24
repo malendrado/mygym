@@ -8,5 +8,8 @@
 - [Preguntas frecuentes](https://www.mygym.cl/faq): reservas, pagos, planes y precios, cómo empezar.
 - [Privacidad y cookies](https://www.mygym.cl/privacidad): tratamiento de datos y condiciones comerciales.
 
+## Planes y precios
+- [Planes y precios actuales](https://www.mygym.cl/planes.md): nombre, tope de socios, precio mensual y funciones de cada plan, siempre actualizado.
+
 ## Contacto
 - Pedir una demo: formulario en https://www.mygym.cl/ o por WhatsApp desde la misma página.
