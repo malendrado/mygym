@@ -51,7 +51,7 @@
 @mixin button {
   .button {
     display: inline-block;
-    padding: 0.85rem 1.75rem;
+    padding: 0.95rem 1.75rem; // alto ≥ 44 px para tocar con el dedo
     border: none;
     border-radius: 999px;
     font-family: inherit;

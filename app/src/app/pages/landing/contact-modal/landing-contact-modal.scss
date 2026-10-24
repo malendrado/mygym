@@ -115,7 +115,9 @@
   input,
   textarea {
     font-family: var(--brand-font-display);
-    font-size: 0.95rem;
+    font-size: 1rem; // 16 px: en iPhone, menos que eso hace zoom al enfocar el campo
+    box-sizing: border-box;
+    min-height: 44px;
     color: var(--brand-text);
     background: var(--brand-ink);
     border: 1px solid var(--brand-ink-surface-2);

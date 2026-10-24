@@ -70,6 +70,7 @@
       width: 100%;
       height: auto;
       object-fit: cover;
+      aspect-ratio: 5 / 4; // en móvil la foto no empuja el botón principal fuera de la pantalla
       animation: hero-drift 14s ease-in-out infinite alternate;
     }
 
@@ -79,6 +80,7 @@
 
       img {
         height: 100%;
+        aspect-ratio: auto;
       }
     }
   }
