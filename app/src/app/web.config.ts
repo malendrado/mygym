@@ -9,11 +9,13 @@ import { authInterceptor } from './core/interceptors/auth.interceptor';
 import { provideGoogleAuth } from './core/providers/google-auth.providers';
 import { PwaInstallService } from './core/services/pwa-install.service';
 import { AppUpdateService } from './core/services/app-update.service';
+import { provideRouteSeo } from './core/utils/route-seo';
 
 export const webConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideRouter(webRoutes),
+    provideRouteSeo(),
     provideHttpClient(withInterceptors([authInterceptor, errorInterceptor])),
     provideIonicAngular({}),
     provideGoogleAuth(),

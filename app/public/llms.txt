@@ -1,0 +1,12 @@
+# mygym
+
+> Software de gestión para gimnasios, boxes y estudios en Chile: reservas de clases, membresías, control de acceso con QR, pagos y avisos a los socios, con la marca de cada gimnasio.
+
+## Páginas
+- [Inicio](https://www.mygym.cl/): qué es mygym, funciones y cómo pedir una demo.
+- [Brochure](https://www.mygym.cl/brochure): presentación completa de módulos, seguridad y cómo funciona.
+- [Preguntas frecuentes](https://www.mygym.cl/faq): reservas, pagos, planes y precios, cómo empezar.
+- [Privacidad y cookies](https://www.mygym.cl/privacidad): tratamiento de datos y condiciones comerciales.
+
+## Contacto
+- Pedir una demo: formulario en https://www.mygym.cl/ o por WhatsApp desde la misma página.

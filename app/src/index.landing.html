@@ -36,8 +36,38 @@
     href="https://images.unsplash.com/photo-1637666062717-1c6bcfa4a4df?q=80&w=900&h=1100&fit=crop&auto=format"
   >
   <script defer src="/ga.js"></script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": "https://www.mygym.cl/#organization",
+        "name": "mygym",
+        "url": "https://www.mygym.cl/",
+        "logo": "https://www.mygym.cl/icon-512.png",
+        "sameAs": ["https://www.instagram.com/mygymapp/"]
+      },
+      {
+        "@type": "SoftwareApplication",
+        "name": "mygym",
+        "url": "https://www.mygym.cl/",
+        "applicationCategory": "BusinessApplication",
+        "operatingSystem": "Web",
+        "inLanguage": "es-CL",
+        "description": "Software de gestión para gimnasios: reservas, membresías, control de acceso y pagos en un solo lugar.",
+        "publisher": { "@id": "https://www.mygym.cl/#organization" }
+      }
+    ]
+  }
+  </script>
 </head>
 <body>
   <app-root></app-root>
+  <noscript>
+    <h1>mygym: gestiona tu gimnasio sin la planilla de Excel</h1>
+    <p>mygym es un software para gimnasios, boxes y estudios: reservas de clases, membresías, control de acceso con QR, pagos y avisos a los socios, todo en un solo lugar y con la marca de tu gimnasio.</p>
+    <p><a href="/brochure">Conoce mygym en detalle</a> · <a href="/faq">Preguntas frecuentes</a> · <a href="/privacidad">Privacidad y cookies</a></p>
+  </noscript>
 </body>
 </html>

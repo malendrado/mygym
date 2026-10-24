@@ -38,11 +38,13 @@ export const webRoutes: Routes = [
     // a la navegación hasta que decida publicarlas.
     path: 'faq',
     title: 'Preguntas frecuentes · mygym',
+    data: { description: 'Respuestas sobre mygym: cómo funcionan las reservas, los pagos, los planes y los precios, y cómo empezar con tu gimnasio.' },
     loadComponent: () => import('./pages/legal/faq/faq').then((m) => m.LegalFaq),
   },
   {
     path: 'privacidad',
     title: 'Privacidad · mygym',
+    data: { description: 'Política de privacidad, tratamiento de datos, cookies y condiciones comerciales de mygym, el software de gestión para gimnasios.' },
     loadComponent: () => import('./pages/legal/privacidad/privacidad').then((m) => m.LegalPrivacidad),
   },
   {
