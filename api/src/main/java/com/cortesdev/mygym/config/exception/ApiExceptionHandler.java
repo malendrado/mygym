@@ -1,5 +1,6 @@
 package com.cortesdev.mygym.config.exception;
 
+import com.cortesdev.mygym.services.EmailOwnerDescriber;
 import com.cortesdev.mygym.services.exception.AdminNotFoundException;
 import com.cortesdev.mygym.services.exception.AlreadyCheckedInException;
 import com.cortesdev.mygym.services.exception.AttendeesHiddenException;
@@ -56,12 +57,15 @@ import com.cortesdev.mygym.services.exception.WorkoutLogNotFoundException;
 import com.cortesdev.mygym.services.exception.WorkoutPlanNotFoundException;
 import java.net.URI;
 import java.time.Instant;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -71,6 +75,31 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 
 @RestControllerAdvice
 public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
+
+    // Opcional (setter) para no cambiar el constructor: las pruebas crean el manejador con `new ApiExceptionHandler()`.
+    private EmailOwnerDescriber emailOwnerDescriber;
+
+    @Autowired
+    void setEmailOwnerDescriber(EmailOwnerDescriber emailOwnerDescriber) {
+        this.emailOwnerDescriber = emailOwnerDescriber;
+    }
+
+    /**
+     * Al super admin se le dice dónde vive el email que rechazó ("es socio del gimnasio «X»"); a cualquier otro rol se le deja
+     * el mensaje genérico, para no revelar de qué gimnasio ni con qué rol es una cuenta ajena.
+     */
+    private String duplicateEmailDetail(String email, String genericMessage) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        boolean superAdmin = auth != null
+                && auth.getAuthorities().stream().anyMatch(a -> "ROLE_SUPER_ADMIN".equals(a.getAuthority()));
+        if (!superAdmin || emailOwnerDescriber == null || email == null) {
+            return genericMessage;
+        }
+        return emailOwnerDescriber
+                .describe(email)
+                .map(where -> "El email " + email + " ya existe en mygym: es " + where + ". Usa otro email.")
+                .orElse(genericMessage);
+    }
 
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(ApiExceptionHandler.class);
 
@@ -275,7 +304,8 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(DuplicateMemberEmailException.class)
     public ResponseEntity<ProblemDetail> handleDuplicateMemberEmail(DuplicateMemberEmailException ex) {
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.CONFLICT, duplicateEmailDetail(ex.getEmail(), ex.getMessage()));
         problem.setTitle("Email de socio duplicado");
         problem.setProperty("timestamp", Instant.now());
         return ResponseEntity.status(HttpStatus.CONFLICT).body(problem);
@@ -283,7 +313,8 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(DuplicateOwnerEmailException.class)
     public ResponseEntity<ProblemDetail> handleDuplicateOwnerEmail(DuplicateOwnerEmailException ex) {
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+        String detail = ex.isGeneric() ? duplicateEmailDetail(ex.getEmail(), ex.getMessage()) : ex.getMessage();
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, detail);
         problem.setTitle("Email duplicado");
         problem.setProperty("timestamp", Instant.now());
         return ResponseEntity.status(HttpStatus.CONFLICT).body(problem);
