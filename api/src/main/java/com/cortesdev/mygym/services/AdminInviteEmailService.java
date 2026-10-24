@@ -2,6 +2,7 @@ package com.cortesdev.mygym.services;
 
 import com.cortesdev.mygym.models.AppUser;
 import com.cortesdev.mygym.models.Gym;
+import com.cortesdev.mygym.security.JwtService;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
@@ -27,6 +28,7 @@ public class AdminInviteEmailService {
 
     private static final Logger log = LoggerFactory.getLogger(AdminInviteEmailService.class);
     private static final String LOGIN_URL = "https://www.mygym.cl/login";
+    private static final String GUIDE_BASE_URL = "https://www.mygym.cl/guia/";
 
     private final RestClient restClient;
     private final String apiKey;
@@ -36,13 +38,16 @@ public class AdminInviteEmailService {
     private final String demoTemplate;
 
     private final java.util.concurrent.Executor emailExecutor;
+    private final JwtService jwtService;
 
     public AdminInviteEmailService(
+            JwtService jwtService,
             RestClient.Builder restClientBuilder,
             @org.springframework.beans.factory.annotation.Qualifier("emailExecutor") java.util.concurrent.Executor emailExecutor,
             @Value("${app.resend.api-key}") String apiKey,
             @Value("${app.resend.from}") String from) {
         this.emailExecutor = emailExecutor;
+        this.jwtService = jwtService;
         this.restClient = restClientBuilder.baseUrl("https://api.resend.com").build();
         this.apiKey = apiKey;
         this.from = from;
@@ -109,6 +114,10 @@ public class AdminInviteEmailService {
                 .replace("{{ADMIN_EMAIL}}", escapeHtml(admin.getEmail()))
                 .replace("{{INVITER_NAME}}", "el equipo de mygym")
                 .replace("{{INVITE_URL}}", LOGIN_URL)
+                // Solo lo usa demo-invite.html; en las otras plantillas no hay marcador y no hace nada.
+                // La guía es privada a propósito (sin link público): se entrega solo en este correo,
+                // atada al DEMO_ADMIN, así que muere con la demo (la fila se borra al vencer).
+                .replace("{{GUIDE_URL}}", GUIDE_BASE_URL + jwtService.issueGuideToken(admin.getId(), gym.getId()))
                 .replace("{{THEME_COLOR}}", themeColor)
                 .replace("{{THEME_CONTRAST}}", contrast)
                 .replace("{{LOGO_BADGE_INNER}}", logoBadgeInner(gym));
