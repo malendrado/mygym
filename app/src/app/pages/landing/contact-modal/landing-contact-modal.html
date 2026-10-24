@@ -26,7 +26,7 @@
           [href]="whatsappUrl()"
           target="_blank"
           rel="noopener"
-          (click)="contact.close()"
+          (click)="contact.trackWhatsapp(); contact.close()"
         >
           <ion-icon name="logo-whatsapp" aria-hidden="true"></ion-icon>
           Escríbenos por WhatsApp

@@ -14,6 +14,7 @@
       <a class="legal-page__chip" href="#privacidad-seccion-8" (click)="goTo($event, 'privacidad-seccion-8')">8. Seguridad</a>
       <a class="legal-page__chip" href="#privacidad-seccion-9" (click)="goTo($event, 'privacidad-seccion-9')">9. Marco legal</a>
       <a class="legal-page__chip" href="#privacidad-seccion-10" (click)="goTo($event, 'privacidad-seccion-10')">10. Contacto</a>
+      <a class="legal-page__chip" href="#privacidad-seccion-11" (click)="goTo($event, 'privacidad-seccion-11')">11. Cookies y medición del sitio</a>
     </nav>
 
     <section class="legal-page__section">
@@ -166,6 +167,25 @@
         Si eres socio de un gimnasio y quieres acceder a tus datos, corregirlos o pedir su eliminación, dirígete primero a
         tu gimnasio, que es el responsable de ellos. Si nos escribes a nosotros, derivaremos tu solicitud al gimnasio y te
         ayudaremos a que la pueda responder.
+      </p>
+    </section>
+
+    <section class="legal-page__section">
+      <h2 id="privacidad-seccion-11">11. Cookies y medición del sitio</h2>
+      <p>
+        En las páginas públicas (inicio, preguntas frecuentes, privacidad y folleto) usamos Google Analytics y Microsoft
+        Clarity para entender cómo se usa el sitio y mejorarlo. Estas herramientas instalan cookies en tu navegador y
+        registran datos como las páginas que visitas, tu país, tu dispositivo, cómo navegas y tus clics. Los campos de
+        formularios se enmascaran y no se graban.
+      </p>
+      <p>
+        No medimos dentro de la aplicación de socios ni del panel de administración, no usamos estos datos para publicidad
+        y no los vendemos.
+      </p>
+      <p>
+        <strong>Cómo dejar de ser medido:</strong> puedes bloquear las cookies desde la configuración de tu navegador,
+        instalar el complemento de inhabilitación de Google Analytics, o escribirnos a
+        <a [href]="'mailto:' + contact.email()">{{ contact.email() }}</a> y te explicamos cómo hacerlo.
       </p>
     </section>
   </div>

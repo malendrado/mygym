@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Disallow: /member
+Disallow: /gym-admin
+Disallow: /admin
+Disallow: /activar/
+Disallow: /guia/
+Disallow: /checkin/
+Disallow: /tv
+
+Sitemap: https://www.mygym.cl/sitemap.xml

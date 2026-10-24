@@ -2,6 +2,11 @@ import { Injectable, signal } from '@angular/core';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// gtag lo carga public/ga.js solo en páginas públicas; si no está (bloqueador, otra ruta) no pasa nada.
+function trackLead(method: 'form' | 'whatsapp'): void {
+  (window as unknown as { gtag?: (...args: unknown[]) => void }).gtag?.('event', 'generate_lead', { method });
+}
+
 /**
  * Estado y envío del formulario de contacto. Se provee en `Landing` (no en root) para que, igual
  * que antes, el estado nazca y muera con la página: si el modal quedó abierto y se navega a otra
@@ -22,6 +27,10 @@ export class ContactModalService {
   readonly focusRequest = signal(0);
 
   private lastFocusedElement: HTMLElement | null = null;
+
+  trackWhatsapp(): void {
+    trackLead('whatsapp');
+  }
 
   open(message = ''): void {
     this.lastFocusedElement = document.activeElement as HTMLElement | null;
@@ -88,6 +97,7 @@ export class ContactModalService {
       }
 
       this.isSubmitted.set(true);
+      trackLead('form');
     } catch (error) {
       console.error('No se pudo enviar el formulario de contacto', error);
       this.submitError.set(
