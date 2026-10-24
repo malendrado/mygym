@@ -24,6 +24,7 @@ import {
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { InstallBanner } from './install-banner/install-banner';
+import { GymLoader } from '../../core/components/gym-loader/gym-loader';
 import { GymPause } from '../../core/components/gym-pause/gym-pause';
 import { GymPauseService } from '../../core/services/gym-pause.service';
 import { PushBell } from '../../core/components/push-bell/push-bell';
@@ -413,6 +414,7 @@ function clockLabel(ms: number): string {
     IonSegment,
     IonSegmentButton,
     IonSkeletonText,
+    GymLoader,
     IonLabel,
     IonInput,
     IonItem,
@@ -471,6 +473,7 @@ export class MemberPage {
   // Esqueleto único de la pestaña "Reserva tu clase" (respeta reduced-motion).
   protected readonly skeletonAnimated = !(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false);
   protected readonly skeletonCells = [0, 1, 2, 3, 4, 5, 6];
+  protected readonly loaderTips = ['Calentando motores…', 'Cargando las pesas…', 'Una serie más y listo…'] as const;
 
   // "Ahora" con hora incluida, en la zona horaria del gym (America/Santiago), no en la del
   // navegador del socio — un `new Date().toISOString()` corta a UTC y puede quedar un día

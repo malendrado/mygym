@@ -96,6 +96,14 @@
 // cientos de px) y las tarjetas de plan/clase se ven vacías por dentro.
 // Mismo criterio que .login-card/.join-card (tarjeta centrada, no full-bleed
 // en pantallas anchas), reportado por el usuario probando en su Chrome real.
+// Carga inicial: el loader con logo y pesa va centrado en toda la pantalla (como el panel del admin).
+.member-boot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
 .member-page {
   max-width: 480px;
   margin: 0 auto;

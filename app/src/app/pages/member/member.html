@@ -27,10 +27,8 @@
   <ion-header>
     <ion-toolbar><ion-title>mygym</ion-title></ion-toolbar>
   </ion-header>
-  <ion-content class="ion-padding member-content">
-    <div class="member-page">
-      <ng-container *ngTemplateOutlet="loadingSkeleton"></ng-container>
-    </div>
+  <ion-content class="ion-padding member-content member-boot">
+    <app-gym-loader message="Abriendo tu gimnasio…" [tips]="loaderTips" />
   </ion-content>
 } @else {
   <ion-header
