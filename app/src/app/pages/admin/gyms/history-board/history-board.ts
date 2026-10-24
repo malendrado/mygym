@@ -175,7 +175,19 @@ export class HistoryBoard {
   private readonly anchor = signal(this.today);
   protected readonly selectedDate = signal(this.today);
   // Franja horaria: abre en la de AHORA (igual que el filtro de Horarios); "Todas" = null.
-  protected readonly selectedBand = signal<TimeBand | null>(timeBandOf(santiagoNow().time));
+  // undefined = nadie ha tocado el filtro: se usa la franja de AHORA, salvo que ese día no tenga clases en ella pero sí en otra
+  // (ej. sábado a las 20:00 con una sola clase a las 10:00): ahí abre en "Todas" en vez de mostrar "No hay clases de tarde".
+  private readonly chosenBand = signal<TimeBand | null | undefined>(undefined);
+  protected readonly selectedBand = computed<TimeBand | null>(() => {
+    const chosen = this.chosenBand();
+    if (chosen !== undefined) {
+      return chosen;
+    }
+    this.occurrencesByKey();
+    const auto = timeBandOf(santiagoNow().time);
+    const dayBlocks = this.blocksOn(this.selectedDate());
+    return dayBlocks.length > 0 && !dayBlocks.some((b) => timeBandOf(b.startTime) === auto) ? null : auto;
+  });
   protected readonly bandOptions = TIME_BAND_OPTIONS;
   protected readonly bandAllHint = TIME_BAND_ALL_HINT;
   protected readonly loading = signal(false);
@@ -434,7 +446,7 @@ export class HistoryBoard {
   // ---- navegación ----
 
   protected selectBand(band: TimeBand | null): void {
-    this.selectedBand.set(band);
+    this.chosenBand.set(band);
   }
 
   protected selectDay(date: string): void {

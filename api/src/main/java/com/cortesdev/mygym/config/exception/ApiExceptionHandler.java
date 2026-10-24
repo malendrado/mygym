@@ -79,7 +79,7 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     // Opcional (setter) para no cambiar el constructor: las pruebas crean el manejador con `new ApiExceptionHandler()`.
     private EmailOwnerDescriber emailOwnerDescriber;
 
-    @Autowired
+    @Autowired(required = false)
     void setEmailOwnerDescriber(EmailOwnerDescriber emailOwnerDescriber) {
         this.emailOwnerDescriber = emailOwnerDescriber;
     }

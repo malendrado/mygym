@@ -31,6 +31,16 @@ const VIEWPORT_MARGIN = 16;
 // reinicia un timer corto en cada evento — "asentado" es cuando pasan SETTLE_QUIET_MS sin
 // ningún scroll más, sin importar cuánto haya tardado. SETTLE_MAX_WAIT_MS es solo una red de
 // seguridad absoluta por si algo generara scroll continuo para siempre.
+/**
+ * Distancia desde el borde INFERIOR de la ventana a la que se ancla la tarjeta cuando va "arriba" del recorte. El tope tiene que
+ * restar la altura de la tarjeta: con un elemento más alto que la ventana (ej. la paleta de "Mi marca", 892 px en una ventana de
+ * 709) la tarjeta quedaba fuera de pantalla, con "Siguiente" y "Saltar" inalcanzables, y el usuario atrapado en el tour.
+ */
+export function bottomForCardAbove(spotlightTop: number, viewportHeight: number, cardHeight: number): number {
+  const wanted = viewportHeight - spotlightTop + CARD_GAP;
+  return Math.max(Math.min(wanted, viewportHeight - cardHeight - VIEWPORT_MARGIN), VIEWPORT_MARGIN);
+}
+
 const SETTLE_QUIET_MS = 120;
 const SETTLE_MAX_WAIT_MS = 3000;
 
@@ -278,12 +288,8 @@ export class TourOverlay {
       );
       this.cardStyle.set({ top: `${Math.max(top, VIEWPORT_MARGIN)}px`, left: `${left}px` });
     } else {
-      const bottom = Math.min(
-        window.innerHeight - spotlight.top + CARD_GAP,
-        window.innerHeight - VIEWPORT_MARGIN,
-      );
       this.cardStyle.set({
-        bottom: `${Math.max(bottom, cardHeight + VIEWPORT_MARGIN)}px`,
+        bottom: `${bottomForCardAbove(spotlight.top, window.innerHeight, cardHeight)}px`,
         left: `${left}px`,
       });
     }

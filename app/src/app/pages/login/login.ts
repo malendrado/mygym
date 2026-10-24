@@ -158,6 +158,26 @@ export class Login {
     });
   }
 
+  // Ionic deja la página de login viva en su pila al navegar al portal: tras "Salir" vuelve la MISMA instancia, con
+  // showWelcome/signingIn todavía en true del ingreso anterior ("Estamos abriendo tu portal..." para siempre, sin
+  // formulario). El constructor solo corre la primera vez; ionViewWillEnter corre en cada visita.
+  ionViewWillEnter(): void {
+    const current = this.authService.currentUser();
+    if (current) {
+      this.router.navigateByUrl(homeRouteForRole(current.role));
+      return;
+    }
+    this.clearTimeout();
+    this.loggedIn = false;
+    this.signingIn.set(false);
+    this.showWelcome.set(false);
+    this.passwordSubmitting.set(false);
+    this.errorMessage.set(null);
+    this.loginPassword.set('');
+    this.passwordVisible.set(false);
+    this.mode.set(this.route.snapshot.queryParamMap.get('mode') === 'forgot' ? 'forgot' : 'google');
+  }
+
   protected setMode(mode: LoginMode): void {
     this.mode.set(mode);
     this.errorMessage.set(null);
