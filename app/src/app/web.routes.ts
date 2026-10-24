@@ -4,7 +4,7 @@ import { authGuard, roleGuard } from './core/guards/auth.guard';
 export const webRoutes: Routes = [
   {
     path: '',
-    title: 'mygym — Gestiona tu gimnasio sin la planilla de Excel',
+    title: 'mygym | Software para gimnasios: reservas, membresías y pagos',
     loadComponent: () => import('./pages/landing/landing').then((m) => m.Landing),
   },
   {
